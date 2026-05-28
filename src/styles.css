@@ -1,0 +1,247 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap");
+
+@source "../src";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-demo: var(--demo);
+  --color-demo-foreground: var(--demo-foreground);
+  --color-demo-muted: var(--demo-muted);
+  --font-display: "Archivo Black", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+:root {
+  --radius: 0.625rem;
+  --background: oklch(0.985 0.005 90);
+  --foreground: oklch(0.16 0.02 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.16 0.02 260);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.16 0.02 260);
+  --primary: oklch(0.16 0.02 260);
+  --primary-foreground: oklch(0.985 0.005 90);
+  --secondary: oklch(0.94 0.01 90);
+  --secondary-foreground: oklch(0.16 0.02 260);
+  --muted: oklch(0.95 0.008 90);
+  --muted-foreground: oklch(0.45 0.02 260);
+  --accent: oklch(0.55 0.2 28);
+  --accent-foreground: oklch(0.985 0.005 90);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.88 0.01 90);
+  --input: oklch(0.88 0.01 90);
+  --ring: oklch(0.55 0.2 28);
+  --demo: oklch(0.78 0.16 75);
+  --demo-foreground: oklch(0.25 0.05 60);
+  --demo-muted: oklch(0.97 0.05 85);
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.129 0.042 264.695);
+  --sidebar-primary: oklch(0.208 0.042 265.755);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.968 0.007 247.896);
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.704 0.04 256.788);
+}
+
+.dark {
+  --background: oklch(0.129 0.042 264.695);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.208 0.042 265.755);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.208 0.042 265.755);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.929 0.013 255.508);
+  --primary-foreground: oklch(0.208 0.042 265.755);
+  --secondary: oklch(0.279 0.041 260.031);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.279 0.041 260.031);
+  --muted-foreground: oklch(0.704 0.04 256.788);
+  --accent: oklch(0.279 0.041 260.031);
+  --accent-foreground: oklch(0.984 0.003 247.858);
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.551 0.027 264.364);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.208 0.042 265.755);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-accent: oklch(0.279 0.041 260.031);
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.551 0.027 264.364);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01";
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer base {
+  /* Garante cursor de mão em qualquer elemento interativo, mesmo quando
+     componentes customizados esquecem de aplicar cursor-pointer. */
+  button:not(:disabled),
+  a[href],
+  summary,
+  label[for],
+  select:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="link"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="option"],
+  [role="checkbox"],
+  [role="radio"],
+  [role="switch"],
+  [data-clickable],
+  [data-state][data-radix-collection-item] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
+
+  /* Destaque visual padrão: qualquer botão sem estilo customizado de fundo
+     ganha uma borda sutil + transição, distinguindo-o de painéis estáticos. */
+  button:not([class*="bg-"]):not([class*="border"]):not(:disabled):not([data-flat]) {
+    border: 1px solid color-mix(in oklch, var(--color-border) 80%, transparent);
+    border-radius: var(--radius-md);
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  }
+  button:not([class*="bg-"]):not([class*="border"]):not(:disabled):not([data-flat]):hover {
+    background-color: color-mix(in oklch, var(--color-accent) 8%, transparent);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  /* Realce sutil em foco para acessibilidade em todos clicáveis. */
+  button:focus-visible,
+  a:focus-visible,
+  [role="button"]:focus-visible,
+  [role="tab"]:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  /* Diferenciação global entre painéis estáticos e elementos clicáveis.
+     Padrão escolhido: sombra sutil + leve elevação no hover (Linear/Vercel/Stripe).
+     Aplica-se a links (a[href]) e [role=button] que pareçam cards (rounded+border),
+     sem alterar a largura da borda. Painéis sem link continuam flat. */
+  a[href][class*="rounded"][class*="border"]:not([data-flat]),
+  [role="button"][class*="rounded"][class*="border"]:not(:disabled):not([data-flat]) {
+    box-shadow: 4px 4px 1px 0 color-mix(in oklch, var(--color-foreground) 12%, transparent);
+    transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
+  }
+  a[href][class*="rounded"][class*="border"]:not([data-flat]):hover,
+  [role="button"][class*="rounded"][class*="border"]:not(:disabled):not([data-flat]):hover {
+    box-shadow: 7px 7px 12px -2px color-mix(in oklch, var(--color-foreground) 14%, transparent),
+                4px 4px 1px 0 color-mix(in oklch, var(--color-foreground) 8%, transparent);
+    transform: translateY(-2px);
+  }
+  a[href][class*="rounded"][class*="border"]:not([data-flat]):active,
+  [role="button"][class*="rounded"][class*="border"]:not(:disabled):not([data-flat]):active {
+    box-shadow: 1px 1px 0 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+    transform: translateY(1px);
+  }
+
+  /* Botões "nus" (sem bg/border custom): mesma linguagem de sombra sutil + lift,
+     para se diferenciarem de painéis estáticos sem ficar pesados. */
+  button:not([class*="bg-"]):not([class*="border"]):not(:disabled):not([data-flat]) {
+    box-shadow: 4px 4px 1px 0 color-mix(in oklch, var(--color-foreground) 12%, transparent);
+  }
+  button:not([class*="bg-"]):not([class*="border"]):not(:disabled):not([data-flat]):hover {
+    box-shadow: 6px 6px 10px -2px color-mix(in oklch, var(--color-foreground) 14%, transparent),
+                4px 4px 1px 0 color-mix(in oklch, var(--color-foreground) 8%, transparent);
+    transform: translateY(-1px);
+  }
+  button:not([class*="bg-"]):not([class*="border"]):not(:disabled):not([data-flat]):active {
+    box-shadow: 1px 1px 0 0 color-mix(in oklch, var(--color-foreground) 14%, transparent);
+    transform: translateY(1px);
+  }
+}

@@ -1,0 +1,1 @@
+ALTER TABLE public.transferegov_emendas_cache ADD COLUMN IF NOT EXISTS codigo_emenda TEXT; CREATE INDEX IF NOT EXISTS idx_emendas_codigo_emenda ON public.transferegov_emendas_cache(codigo_emenda);

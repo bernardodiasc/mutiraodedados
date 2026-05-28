@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /minhas-marcacoes
+Disallow: /login
+
+Sitemap: https://auditoriacidada.ia.br/sitemap.xml

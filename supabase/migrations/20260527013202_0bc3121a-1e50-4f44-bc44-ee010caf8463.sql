@@ -1,0 +1,1 @@
+UPDATE public.roadmap_itens SET status = 'concluido', concluido_em = CURRENT_DATE WHERE id = '6af925c6-c7c5-498d-8769-e7e319933f23';

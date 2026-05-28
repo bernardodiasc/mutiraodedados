@@ -1,0 +1,2 @@
+ALTER TABLE public.transferegov_instrumentos_cache ADD COLUMN IF NOT EXISTS codigo_siconv text;
+CREATE INDEX IF NOT EXISTS idx_tg_codigo_siconv ON public.transferegov_instrumentos_cache(codigo_siconv);

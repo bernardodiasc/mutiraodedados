@@ -1,0 +1,30 @@
+# Auditoria Cidadã
+
+> Observatório cívico brasileiro que organiza, compara e contextualiza gastos federais, contratos públicos e atividade parlamentar para o controle social.
+
+A plataforma reúne dados do Portal da Transparência (CGU), PNCP, SICONFI, Transferegov, Câmara dos Deputados e Senado Federal. Sinaliza anomalias em contratos e despesas, sempre como ponto de partida para investigação — não como acusação.
+
+## Páginas
+
+- [Início](/): visão geral do observatório, principais sinais e órgãos cobertos.
+- [Anomalias](/anomalias): padrões fora do esperado em contratos federais, com severidade e checklist de investigação.
+- [Órgãos federais](/orgaos): ministérios e autarquias cobertos, totais contratados e status de fontes.
+- [Congresso](/congresso): atividade parlamentar consolidada de Câmara e Senado.
+- [Câmara](/camara): deputados, proposições e votações nominais.
+- [Senado](/senado): senadores, matérias e votações.
+- [PNCP](/pncp): contratações públicas via Portal Nacional de Contratações Públicas.
+- [SICONFI](/siconfi): relatórios fiscais (RREO, RGF, DCA) de União, estados e municípios.
+- [Transferências](/transferencias): convênios e contratos de repasse via Transferegov.
+- [Buscar](/buscar): busca unificada em contratos, fornecedores e órgãos.
+- [Explorar](/explorar): exploração livre dos dados por filtro.
+- [Aprender](/aprender): guia cidadão sobre LAI, Lei da Transparência, Lei de Licitações e como denunciar irregularidades.
+- [Metodologia](/metodologia): regras de detecção, parâmetros, limites e falsos-positivos.
+- [Sobre](/sobre): premissas, limites analíticos e responsabilidades editoriais.
+- [Contestar dado](/contestar): canal para correção factual, dado desatualizado ou exposição indevida.
+- [Transparência institucional](/transparencia-institucional): como o próprio projeto presta contas.
+
+## Optional
+
+- [Privacidade](/privacidade): política de privacidade.
+- [Termos](/termos): termos de uso.
+- [Tratamento de dados](/tratamento-de-dados): bases legais e finalidades de tratamento.

@@ -1,0 +1,1 @@
+ALTER TABLE public.importacoes ADD COLUMN IF NOT EXISTS endpoint text;

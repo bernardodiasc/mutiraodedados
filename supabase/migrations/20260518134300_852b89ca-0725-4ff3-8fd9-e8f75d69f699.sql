@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.promote_admin_on_signup() FROM PUBLIC, anon, authenticated;
