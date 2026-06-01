@@ -23,6 +23,10 @@ export type QaFinding = {
   valor_armazenado?: number | null;
   valor_esperado?: number | null;
   detalhes?: Record<string, unknown>;
+  /** Default: 'heuristica'. Use 'auto_correcao' quando o ingest auto-corrigir. */
+  origem?: string;
+  /** Default: 'aberto'. Use 'corrigido_origem' p/ findings já resolvidos no ingest. */
+  status?: string;
 };
 
 // -------------------------------------------------------------
@@ -353,11 +357,12 @@ export async function flagQA(findings: QaFinding[]): Promise<number> {
           entidade_id: f.entidade_id,
           regra: f.regra,
           severidade: f.severidade,
-          origem: "heuristica",
+          origem: f.origem ?? "heuristica",
           valor_armazenado: f.valor_armazenado ?? null,
           valor_esperado: f.valor_esperado ?? null,
           detalhes: (f.detalhes ?? {}) as never,
-          status: "aberto",
+          status: f.status ?? "aberto",
+          resolvido_em: f.status === "corrigido_origem" ? new Date().toISOString() : null,
         })),
       );
       if (!error) inseridos += novos.length;

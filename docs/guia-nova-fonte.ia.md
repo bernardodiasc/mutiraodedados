@@ -1,0 +1,67 @@
+# Guia técnico: adicionar nova fonte
+
+## Estrutura mínima
+
+```
+src/lib/data/<fonte>/
+  ingest.functions.ts      // server fn de importação (admin-only)
+  queries.functions.ts     // server fns de leitura para páginas públicas
+  types.ts                 // tipos do domínio dessa fonte
+```
+
+## ingest.functions.ts — esqueleto
+
+1. `createServerFn({ method: 'POST' })` + `.middleware([requireSupabaseAuth])`.
+2. `inputValidator` com Zod validando datas, UF, IBGE.
+3. `await ensureAdmin(context.userId)`.
+4. Loop de paginação respeitando `dentroDaJanela` de `janelas.ts`.
+5. Cliente HTTP: reusar `portalGet` se a fonte for compatível CGU; senão criar wrapper com retries (3 tentativas, backoff 500/1500/4500ms, retry em 429/5xx).
+6. Parse: usar `parseValorPortal` para valores BR; datas via helper `isoDate`/`brDate`.
+7. Sanitização: `sanitizarTextoPublico` em todo campo livre antes do upsert.
+8. Upsert em lotes de 200 em `<fonte>_<entidade>_cache`.
+9. Log em `importacoes` (uma linha por requisição feita).
+10. `flagQA(regrasNovaFonte(rows))` ao final do lote.
+
+## Tabela de cache — padrão
+
+- `id` PK (natural ou composto).
+- `updated_at timestamptz default now()`.
+- Campos derivados (UF, código IBGE, esfera) normalizados.
+- `GRANT SELECT ... TO anon, authenticated`; `GRANT ALL ... TO service_role`.
+- RLS enabled; policy `SELECT` `using (true)`; sem policy de write.
+
+## Regras de QA
+
+Em `src/lib/data/qa.ts`, exportar `regras<NovaFonte>(rows)` retornando `QaFinding[]`. Padrões a verificar:
+
+- Valores zerados ou negativos onde não deveriam.
+- Datas absurdas (futuro > 5 anos, passado < 1988).
+- Inconsistência entre campos relacionados (ex: valor_global < valor_repasse).
+
+## Janela
+
+Adicionar entrada em `ANO_INICIO_POR_FONTE` em `src/lib/data/janelas.ts`. Tipo `FonteJanela` precisa do novo literal.
+
+## Cobertura
+
+Em `src/lib/data/cobertura-jobs.ts`, registrar a função de ingestão e a tabela-alvo. Em `cobertura-publica.functions.ts`, incluir contagem.
+
+## Limpeza
+
+Em `src/lib/data/limpeza.ts`, catalogar entrada de reset seletivo.
+
+## QA canais
+
+Em `src/lib/data/qa-canais.ts`, adicionar canal oficial de denúncia para essa fonte.
+
+## Admin UI
+
+`src/components/AdminImportPanel.tsx` precisa receber form/botão para a nova fonte. Seguir o padrão das fontes existentes (intervalo de datas + filtros opcionais).
+
+## Rota pública
+
+Criar `src/routes/<dominio>.tsx` (ou rota dinâmica). `head()` obrigatório com title/description/og próprios. `loader` chama `queries.functions.ts` da nova fonte via TanStack Query.
+
+## Tipos
+
+Após a migration ser aplicada, `src/integrations/supabase/types.ts` é regenerado automaticamente — não editar à mão.

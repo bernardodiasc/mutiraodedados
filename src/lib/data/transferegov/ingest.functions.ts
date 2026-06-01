@@ -3,134 +3,27 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { regrasTransferegov, flagQA } from "@/lib/data/qa";
+import { regrasTransferegov, flagQA, type QaFinding } from "@/lib/data/qa";
+import {
+  parseValorPortal,
+  portalGet,
+  valorPortalSuspeito,
+  corrigirComDetalhe,
+} from "@/lib/data/real/portal-client";
 
 /**
- * Transferegov / Convênios — utiliza o endpoint /convenios do Portal da
- * Transparência (CGU) que consolida instrumentos do SICONV/Transferegov
- * entre União ↔ Estados/Municípios. Reaproveita PORTAL_TRANSPARENCIA_API_KEY.
+ * Transferegov / Convênios — usa o endpoint /convenios do Portal da
+ * Transparência (CGU). Toda a parte de HTTP, parser de valor e
+ * verificação-por-detalhe vive em `portal-client.ts`, compartilhada
+ * com o ingest de contratos. Aqui ficam só os shapes de convênio e o
+ * mapeamento → linhas do cache.
  */
-const BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
-
-import { parseValorPortal } from "@/lib/data/real/portal.functions";
-
-/**
- * O endpoint /convenios (listagem) do Portal da Transparência sofre do
- * mesmo bug de escala do /contratos: valores monetários vêm
- * ~10.000× menores que o real (ex.: 38.0 em vez de 380.000,00).
- * O endpoint /convenios/id (detalhe) devolve o valor correto.
- *
- * Quando o valor parseado da listagem for suspeito (< 10.000), fazemos
- * uma chamada extra ao detalhe pra confirmar/corrigir antes de gravar
- * no cache.
- */
-function valorConvenioPrecisaDetalhe(valor: number): boolean {
-  return valor > 0 && valor < 10_000;
-}
 
 type ConvenioDetalhe = {
   valor?: number | string;
   valorLiberado?: number | string;
   valorContrapartida?: number | string;
 };
-
-async function corrigirValoresConvenioSeSuspeito(
-  id: string,
-  valorGlobal: number,
-  valorRepasse: number,
-  valorContrapartida: number,
-): Promise<{
-  valor_global: number;
-  valor_repasse: number;
-  valor_contrapartida: number;
-  /** false = não conseguimos confirmar via detalhe; chamador deve pular o upsert. */
-  ok: boolean;
-}> {
-  const algumSuspeito =
-    valorConvenioPrecisaDetalhe(valorGlobal) ||
-    valorConvenioPrecisaDetalhe(valorRepasse) ||
-    valorConvenioPrecisaDetalhe(valorContrapartida);
-  if (!algumSuspeito) {
-    return {
-      valor_global: valorGlobal,
-      valor_repasse: valorRepasse,
-      valor_contrapartida: valorContrapartida,
-      ok: true,
-    };
-  }
-  // Várias tentativas com backoff exponencial — o /convenios/id é a fonte de
-  // verdade quando a listagem vem com a escala errada (~10000×). Se TODAS as
-  // tentativas falharem (rate-limit etc.), devolvemos ok=false e o chamador
-  // PULA esse registro — preferimos não importar a importar valor errado.
-  for (let attempt = 0; attempt < 5; attempt++) {
-    try {
-      const det = (await portalGet("/convenios/id", { id })) as ConvenioDetalhe;
-      const g = parseValorPortal(det.valor);
-      const r = parseValorPortal(det.valorLiberado);
-      const c = parseValorPortal(det.valorContrapartida);
-      return {
-        valor_global: g > 0 ? g : valorGlobal,
-        valor_repasse: r > 0 ? r : valorRepasse,
-        valor_contrapartida: c > 0 ? c : valorContrapartida,
-        ok: true,
-      };
-    } catch (e) {
-      const msg = (e as Error).message ?? "";
-      // Só vale a pena re-tentar se for transitório (rate-limit/5xx/rede).
-      const transient = msg.startsWith("TRANSIENT");
-      if (!transient || attempt === 4) {
-        return {
-          valor_global: valorGlobal,
-          valor_repasse: valorRepasse,
-          valor_contrapartida: valorContrapartida,
-          ok: false,
-        };
-      }
-      // Backoff: 500ms, 1s, 2s, 4s
-      await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
-    }
-  }
-  return {
-    valor_global: valorGlobal,
-    valor_repasse: valorRepasse,
-    valor_contrapartida: valorContrapartida,
-    ok: false,
-  };
-}
-
-async function portalGet(path: string, params: Record<string, string>): Promise<unknown> {
-  const key = process.env.PORTAL_TRANSPARENCIA_API_KEY;
-  if (!key) throw new Error("PORTAL_TRANSPARENCIA_API_KEY não configurada.");
-  const qs = new URLSearchParams(params).toString();
-  const url = `${BASE}${path}?${qs}`;
-  const headers = {
-    "chave-api-dados": key,
-    accept: "application/json",
-    "user-agent": "AuditoriaCidada/1.0",
-  };
-  let lastErr: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch(url, { headers });
-    } catch (e) {
-      lastErr = new Error(`TRANSIENT: Portal indisponível (rede): ${(e as Error).message}`);
-      if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
-      continue;
-    }
-    if (res.ok) return res.json();
-    const transient = res.status >= 500 || res.status === 429;
-    const body = await res.text().catch(() => "");
-    const snippet = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
-    const msg = transient
-      ? `TRANSIENT: Portal ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
-      : `Portal API ${res.status}: ${snippet}`;
-    lastErr = new Error(msg);
-    if (!transient) throw lastErr;
-    if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
-  }
-  throw lastErr ?? new Error("TRANSIENT: Portal indisponível");
-}
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -305,34 +198,69 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
         })
         .filter((r): r is NonNullable<typeof r> => r !== null);
 
-      // Corrige valores suspeitos chamando o endpoint /convenios/id em série.
-      // Throttle ~8 req/s pra ficar bem abaixo do limite (700 req/min ≈ 11/s).
-      // Se a chamada de detalhe falhar todas as tentativas, descartamos o
-      // registro do upsert — preferimos não importar a importar valor errado.
+      // Para cada linha, se algum valor estiver abaixo do limiar de
+      // suspeita (< R$100), chamamos /convenios/id pra confirmar.
+      // Se o detalhe confirmar a listagem → nada a fazer. Se o detalhe
+      // diferir em >5% → corrigimos e emitimos QA finding de auto-
+      // correção. Se TODAS as tentativas de detalhe falharem,
+      // pulamos o registro (preferimos não importar a importar errado).
       const rowsValidados: typeof rows = [];
+      const findingsAutoCorrecao: QaFinding[] = [];
       let pulados = 0;
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        const consultouDetalhe =
-          valorConvenioPrecisaDetalhe(r.valor_global) ||
-          valorConvenioPrecisaDetalhe(r.valor_repasse) ||
-          valorConvenioPrecisaDetalhe(r.valor_contrapartida);
-        const corrigido = await corrigirValoresConvenioSeSuspeito(
-          r.id,
-          r.valor_global,
-          r.valor_repasse,
-          r.valor_contrapartida,
-        );
-        if (!corrigido.ok) {
+      for (const r of rows) {
+        const algumSuspeito =
+          valorPortalSuspeito(r.valor_global) ||
+          valorPortalSuspeito(r.valor_repasse) ||
+          valorPortalSuspeito(r.valor_contrapartida);
+        const res = await corrigirComDetalhe({
+          id: r.id,
+          endpointDetalhe: "/convenios/id",
+          valoresLista: {
+            valor_global: r.valor_global,
+            valor_repasse: r.valor_repasse,
+            valor_contrapartida: r.valor_contrapartida,
+          },
+          extrairDoDetalhe: (det) => {
+            const d = det as ConvenioDetalhe;
+            return {
+              valor_global: parseValorPortal(d.valor),
+              valor_repasse: parseValorPortal(d.valorLiberado),
+              valor_contrapartida: parseValorPortal(d.valorContrapartida),
+            };
+          },
+        });
+        if (!res.ok) {
           pulados++;
           continue;
         }
-        r.valor_global = corrigido.valor_global;
-        r.valor_repasse = corrigido.valor_repasse;
-        r.valor_contrapartida = corrigido.valor_contrapartida;
+        r.valor_global = res.valores.valor_global;
+        r.valor_repasse = res.valores.valor_repasse;
+        r.valor_contrapartida = res.valores.valor_contrapartida;
+        if (res.corrigido && res.valoresOriginais) {
+          findingsAutoCorrecao.push({
+            fonte: "transferegov",
+            entidade_tipo: "instrumento",
+            entidade_id: r.id,
+            regra: "valor_corrigido_via_detalhe",
+            severidade: "aviso",
+            origem: "auto_correcao",
+            status: "corrigido_origem",
+            valor_armazenado: res.valoresOriginais.valor_global,
+            valor_esperado: r.valor_global,
+            detalhes: {
+              antes: res.valoresOriginais,
+              depois: {
+                valor_global: r.valor_global,
+                valor_repasse: r.valor_repasse,
+                valor_contrapartida: r.valor_contrapartida,
+              },
+              endpoint_detalhe: "/convenios/id",
+            },
+          });
+        }
         rowsValidados.push(r);
-        // Throttle apenas quando realmente consultamos o detalhe.
-        if (consultouDetalhe) {
+        // Throttle só quando realmente consultamos o detalhe (~8 req/s).
+        if (algumSuspeito) {
           await new Promise((r2) => setTimeout(r2, 125));
         }
       }
@@ -360,6 +288,9 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             })),
           ),
         );
+        if (findingsAutoCorrecao.length > 0) {
+          await flagQA(findingsAutoCorrecao);
+        }
       } catch {
         // ignora erros de QA
       }

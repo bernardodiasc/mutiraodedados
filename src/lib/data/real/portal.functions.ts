@@ -6,9 +6,18 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { FONTES_LIMPEZA, FONTE_IDS } from "@/lib/data/limpeza";
-import { regrasCgu, flagQA, type CguContratoLike } from "@/lib/data/qa";
+import { regrasCgu, flagQA, type CguContratoLike, type QaFinding } from "@/lib/data/qa";
+import {
+  parseValorPortal,
+  portalGet,
+  valorPortalSuspeito,
+  corrigirComDetalhe,
+} from "@/lib/data/real/portal-client";
 
-const BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
+// Re-export para compatibilidade (testes e código legado importam daqui).
+export { parseValorPortal };
+export const valorCguListagemPrecisaDetalhe = (vi: number, vf: number) =>
+  valorPortalSuspeito(vf > 0 ? vf : vi);
 
 type PortalContrato = {
   id?: number | string;
@@ -30,67 +39,6 @@ type PortalContrato = {
   };
 };
 
-/**
- * Campos monetários da API da CGU. Preservamos como string para que
- * `117560.3000` ainda chegue ao parser com as casas decimais originais.
- */
-const CAMPOS_NUMERICOS_BR = [
-  "valorInicialCompra",
-  "valorFinalCompra",
-  "valor",
-  "valorContratado",
-  "valorEmpenhado",
-  "valorLiquidado",
-  "valorPago",
-];
-
-function preservarNumerosBR(jsonText: string): string {
-  let out = jsonText;
-  for (const campo of CAMPOS_NUMERICOS_BR) {
-    // Captura "<campo>": <numero> e troca por "<campo>": "<numero>"
-    const re = new RegExp(`"${campo}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`, "g");
-    out = out.replace(re, `"${campo}":"$1"`);
-  }
-  return out;
-}
-
-/**
- * Converte um valor monetário do Portal para Number.
- *
- * Regra única (CGU usa o mesmo formato em /contratos e /contratos/id):
- * - Decimal americano: "600000.0000" => 600000; "1130608.9200" => 1130608.92;
- *   "117560.30" => 117560.30; "260000.0" => 260000.
- * - pt-BR textual (raro, em campos livres): "1.410.723,60" => 1410723.6;
- *   "1.410.723" (milhar sem centavos) => 1410723.
- *
- * Havendo vírgula, ela é o separador decimal e qualquer ponto é milhar.
- * Sem vírgula, ponto é decimal. NÃO existe regra de "×10.000": valores
- * como "60.0000" significam literalmente 60 (e não 600.000).
- */
-export function parseValorPortal(v: unknown): number {
-  if (typeof v === "number") return v;
-  if (typeof v !== "string") return 0;
-  const s = v.trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
-  if (!s) return 0;
-  let normalizado: string;
-  if (s.includes(",")) {
-    normalizado = s.replace(/\./g, "").replace(",", ".");
-  } else {
-    const partes = s.split(".");
-    if (partes.length === 1) {
-      normalizado = s;
-    } else if (partes.length === 2) {
-      // Um único ponto: decimal (qualquer número de casas).
-      normalizado = s;
-    } else {
-      // Múltiplos pontos: separadores de milhar pt-BR ("1.410.723").
-      normalizado = s.replace(/\./g, "");
-    }
-  }
-  const n = Number(normalizado);
-  return Number.isFinite(n) ? n : 0;
-}
-
 export function normalizarValoresCguListagem(rawInicial: unknown, rawFinal: unknown) {
   return {
     valorInicial: parseValorPortal(rawInicial),
@@ -98,67 +46,32 @@ export function normalizarValoresCguListagem(rawInicial: unknown, rawFinal: unkn
   };
 }
 
-export function valorCguListagemPrecisaDetalhe(valorInicial: number, valorFinal: number): boolean {
-  const valor = valorFinal > 0 ? valorFinal : valorInicial;
-  return valor > 0 && valor < 10_000;
-}
-
 async function normalizarValoresCguComDetalheQuandoSuspeito(
   id: string,
   rawInicial: unknown,
   rawFinal: unknown,
-): Promise<{ valorInicial: number; valorFinal: number; corrigidoPorDetalhe: boolean }> {
+): Promise<{ valorInicial: number; valorFinal: number; corrigidoPorDetalhe: boolean; valorInicialAntes?: number; valorFinalAntes?: number }> {
   const lista = normalizarValoresCguListagem(rawInicial, rawFinal);
-  if (!valorCguListagemPrecisaDetalhe(lista.valorInicial, lista.valorFinal)) {
-    return { ...lista, corrigidoPorDetalhe: false };
-  }
-
-  const detalhe = (await portalGet("/contratos/id", { id })) as PortalContrato;
-  const revisado = normalizarValoresCguListagem(
-    detalhe.valorInicialCompra,
-    detalhe.valorFinalCompra,
-  );
-  const valorLista = lista.valorFinal > 0 ? lista.valorFinal : lista.valorInicial;
-  const valorDetalhe = revisado.valorFinal > 0 ? revisado.valorFinal : revisado.valorInicial;
-  if (
-    valorDetalhe > 0 &&
-    valorLista > 0 &&
-    Math.abs(valorDetalhe - valorLista) > Math.max(valorDetalhe, valorLista) * 0.05
-  ) {
-    return { ...revisado, corrigidoPorDetalhe: true };
-  }
-  return { ...lista, corrigidoPorDetalhe: false };
-}
-
-async function portalGet(path: string, params: Record<string, string>): Promise<unknown> {
-  const key = process.env.PORTAL_TRANSPARENCIA_API_KEY;
-  if (!key) throw new Error("PORTAL_TRANSPARENCIA_API_KEY não configurada no servidor.");
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`${BASE}${path}?${qs}`, {
-    headers: {
-      "chave-api-dados": key,
-      accept: "application/json",
-      "user-agent":
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
+  const r = await corrigirComDetalhe({
+    id,
+    endpointDetalhe: "/contratos/id",
+    valoresLista: { valorInicial: lista.valorInicial, valorFinal: lista.valorFinal },
+    extrairDoDetalhe: (det) => {
+      const d = det as PortalContrato;
+      return {
+        valorInicial: parseValorPortal(d.valorInicialCompra),
+        valorFinal: parseValorPortal(d.valorFinalCompra),
+      };
     },
   });
-  if (res.status === 403 || res.status === 401) throw new Error("Chave do Portal inválida ou sem permissão.");
-  if (res.status === 429) throw new Error("Limite de requisições atingido — aguarde alguns segundos.");
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`Portal API ${res.status}: ${body.slice(0, 200)}`);
-  }
-  const ct = res.headers.get("content-type") ?? "";
-  const text = await res.text();
-  if (!ct.includes("application/json")) {
-    throw new Error(`Portal respondeu não-JSON (${ct.slice(0, 40)}): ${text.slice(0, 160)}`);
-  }
-  try {
-    return JSON.parse(preservarNumerosBR(text));
-  } catch {
-    throw new Error(`Portal retornou JSON inválido: ${text.slice(0, 160)}`);
-  }
+  if (!r.ok) return { ...lista, corrigidoPorDetalhe: false };
+  return {
+    valorInicial: r.valores.valorInicial,
+    valorFinal: r.valores.valorFinal,
+    corrigidoPorDetalhe: r.corrigido,
+    valorInicialAntes: r.valoresOriginais?.valorInicial,
+    valorFinalAntes: r.valoresOriginais?.valorFinal,
+  };
 }
 
 function parseDate(br: string | undefined): string {
@@ -240,6 +153,7 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
     const valorInicialPorId = new Map<string, number>();
     const descartes = new Map<string, number>();
     const correcoesDetalhe: string[] = [];
+    const findingsAutoCorrecao: QaFinding[] = [];
     const addDescarte = (motivo: string) => {
       descartes.set(motivo, (descartes.get(motivo) ?? 0) + 1);
     };
@@ -263,12 +177,31 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
       const dataAssinatura = parseDate(raw.dataAssinatura);
       const ano = dataAssinatura ? Number(dataAssinatura.slice(0, 4)) : Number(data.dataInicial.slice(0, 4));
       const id = String(raw.id ?? `${data.codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`);
-      const { valorInicial, valorFinal, corrigidoPorDetalhe } = await normalizarValoresCguComDetalheQuandoSuspeito(
+      const { valorInicial, valorFinal, corrigidoPorDetalhe, valorInicialAntes, valorFinalAntes } = await normalizarValoresCguComDetalheQuandoSuspeito(
         id,
         raw.valorInicialCompra,
         raw.valorFinalCompra,
       );
-      if (corrigidoPorDetalhe) correcoesDetalhe.push(id);
+      if (corrigidoPorDetalhe) {
+        correcoesDetalhe.push(id);
+        findingsAutoCorrecao.push({
+          fonte: "cgu",
+          entidade_tipo: "contrato",
+          entidade_id: id,
+          regra: "valor_corrigido_via_detalhe",
+          severidade: "aviso",
+          origem: "auto_correcao",
+          status: "corrigido_origem",
+          valor_armazenado: valorFinalAntes ?? valorInicialAntes ?? 0,
+          valor_esperado: valorFinal > 0 ? valorFinal : valorInicial,
+          detalhes: {
+            antes: { valor_inicial: valorInicialAntes, valor_final: valorFinalAntes },
+            depois: { valor_inicial: valorInicial, valor_final: valorFinal },
+            endpoint_detalhe: "/contratos/id",
+            orgao_cod: data.codigoOrgao,
+          },
+        });
+      }
       if (valorInicial > 0) valorInicialPorId.set(id, valorInicial);
       const valor = valorFinal > 0 ? valorFinal : valorInicial;
 
@@ -336,6 +269,9 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
           orgao_cod: c.orgaoCod,
         }));
         await flagQA(regrasCgu(paraQa));
+        if (findingsAutoCorrecao.length > 0) {
+          await flagQA(findingsAutoCorrecao);
+        }
       } catch (e) {
         erros.push(`qa: ${(e as Error).message}`);
       }
@@ -361,7 +297,7 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
       erros: [...erros, ...avisosImportacao],
       consultado_em: consultadoEm,
       user_id: context.userId,
-      endpoint: `GET ${BASE}/contratos?codigoOrgao=${data.codigoOrgao}&dataInicial=${isoToBR(data.dataInicial)}&dataFinal=${isoToBR(data.dataFinal)}`,
+      endpoint: `GET https://api.portaldatransparencia.gov.br/api-de-dados/contratos?codigoOrgao=${data.codigoOrgao}&dataInicial=${isoToBR(data.dataInicial)}&dataFinal=${isoToBR(data.dataFinal)}`,
     });
 
     const orgaos: Orgao[] = [base];

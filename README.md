@@ -13,6 +13,10 @@ Produção: <https://auditoriacidada.ia.br>
 
 ## O que é
 
+> **Documentação completa em [`docs/`](./docs/README.md)** — arquitetura, fontes,
+> pipeline de importação, padrões de UI, guia para adicionar nova fonte e
+> conceitos do mundo real por trás dos dados.
+
 Auditoria Cidadã é um portal de **transparência de segunda ordem**: em vez de
 republicar dados crus, ele cruza, valida e contextualiza informações de fontes
 oficiais brasileiras — CGU (contratos), PNCP, Câmara/Senado (CEAP/CEAPS e
