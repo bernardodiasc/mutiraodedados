@@ -7,6 +7,7 @@ import {
   Bell,
   Bookmark,
   ShieldCheck,
+  HelpCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -18,7 +19,8 @@ export type AdminSection = {
     | "/admin/artigos"
     | "/admin/analises"
     | "/admin/sinais"
-    | "/admin/marcacoes";
+    | "/admin/marcacoes"
+    | "/admin/perguntas";
   label: string;
   description: string;
   icon: LucideIcon;
@@ -50,6 +52,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     label: "Marcações",
     description: "Curadoria de marcações e contestações da comunidade.",
     icon: Bookmark,
+  },
+  {
+    to: "/admin/perguntas",
+    label: "Perguntas",
+    description: "Modelos curados e moderação de investigações publicadas.",
+    icon: HelpCircle,
   },
   {
     to: "/admin/qualidade",

@@ -6,7 +6,9 @@ import { ExternalLink } from "lucide-react";
 import {
   listarQualidadePublico,
   agregadoQualidade,
+  STATUS_QA,
 } from "@/lib/data/qa.functions";
+import { REGRAS_QA } from "@/lib/admin-qualidade/logic";
 
 export const Route = createFileRoute("/qualidade")({
   component: QualidadePage,
@@ -53,6 +55,7 @@ const STATUS_LABEL: Record<string, string> = {
   corrigido_origem: "Corrigido na origem",
   corrigido_automaticamente: "Corrigido automaticamente",
   falso_positivo: "Falso positivo",
+  wontfix: "Não será corrigido",
 };
 
 function fmtBRL(n?: number | null) {
@@ -63,33 +66,52 @@ function fmtBRL(n?: number | null) {
   });
 }
 
+const EMPTY_AGG = {
+  fontes: [] as { fonte: string }[],
+  regras: [] as string[],
+  porFonte: {} as Record<string, number>,
+  porStatus: {} as Record<string, number>,
+  porRegra: {} as Record<string, number>,
+};
+
+function toggleSet(prev: Set<string>, v: string): Set<string> {
+  const n = new Set(prev);
+  if (n.has(v)) n.delete(v);
+  else n.add(v);
+  return n;
+}
+
 function QualidadePage() {
   const fetchAgg = useServerFn(agregadoQualidade);
   const fetchList = useServerFn(listarQualidadePublico);
-  const [fonte, setFonte] = React.useState<string | undefined>();
-  const [status, setStatus] = React.useState<string | undefined>();
+  // Multi-seleção por grupo: cada filtro é um conjunto; os 3 combinam em E.
+  const [fontesSel, setFontesSel] = React.useState<Set<string>>(new Set());
+  const [statusSel, setStatusSel] = React.useState<Set<string>>(new Set());
+  const [regrasSel, setRegrasSel] = React.useState<Set<string>>(new Set());
 
-  const { data: agg = [] } = useQuery({
+  const { data: aggData = EMPTY_AGG } = useQuery({
     queryKey: ["qa-agg-pub"],
     queryFn: () => fetchAgg(),
     staleTime: 60_000,
   });
+  const fontesArr = [...fontesSel];
+  const statusArr = [...statusSel];
+  const regrasArr = [...regrasSel];
   const { data: findings = [], isLoading } = useQuery({
-    queryKey: ["qa-list-pub", fonte, status],
-    queryFn: () => fetchList({ data: { fonte, status, limit: 200 } }),
+    queryKey: ["qa-list-pub", fontesArr.join(","), statusArr.join(","), regrasArr.join(",")],
+    queryFn: () =>
+      fetchList({
+        data: { fontes: fontesArr, statuses: statusArr, regras: regrasArr, limit: 200 },
+      }),
     staleTime: 60_000,
   });
 
-  const totais = agg.reduce(
-    (acc, a) => {
-      acc.abertos += a.abertos;
-      acc.confirmados += a.confirmados;
-      acc.reportados += a.reportados;
-      acc.corrigidos += a.corrigidos;
-      return acc;
-    },
-    { abertos: 0, confirmados: 0, reportados: 0, corrigidos: 0 },
+  // Regras a exibir: a lista canônica + quaisquer regras vistas no agregado
+  // (cobre regras legadas ainda presentes no banco).
+  const regrasAll = Array.from(
+    new Set<string>([...REGRAS_QA, ...Object.keys(aggData.porRegra)]),
   );
+  const algumFiltro = fontesSel.size + statusSel.size + regrasSel.size > 0;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 space-y-10">
@@ -139,40 +161,99 @@ function QualidadePage() {
         </div>
       </header>
 
-      <section className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Metric label="Abertas" value={totais.abertos} />
-        <Metric label="Confirmadas" value={totais.confirmados} />
-        <Metric label="Reportadas" value={totais.reportados} />
-        <Metric label="Corrigidas na origem" value={totais.corrigidos} />
-      </section>
+      <details className="rounded-lg border border-border bg-card/50 text-sm">
+        <summary className="cursor-pointer list-none px-4 py-3 font-medium flex items-center gap-2 hover:text-foreground text-muted-foreground">
+          <span className="text-accent">＋</span> Como ler esta página: regras, status e o processo
+        </summary>
+        <div className="px-4 pb-5 pt-1 space-y-5 text-muted-foreground">
+          <div>
+            <p>
+              Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na importação
+              (só com o dado em cache), passa por uma <strong>re-checagem</strong> contra a API oficial
+              e, se o defeito for real e estiver na fonte, é <strong>reportada</strong> ao órgão.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-medium text-foreground mb-1.5">Regras de contratos (Portal CGU)</h3>
+            <p className="mb-1.5">
+              A importação cruza a <strong>listagem</strong> com o <strong>detalhe</strong>
+              (<code>/contratos/id</code>) de cada contrato. O bug de escala (÷10.000) aparece
+              em qualquer um dos dois endpoints, então gravamos sempre o valor
+              <strong> não-truncado</strong>, que bate com o documento oficial.
+            </p>
+            <ul className="space-y-1.5">
+              <li><code>valor_corrigido_listagem</code> — a fonte trouxe o valor truncado por escala; foi <strong>corrigido automaticamente</strong> no site com o valor não-truncado. O alerta fica como registro do defeito da fonte.</li>
+              <li><code>fornecedor_ausente</code> — a API não informou o CNPJ/CPF do fornecedor (sigiloso ou ausente). O contrato é salvo mesmo assim, para investigação.</li>
+              <li><code>discrepancia_extrema_inicial_final</code> — valor inicial ≥ 1000× o final (ou vice-versa): provável erro de digitação/escala em um dos campos.</li>
+              <li><code>valor_muito_baixo</code> — valor oficial &lt; R$100: pode ser um contrato pequeno real <em>ou</em> um defeito persistente na própria fonte. A re-checagem desambigua.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-medium text-foreground mb-1.5">Regras de outras fontes (PNCP, Transferegov, SICONFI, Câmara)</h3>
+            <ul className="space-y-1.5">
+              <li><code>valor_global_zerado</code> / <code>valor_global_menor_inicial</code> — valor global do contrato zerado ou menor que o inicial (PNCP).</li>
+              <li><code>repasse_maior_global</code> — repasse maior que o valor global do convênio (Transferegov).</li>
+              <li><code>pago_maior_empenhado</code> — valor pago maior que o empenhado.</li>
+              <li><code>liquido_maior_documento</code> — valor líquido maior que o do documento (cota parlamentar).</li>
+              <li><code>valor_negativo</code> / <code>valor_negativo_em_conta_positiva</code> — valor negativo onde não deveria haver (SICONFI).</li>
+              <li><code>valor_truncado_suspeito</code> — valor possivelmente truncado em outras fontes.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-medium text-foreground mb-1.5">Status</h3>
+            <ul className="space-y-1.5">
+              <li><strong>Aberto</strong> — detectado, ainda não analisado.</li>
+              <li><strong>Confirmado</strong> — re-checado contra a fonte oficial; a divergência é real.</li>
+              <li><strong>Reportado</strong> — encaminhado ao órgão responsável.</li>
+              <li><strong>Corrigido na origem</strong> — a fonte oficial corrigiu o dado numa reimportação posterior (a API passou a devolver o valor certo).</li>
+              <li><strong>Corrigido automaticamente</strong> — a nossa conferência por detalhe corrigiu o valor no site (a fonte ainda não corrigiu); o alerta fica como registro do defeito.</li>
+              <li><strong>Falso positivo</strong> — analisado e descartado: não havia defeito.</li>
+              <li><strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.</li>
+            </ul>
+          </div>
+        </div>
+      </details>
 
       <section className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <select
-            className="rounded-md border border-input bg-background px-2 py-1"
-            value={fonte ?? ""}
-            onChange={(e) => setFonte(e.target.value || undefined)}
-          >
-            <option value="">Todas as fontes</option>
-            {FONTES.map((f) => (
-              <option key={f} value={f}>
-                {f}
-              </option>
-            ))}
-          </select>
-          <select
-            className="rounded-md border border-input bg-background px-2 py-1"
-            value={status ?? ""}
-            onChange={(e) => setStatus(e.target.value || undefined)}
-          >
-            <option value="">Todos os status</option>
-            <option value="aberto">Aberto</option>
-            <option value="confirmado">Confirmado</option>
-            <option value="reportado">Reportado ao órgão</option>
-            <option value="corrigido_origem">Corrigido na origem</option>
-            <option value="corrigido_automaticamente">Corrigido automaticamente</option>
-            <option value="falso_positivo">Falso positivo</option>
-          </select>
+        <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2.5">
+          <FilterGroup
+            titulo="Fontes"
+            itens={FONTES.map((f) => ({ valor: f, rotulo: f }))}
+            counts={aggData.porFonte}
+            sel={fontesSel}
+            onToggle={(v) => setFontesSel((s) => toggleSet(s, v))}
+          />
+          <FilterGroup
+            titulo="Status"
+            itens={STATUS_QA.map((s) => ({ valor: s, rotulo: STATUS_LABEL[s] ?? s }))}
+            counts={aggData.porStatus}
+            sel={statusSel}
+            onToggle={(v) => setStatusSel((s) => toggleSet(s, v))}
+          />
+          <FilterGroup
+            titulo="Regras"
+            itens={regrasAll.map((r) => ({ valor: r, rotulo: r }))}
+            counts={aggData.porRegra}
+            sel={regrasSel}
+            onToggle={(v) => setRegrasSel((s) => toggleSet(s, v))}
+            mono
+          />
+          {algumFiltro && (
+            <button
+              type="button"
+              className="text-[11px] text-accent underline"
+              onClick={() => {
+                setFontesSel(new Set());
+                setStatusSel(new Set());
+                setRegrasSel(new Set());
+              }}
+            >
+              Limpar filtros
+            </button>
+          )}
         </div>
 
         {isLoading ? (
@@ -247,13 +328,47 @@ function QualidadePage() {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function FilterGroup({
+  titulo,
+  itens,
+  counts,
+  sel,
+  onToggle,
+  mono,
+}: {
+  titulo: string;
+  itens: Array<{ valor: string; rotulo: string }>;
+  counts: Record<string, number>;
+  sel: Set<string>;
+  onToggle: (v: string) => void;
+  mono?: boolean;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4">
-      <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
-        {label}
-      </div>
-      <div className="font-display text-3xl mt-1">{value}</div>
+    <div className="flex flex-wrap items-center gap-1.5">
+      <span className="text-[10px] uppercase tracking-wider text-muted-foreground w-12 shrink-0">
+        {titulo}
+      </span>
+      {itens.map((it) => {
+        const n = counts[it.valor] ?? 0;
+        const ativo = sel.has(it.valor);
+        return (
+          <button
+            key={it.valor}
+            type="button"
+            onClick={() => onToggle(it.valor)}
+            className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] transition-colors ${
+              ativo
+                ? "border-accent bg-accent/15 text-accent"
+                : "border-border bg-background text-muted-foreground hover:border-accent/50"
+            } ${n === 0 && !ativo ? "opacity-50" : ""}`}
+          >
+            <span className={mono ? "font-mono" : ""}>{it.rotulo}</span>
+            <span className={`rounded px-1 tabular-nums ${ativo ? "bg-accent/20" : "bg-muted"}`}>
+              {n}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

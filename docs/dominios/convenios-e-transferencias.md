@@ -21,7 +21,7 @@ Card de transferência mostra: tipo, ente recebedor, valor, autor (deputado/sena
 ## Admin
 
 - `/admin/dados` — disparar ingestão por intervalo + UF/IBGE.
-- `/admin/qualidade` — curar findings (especialmente os de auto-correção do Portal CGU — veja [`portal-cgu.ia.md`](../fontes/portal-cgu.ia.md)).
+- `/admin/qualidade` — curar findings (ex.: valores suspeitos `possivel_ponto_fixo` do Portal CGU — veja [`portal-cgu.ia.md`](../fontes/portal-cgu.ia.md)).
 
 ## Fontes
 

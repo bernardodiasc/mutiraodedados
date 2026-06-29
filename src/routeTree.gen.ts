@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TrilhasRouteImport } from './routes/trilhas'
 import { Route as TratamentoDeDadosRouteImport } from './routes/tratamento-de-dados'
 import { Route as TransparenciaInstitucionalRouteImport } from './routes/transparencia-institucional'
 import { Route as TermosRouteImport } from './routes/termos'
@@ -21,37 +22,51 @@ import { Route as ReferenciasRouteImport } from './routes/referencias'
 import { Route as QualidadeRouteImport } from './routes/qualidade'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PncpRouteImport } from './routes/pncp'
+import { Route as PerguntasRouteImport } from './routes/perguntas'
 import { Route as OrgaosRouteImport } from './routes/orgaos'
 import { Route as MetodologiaRouteImport } from './routes/metodologia'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LacunasRouteImport } from './routes/lacunas'
 import { Route as ExplorarRouteImport } from './routes/explorar'
+import { Route as EstiloRouteImport } from './routes/estilo'
 import { Route as ConveniosRouteImport } from './routes/convenios'
+import { Route as ContribuirRouteImport } from './routes/contribuir'
 import { Route as ContestarRouteImport } from './routes/contestar'
 import { Route as CongressoRouteImport } from './routes/congresso'
 import { Route as CoberturaRouteImport } from './routes/cobertura'
 import { Route as CamaraRouteImport } from './routes/camara'
+import { Route as CadernoRouteImport } from './routes/caderno'
 import { Route as BuscarRouteImport } from './routes/buscar'
 import { Route as AprenderRouteImport } from './routes/aprender'
 import { Route as AnomaliasRouteImport } from './routes/anomalias'
+import { Route as AfirmacoesRouteImport } from './routes/afirmacoes'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TutoriaisIndexRouteImport } from './routes/tutoriais.index'
 import { Route as TransferenciasIndexRouteImport } from './routes/transferencias.index'
 import { Route as NotasIndexRouteImport } from './routes/notas.index'
 import { Route as MapasIndexRouteImport } from './routes/mapas.index'
+import { Route as EstiloIndexRouteImport } from './routes/estilo.index'
 import { Route as TutoriaisSlugRouteImport } from './routes/tutoriais.$slug'
 import { Route as QualidadeIdRouteImport } from './routes/qualidade.$id'
+import { Route as PerguntasSlugRouteImport } from './routes/perguntas_.$slug'
 import { Route as OrgaosCodRouteImport } from './routes/orgaos_.$cod'
 import { Route as NotasSlugRouteImport } from './routes/notas.$slug'
 import { Route as MapasSlugRouteImport } from './routes/mapas.$slug'
 import { Route as FornecedoresCnpjRouteImport } from './routes/fornecedores.$cnpj'
+import { Route as EstiloTokensRouteImport } from './routes/estilo.tokens'
+import { Route as EstiloTipografiaRouteImport } from './routes/estilo.tipografia'
 import { Route as ConveniosIdRouteImport } from './routes/convenios.$id'
 import { Route as ContratosIdRouteImport } from './routes/contratos.$id'
+import { Route as CadernoNovaRouteImport } from './routes/caderno_.nova'
+import { Route as CadernoIdRouteImport } from './routes/caderno_.$id'
 import { Route as AuthenticatedMinhasMarcacoesRouteImport } from './routes/_authenticated/minhas-marcacoes'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as SenadoVotacoesIndexRouteImport } from './routes/senado_.votacoes.index'
 import { Route as SenadoSenadoresIndexRouteImport } from './routes/senado_.senadores.index'
 import { Route as SenadoMateriasIndexRouteImport } from './routes/senado_.materias.index'
+import { Route as EstiloUiIndexRouteImport } from './routes/estilo.ui.index'
+import { Route as EstiloComposicoesIndexRouteImport } from './routes/estilo.composicoes.index'
 import { Route as CamaraVotacoesIndexRouteImport } from './routes/camara_.votacoes.index'
 import { Route as CamaraProposicoesIndexRouteImport } from './routes/camara_.proposicoes.index'
 import { Route as CamaraDeputadosIndexRouteImport } from './routes/camara_.deputados.index'
@@ -60,17 +75,26 @@ import { Route as TransferenciasEspeciaisIdRouteImport } from './routes/transfer
 import { Route as SenadoVotacoesIdRouteImport } from './routes/senado_.votacoes.$id'
 import { Route as SenadoSenadoresIdRouteImport } from './routes/senado_.senadores.$id'
 import { Route as SenadoMateriasIdRouteImport } from './routes/senado_.materias.$id'
+import { Route as EstiloUiSlugRouteImport } from './routes/estilo.ui.$slug'
+import { Route as EstiloComposicoesNameRouteImport } from './routes/estilo.composicoes.$name'
 import { Route as CamaraVotacoesIdRouteImport } from './routes/camara_.votacoes.$id'
 import { Route as CamaraProposicoesIdRouteImport } from './routes/camara_.proposicoes.$id'
 import { Route as CamaraDeputadosIdRouteImport } from './routes/camara_.deputados.$id'
 import { Route as AuthenticatedAdminSinaisRouteImport } from './routes/_authenticated/admin_.sinais'
 import { Route as AuthenticatedAdminRoadmapRouteImport } from './routes/_authenticated/admin_.roadmap'
 import { Route as AuthenticatedAdminQualidadeRouteImport } from './routes/_authenticated/admin_.qualidade'
+import { Route as AuthenticatedAdminPerguntasRouteImport } from './routes/_authenticated/admin_.perguntas'
 import { Route as AuthenticatedAdminMarcacoesRouteImport } from './routes/_authenticated/admin_.marcacoes'
 import { Route as AuthenticatedAdminDadosRouteImport } from './routes/_authenticated/admin_.dados'
 import { Route as AuthenticatedAdminArtigosRouteImport } from './routes/_authenticated/admin_.artigos'
 import { Route as AuthenticatedAdminAnalisesRouteImport } from './routes/_authenticated/admin_.analises'
+import { Route as EstiloPreviewNameVariantRouteImport } from './routes/estilo_.preview.$name.$variant'
 
+const TrilhasRoute = TrilhasRouteImport.update({
+  id: '/trilhas',
+  path: '/trilhas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TratamentoDeDadosRoute = TratamentoDeDadosRouteImport.update({
   id: '/tratamento-de-dados',
   path: '/tratamento-de-dados',
@@ -132,6 +156,11 @@ const PncpRoute = PncpRouteImport.update({
   path: '/pncp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PerguntasRoute = PerguntasRouteImport.update({
+  id: '/perguntas',
+  path: '/perguntas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgaosRoute = OrgaosRouteImport.update({
   id: '/orgaos',
   path: '/orgaos',
@@ -147,14 +176,29 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LacunasRoute = LacunasRouteImport.update({
+  id: '/lacunas',
+  path: '/lacunas',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExplorarRoute = ExplorarRouteImport.update({
   id: '/explorar',
   path: '/explorar',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstiloRoute = EstiloRouteImport.update({
+  id: '/estilo',
+  path: '/estilo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConveniosRoute = ConveniosRouteImport.update({
   id: '/convenios',
   path: '/convenios',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContribuirRoute = ContribuirRouteImport.update({
+  id: '/contribuir',
+  path: '/contribuir',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContestarRoute = ContestarRouteImport.update({
@@ -177,6 +221,11 @@ const CamaraRoute = CamaraRouteImport.update({
   path: '/camara',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CadernoRoute = CadernoRouteImport.update({
+  id: '/caderno',
+  path: '/caderno',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BuscarRoute = BuscarRouteImport.update({
   id: '/buscar',
   path: '/buscar',
@@ -190,6 +239,11 @@ const AprenderRoute = AprenderRouteImport.update({
 const AnomaliasRoute = AnomaliasRouteImport.update({
   id: '/anomalias',
   path: '/anomalias',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AfirmacoesRoute = AfirmacoesRouteImport.update({
+  id: '/afirmacoes',
+  path: '/afirmacoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -221,6 +275,11 @@ const MapasIndexRoute = MapasIndexRouteImport.update({
   path: '/mapas/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstiloIndexRoute = EstiloIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => EstiloRoute,
+} as any)
 const TutoriaisSlugRoute = TutoriaisSlugRouteImport.update({
   id: '/tutoriais/$slug',
   path: '/tutoriais/$slug',
@@ -230,6 +289,11 @@ const QualidadeIdRoute = QualidadeIdRouteImport.update({
   id: '/$id',
   path: '/$id',
   getParentRoute: () => QualidadeRoute,
+} as any)
+const PerguntasSlugRoute = PerguntasSlugRouteImport.update({
+  id: '/perguntas_/$slug',
+  path: '/perguntas/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const OrgaosCodRoute = OrgaosCodRouteImport.update({
   id: '/orgaos_/$cod',
@@ -251,6 +315,16 @@ const FornecedoresCnpjRoute = FornecedoresCnpjRouteImport.update({
   path: '/fornecedores/$cnpj',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstiloTokensRoute = EstiloTokensRouteImport.update({
+  id: '/tokens',
+  path: '/tokens',
+  getParentRoute: () => EstiloRoute,
+} as any)
+const EstiloTipografiaRoute = EstiloTipografiaRouteImport.update({
+  id: '/tipografia',
+  path: '/tipografia',
+  getParentRoute: () => EstiloRoute,
+} as any)
 const ConveniosIdRoute = ConveniosIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -259,6 +333,16 @@ const ConveniosIdRoute = ConveniosIdRouteImport.update({
 const ContratosIdRoute = ContratosIdRouteImport.update({
   id: '/contratos/$id',
   path: '/contratos/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadernoNovaRoute = CadernoNovaRouteImport.update({
+  id: '/caderno_/nova',
+  path: '/caderno/nova',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadernoIdRoute = CadernoIdRouteImport.update({
+  id: '/caderno_/$id',
+  path: '/caderno/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedMinhasMarcacoesRoute =
@@ -286,6 +370,16 @@ const SenadoMateriasIndexRoute = SenadoMateriasIndexRouteImport.update({
   id: '/senado_/materias/',
   path: '/senado/materias/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const EstiloUiIndexRoute = EstiloUiIndexRouteImport.update({
+  id: '/ui/',
+  path: '/ui/',
+  getParentRoute: () => EstiloRoute,
+} as any)
+const EstiloComposicoesIndexRoute = EstiloComposicoesIndexRouteImport.update({
+  id: '/composicoes/',
+  path: '/composicoes/',
+  getParentRoute: () => EstiloRoute,
 } as any)
 const CamaraVotacoesIndexRoute = CamaraVotacoesIndexRouteImport.update({
   id: '/camara_/votacoes/',
@@ -329,6 +423,16 @@ const SenadoMateriasIdRoute = SenadoMateriasIdRouteImport.update({
   path: '/senado/materias/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EstiloUiSlugRoute = EstiloUiSlugRouteImport.update({
+  id: '/ui/$slug',
+  path: '/ui/$slug',
+  getParentRoute: () => EstiloRoute,
+} as any)
+const EstiloComposicoesNameRoute = EstiloComposicoesNameRouteImport.update({
+  id: '/composicoes/$name',
+  path: '/composicoes/$name',
+  getParentRoute: () => EstiloRoute,
+} as any)
 const CamaraVotacoesIdRoute = CamaraVotacoesIdRouteImport.update({
   id: '/camara_/votacoes/$id',
   path: '/camara/votacoes/$id',
@@ -362,6 +466,12 @@ const AuthenticatedAdminQualidadeRoute =
     path: '/admin/qualidade',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminPerguntasRoute =
+  AuthenticatedAdminPerguntasRouteImport.update({
+    id: '/admin_/perguntas',
+    path: '/admin/perguntas',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminMarcacoesRoute =
   AuthenticatedAdminMarcacoesRouteImport.update({
     id: '/admin_/marcacoes',
@@ -385,21 +495,33 @@ const AuthenticatedAdminAnalisesRoute =
     path: '/admin/analises',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const EstiloPreviewNameVariantRoute =
+  EstiloPreviewNameVariantRouteImport.update({
+    id: '/estilo_/preview/$name/$variant',
+    path: '/estilo/preview/$name/$variant',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/afirmacoes': typeof AfirmacoesRoute
   '/anomalias': typeof AnomaliasRoute
   '/aprender': typeof AprenderRoute
   '/buscar': typeof BuscarRoute
+  '/caderno': typeof CadernoRoute
   '/camara': typeof CamaraRoute
   '/cobertura': typeof CoberturaRoute
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
+  '/contribuir': typeof ContribuirRoute
   '/convenios': typeof ConveniosRouteWithChildren
+  '/estilo': typeof EstiloRouteWithChildren
   '/explorar': typeof ExplorarRoute
+  '/lacunas': typeof LacunasRoute
   '/login': typeof LoginRoute
   '/metodologia': typeof MetodologiaRoute
   '/orgaos': typeof OrgaosRoute
+  '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
@@ -412,16 +534,23 @@ export interface FileRoutesByFullPath {
   '/termos': typeof TermosRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
+  '/trilhas': typeof TrilhasRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
+  '/caderno/$id': typeof CadernoIdRoute
+  '/caderno/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/estilo/tipografia': typeof EstiloTipografiaRoute
+  '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos/$cod': typeof OrgaosCodRoute
+  '/perguntas/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/estilo/': typeof EstiloIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
@@ -430,12 +559,15 @@ export interface FileRoutesByFullPath {
   '/admin/artigos': typeof AuthenticatedAdminArtigosRoute
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
+  '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/admin/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/admin/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/admin/sinais': typeof AuthenticatedAdminSinaisRoute
   '/camara/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
+  '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
   '/senado/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado/votacoes/$id': typeof SenadoVotacoesIdRoute
@@ -444,24 +576,32 @@ export interface FileRoutesByFullPath {
   '/camara/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes/': typeof CamaraVotacoesIndexRoute
+  '/estilo/composicoes/': typeof EstiloComposicoesIndexRoute
+  '/estilo/ui/': typeof EstiloUiIndexRoute
   '/senado/materias/': typeof SenadoMateriasIndexRoute
   '/senado/senadores/': typeof SenadoSenadoresIndexRoute
   '/senado/votacoes/': typeof SenadoVotacoesIndexRoute
+  '/estilo/preview/$name/$variant': typeof EstiloPreviewNameVariantRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/afirmacoes': typeof AfirmacoesRoute
   '/anomalias': typeof AnomaliasRoute
   '/aprender': typeof AprenderRoute
   '/buscar': typeof BuscarRoute
+  '/caderno': typeof CadernoRoute
   '/camara': typeof CamaraRoute
   '/cobertura': typeof CoberturaRoute
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
+  '/contribuir': typeof ContribuirRoute
   '/convenios': typeof ConveniosRouteWithChildren
   '/explorar': typeof ExplorarRoute
+  '/lacunas': typeof LacunasRoute
   '/login': typeof LoginRoute
   '/metodologia': typeof MetodologiaRoute
   '/orgaos': typeof OrgaosRoute
+  '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
@@ -474,16 +614,23 @@ export interface FileRoutesByTo {
   '/termos': typeof TermosRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
+  '/trilhas': typeof TrilhasRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
+  '/caderno/$id': typeof CadernoIdRoute
+  '/caderno/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/estilo/tipografia': typeof EstiloTipografiaRoute
+  '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos/$cod': typeof OrgaosCodRoute
+  '/perguntas/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/estilo': typeof EstiloIndexRoute
   '/mapas': typeof MapasIndexRoute
   '/notas': typeof NotasIndexRoute
   '/transferencias': typeof TransferenciasIndexRoute
@@ -492,12 +639,15 @@ export interface FileRoutesByTo {
   '/admin/artigos': typeof AuthenticatedAdminArtigosRoute
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
+  '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/admin/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/admin/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/admin/sinais': typeof AuthenticatedAdminSinaisRoute
   '/camara/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
+  '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
   '/senado/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado/votacoes/$id': typeof SenadoVotacoesIdRoute
@@ -506,26 +656,35 @@ export interface FileRoutesByTo {
   '/camara/deputados': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes': typeof CamaraVotacoesIndexRoute
+  '/estilo/composicoes': typeof EstiloComposicoesIndexRoute
+  '/estilo/ui': typeof EstiloUiIndexRoute
   '/senado/materias': typeof SenadoMateriasIndexRoute
   '/senado/senadores': typeof SenadoSenadoresIndexRoute
   '/senado/votacoes': typeof SenadoVotacoesIndexRoute
+  '/estilo/preview/$name/$variant': typeof EstiloPreviewNameVariantRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/afirmacoes': typeof AfirmacoesRoute
   '/anomalias': typeof AnomaliasRoute
   '/aprender': typeof AprenderRoute
   '/buscar': typeof BuscarRoute
+  '/caderno': typeof CadernoRoute
   '/camara': typeof CamaraRoute
   '/cobertura': typeof CoberturaRoute
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
+  '/contribuir': typeof ContribuirRoute
   '/convenios': typeof ConveniosRouteWithChildren
+  '/estilo': typeof EstiloRouteWithChildren
   '/explorar': typeof ExplorarRoute
+  '/lacunas': typeof LacunasRoute
   '/login': typeof LoginRoute
   '/metodologia': typeof MetodologiaRoute
   '/orgaos': typeof OrgaosRoute
+  '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
@@ -538,16 +697,23 @@ export interface FileRoutesById {
   '/termos': typeof TermosRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
+  '/trilhas': typeof TrilhasRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
+  '/caderno_/$id': typeof CadernoIdRoute
+  '/caderno_/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/estilo/tipografia': typeof EstiloTipografiaRoute
+  '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos_/$cod': typeof OrgaosCodRoute
+  '/perguntas_/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/estilo/': typeof EstiloIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
@@ -556,12 +722,15 @@ export interface FileRoutesById {
   '/_authenticated/admin_/artigos': typeof AuthenticatedAdminArtigosRoute
   '/_authenticated/admin_/dados': typeof AuthenticatedAdminDadosRoute
   '/_authenticated/admin_/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
+  '/_authenticated/admin_/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/_authenticated/admin_/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/_authenticated/admin_/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/_authenticated/admin_/sinais': typeof AuthenticatedAdminSinaisRoute
   '/camara_/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara_/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara_/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
+  '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado_/materias/$id': typeof SenadoMateriasIdRoute
   '/senado_/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado_/votacoes/$id': typeof SenadoVotacoesIdRoute
@@ -570,26 +739,35 @@ export interface FileRoutesById {
   '/camara_/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara_/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara_/votacoes/': typeof CamaraVotacoesIndexRoute
+  '/estilo/composicoes/': typeof EstiloComposicoesIndexRoute
+  '/estilo/ui/': typeof EstiloUiIndexRoute
   '/senado_/materias/': typeof SenadoMateriasIndexRoute
   '/senado_/senadores/': typeof SenadoSenadoresIndexRoute
   '/senado_/votacoes/': typeof SenadoVotacoesIndexRoute
+  '/estilo_/preview/$name/$variant': typeof EstiloPreviewNameVariantRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/afirmacoes'
     | '/anomalias'
     | '/aprender'
     | '/buscar'
+    | '/caderno'
     | '/camara'
     | '/cobertura'
     | '/congresso'
     | '/contestar'
+    | '/contribuir'
     | '/convenios'
+    | '/estilo'
     | '/explorar'
+    | '/lacunas'
     | '/login'
     | '/metodologia'
     | '/orgaos'
+    | '/perguntas'
     | '/pncp'
     | '/privacidade'
     | '/qualidade'
@@ -602,16 +780,23 @@ export interface FileRouteTypes {
     | '/termos'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
+    | '/trilhas'
     | '/admin'
     | '/minhas-marcacoes'
+    | '/caderno/$id'
+    | '/caderno/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/estilo/tipografia'
+    | '/estilo/tokens'
     | '/fornecedores/$cnpj'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos/$cod'
+    | '/perguntas/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/estilo/'
     | '/mapas/'
     | '/notas/'
     | '/transferencias/'
@@ -620,12 +805,15 @@ export interface FileRouteTypes {
     | '/admin/artigos'
     | '/admin/dados'
     | '/admin/marcacoes'
+    | '/admin/perguntas'
     | '/admin/qualidade'
     | '/admin/roadmap'
     | '/admin/sinais'
     | '/camara/deputados/$id'
     | '/camara/proposicoes/$id'
     | '/camara/votacoes/$id'
+    | '/estilo/composicoes/$name'
+    | '/estilo/ui/$slug'
     | '/senado/materias/$id'
     | '/senado/senadores/$id'
     | '/senado/votacoes/$id'
@@ -634,24 +822,32 @@ export interface FileRouteTypes {
     | '/camara/deputados/'
     | '/camara/proposicoes/'
     | '/camara/votacoes/'
+    | '/estilo/composicoes/'
+    | '/estilo/ui/'
     | '/senado/materias/'
     | '/senado/senadores/'
     | '/senado/votacoes/'
+    | '/estilo/preview/$name/$variant'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/afirmacoes'
     | '/anomalias'
     | '/aprender'
     | '/buscar'
+    | '/caderno'
     | '/camara'
     | '/cobertura'
     | '/congresso'
     | '/contestar'
+    | '/contribuir'
     | '/convenios'
     | '/explorar'
+    | '/lacunas'
     | '/login'
     | '/metodologia'
     | '/orgaos'
+    | '/perguntas'
     | '/pncp'
     | '/privacidade'
     | '/qualidade'
@@ -664,16 +860,23 @@ export interface FileRouteTypes {
     | '/termos'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
+    | '/trilhas'
     | '/admin'
     | '/minhas-marcacoes'
+    | '/caderno/$id'
+    | '/caderno/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/estilo/tipografia'
+    | '/estilo/tokens'
     | '/fornecedores/$cnpj'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos/$cod'
+    | '/perguntas/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/estilo'
     | '/mapas'
     | '/notas'
     | '/transferencias'
@@ -682,12 +885,15 @@ export interface FileRouteTypes {
     | '/admin/artigos'
     | '/admin/dados'
     | '/admin/marcacoes'
+    | '/admin/perguntas'
     | '/admin/qualidade'
     | '/admin/roadmap'
     | '/admin/sinais'
     | '/camara/deputados/$id'
     | '/camara/proposicoes/$id'
     | '/camara/votacoes/$id'
+    | '/estilo/composicoes/$name'
+    | '/estilo/ui/$slug'
     | '/senado/materias/$id'
     | '/senado/senadores/$id'
     | '/senado/votacoes/$id'
@@ -696,25 +902,34 @@ export interface FileRouteTypes {
     | '/camara/deputados'
     | '/camara/proposicoes'
     | '/camara/votacoes'
+    | '/estilo/composicoes'
+    | '/estilo/ui'
     | '/senado/materias'
     | '/senado/senadores'
     | '/senado/votacoes'
+    | '/estilo/preview/$name/$variant'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/afirmacoes'
     | '/anomalias'
     | '/aprender'
     | '/buscar'
+    | '/caderno'
     | '/camara'
     | '/cobertura'
     | '/congresso'
     | '/contestar'
+    | '/contribuir'
     | '/convenios'
+    | '/estilo'
     | '/explorar'
+    | '/lacunas'
     | '/login'
     | '/metodologia'
     | '/orgaos'
+    | '/perguntas'
     | '/pncp'
     | '/privacidade'
     | '/qualidade'
@@ -727,16 +942,23 @@ export interface FileRouteTypes {
     | '/termos'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
+    | '/trilhas'
     | '/_authenticated/admin'
     | '/_authenticated/minhas-marcacoes'
+    | '/caderno_/$id'
+    | '/caderno_/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/estilo/tipografia'
+    | '/estilo/tokens'
     | '/fornecedores/$cnpj'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos_/$cod'
+    | '/perguntas_/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/estilo/'
     | '/mapas/'
     | '/notas/'
     | '/transferencias/'
@@ -745,12 +967,15 @@ export interface FileRouteTypes {
     | '/_authenticated/admin_/artigos'
     | '/_authenticated/admin_/dados'
     | '/_authenticated/admin_/marcacoes'
+    | '/_authenticated/admin_/perguntas'
     | '/_authenticated/admin_/qualidade'
     | '/_authenticated/admin_/roadmap'
     | '/_authenticated/admin_/sinais'
     | '/camara_/deputados/$id'
     | '/camara_/proposicoes/$id'
     | '/camara_/votacoes/$id'
+    | '/estilo/composicoes/$name'
+    | '/estilo/ui/$slug'
     | '/senado_/materias/$id'
     | '/senado_/senadores/$id'
     | '/senado_/votacoes/$id'
@@ -759,26 +984,35 @@ export interface FileRouteTypes {
     | '/camara_/deputados/'
     | '/camara_/proposicoes/'
     | '/camara_/votacoes/'
+    | '/estilo/composicoes/'
+    | '/estilo/ui/'
     | '/senado_/materias/'
     | '/senado_/senadores/'
     | '/senado_/votacoes/'
+    | '/estilo_/preview/$name/$variant'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AfirmacoesRoute: typeof AfirmacoesRoute
   AnomaliasRoute: typeof AnomaliasRoute
   AprenderRoute: typeof AprenderRoute
   BuscarRoute: typeof BuscarRoute
+  CadernoRoute: typeof CadernoRoute
   CamaraRoute: typeof CamaraRoute
   CoberturaRoute: typeof CoberturaRoute
   CongressoRoute: typeof CongressoRoute
   ContestarRoute: typeof ContestarRoute
+  ContribuirRoute: typeof ContribuirRoute
   ConveniosRoute: typeof ConveniosRouteWithChildren
+  EstiloRoute: typeof EstiloRouteWithChildren
   ExplorarRoute: typeof ExplorarRoute
+  LacunasRoute: typeof LacunasRoute
   LoginRoute: typeof LoginRoute
   MetodologiaRoute: typeof MetodologiaRoute
   OrgaosRoute: typeof OrgaosRoute
+  PerguntasRoute: typeof PerguntasRoute
   PncpRoute: typeof PncpRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   QualidadeRoute: typeof QualidadeRouteWithChildren
@@ -791,11 +1025,15 @@ export interface RootRouteChildren {
   TermosRoute: typeof TermosRoute
   TransparenciaInstitucionalRoute: typeof TransparenciaInstitucionalRoute
   TratamentoDeDadosRoute: typeof TratamentoDeDadosRoute
+  TrilhasRoute: typeof TrilhasRoute
+  CadernoIdRoute: typeof CadernoIdRoute
+  CadernoNovaRoute: typeof CadernoNovaRoute
   ContratosIdRoute: typeof ContratosIdRoute
   FornecedoresCnpjRoute: typeof FornecedoresCnpjRoute
   MapasSlugRoute: typeof MapasSlugRoute
   NotasSlugRoute: typeof NotasSlugRoute
   OrgaosCodRoute: typeof OrgaosCodRoute
+  PerguntasSlugRoute: typeof PerguntasSlugRoute
   TutoriaisSlugRoute: typeof TutoriaisSlugRoute
   MapasIndexRoute: typeof MapasIndexRoute
   NotasIndexRoute: typeof NotasIndexRoute
@@ -815,10 +1053,18 @@ export interface RootRouteChildren {
   SenadoMateriasIndexRoute: typeof SenadoMateriasIndexRoute
   SenadoSenadoresIndexRoute: typeof SenadoSenadoresIndexRoute
   SenadoVotacoesIndexRoute: typeof SenadoVotacoesIndexRoute
+  EstiloPreviewNameVariantRoute: typeof EstiloPreviewNameVariantRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/trilhas': {
+      id: '/trilhas'
+      path: '/trilhas'
+      fullPath: '/trilhas'
+      preLoaderRoute: typeof TrilhasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tratamento-de-dados': {
       id: '/tratamento-de-dados'
       path: '/tratamento-de-dados'
@@ -903,6 +1149,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PncpRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/perguntas': {
+      id: '/perguntas'
+      path: '/perguntas'
+      fullPath: '/perguntas'
+      preLoaderRoute: typeof PerguntasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/orgaos': {
       id: '/orgaos'
       path: '/orgaos'
@@ -924,6 +1177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lacunas': {
+      id: '/lacunas'
+      path: '/lacunas'
+      fullPath: '/lacunas'
+      preLoaderRoute: typeof LacunasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/explorar': {
       id: '/explorar'
       path: '/explorar'
@@ -931,11 +1191,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExplorarRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/estilo': {
+      id: '/estilo'
+      path: '/estilo'
+      fullPath: '/estilo'
+      preLoaderRoute: typeof EstiloRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/convenios': {
       id: '/convenios'
       path: '/convenios'
       fullPath: '/convenios'
       preLoaderRoute: typeof ConveniosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contribuir': {
+      id: '/contribuir'
+      path: '/contribuir'
+      fullPath: '/contribuir'
+      preLoaderRoute: typeof ContribuirRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contestar': {
@@ -966,6 +1240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CamaraRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/caderno': {
+      id: '/caderno'
+      path: '/caderno'
+      fullPath: '/caderno'
+      preLoaderRoute: typeof CadernoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/buscar': {
       id: '/buscar'
       path: '/buscar'
@@ -985,6 +1266,13 @@ declare module '@tanstack/react-router' {
       path: '/anomalias'
       fullPath: '/anomalias'
       preLoaderRoute: typeof AnomaliasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/afirmacoes': {
+      id: '/afirmacoes'
+      path: '/afirmacoes'
+      fullPath: '/afirmacoes'
+      preLoaderRoute: typeof AfirmacoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -1029,6 +1317,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/estilo/': {
+      id: '/estilo/'
+      path: '/'
+      fullPath: '/estilo/'
+      preLoaderRoute: typeof EstiloIndexRouteImport
+      parentRoute: typeof EstiloRoute
+    }
     '/tutoriais/$slug': {
       id: '/tutoriais/$slug'
       path: '/tutoriais/$slug'
@@ -1042,6 +1337,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/qualidade/$id'
       preLoaderRoute: typeof QualidadeIdRouteImport
       parentRoute: typeof QualidadeRoute
+    }
+    '/perguntas_/$slug': {
+      id: '/perguntas_/$slug'
+      path: '/perguntas/$slug'
+      fullPath: '/perguntas/$slug'
+      preLoaderRoute: typeof PerguntasSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/orgaos_/$cod': {
       id: '/orgaos_/$cod'
@@ -1071,6 +1373,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FornecedoresCnpjRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/estilo/tokens': {
+      id: '/estilo/tokens'
+      path: '/tokens'
+      fullPath: '/estilo/tokens'
+      preLoaderRoute: typeof EstiloTokensRouteImport
+      parentRoute: typeof EstiloRoute
+    }
+    '/estilo/tipografia': {
+      id: '/estilo/tipografia'
+      path: '/tipografia'
+      fullPath: '/estilo/tipografia'
+      preLoaderRoute: typeof EstiloTipografiaRouteImport
+      parentRoute: typeof EstiloRoute
+    }
     '/convenios/$id': {
       id: '/convenios/$id'
       path: '/$id'
@@ -1083,6 +1399,20 @@ declare module '@tanstack/react-router' {
       path: '/contratos/$id'
       fullPath: '/contratos/$id'
       preLoaderRoute: typeof ContratosIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caderno_/nova': {
+      id: '/caderno_/nova'
+      path: '/caderno/nova'
+      fullPath: '/caderno/nova'
+      preLoaderRoute: typeof CadernoNovaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/caderno_/$id': {
+      id: '/caderno_/$id'
+      path: '/caderno/$id'
+      fullPath: '/caderno/$id'
+      preLoaderRoute: typeof CadernoIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/minhas-marcacoes': {
@@ -1119,6 +1449,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/senado/materias/'
       preLoaderRoute: typeof SenadoMateriasIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/estilo/ui/': {
+      id: '/estilo/ui/'
+      path: '/ui'
+      fullPath: '/estilo/ui/'
+      preLoaderRoute: typeof EstiloUiIndexRouteImport
+      parentRoute: typeof EstiloRoute
+    }
+    '/estilo/composicoes/': {
+      id: '/estilo/composicoes/'
+      path: '/composicoes'
+      fullPath: '/estilo/composicoes/'
+      preLoaderRoute: typeof EstiloComposicoesIndexRouteImport
+      parentRoute: typeof EstiloRoute
     }
     '/camara_/votacoes/': {
       id: '/camara_/votacoes/'
@@ -1176,6 +1520,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SenadoMateriasIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/estilo/ui/$slug': {
+      id: '/estilo/ui/$slug'
+      path: '/ui/$slug'
+      fullPath: '/estilo/ui/$slug'
+      preLoaderRoute: typeof EstiloUiSlugRouteImport
+      parentRoute: typeof EstiloRoute
+    }
+    '/estilo/composicoes/$name': {
+      id: '/estilo/composicoes/$name'
+      path: '/composicoes/$name'
+      fullPath: '/estilo/composicoes/$name'
+      preLoaderRoute: typeof EstiloComposicoesNameRouteImport
+      parentRoute: typeof EstiloRoute
+    }
     '/camara_/votacoes/$id': {
       id: '/camara_/votacoes/$id'
       path: '/camara/votacoes/$id'
@@ -1218,6 +1576,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminQualidadeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin_/perguntas': {
+      id: '/_authenticated/admin_/perguntas'
+      path: '/admin/perguntas'
+      fullPath: '/admin/perguntas'
+      preLoaderRoute: typeof AuthenticatedAdminPerguntasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin_/marcacoes': {
       id: '/_authenticated/admin_/marcacoes'
       path: '/admin/marcacoes'
@@ -1246,6 +1611,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminAnalisesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/estilo_/preview/$name/$variant': {
+      id: '/estilo_/preview/$name/$variant'
+      path: '/estilo/preview/$name/$variant'
+      fullPath: '/estilo/preview/$name/$variant'
+      preLoaderRoute: typeof EstiloPreviewNameVariantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1256,6 +1628,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminArtigosRoute: typeof AuthenticatedAdminArtigosRoute
   AuthenticatedAdminDadosRoute: typeof AuthenticatedAdminDadosRoute
   AuthenticatedAdminMarcacoesRoute: typeof AuthenticatedAdminMarcacoesRoute
+  AuthenticatedAdminPerguntasRoute: typeof AuthenticatedAdminPerguntasRoute
   AuthenticatedAdminQualidadeRoute: typeof AuthenticatedAdminQualidadeRoute
   AuthenticatedAdminRoadmapRoute: typeof AuthenticatedAdminRoadmapRoute
   AuthenticatedAdminSinaisRoute: typeof AuthenticatedAdminSinaisRoute
@@ -1268,6 +1641,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminArtigosRoute: AuthenticatedAdminArtigosRoute,
   AuthenticatedAdminDadosRoute: AuthenticatedAdminDadosRoute,
   AuthenticatedAdminMarcacoesRoute: AuthenticatedAdminMarcacoesRoute,
+  AuthenticatedAdminPerguntasRoute: AuthenticatedAdminPerguntasRoute,
   AuthenticatedAdminQualidadeRoute: AuthenticatedAdminQualidadeRoute,
   AuthenticatedAdminRoadmapRoute: AuthenticatedAdminRoadmapRoute,
   AuthenticatedAdminSinaisRoute: AuthenticatedAdminSinaisRoute,
@@ -1289,6 +1663,29 @@ const ConveniosRouteWithChildren = ConveniosRoute._addFileChildren(
   ConveniosRouteChildren,
 )
 
+interface EstiloRouteChildren {
+  EstiloTipografiaRoute: typeof EstiloTipografiaRoute
+  EstiloTokensRoute: typeof EstiloTokensRoute
+  EstiloIndexRoute: typeof EstiloIndexRoute
+  EstiloComposicoesNameRoute: typeof EstiloComposicoesNameRoute
+  EstiloUiSlugRoute: typeof EstiloUiSlugRoute
+  EstiloComposicoesIndexRoute: typeof EstiloComposicoesIndexRoute
+  EstiloUiIndexRoute: typeof EstiloUiIndexRoute
+}
+
+const EstiloRouteChildren: EstiloRouteChildren = {
+  EstiloTipografiaRoute: EstiloTipografiaRoute,
+  EstiloTokensRoute: EstiloTokensRoute,
+  EstiloIndexRoute: EstiloIndexRoute,
+  EstiloComposicoesNameRoute: EstiloComposicoesNameRoute,
+  EstiloUiSlugRoute: EstiloUiSlugRoute,
+  EstiloComposicoesIndexRoute: EstiloComposicoesIndexRoute,
+  EstiloUiIndexRoute: EstiloUiIndexRoute,
+}
+
+const EstiloRouteWithChildren =
+  EstiloRoute._addFileChildren(EstiloRouteChildren)
+
 interface QualidadeRouteChildren {
   QualidadeIdRoute: typeof QualidadeIdRoute
 }
@@ -1304,18 +1701,24 @@ const QualidadeRouteWithChildren = QualidadeRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AfirmacoesRoute: AfirmacoesRoute,
   AnomaliasRoute: AnomaliasRoute,
   AprenderRoute: AprenderRoute,
   BuscarRoute: BuscarRoute,
+  CadernoRoute: CadernoRoute,
   CamaraRoute: CamaraRoute,
   CoberturaRoute: CoberturaRoute,
   CongressoRoute: CongressoRoute,
   ContestarRoute: ContestarRoute,
+  ContribuirRoute: ContribuirRoute,
   ConveniosRoute: ConveniosRouteWithChildren,
+  EstiloRoute: EstiloRouteWithChildren,
   ExplorarRoute: ExplorarRoute,
+  LacunasRoute: LacunasRoute,
   LoginRoute: LoginRoute,
   MetodologiaRoute: MetodologiaRoute,
   OrgaosRoute: OrgaosRoute,
+  PerguntasRoute: PerguntasRoute,
   PncpRoute: PncpRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   QualidadeRoute: QualidadeRouteWithChildren,
@@ -1328,11 +1731,15 @@ const rootRouteChildren: RootRouteChildren = {
   TermosRoute: TermosRoute,
   TransparenciaInstitucionalRoute: TransparenciaInstitucionalRoute,
   TratamentoDeDadosRoute: TratamentoDeDadosRoute,
+  TrilhasRoute: TrilhasRoute,
+  CadernoIdRoute: CadernoIdRoute,
+  CadernoNovaRoute: CadernoNovaRoute,
   ContratosIdRoute: ContratosIdRoute,
   FornecedoresCnpjRoute: FornecedoresCnpjRoute,
   MapasSlugRoute: MapasSlugRoute,
   NotasSlugRoute: NotasSlugRoute,
   OrgaosCodRoute: OrgaosCodRoute,
+  PerguntasSlugRoute: PerguntasSlugRoute,
   TutoriaisSlugRoute: TutoriaisSlugRoute,
   MapasIndexRoute: MapasIndexRoute,
   NotasIndexRoute: NotasIndexRoute,
@@ -1352,7 +1759,18 @@ const rootRouteChildren: RootRouteChildren = {
   SenadoMateriasIndexRoute: SenadoMateriasIndexRoute,
   SenadoSenadoresIndexRoute: SenadoSenadoresIndexRoute,
   SenadoVotacoesIndexRoute: SenadoVotacoesIndexRoute,
+  EstiloPreviewNameVariantRoute: EstiloPreviewNameVariantRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

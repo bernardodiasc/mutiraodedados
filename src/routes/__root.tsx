@@ -1,12 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import {
-  Outlet,
-  Link,
-  createRootRouteWithContext,
-  useRouter,
-  HeadContent,
-  Scripts,
-} from "@tanstack/react-router";
+import { Outlet, Link, createRootRouteWithContext, useRouter, HeadContent, Scripts } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
 import { DataProvider } from "@/lib/data-store";
@@ -45,9 +38,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight text-foreground">
-          This page didn't load
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight text-foreground">This page didn't load</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
@@ -79,22 +70,48 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Auditoria Cidadã — Gastos federais sob escrutínio" },
-      { name: "description", content: "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social." },
+      {
+        name: "description",
+        content:
+          "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
+      },
       { name: "author", content: "Auditoria Cidadã" },
       { property: "og:title", content: "Auditoria Cidadã — Gastos federais sob escrutínio" },
-      { property: "og:description", content: "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social." },
+      {
+        property: "og:description",
+        content:
+          "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
+      },
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "Auditoria Cidadã" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Auditoria Cidadã — Gastos federais sob escrutínio" },
-      { name: "twitter:description", content: "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png" },
+      {
+        name: "twitter:description",
+        content:
+          "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png",
+      },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap",
       },
     ],
     scripts: [

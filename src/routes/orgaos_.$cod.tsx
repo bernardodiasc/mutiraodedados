@@ -12,6 +12,7 @@ import { calcularNotaTransparencia, corDaFaixa, rotuloDaFaixa } from "@/lib/tran
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { ExternalLink } from "lucide-react";
+import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 
 export const Route = createFileRoute("/orgaos_/$cod")({
   component: OrgaoDetail,
@@ -106,6 +107,16 @@ function OrgaoDetail() {
         >
           Ver no Portal da Transparência <ExternalLink className="size-3.5" />
         </a>
+      </div>
+
+      <div className="mt-4">
+        <BotaoSalvarItem
+          entidadeTipo="orgao"
+          entidadeId={base.cod}
+          titulo={`${base.sigla} — ${base.nome}`}
+          url={`/orgaos/${encodeURIComponent(base.cod)}`}
+          contexto={base.funcao}
+        />
       </div>
 
       {!orgao && (

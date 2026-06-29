@@ -7,7 +7,7 @@ export const Route = createFileRoute("/mapas/")({
     <ArtigosIndexView
       categoria="mapa"
       titulo="Mapas investigativos"
-      descricao="Guias passo-a-passo para investigar dinheiro público — do edital ao pagamento, da emenda ao convênio. Cada mapa parte de uma pergunta concreta e indica as fontes oficiais necessárias."
+      descricao="O manual técnico da fiscalização. Cada mapa é uma receita prática — uma sequência cirúrgica de passos para responder a uma dúvida específica do banco de dados público. O foco é a engenharia de dados: quais fontes oficiais consultar e como conectá-las pelas chaves de cruzamento (CNPJ, nota de empenho, código do convênio, do edital ao pagamento). Para o método e a mentalidade da investigação, comece pelas Trilhas; aqui é mão na massa."
       icon={RouteIcon}
       basePath="/mapas"
       emptyLabel="Ainda não há mapas publicados. Em breve."
@@ -19,10 +19,10 @@ export const Route = createFileRoute("/mapas/")({
       {
         name: "description",
         content:
-          "Guias passo-a-passo para investigar contratos, emendas, transferências e despesas públicas usando dados abertos brasileiros.",
+          "Manual técnico da fiscalização: receitas práticas de cruzamento de dados e sistemas (CNPJ, nota de empenho, convênio) a partir das fontes oficiais brasileiras.",
       },
       { property: "og:title", content: "Mapas investigativos — Auditoria Cidadã" },
-      { property: "og:description", content: "Caminhos investigativos guiados a partir de fontes oficiais." },
+      { property: "og:description", content: "Receitas práticas de engenharia de dados sobre as fontes oficiais — chaves de cruzamento para responder dúvidas específicas." },
       { property: "og:url", content: "https://auditoriacidada.ia.br/mapas" },
     ],
     links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/mapas" }],

@@ -6,29 +6,54 @@
 
 ## Parser
 
-- `preservarNumerosBR(json)` é aplicado **antes** do `JSON.parse` para evitar perda de precisão em valores grandes (16+ dígitos).
-- `parseValorPortal(v)` aceita: number, string "1.234,56", string "1234.56", null/undefined → 0.
+- `parseValorPortal(v)` aceita: number (caminho direto), string pt-BR "1.234,56", decimal "1234.56", milhar pt-BR sem centavos "60.000", null/undefined → 0.
 - Test suite: `src/lib/data/real/portal.parsers.test.ts`.
 
-## Heurística de detalhe
+## Varredura por Detalhe (`fetchPortalOrgao`)
 
-- Limiar: `PORTAL_LIMIAR_SUSPEITA = 100` (era 10_000 antes — gerava muitos falsos positivos).
-- Tolerância de diferença: 5%.
-- Fluxo: `corrigirComDetalhe({ id, endpointDetalhe, valoresLista, extrairDoDetalhe })`.
-  - Retorna `{ ok: true, corrigido: false, valores }` se detalhe confirma listagem.
-  - Retorna `{ ok: true, corrigido: true, valores, valoresOriginais }` se difere — chamador gera QA finding de auto-correção.
-  - Retorna `{ ok: false }` se detalhe falhou em todas as tentativas — chamador pula o registro.
+A ingestão roda como **varredura completa por órgão**, paginando o endpoint `/contratos` sem janela de datas até o fim (última página = tamanho < 15). Para cada contrato na listagem:
+
+1. Busca o endpoint autoritativo `/contratos/id?id=<id>` (detalhe por contrato).
+2. Compara os valores da listagem com os do detalhe usando `valorAutoritativoCgu`.
+3. Se o detalhe diverge com sinal de bug ÷10000 (ex: listagem=6.000, detalhe=60.000.000), **aplica a correção automática** e persiste o valor correto no cache.
+4. Cria um QA finding `valor_corrigido_listagem` (severidade `critico`) via `findingValorCorrigidoListagem`.
+
+Cada rodada tem um orçamento de tempo (`orcamentoMs`, padrão 3 min). Quando esgota, **salva o progresso** na tabela `cgu_varredura` (`ultima_pagina`, `total_importado`) e retorna. A próxima rodada retoma automaticamente de onde parou — o cliente (`AdminImportContainer`) gerencia o loop de auto-continue.
+
+### Parâmetros de `fetchPortalOrgao`
+
+| Parâmetro | Tipo | Default | Descrição |
+|-----------|------|---------|-----------|
+| `codigoOrgao` | string | — | Código SIAFI do órgão (4–6 dígitos) |
+| `dataInicial` | string? | — | ISO YYYY-MM-DD, filtra por vigência (opcional) |
+| `dataFinal` | string? | — | ISO YYYY-MM-DD, filtra por vigência (opcional) |
+| `maxPaginas` | number | 5000 | Teto de páginas por rodada (rede de segurança) |
+| `delayMs` | number | 800 | Pausa entre requisições (páginas e detalhes) |
+| `orcamentoMs` | number | 180000 | Orçamento de tempo por rodada (~3 min) |
+
+## Vigência vs. Assinatura
+
+- `dataInicial`/`dataFinal` filtram por **vigência** (não assinatura) — opcionais, confirmado em `/v3/api-docs`. Page size fixo em 15.
+- A ingestão roda sem janela (varredura completa) e aloca cada contrato ao mês/ano pela `dataAssinatura` (`mes_referencia` = mês da assinatura).
+- A matriz de cobertura mensal continua válida porque o RPC `cobertura_cgu` agrega por `EXTRACT(MONTH FROM data_assinatura)`.
+
+## Tipos de QA Finding gerados
+
+| Finding | Severidade | Quando |
+|---------|------------|--------|
+| `valor_corrigido_listagem` | `critico` | Listagem diverge do detalhe com sinal de truncamento ÷10000 |
+| `possivel_ponto_fixo` | `critico` | JSON bruto tem ponto-fixo (ex: `60000.0000`) detectado em `flagQA` via `regrasCgu` |
+| `fornecedor_ausente` | `aviso` | CNPJ/CPF do fornecedor está nulo — contrato salvo com placeholder `CNPJ_FORNECEDOR_AUSENTE` |
+
+- Findings são reconciliados por `sincronizarQaCgu` após o upsert de cada página: se o cache já tem valor correto (upsert posterior), o finding é fechado como `corrigido_automaticamente`.
+- `flagQA` é idempotente — não reabre findings já resolvidos.
 
 ## Autenticação
 
-Header `chave-api-dados: <key>`. Sem a env var, todas as ingestões da CGU falham com erro explícito.
+Header `chave-api-dados: <key>`. Sem a env var `PORTAL_TRANSPARENCIA_API_KEY`, todas as ingestões da CGU falham com erro explícito.
 
-## Casos conhecidos de QA auto-corrigida
+## Server functions relevantes
 
-Listagem trazia valor 1000× menor do que o detalhe (provavelmente bug de scale do lado deles): ids `720365306, 721767866, 722569338, 722569402, 722671482, 722832314`. Hoje esses casos disparam `valor_corrigido_via_detalhe` finding visível em `/qualidade`.
-
-## Server functions
-
-- `fetchPortalOrgao(orgaoCod, dataInicial, dataFinal)` — `src/lib/data/real/portal.functions.ts`.
+- `fetchPortalOrgao({ codigoOrgao, dataInicial?, dataFinal?, maxPaginas, delayMs, orcamentoMs })` — `src/lib/data/real/portal.functions.ts`. Sem `dataInicial`/`dataFinal`, varre o histórico completo do órgão (modo padrão); com janela, filtra por vigência.
 - `importarConveniosTransferegov(...)` — `src/lib/data/transferegov/ingest.functions.ts`.
 - `listHistoricoUnificado()` — log unificado de importações.

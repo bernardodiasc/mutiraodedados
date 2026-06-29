@@ -15,7 +15,7 @@
 
 - Para emendas Pix, requisições usam User-Agent de navegador (o endpoint bloqueia clientes padrão).
 - Paginação `offset/limit` no endpoint direto.
-- Convênios sofrem a mesma heurística de detalhe do Portal CGU — ver [`portal-cgu.ia.md`](./portal-cgu.ia.md).
+- Convênios usam o mesmo cliente e parser de valores do Portal CGU (`portal-client.ts`) — ver [`portal-cgu.ia.md`](./portal-cgu.ia.md).
 
 ## Quem consome
 

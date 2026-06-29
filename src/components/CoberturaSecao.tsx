@@ -1,52 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import type { FonteCobertura } from "@/lib/data/cobertura-publica.functions";
+import {
+  fmtRelativo,
+  fmtAnoMes,
+  freshness,
+  corFresh,
+} from "@/lib/cobertura-secao/logic";
+
+export { fmtRelativo, freshness } from "@/lib/cobertura-secao/logic";
 
 type Cobertura = { anoCorrente: number; fontes: FonteCobertura[]; geradoEm: string };
 
 const MESES = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MESES_LONG = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
-
-function diasDesde(iso: string | null): number | null {
-  if (!iso) return null;
-  const t = new Date(iso).getTime();
-  if (!Number.isFinite(t)) return null;
-  return Math.max(0, Math.floor((Date.now() - t) / 86_400_000));
-}
-
-export function fmtRelativo(iso: string | null): string {
-  const d = diasDesde(iso);
-  if (d === null) return "—";
-  if (d === 0) return "hoje";
-  if (d === 1) return "ontem";
-  if (d < 30) return `há ${d} dias`;
-  if (d < 60) return "há 1 mês";
-  if (d < 365) return `há ${Math.floor(d / 30)} meses`;
-  const anos = Math.floor(d / 365);
-  return anos === 1 ? "há 1 ano" : `há ${anos} anos`;
-}
-
-function fmtAnoMes(iso: string | null): string {
-  if (!iso) return "—";
-  return iso.slice(0, 7);
-}
-
-export function freshness(iso: string | null): "fresh" | "warn" | "stale" | "none" {
-  const d = diasDesde(iso);
-  if (d === null) return "none";
-  if (d <= 30) return "fresh";
-  if (d <= 90) return "warn";
-  return "stale";
-}
-
-function corFresh(f: ReturnType<typeof freshness>): string {
-  return f === "fresh"
-    ? "text-emerald-400"
-    : f === "warn"
-      ? "text-amber-400"
-      : f === "stale"
-        ? "text-rose-400"
-        : "text-muted-foreground";
-}
 
 /**
  * Variant compact: heatmap apenas do ano corrente.

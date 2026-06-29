@@ -106,6 +106,8 @@ function RoadmapPage() {
       <p className="mt-10 text-xs text-muted-foreground">
         Tem sugestão, crítica ou achou um erro?{" "}
         <Link to="/contestar" className="text-accent underline">Conte para nós</Link>.
+        Quer ajudar a construir o que vem a seguir? Veja{" "}
+        <Link to="/contribuir" className="text-accent underline">como contribuir</Link>.
       </p>
     </article>
   );

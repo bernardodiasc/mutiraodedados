@@ -4,7 +4,7 @@ import { NAV_GROUPS, type NavLink } from "@/lib/nav-groups";
 export function SiteFooter() {
   return (
     <footer className="border-t border-border mt-20">
-      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+      <div className="mx-auto max-w-7xl px-4 py-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5 text-sm">
         <div>
           <div className="font-display text-xl">Auditoria Cidadã</div>
           <p className="text-muted-foreground mt-2 leading-relaxed">

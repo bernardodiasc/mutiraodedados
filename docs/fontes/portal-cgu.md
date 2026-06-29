@@ -15,9 +15,11 @@ API oficial da Controladoria-Geral da União. É a principal fonte de dados do E
 
 ## Peculiaridades
 
-- **Parser de valores BR**: a API às vezes retorna número com vírgula e às vezes com ponto. O cliente compartilhado `portal-client.ts` normaliza tudo via `parseValorPortal` e preserva precisão de números grandes antes do `JSON.parse`.
-- **Heurística de detalhe**: quando a listagem traz valor < R$ 100, consultamos o endpoint `/contratos/id` (ou `/convenios/id`) para confirmar. Se difere em >5%, corrigimos automaticamente e registramos um [QA finding](../qualidade-dados.md). Se o detalhe não responde, o registro é pulado.
-- **Throttling**: ~8 req/s; pausa extra de 125ms quando há consulta a detalhe.
+- **Filtro por vigência, não por assinatura**: no endpoint `/contratos`, os parâmetros `dataInicial`/`dataFinal` filtram pela **vigência** do contrato (são opcionais) — não pela data de assinatura/criação. Consultar mês a mês não devolve "contratos do mês": devolve contratos com vigência ativa na janela, então um contrato plurianual reaparece em todos os meses da sua vigência. Por isso a ingestão roda em **varredura completa por órgão** (sem janela) e aloca cada contrato ao mês/ano pela própria `dataAssinatura`. Detalhes em [`portal-cgu.ia.md`](./portal-cgu.ia.md).
+- **Parser de valores BR**: a API às vezes retorna número com vírgula e às vezes com ponto. O cliente compartilhado `portal-client.ts` normaliza tudo via `parseValorPortal`.
+- **Varredura por detalhe e correção automática**: para cada contrato, a ingestão consulta o endpoint `/contratos/id` (autoritativo) e compara o valor com a listagem. Se a listagem está truncada (bug ÷10000 da CGU), **a correção é aplicada automaticamente** e registrada como QA finding `valor_corrigido_listagem`. Heurísticas simples de anomalia (`possivel_ponto_fixo`, valor < R$ 100) continuam gerando findings separados sem alterar o valor. Detalhes técnicos em [`portal-cgu.ia.md`](./portal-cgu.ia.md).
+- **Varredura retomável**: cada rodada roda até esgotar um orçamento de tempo (~3 min), salvando o progresso na tabela `cgu_varredura`. A próxima rodada retoma de onde parou.
+- **Throttling/resiliência**: retry com backoff em erros transitórios (5xx / 429 / rede).
 
 ## Quem consome
 

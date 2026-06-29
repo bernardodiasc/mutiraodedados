@@ -43,6 +43,7 @@ Cada arquivo agrupa páginas públicas + telas do admin do mesmo assunto.
 - [Artigos e aprendizado](./dominios/artigos-e-aprendizado.md)
 - [Busca e exploração](./dominios/busca-e-exploracao.md)
 - [Páginas institucionais](./dominios/institucional.md)
+- [Laboratório cívico (perguntas, caderno, lacunas)](./dominios/laboratorio-civico.md)
 
 ### Conceitos do mundo real
 

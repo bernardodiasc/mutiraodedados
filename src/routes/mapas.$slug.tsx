@@ -1,11 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArtigoDetalheView } from "@/components/ArtigoDetalheView";
+import { ArtigoDetalhe } from "@/components/ArtigoDetalhe";
 
 export const Route = createFileRoute("/mapas/$slug")({
   component: () => {
     const { slug } = Route.useParams();
     return (
-      <ArtigoDetalheView slug={slug} voltarTo="/mapas" voltarLabel="Mapas investigativos" />
+      <ArtigoDetalhe slug={slug} voltarTo="/mapas" voltarLabel="Mapas investigativos" />
     );
   },
   notFoundComponent: () => (

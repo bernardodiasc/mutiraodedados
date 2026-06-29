@@ -15,9 +15,22 @@ export type RealLoadMeta = {
   erros: string[];
   fonte: string;
   consultadoEm: string;
+  // Progresso da varredura retomável da CGU (null no modo com janela).
+  varredura?: {
+    ultimaPagina: number;
+    completa: boolean;
+    haMais: boolean;
+    totalAcumulado: number;
+    // Quantos valores foram corrigidos pela conferência por detalhe nesta rodada.
+    corrigidos?: number;
+    // A rodada parou por estourar o orçamento de tempo (há mais a baixar).
+    orcamentoEsgotado?: boolean;
+  } | null;
 };
 
-type LoadOpts = { dataInicial: string; dataFinal: string };
+// Sem datas = varredura completa do órgão (a CGU filtra por vigência, não por
+// assinatura — ver fetchPortalOrgao). Com datas, mantém o filtro por vigência.
+type LoadOpts = { dataInicial?: string; dataFinal?: string };
 
 type Ctx = {
   dataset: Dataset;
@@ -60,8 +73,18 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setRealError(null);
       setRealLoading((s) => ({ ...s, [cod]: true }));
       try {
+        const temJanela = !!(opts.dataInicial && opts.dataFinal);
         const res = await fetchPortalOrgaoFn({
-          data: { codigoOrgao: cod, dataInicial: opts.dataInicial, dataFinal: opts.dataFinal, maxPaginas: 10 },
+          data: {
+            codigoOrgao: cod,
+            // Janela de vigência (opcional): mesma varredura por detalhe, só que
+            // filtrando por início de vigência. Sem datas = varredura completa.
+            ...(temJanela ? { dataInicial: opts.dataInicial, dataFinal: opts.dataFinal } : {}),
+            // Varredura por detalhe: limitada por TEMPO, não por páginas. ~3min
+            // cabe no timeout de 4min do runBatch; é retomável (rodadas), então
+            // órgãos/janelas grandes completam em várias.
+            orcamentoMs: 180_000,
+          },
         });
         setDataset((d) =>
           mergeDatasets(d, {
@@ -76,6 +99,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           erros: res.meta.erros,
           fonte: res.meta.fonte,
           consultadoEm: res.meta.consultadoEm,
+          varredura: res.meta.varredura ?? null,
         };
         setLastRealLoad(meta);
         return meta;

@@ -51,3 +51,36 @@ Textos vindos das APIs oficiais já chegam sanitizados do banco (ver [`importaca
 - Header e footer vivem em `src/components/SiteHeader.tsx` e `SiteFooter.tsx`.
 - Grupos do menu definidos em `src/lib/nav-groups.ts`.
 - Admin tem nav própria em `src/components/AdminNav.tsx`.
+
+## Container × View × logic.ts
+
+Padrão de arquitetura aplicado a componentes com estado, efeitos ou queries.
+
+```text
+src/
+  containers/<Feature>Container.tsx   # estado, queries, handlers, server-fns
+  components/<Feature>View.tsx        # stateless, depende só de props
+  lib/<feature>/
+    logic.ts                          # funções puras (sem React/I/O)
+    logic.test.ts                     # vitest
+    mocks.ts                          # variantes para /admin/estilo
+    types.ts                          # props da View
+```
+
+Regras:
+
+- **View** não importa `useQuery`, `useServerFn`, `useState`, `useEffect`,
+  `supabase`, server-fns, `toast`. Recebe tudo (dados + callbacks) via props.
+- **Container** importa exatamente uma View e funções puras. JSX limitado a
+  `<View …props />` + wrappers triviais (Dialog root, fragmentos).
+- **logic.ts**: funções puras (entrada → saída). Quando precisarem de `now`
+  ou aleatoriedade, recebem como argumento. Cada export tem teste em
+  `logic.test.ts` com 1 happy path + 1 borda + erros conhecidos.
+- **Rotas** renderizam o Container correspondente; mantêm apenas
+  `createFileRoute`, `head()` e guards.
+- **Style guide**: cada feature exporta `<feature>Variants` em `mocks.ts` e
+  se registra em `src/lib/style-guide/registry.ts`. A aba Composições em
+  `/admin/estilo` itera o registry automaticamente.
+
+UI components do shadcn (`src/components/ui/*`) já são stateless e não
+entram neste padrão — são primitivas usadas pelas Views.

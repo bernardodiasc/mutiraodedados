@@ -1,4 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
+import { z } from "zod";
 import * as React from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
@@ -10,10 +11,13 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/login")({
   component: LoginPage,
   head: () => ({ meta: [{ title: "Entrar — Auditoria Cidadã" }]}),
+  validateSearch: z.object({ redirect: z.string().optional() }),
 });
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { redirect } = Route.useSearch();
+  const destino = redirect && redirect.startsWith("/") ? redirect : "/minhas-marcacoes";
   const [mode, setMode] = React.useState<"login" | "signup">("login");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -37,7 +41,7 @@ function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: "/minhas-marcacoes" });
+        navigate({ to: destino });
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -52,7 +56,7 @@ function LoginPage() {
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      navigate({ to: "/minhas-marcacoes" });
+      navigate({ to: destino });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

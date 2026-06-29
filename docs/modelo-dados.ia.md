@@ -35,6 +35,22 @@ Lista das tabelas principais. Esquema canônico vive em `supabase/migrations/` e
 | `user_roles`      | Papéis (`admin`, `user`) por usuário                              |
 | `profiles`        | Dados de perfil (sem PII sensível)                                |
 
+## Laboratório cívico (perguntas, caderno, lacunas)
+
+Tabelas que sustentam os modos **Perguntar** e **Investigar** (ver [`dominios/laboratorio-civico.md`](./dominios/laboratorio-civico.md)).
+
+| Tabela         | Função                                                                                       |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `perguntas`    | Perguntas formuladas pelos cidadãos. Campos: `texto`, `contexto`, `estado`, `tags[]`, `origem_url`, `publicada`. Estados: `aberta`, `em_investigacao`, `respondida_parcialmente`, `respondida`, `sem_resposta_possivel`, `dormente`. |
+| `itens_salvos` | Itens salvos no caderno do usuário (polimórficos). Chave: `(user_id, entidade_tipo, entidade_id)`. Tipos: `orgao`, `contrato`, `fornecedor`, `convenio`, `pergunta`, `anomalia`, `lacuna`. |
+| `anotacoes`    | Notas em markdown privadas. Campos: `titulo?`, `conteudo_md`, `tags[]`. Âncoras opcionais: `pergunta_id`, `(entidade_tipo, entidade_id)`. |
+| `lacunas`      | Informações que faltam. Campos: `titulo`, `descricao`, `tipo` (`transparencia`, `avaliacao`, `mensuracao`, `documental`, `institucional`, `metodologica`), `ciclo` (`nasce`→`qualificada`→`evolui`→`conecta`→`encerra`), `qa_finding_id?`, `entidade_tipo?`, `entidade_id?`. |
+
+RLS:
+- `perguntas`: leitura pública quando `publicada=true`; autor sempre lê/edita as suas.
+- `itens_salvos` e `anotacoes`: estritamente privadas (`auth.uid() = user_id`).
+- `lacunas`: leitura pública; escrita restrita a `admin`. Conversão a partir de `qa_findings` via server function `converterFindingEmLacuna`.
+
 ## Convenções
 
 - Toda tabela `*_cache` tem `id` como chave primária (natural ou composta `<entidade>-<numero>`).
