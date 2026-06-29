@@ -8,6 +8,8 @@ import { useQuery } from "@tanstack/react-query";
 import { listarRoadmap } from "@/lib/data/roadmap.functions";
 import { listarArtigos } from "@/lib/data/artigos.functions";
 import { statusFontes } from "@/lib/data/status.functions";
+import { listarTodosModelos } from "@/lib/pergunta-modelos.functions";
+import { listarPerguntasEmRevisao } from "@/lib/perguntas.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: ensureAdminBeforeLoad,
@@ -20,6 +22,8 @@ function AdminPage() {
   const fetchRoadmap = useServerFn(listarRoadmap);
   const fetchArtigos = useServerFn(listarArtigos);
   const fetchStatus = useServerFn(statusFontes);
+  const fetchModelos = useServerFn(listarTodosModelos);
+  const fetchRevisao = useServerFn(listarPerguntasEmRevisao);
 
   const { data: roadmap } = useQuery({
     queryKey: ["admin-roadmap-summary"],
@@ -34,6 +38,16 @@ function AdminPage() {
   const { data: status } = useQuery({
     queryKey: ["admin-dados-summary"],
     queryFn: () => fetchStatus(),
+    enabled: isAdmin,
+  });
+  const { data: modelos } = useQuery({
+    queryKey: ["admin-modelos-summary"],
+    queryFn: () => fetchModelos(),
+    enabled: isAdmin,
+  });
+  const { data: revisao } = useQuery({
+    queryKey: ["admin-perguntas-revisao-summary"],
+    queryFn: () => fetchRevisao(),
     enabled: isAdmin,
   });
 
@@ -108,6 +122,10 @@ function AdminPage() {
         : status
           ? "Nenhuma fonte sincronizada ainda"
           : "Sem dados ainda",
+    "/admin/perguntas":
+      modelos || revisao
+        ? `${(modelos ?? []).filter((m) => m.ativo).length} modelos ativos · ${(revisao ?? []).length} aguardando revisão`
+        : "Sem dados ainda",
   };
 
   return (

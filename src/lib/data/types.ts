@@ -35,6 +35,7 @@ export type Contrato = {
   valor: number;
   ano: number;
   dataAssinatura: string;
+  dataInicioVigencia?: string;
 };
 
 export type SerieAnual = { ano: number; valor: number };

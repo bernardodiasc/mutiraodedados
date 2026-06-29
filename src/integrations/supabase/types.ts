@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      anotacoes: {
+        Row: {
+          conteudo_md: string
+          created_at: string
+          entidade_id: string | null
+          entidade_tipo: string | null
+          id: string
+          pergunta_id: string | null
+          tags: string[]
+          titulo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          conteudo_md?: string
+          created_at?: string
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          id?: string
+          pergunta_id?: string | null
+          tags?: string[]
+          titulo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          conteudo_md?: string
+          created_at?: string
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          id?: string
+          pergunta_id?: string | null
+          tags?: string[]
+          titulo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       artigos: {
         Row: {
           autor_id: string | null
@@ -68,6 +107,51 @@ export type Database = {
           tempo_estimado_min?: number | null
           titulo?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      artigos_imagens: {
+        Row: {
+          altura: number | null
+          autor_id: string | null
+          created_at: string
+          id: string
+          largura: number | null
+          legenda: string | null
+          mime: string
+          nome_original: string
+          storage_path: string
+          tamanho_bytes: number
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          altura?: number | null
+          autor_id?: string | null
+          created_at?: string
+          id?: string
+          largura?: number | null
+          legenda?: string | null
+          mime: string
+          nome_original: string
+          storage_path: string
+          tamanho_bytes: number
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          altura?: number | null
+          autor_id?: string | null
+          created_at?: string
+          id?: string
+          largura?: number | null
+          legenda?: string | null
+          mime?: string
+          nome_original?: string
+          storage_path?: string
+          tamanho_bytes?: number
+          updated_at?: string
+          url?: string
         }
         Relationships: []
       }
@@ -335,6 +419,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cgu_varredura: {
+        Row: {
+          atualizado_em: string
+          completa: boolean
+          orgao_cod: string
+          total_importado: number
+          ultima_pagina: number
+        }
+        Insert: {
+          atualizado_em?: string
+          completa?: boolean
+          orgao_cod: string
+          total_importado?: number
+          ultima_pagina?: number
+        }
+        Update: {
+          atualizado_em?: string
+          completa?: boolean
+          orgao_cod?: string
+          total_importado?: number
+          ultima_pagina?: number
+        }
+        Relationships: []
+      }
       contestacoes: {
         Row: {
           contato: string | null
@@ -390,10 +498,12 @@ export type Database = {
         Row: {
           ano: number
           data_assinatura: string | null
+          data_inicio_vigencia: string | null
           fornecedor_cnpj: string
           id: string
           mes_referencia: number | null
           modalidade: string
+          numero: string | null
           objeto: string
           orgao_cod: string
           updated_at: string
@@ -403,10 +513,12 @@ export type Database = {
         Insert: {
           ano: number
           data_assinatura?: string | null
+          data_inicio_vigencia?: string | null
           fornecedor_cnpj: string
           id: string
           mes_referencia?: number | null
           modalidade: string
+          numero?: string | null
           objeto: string
           orgao_cod: string
           updated_at?: string
@@ -416,10 +528,12 @@ export type Database = {
         Update: {
           ano?: number
           data_assinatura?: string | null
+          data_inicio_vigencia?: string | null
           fornecedor_cnpj?: string
           id?: string
           mes_referencia?: number | null
           modalidade?: string
+          numero?: string | null
           objeto?: string
           orgao_cod?: string
           updated_at?: string
@@ -458,6 +572,7 @@ export type Database = {
           fonte: string
           id: string
           importados: number
+          log_kind: string | null
           mes: number | null
           orgao_cod: string | null
           total_bruto: number
@@ -474,6 +589,7 @@ export type Database = {
           fonte?: string
           id?: string
           importados?: number
+          log_kind?: string | null
           mes?: number | null
           orgao_cod?: string | null
           total_bruto?: number
@@ -490,12 +606,122 @@ export type Database = {
           fonte?: string
           id?: string
           importados?: number
+          log_kind?: string | null
           mes?: number | null
           orgao_cod?: string | null
           total_bruto?: number
           user_id?: string | null
         }
         Relationships: []
+      }
+      itens_salvos: {
+        Row: {
+          contexto: string | null
+          created_at: string
+          entidade_id: string
+          entidade_tipo: string
+          id: string
+          pergunta_id: string | null
+          tags: string[]
+          titulo: string
+          updated_at: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          contexto?: string | null
+          created_at?: string
+          entidade_id: string
+          entidade_tipo: string
+          id?: string
+          pergunta_id?: string | null
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          contexto?: string | null
+          created_at?: string
+          entidade_id?: string
+          entidade_tipo?: string
+          id?: string
+          pergunta_id?: string | null
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "itens_salvos_pergunta_id_fkey"
+            columns: ["pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lacunas: {
+        Row: {
+          ciclo: Database["public"]["Enums"]["lacuna_ciclo"]
+          created_at: string
+          criada_por: string | null
+          descricao: string
+          entidade_id: string | null
+          entidade_tipo: string | null
+          id: string
+          origem_qa_finding_id: string | null
+          publicada: boolean
+          resolvida_em: string | null
+          tags: string[]
+          tipo: Database["public"]["Enums"]["lacuna_tipo"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ciclo?: Database["public"]["Enums"]["lacuna_ciclo"]
+          created_at?: string
+          criada_por?: string | null
+          descricao: string
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          id?: string
+          origem_qa_finding_id?: string | null
+          publicada?: boolean
+          resolvida_em?: string | null
+          tags?: string[]
+          tipo: Database["public"]["Enums"]["lacuna_tipo"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ciclo?: Database["public"]["Enums"]["lacuna_ciclo"]
+          created_at?: string
+          criada_por?: string | null
+          descricao?: string
+          entidade_id?: string | null
+          entidade_tipo?: string | null
+          id?: string
+          origem_qa_finding_id?: string | null
+          publicada?: boolean
+          resolvida_em?: string | null
+          tags?: string[]
+          tipo?: Database["public"]["Enums"]["lacuna_tipo"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lacunas_origem_qa_finding_id_fkey"
+            columns: ["origem_qa_finding_id"]
+            isOneToOne: false
+            referencedRelation: "qa_findings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orgaos_cache: {
         Row: {
@@ -529,6 +755,189 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      pergunta_itens: {
+        Row: {
+          created_at: string
+          id: string
+          nota: string | null
+          ordem: number
+          pergunta_id: string
+          ref_id: string | null
+          tipo: Database["public"]["Enums"]["pergunta_item_tipo"]
+          titulo: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nota?: string | null
+          ordem?: number
+          pergunta_id: string
+          ref_id?: string | null
+          tipo: Database["public"]["Enums"]["pergunta_item_tipo"]
+          titulo: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nota?: string | null
+          ordem?: number
+          pergunta_id?: string
+          ref_id?: string | null
+          tipo?: Database["public"]["Enums"]["pergunta_item_tipo"]
+          titulo?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pergunta_itens_pergunta_id_fkey"
+            columns: ["pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pergunta_modelos: {
+        Row: {
+          ativo: boolean
+          contexto: string | null
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          tags: string[]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          contexto?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          contexto?: string | null
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      pergunta_seguidores: {
+        Row: {
+          created_at: string
+          pergunta_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          pergunta_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          pergunta_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pergunta_seguidores_pergunta_id_fkey"
+            columns: ["pergunta_id"]
+            isOneToOne: false
+            referencedRelation: "perguntas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      perguntas: {
+        Row: {
+          arquivada_em: string | null
+          contexto: string | null
+          created_at: string
+          descricao: string | null
+          encerrada_em: string | null
+          id: string
+          modelo_id: string | null
+          moderador_id: string | null
+          motivo_rejeicao: string | null
+          publicada_em: string | null
+          revisada_em: string | null
+          slug: string | null
+          solicitada_publicacao_em: string | null
+          status: Database["public"]["Enums"]["pergunta_status"]
+          tags: string[]
+          titulo: string
+          updated_at: string
+          user_id: string
+          visibilidade_publica: boolean
+        }
+        Insert: {
+          arquivada_em?: string | null
+          contexto?: string | null
+          created_at?: string
+          descricao?: string | null
+          encerrada_em?: string | null
+          id?: string
+          modelo_id?: string | null
+          moderador_id?: string | null
+          motivo_rejeicao?: string | null
+          publicada_em?: string | null
+          revisada_em?: string | null
+          slug?: string | null
+          solicitada_publicacao_em?: string | null
+          status?: Database["public"]["Enums"]["pergunta_status"]
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+          user_id: string
+          visibilidade_publica?: boolean
+        }
+        Update: {
+          arquivada_em?: string | null
+          contexto?: string | null
+          created_at?: string
+          descricao?: string | null
+          encerrada_em?: string | null
+          id?: string
+          modelo_id?: string | null
+          moderador_id?: string | null
+          motivo_rejeicao?: string | null
+          publicada_em?: string | null
+          revisada_em?: string | null
+          slug?: string | null
+          solicitada_publicacao_em?: string | null
+          status?: Database["public"]["Enums"]["pergunta_status"]
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+          user_id?: string
+          visibilidade_publica?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "perguntas_modelo_id_fkey"
+            columns: ["modelo_id"]
+            isOneToOne: false
+            referencedRelation: "pergunta_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pncp_contratos_cache: {
         Row: {
@@ -1373,7 +1782,12 @@ export type Database = {
         }[]
       }
       qa_findings_publicos: {
-        Args: { _fonte?: string; _limit?: number; _status?: string }
+        Args: {
+          _fonte?: string
+          _limit?: number
+          _regra?: string
+          _status?: string
+        }
         Returns: {
           detectado_em: string
           entidade_id: string
@@ -1396,6 +1810,32 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "curador" | "cidadao"
+      lacuna_ciclo: "nasce" | "qualificada" | "evolui" | "conecta" | "encerra"
+      lacuna_tipo:
+        | "transparencia"
+        | "avaliacao"
+        | "mensuracao"
+        | "documental"
+        | "institucional"
+        | "metodologica"
+      pergunta_item_tipo:
+        | "contrato"
+        | "orgao"
+        | "fornecedor"
+        | "lacuna"
+        | "finding"
+        | "link"
+        | "anotacao"
+        | "convenio"
+        | "parlamentar"
+        | "votacao"
+        | "anomalia"
+      pergunta_status:
+        | "privada"
+        | "em_revisao"
+        | "publicada"
+        | "arquivada"
+        | "encerrada"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1524,6 +1964,35 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "curador", "cidadao"],
+      lacuna_ciclo: ["nasce", "qualificada", "evolui", "conecta", "encerra"],
+      lacuna_tipo: [
+        "transparencia",
+        "avaliacao",
+        "mensuracao",
+        "documental",
+        "institucional",
+        "metodologica",
+      ],
+      pergunta_item_tipo: [
+        "contrato",
+        "orgao",
+        "fornecedor",
+        "lacuna",
+        "finding",
+        "link",
+        "anotacao",
+        "convenio",
+        "parlamentar",
+        "votacao",
+        "anomalia",
+      ],
+      pergunta_status: [
+        "privada",
+        "em_revisao",
+        "publicada",
+        "arquivada",
+        "encerrada",
+      ],
     },
   },
 } as const

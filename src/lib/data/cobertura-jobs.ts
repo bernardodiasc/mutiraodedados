@@ -63,13 +63,45 @@ function endpointFor(
   return "";
 }
 
-export type CoberturaJob = { label: string; run: () => Promise<number> };
+export type CoberturaJob = {
+  label: string;
+  run: () => Promise<number>;
+  // CGU: o job gerencia seu próprio timeout por rodada e roda várias rodadas
+  // até a varredura do órgão completar — então o runner NÃO deve aplicar o
+  // timeout único de 4min (que mataria o loop após a 1ª rodada).
+  noTimeout?: boolean;
+};
+
+/**
+ * Cache de varredura da CGU, vivo durante UM lote de jobs.
+ *
+ * A API da CGU filtra contratos por VIGÊNCIA (não por assinatura), então
+ * consultar mês a mês só repete o mesmo histórico. A ingestão roda em modo
+ * varredura completa por órgão. Como a matriz/sincronização constroem um job
+ * por (órgão, ano, mês), este cache garante que a primeira célula de um órgão
+ * dispare UMA varredura e as demais virem no-ops — sem requisições redundantes
+ * nem dupla contagem. `runJobs` chama `resetCguSweepCache()` no início de cada
+ * lote para que um novo disparo realmente re-varra.
+ */
+const cguSweepCache = new Map<string, Promise<number>>();
+// Sinal de cancelamento da varredura CGU (entre rodadas do auto-continuar).
+let cguSweepAbort = false;
+export function abortCguSweep() {
+  cguSweepAbort = true;
+}
+export function resetCguSweepCache() {
+  cguSweepCache.clear();
+  cguSweepAbort = false;
+}
 
 export type BuildJobFn = (
   fonte: Fonte["fonte"],
   linhaId: string,
   ano: number,
   mes: number,
+  // CGU: janela de vigência opcional (ISO YYYY-MM-DD). Quando presente, a
+  // varredura filtra por início de vigência; ausente = varredura completa.
+  opts?: { dataInicial?: string; dataFinal?: string },
 ) => CoberturaJob | null;
 
 /** Hook que devolve um construtor único de jobs para a matriz de cobertura. */
@@ -87,7 +119,7 @@ export function useCoberturaJobBuilder(): BuildJobFn {
   const importarTransfFin = useServerFn(importarTransferenciasFinalidade);
 
   return React.useCallback<BuildJobFn>(
-    (fonte, linhaId, y, m) => {
+    (fonte, linhaId, y, m, opts) => {
       if (fonte !== "siconfi" && !dentroDaJanela(fonte as FonteJanela, y, m)) return null;
       const { ini, fim } = monthRange(y, m);
       const tag = `${MESES_CURTO[m - 1]}/${y}`;
@@ -139,7 +171,55 @@ export function useCoberturaJobBuilder(): BuildJobFn {
           const rotulo = o ? `${o.sigla} (${linhaId})` : linhaId;
           return {
             label: `${rotulo} · ${tag}`,
-            run: wrap(async () => (await loadRealOrgao(linhaId, { dataInicial: ini, dataFinal: fim })).importados),
+            // O loop de rodadas gerencia seu próprio timeout por rodada.
+            noTimeout: true,
+            run: wrap(async () => {
+              // Dedup por janela (ver cguSweepCache): a 1ª chamada de uma mesma
+              // janela varre e as demais (mesma janela no lote) viram no-op.
+              // Janela de vigência: o Sincronizar tudo passa o range de anos via
+              // `opts`; na matriz (sem opts) a célula clicada importa só o MÊS
+              // referente (janela = início..fim do mês), alocado por início de
+              // vigência. A chave do cache inclui a janela para não colidir.
+              const janela = opts?.dataInicial && opts?.dataFinal
+                ? { dataInicial: opts.dataInicial, dataFinal: opts.dataFinal }
+                : { dataInicial: ini, dataFinal: fim };
+              const cacheKey = `${linhaId}|${janela.dataInicial}|${janela.dataFinal}`;
+              const emCurso = cguSweepCache.get(cacheKey);
+              if (emCurso) {
+                try {
+                  await emCurso;
+                } catch {
+                  /* erro já reportado na primeira célula do órgão */
+                }
+                return 0;
+              }
+              // AUTO-CONTINUAR: roda rodadas até a varredura do órgão completar
+              // (haMais=false). Cada rodada é limitada por TEMPO no servidor
+              // (~3min) e por um timeout de segurança aqui (4min). Teto de
+              // rodadas como guarda contra loop infinito.
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 300;
+              const p = (async () => {
+                let total = 0;
+                for (let r = 0; r < MAX_RODADAS; r++) {
+                  if (cguSweepAbort) break;
+                  const meta = await Promise.race([
+                    loadRealOrgao(linhaId, janela),
+                    new Promise<never>((_, reject) =>
+                      setTimeout(
+                        () => reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                        RODADA_TIMEOUT_MS,
+                      ),
+                    ),
+                  ]);
+                  total += meta.importados;
+                  if (!meta.varredura?.haMais) break;
+                }
+                return total;
+              })();
+              cguSweepCache.set(cacheKey, p);
+              return p;
+            }),
           };
         }
         case "camara_ceap":

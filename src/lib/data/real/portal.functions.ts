@@ -6,36 +6,48 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { FONTES_LIMPEZA, FONTE_IDS } from "@/lib/data/limpeza";
-import { regrasCgu, flagQA, type CguContratoLike, type QaFinding } from "@/lib/data/qa";
+import {
+  sincronizarQaCgu,
+  flagQA,
+  findingValorCorrigidoListagem,
+  findingFornecedorAusente,
+  valorAutoritativoCgu,
+  CNPJ_FORNECEDOR_AUSENTE,
+  type QaFinding,
+} from "@/lib/data/qa";
 import {
   parseValorPortal,
   portalGet,
-  valorPortalSuspeito,
-  corrigirComDetalhe,
+  portalGetComTexto,
+  PORTAL_BASE,
 } from "@/lib/data/real/portal-client";
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Re-export para compatibilidade (testes e código legado importam daqui).
 export { parseValorPortal };
-export const valorCguListagemPrecisaDetalhe = (vi: number, vf: number) =>
-  valorPortalSuspeito(vf > 0 ? vf : vi);
 
 type PortalContrato = {
   id?: number | string;
   numero?: string;
   objeto?: string;
   dataAssinatura?: string;
-  // O endpoint JSON da CGU devolve moeda como número decimal com ponto
-  // e 4 casas (ex.: 117560.3000 = R$ 117.560,30). Também aceitamos
-  // strings em pt-BR quando algum endpoint/documento vier formatado.
-  valorInicialCompra?: number | string;
-  valorFinalCompra?: number | string;
+  dataInicioVigencia?: string;
+  valorInicialCompra?: unknown;
+  valorFinalCompra?: unknown;
   modalidadeCompra?: string;
   fornecedor?: {
+    id?: number | string;
     cnpjFormatado?: string | null;
     cpfFormatado?: string | null;
-    numeroDeInscricao?: string;
-    nome?: string;
-    razaoSocial?: string;
+    // A API usa `numeroInscricaoSocial`; mantemos `numeroDeInscricao` como
+    // fallback legado por segurança.
+    numeroInscricaoSocial?: string | null;
+    numeroDeInscricao?: string | null;
+    nome?: string | null;
+    razaoSocialReceita?: string | null;
+    razaoSocial?: string | null;
+    tipo?: string | null;
   };
 };
 
@@ -46,33 +58,6 @@ export function normalizarValoresCguListagem(rawInicial: unknown, rawFinal: unkn
   };
 }
 
-async function normalizarValoresCguComDetalheQuandoSuspeito(
-  id: string,
-  rawInicial: unknown,
-  rawFinal: unknown,
-): Promise<{ valorInicial: number; valorFinal: number; corrigidoPorDetalhe: boolean; valorInicialAntes?: number; valorFinalAntes?: number }> {
-  const lista = normalizarValoresCguListagem(rawInicial, rawFinal);
-  const r = await corrigirComDetalhe({
-    id,
-    endpointDetalhe: "/contratos/id",
-    valoresLista: { valorInicial: lista.valorInicial, valorFinal: lista.valorFinal },
-    extrairDoDetalhe: (det) => {
-      const d = det as PortalContrato;
-      return {
-        valorInicial: parseValorPortal(d.valorInicialCompra),
-        valorFinal: parseValorPortal(d.valorFinalCompra),
-      };
-    },
-  });
-  if (!r.ok) return { ...lista, corrigidoPorDetalhe: false };
-  return {
-    valorInicial: r.valores.valorInicial,
-    valorFinal: r.valores.valorFinal,
-    corrigidoPorDetalhe: r.corrigido,
-    valorInicialAntes: r.valoresOriginais?.valorInicial,
-    valorFinalAntes: r.valoresOriginais?.valorFinal,
-  };
-}
 
 function parseDate(br: string | undefined): string {
   if (!br) return "";
@@ -97,6 +82,17 @@ function isoToBR(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
+/**
+ * Erro do PostgREST quando a tabela ainda não existe no schema (migração não
+ * aplicada). Tratamos como benigno: a `cgu_varredura` é opcional — sem ela a
+ * varredura só perde a capacidade de retomar.
+ */
+function tabelaVarreduraAusente(err: { message?: string; code?: string } | null | undefined): boolean {
+  if (!err) return false;
+  const m = err.message ?? "";
+  return err.code === "PGRST205" || /could not find the table|schema cache|does not exist/i.test(m);
+}
+
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
@@ -108,16 +104,206 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
+// ---------------------------------------------------------------------------
+// Helpers de ingestão (compartilhados entre varredura por detalhe e modo janela)
+// ---------------------------------------------------------------------------
+
+/** Primeira string não-vazia (após trim); "" se todas vazias. NÃO usar `??` com
+ * os campos da API: ela manda "" (string vazia, não null) para os ausentes, e
+ * `??` só pula null/undefined — deixaria PF (cnpjFormatado="") cair como vazio. */
+function primeiraNaoVazia(...vals: Array<string | number | null | undefined>): string {
+  for (const v of vals) {
+    const s = typeof v === "number" ? String(v) : typeof v === "string" ? v.trim() : "";
+    if (s) return s;
+  }
+  return "";
+}
+
+function fornecedorDeRaw(raw: PortalContrato): Fornecedor | null {
+  const f = raw.fornecedor;
+  // Documento identificador: CNPJ (PJ) ou CPF (PF, mascarado pela própria CGU,
+  // ex.: "***.441.092-**") ou nº de inscrição social. Só é "ausente" quando NÃO
+  // há documento algum (fornecedor genuinamente sigiloso/omisso).
+  const doc = primeiraNaoVazia(
+    f?.cnpjFormatado,
+    f?.cpfFormatado,
+    f?.numeroInscricaoSocial,
+    f?.numeroDeInscricao,
+  );
+  if (!doc) return null;
+  const nome =
+    primeiraNaoVazia(f?.nome, f?.razaoSocialReceita, f?.razaoSocial) || doc;
+  return { cnpj: doc, nome };
+}
+
+/** Constrói o Contrato normalizado a partir do raw + valores autoritativos. */
+function construirContratoCgu(
+  raw: PortalContrato,
+  codigoOrgao: string,
+  cnpj: string,
+  valorFinal: number,
+  valorInicial: number,
+  anoFallback: number,
+): Contrato {
+  const dataAssinatura = parseDate(raw.dataAssinatura);
+  const dataInicioVigencia = parseDate(raw.dataInicioVigencia);
+  // Sem dataAssinatura, dataInicioVigencia serve de referência temporal.
+  const dataReferencia = dataAssinatura || dataInicioVigencia;
+  const ano = dataReferencia ? Number(dataReferencia.slice(0, 4)) : anoFallback;
+  const id = String(raw.id ?? `${codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`);
+  const valor = valorFinal > 0 ? valorFinal : valorInicial;
+  return {
+    id,
+    orgaoCod: codigoOrgao,
+    fornecedorCnpj: cnpj,
+    // Sanitização na ingestão (Fase 3): PII em campo livre é mascarada ANTES
+    // de persistir no cache, não só na exibição.
+    objeto: sanitizarTextoPublico((raw.objeto ?? "").slice(0, 240)) || "(sem descrição)",
+    modalidade: normalizeModalidade(raw.modalidadeCompra),
+    valor,
+    ano,
+    dataAssinatura,
+    dataInicioVigencia,
+  };
+}
+
+async function upsertOrgaoCache(base: Orgao): Promise<void> {
+  await supabaseAdmin.from("orgaos_cache").upsert({
+    cod: base.cod,
+    sigla: base.sigla,
+    nome: base.nome,
+    funcao: base.funcao,
+    poder: base.poder,
+    disponivel_portal: base.disponivelPortal,
+    nota: base.nota ?? null,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+async function upsertFornecedoresCache(map: Map<string, Fornecedor>): Promise<void> {
+  if (map.size === 0) return;
+  await supabaseAdmin.from("fornecedores_cache").upsert(
+    [...map.values()].map((f) => ({ cnpj: f.cnpj, nome: f.nome, updated_at: new Date().toISOString() })),
+  );
+}
+
+async function upsertContratosCache(
+  contratos: Contrato[],
+  valorInicialPorId: Map<string, number>,
+  numeroPorId?: Map<string, string>,
+): Promise<string[]> {
+  const erros: string[] = [];
+  for (let i = 0; i < contratos.length; i += 500) {
+    const chunk = contratos.slice(i, i + 500).map((c) => ({
+      id: c.id,
+      orgao_cod: c.orgaoCod,
+      fornecedor_cnpj: c.fornecedorCnpj,
+      objeto: c.objeto,
+      modalidade: c.modalidade,
+      valor: c.valor,
+      valor_inicial: valorInicialPorId.get(c.id) ?? null,
+      numero: numeroPorId?.get(c.id) ?? null,
+      ano: c.ano,
+      data_assinatura: c.dataAssinatura || null,
+      data_inicio_vigencia: c.dataInicioVigencia || null,
+      // Mês de referência = mês de INÍCIO DE VIGÊNCIA (dimensão da cobertura e do
+      // filtro da CGU). Fallback para o mês da assinatura quando a vigência não
+      // veio. A cobertura_cgu também aloca por data_inicio_vigencia.
+      mes_referencia: c.dataInicioVigencia
+        ? Number(c.dataInicioVigencia.slice(5, 7))
+        : c.dataAssinatura
+          ? Number(c.dataAssinatura.slice(5, 7))
+          : null,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await supabaseAdmin.from("contratos_cache").upsert(chunk);
+    if (error) erros.push(`db: ${error.message}`);
+  }
+  return erros;
+}
+
+/** Fornecedor placeholder para contratos sem CNPJ/CPF na fonte. */
+const FORNECEDOR_AUSENTE: Fornecedor = {
+  cnpj: CNPJ_FORNECEDOR_AUSENTE,
+  nome: "Fornecedor sigiloso ou ausente",
+};
+
+/** Detalhe autoritativo de um contrato (`/contratos/id`). */
+async function fetchDetalheContrato(id: string): Promise<{ valorInicial: number; valorFinal: number }> {
+  const det = await portalGet<{ valorInicialCompra?: unknown; valorFinalCompra?: unknown }>(
+    "/contratos/id",
+    { id },
+  );
+  return {
+    valorInicial: parseValorPortal(det.valorInicialCompra),
+    valorFinal: parseValorPortal(det.valorFinalCompra),
+  };
+}
+
+// Linha de log de UMA requisição (página ou detalhe). Marcada com
+// log_kind='requisicao' para o Histórico filtrá-la fora; ano/mes ficam NULL
+// para `cobertura_tentativas` ignorá-la automaticamente.
+type LogRequisicao = {
+  fonte: string;
+  orgao_cod: string;
+  escopo: string;
+  log_kind: string;
+  endpoint: string;
+  total_bruto: number;
+  importados: number;
+  erros: string[];
+  consultado_em: string;
+  user_id: string;
+};
+
+async function inserirLogsRequisicao(rows: LogRequisicao[]): Promise<void> {
+  if (rows.length === 0) return;
+  await supabaseAdmin.from("importacoes").insert(rows);
+}
+
+async function persistirVarredura(
+  orgaoCod: string,
+  ultimaPagina: number,
+  completa: boolean,
+  totalImportado: number,
+): Promise<{ persistida: boolean; erro: string | null }> {
+  const up = await supabaseAdmin.from("cgu_varredura").upsert({
+    orgao_cod: orgaoCod,
+    ultima_pagina: ultimaPagina,
+    completa,
+    total_importado: totalImportado,
+    atualizado_em: new Date().toISOString(),
+  });
+  if (up.error) {
+    if (tabelaVarreduraAusente(up.error)) return { persistida: false, erro: null };
+    return { persistida: true, erro: `cgu_varredura: ${up.error.message}` };
+  }
+  return { persistida: true, erro: null };
+}
+
 export const fetchPortalOrgao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
     z
       .object({
         codigoOrgao: z.string().regex(/^\d{4,6}$/),
-        // Datas ISO (YYYY-MM-DD)
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        maxPaginas: z.number().int().min(1).max(2000).default(2000),
+        // Datas ISO (YYYY-MM-DD). OPCIONAIS: na API da CGU, dataInicial/
+        // dataFinal filtram por VIGÊNCIA, não por assinatura. A ingestão roda em
+        // modo VARREDURA (sem janela), puxando o histórico completo do órgão.
+        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        // Teto de páginas por rodada (rede de segurança). A varredura é
+        // primariamente limitada por TEMPO (orcamentoMs), não por páginas.
+        maxPaginas: z.number().int().min(1).max(5000).default(5000),
+        // Pausa entre TODAS as requisições (páginas E detalhes). A varredura
+        // confere o detalhe de cada contrato; 800ms entre GETs respeita o
+        // rate-limit da CGU e evita a degradação ÷10000 da listagem.
+        delayMs: z.number().int().min(0).max(10000).default(800),
+        // Orçamento de tempo por rodada. A varredura é retomável: cada rodada
+        // paginar até esgotar este tempo, salvando progresso POR PÁGINA, e a
+        // próxima rodada (manual ou auto) continua de onde parou. ~3min cabe no
+        // timeout de 4min do runBatch no cliente.
+        orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
       })
       .parse(input),
   )
@@ -128,191 +314,328 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
     if (!base) throw new Error(`Órgão ${data.codigoOrgao} não catalogado.`);
     if (!base.disponivelPortal) throw new Error(`${base.sigla} não é coberto pelo Portal. ${base.nota ?? ""}`);
 
-    const contratosRaw: PortalContrato[] = [];
-    const erros: string[] = [];
+    const temJanela = !!data.dataInicial && !!data.dataFinal;
+    // O endpoint /contratos pagina em blocos fixos de 15. Página menor = última.
+    const TAM_PAGINA = 15;
+    await upsertOrgaoCache(base);
 
-    for (let pagina = 1; pagina <= data.maxPaginas; pagina++) {
-      try {
-        const list = (await portalGet("/contratos", {
-          codigoOrgao: data.codigoOrgao,
-          dataInicial: isoToBR(data.dataInicial),
-          dataFinal: isoToBR(data.dataFinal),
-          pagina: String(pagina),
-        })) as PortalContrato[];
-        if (!Array.isArray(list) || list.length === 0) break;
-        contratosRaw.push(...list);
-        // Não inferir fim pelo tamanho da página — só parar quando vier vazia.
-      } catch (e) {
-        erros.push(`p${pagina}: ${(e as Error).message}`);
-        break;
-      }
-    }
-
-    const fornecedoresMap = new Map<string, Fornecedor>();
-    const contratos: Contrato[] = [];
-    const valorInicialPorId = new Map<string, number>();
-    const descartes = new Map<string, number>();
-    const correcoesDetalhe: string[] = [];
-    const findingsAutoCorrecao: QaFinding[] = [];
-    const addDescarte = (motivo: string) => {
-      descartes.set(motivo, (descartes.get(motivo) ?? 0) + 1);
-    };
-
-    // A listagem da CGU às vezes retorna valores baixos truncados (ex.: 9.0000)
-    // enquanto /contratos/id traz o valor real (ex.: 90000.0000). O parser
-    // continua decimal puro; só valores suspeitos são conferidos no detalhe.
-    for (const raw of contratosRaw) {
-      const cnpj =
-        raw.fornecedor?.cnpjFormatado ??
-        raw.fornecedor?.cpfFormatado ??
-        raw.fornecedor?.numeroDeInscricao ??
-        "";
-      if (!cnpj) {
-        addDescarte("fornecedor sem CNPJ/CPF (sigiloso ou ausente)");
-        continue;
-      }
-      const nome = raw.fornecedor?.nome ?? raw.fornecedor?.razaoSocial ?? cnpj;
-      if (!fornecedoresMap.has(cnpj)) fornecedoresMap.set(cnpj, { cnpj, nome });
-
-      const dataAssinatura = parseDate(raw.dataAssinatura);
-      const ano = dataAssinatura ? Number(dataAssinatura.slice(0, 4)) : Number(data.dataInicial.slice(0, 4));
-      const id = String(raw.id ?? `${data.codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`);
-      const { valorInicial, valorFinal, corrigidoPorDetalhe, valorInicialAntes, valorFinalAntes } = await normalizarValoresCguComDetalheQuandoSuspeito(
-        id,
-        raw.valorInicialCompra,
-        raw.valorFinalCompra,
-      );
-      if (corrigidoPorDetalhe) {
-        correcoesDetalhe.push(id);
-        findingsAutoCorrecao.push({
-          fonte: "cgu",
-          entidade_tipo: "contrato",
-          entidade_id: id,
-          regra: "valor_corrigido_via_detalhe",
-          severidade: "aviso",
-          origem: "auto_correcao",
-          status: "corrigido_origem",
-          valor_armazenado: valorFinalAntes ?? valorInicialAntes ?? 0,
-          valor_esperado: valorFinal > 0 ? valorFinal : valorInicial,
-          detalhes: {
-            antes: { valor_inicial: valorInicialAntes, valor_final: valorFinalAntes },
-            depois: { valor_inicial: valorInicial, valor_final: valorFinal },
-            endpoint_detalhe: "/contratos/id",
-            orgao_cod: data.codigoOrgao,
-          },
-        });
-      }
-      if (valorInicial > 0) valorInicialPorId.set(id, valorInicial);
-      const valor = valorFinal > 0 ? valorFinal : valorInicial;
-
-      contratos.push({
-        id,
-        orgaoCod: data.codigoOrgao,
-        fornecedorCnpj: cnpj,
-        // Sanitização na ingestão (Fase 3): PII em campo livre é mascarada
-        // ANTES de persistir no cache, não só na exibição.
-        objeto: sanitizarTextoPublico((raw.objeto ?? "").slice(0, 240)) || "(sem descrição)",
-        modalidade: normalizeModalidade(raw.modalidadeCompra),
-        valor,
-        ano,
-        dataAssinatura,
-      });
-    }
-
-    // Persistir no banco (upsert)
-    await supabaseAdmin.from("orgaos_cache").upsert({
-      cod: base.cod,
-      sigla: base.sigla,
-      nome: base.nome,
-      funcao: base.funcao,
-      poder: base.poder,
-      disponivel_portal: base.disponivelPortal,
-      nota: base.nota ?? null,
-      updated_at: new Date().toISOString(),
-    });
-
-    if (fornecedoresMap.size > 0) {
-      await supabaseAdmin.from("fornecedores_cache").upsert(
-        [...fornecedoresMap.values()].map((f) => ({ cnpj: f.cnpj, nome: f.nome, updated_at: new Date().toISOString() })),
-      );
-    }
-
-    if (contratos.length > 0) {
-      // Mês de referência = mês do intervalo solicitado. Usamos quando o
-      // registro vem sem data_assinatura, pra ele aparecer na célula certa
-      // da matriz em vez de cair em "sem data".
-      const mesRef = Number(data.dataInicial.slice(5, 7));
-      // chunk em lotes de 500
-      for (let i = 0; i < contratos.length; i += 500) {
-        const chunk = contratos.slice(i, i + 500).map((c) => ({
-          id: c.id,
-          orgao_cod: c.orgaoCod,
-          fornecedor_cnpj: c.fornecedorCnpj,
-          objeto: c.objeto,
-          modalidade: c.modalidade,
-          valor: c.valor,
-          valor_inicial: valorInicialPorId.get(c.id) ?? null,
-          ano: c.ano,
-          data_assinatura: c.dataAssinatura || null,
-          mes_referencia: mesRef,
-          updated_at: new Date().toISOString(),
-        }));
-        const { error } = await supabaseAdmin.from("contratos_cache").upsert(chunk);
-        if (error) erros.push(`db: ${error.message}`);
-      }
-      // Auditoria de qualidade: aplicar heurísticas e gravar findings.
-      try {
-        const paraQa: CguContratoLike[] = contratos.map((c) => ({
-          id: c.id,
-          valor: c.valor,
-          valor_inicial: valorInicialPorId.get(c.id) ?? 0,
-          orgao_cod: c.orgaoCod,
-        }));
-        await flagQA(regrasCgu(paraQa));
-        if (findingsAutoCorrecao.length > 0) {
-          await flagQA(findingsAutoCorrecao);
+    // =========================================================================
+    // VARREDURA POR DETALHE (varredura completa do órgão OU janela de vigência).
+    // Para cada página, para cada item mantido, busca o /contratos/id
+    // (autoritativo) e grava o valor não-truncado. Quando a listagem diverge do
+    // detalhe, cria `valor_corrigido_listagem`. Retomável por TEMPO, com
+    // progresso persistido por página (sobrevive a kill do servidor).
+    //
+    // JANELA DE VIGÊNCIA (temJanela): a API /contratos filtra por vigência
+    // (dataInicial=dataInicioVigencia, dataFinal=dataFimVigencia). Ela devolve
+    // contratos cuja vigência SE SOBREPÕE à janela (inclui os que começaram
+    // antes); guardamos só os com INÍCIO de vigência DENTRO da janela. O estado
+    // de retomada é independente da varredura completa (chave composta).
+    // =========================================================================
+    // Chave da varredura em cgu_varredura: órgão (varredura completa) ou
+    // órgão#dataIni#dataFim (janela). Estados independentes, ambos retomáveis.
+    const varreduraKey = temJanela
+      ? `${data.codigoOrgao}#${data.dataInicial}#${data.dataFinal}`
+      : data.codigoOrgao;
+    {
+      // Retoma de onde parou (cgu_varredura). Sem estado, ou já completa →
+      // recomeça do zero (re-varredura).
+      let paginaInicial = 1;
+      let totalAcumulado = 0;
+      {
+        const { data: est } = await supabaseAdmin
+          .from("cgu_varredura")
+          .select("ultima_pagina, completa, total_importado")
+          .eq("orgao_cod", varreduraKey)
+          .maybeSingle();
+        if (est && !est.completa && (est.ultima_pagina ?? 0) > 0) {
+          paginaInicial = (est.ultima_pagina ?? 0) + 1;
+          totalAcumulado = est.total_importado ?? 0;
         }
-      } catch (e) {
-        erros.push(`qa: ${(e as Error).message}`);
       }
+
+      const inicio = Date.now();
+      const contratosRodada: Contrato[] = [];
+      const fornecedoresRodada = new Map<string, Fornecedor>();
+      const erros: string[] = [];
+      let ultimaPaginaVarrida = paginaInicial - 1;
+      let varreduraCompleta = false;
+      let varreduraPersistida = true;
+      let totalCorrigidos = 0;
+      let totalDetalhes = 0;
+      let totalDetalhesFalhos = 0;
+      let totalSemFornecedor = 0;
+      let orcamentoEsgotado = false;
+
+      for (let n = 0; n < data.maxPaginas; n++) {
+        if (Date.now() - inicio > data.orcamentoMs) {
+          orcamentoEsgotado = true;
+          break;
+        }
+        const pagina = paginaInicial + n;
+        const params: Record<string, string> = {
+          codigoOrgao: data.codigoOrgao,
+          pagina: String(pagina),
+        };
+        if (temJanela) {
+          // dataInicial/dataFinal filtram por vigência (formato BR DD/MM/YYYY).
+          params.dataInicial = isoToBR(data.dataInicial!);
+          params.dataFinal = isoToBR(data.dataFinal!);
+        }
+        const urlPagina = `${PORTAL_BASE}/contratos?${new URLSearchParams(params).toString()}`;
+        let list: PortalContrato[];
+        try {
+          list = await portalGet<PortalContrato[]>("/contratos", params);
+        } catch (e) {
+          const msg = (e as Error).message;
+          erros.push(`p${pagina}: ${msg}`);
+          if (msg.includes("JSON inválido") || msg.includes("não-JSON")) {
+            if (data.delayMs > 0) await sleep(data.delayMs);
+            continue;
+          }
+          break;
+        }
+        if (data.delayMs > 0) await sleep(data.delayMs);
+        if (!Array.isArray(list) || list.length === 0) {
+          varreduraCompleta = true;
+          break;
+        }
+
+        // Uma linha de log por requisição (a da página + uma por detalhe).
+        const reqLogs: LogRequisicao[] = [
+          {
+            fonte: "cgu",
+            orgao_cod: data.codigoOrgao,
+            escopo: base.sigla,
+            log_kind: "requisicao",
+            endpoint: `GET ${urlPagina}`,
+            total_bruto: list.length,
+            importados: list.length,
+            erros: [],
+            consultado_em: new Date().toISOString(),
+            user_id: context.userId,
+          },
+        ];
+
+        const contratosPagina: Contrato[] = [];
+        const valorInicialPorIdPagina = new Map<string, number>();
+        const fornecedoresPagina = new Map<string, Fornecedor>();
+        const numeroPorIdPagina = new Map<string, string>();
+        const paginaPorId = new Map<string, number>();
+        const findingsPagina: QaFinding[] = [];
+
+        for (const raw of list) {
+          // Janela de vigência: a API devolve contratos cuja vigência se
+          // sobrepõe à janela; guardamos só os com INÍCIO de vigência DENTRO
+          // dela. Filtra ANTES de conferir o detalhe (economiza requisições).
+          if (temJanela) {
+            const iv = parseDate(raw.dataInicioVigencia); // ISO YYYY-MM-DD ou ""
+            if (!iv || iv < data.dataInicial! || iv > data.dataFinal!) continue;
+          }
+          // Fornecedor sigiloso/ausente: NÃO descarta — salva com placeholder e
+          // abre um alerta `fornecedor_ausente` para investigação.
+          const fornReal = fornecedorDeRaw(raw);
+          const semFornecedor = !fornReal;
+          const forn = fornReal ?? FORNECEDOR_AUSENTE;
+
+          const listValores = normalizarValoresCguListagem(raw.valorInicialCompra, raw.valorFinalCompra);
+          let valorFinal = listValores.valorFinal;
+          let valorInicial = listValores.valorInicial;
+          let truncadoFinal: number | null = null;
+          const idStr = raw.id != null ? String(raw.id) : null;
+
+          if (idStr) {
+            const urlDet = `${PORTAL_BASE}/contratos/id?id=${encodeURIComponent(idStr)}`;
+            try {
+              const det = await fetchDetalheContrato(idStr);
+              totalDetalhes++;
+              if (data.delayMs > 0) await sleep(data.delayMs);
+              // Valor autoritativo = o NÃO-truncado (listagem ou detalhe). O bug
+              // de escala ÷10000 aparece em qualquer um dos dois endpoints.
+              const finalAut = valorAutoritativoCgu(listValores.valorFinal, det.valorFinal);
+              const inicialAut = valorAutoritativoCgu(listValores.valorInicial, det.valorInicial);
+              valorFinal = finalAut.valor;
+              valorInicial = inicialAut.valor;
+              truncadoFinal = finalAut.truncado;
+              const corrigido = truncadoFinal != null;
+              reqLogs.push({
+                fonte: "cgu",
+                orgao_cod: data.codigoOrgao,
+                escopo: base.sigla,
+                log_kind: "requisicao",
+                endpoint: `GET ${urlDet}`,
+                total_bruto: 1,
+                importados: 1,
+                erros: corrigido
+                  ? [`info: valor_corrigido_listagem id=${idStr} truncado=${truncadoFinal} correto=${valorFinal} (listagem=${listValores.valorFinal} detalhe=${det.valorFinal})`]
+                  : [],
+                consultado_em: new Date().toISOString(),
+                user_id: context.userId,
+              });
+              if (corrigido) {
+                totalCorrigidos++;
+                findingsPagina.push(
+                  findingValorCorrigidoListagem({
+                    id: idStr,
+                    orgao_cod: data.codigoOrgao,
+                    valor_truncado: truncadoFinal!,
+                    valor_correto: valorFinal,
+                    valor_listagem: listValores.valorFinal || null,
+                    valor_detalhe: det.valorFinal || null,
+                    pagina_varredura: pagina,
+                  }),
+                );
+              }
+            } catch (e) {
+              const msg = (e as Error).message;
+              totalDetalhesFalhos++;
+              erros.push(`detalhe ${idStr}: ${msg}`);
+              reqLogs.push({
+                fonte: "cgu",
+                orgao_cod: data.codigoOrgao,
+                escopo: base.sigla,
+                log_kind: "requisicao",
+                endpoint: `GET ${urlDet}`,
+                total_bruto: 1,
+                importados: 0,
+                erros: [msg],
+                consultado_em: new Date().toISOString(),
+                user_id: context.userId,
+              });
+              if (data.delayMs > 0) await sleep(data.delayMs);
+              // Detalhe indisponível: cai para o valor da listagem (não bloqueia).
+            }
+          }
+
+          const contrato = construirContratoCgu(
+            raw,
+            data.codigoOrgao,
+            forn.cnpj,
+            valorFinal,
+            valorInicial,
+            new Date().getFullYear(),
+          );
+          contratosPagina.push(contrato);
+          fornecedoresPagina.set(forn.cnpj, forn);
+          if (valorInicial > 0) valorInicialPorIdPagina.set(contrato.id, valorInicial);
+          if (raw.numero) numeroPorIdPagina.set(contrato.id, raw.numero);
+          if (idStr) paginaPorId.set(idStr, pagina);
+          if (semFornecedor) {
+            totalSemFornecedor++;
+            findingsPagina.push(
+              findingFornecedorAusente({
+                id: contrato.id,
+                orgao_cod: data.codigoOrgao,
+                pagina_varredura: idStr ? pagina : null,
+              }),
+            );
+          }
+        }
+
+        // ---- PERSISTÊNCIA INCREMENTAL (sobrevive a kill do servidor) ----
+        await upsertFornecedoresCache(fornecedoresPagina);
+        erros.push(...(await upsertContratosCache(contratosPagina, valorInicialPorIdPagina, numeroPorIdPagina)));
+        try {
+          // regrasCgu lê o cache pós-upsert (agora com o valor não-truncado).
+          await sincronizarQaCgu(
+            contratosPagina.map((c) => c.id),
+            paginaPorId,
+          );
+        } catch (e) {
+          erros.push(`qa: ${(e as Error).message}`);
+        }
+        if (findingsPagina.length > 0) {
+          try {
+            // valor_corrigido_listagem (corrigido_automaticamente) + fornecedor_ausente.
+            await flagQA(findingsPagina);
+          } catch (e) {
+            erros.push(`qa_alertas: ${(e as Error).message}`);
+          }
+        }
+        try {
+          await inserirLogsRequisicao(reqLogs);
+        } catch (e) {
+          erros.push(`log: ${(e as Error).message}`);
+        }
+
+        ultimaPaginaVarrida = pagina;
+        totalAcumulado += contratosPagina.length;
+        // Avança o ponteiro ANTES de ir para a próxima página, para retomar
+        // exatamente daqui se o servidor for morto no meio.
+        const pv = await persistirVarredura(varreduraKey, ultimaPaginaVarrida, false, totalAcumulado);
+        varreduraPersistida = pv.persistida;
+        if (pv.erro) erros.push(pv.erro);
+
+        contratosRodada.push(...contratosPagina);
+        for (const [k, v] of fornecedoresPagina) fornecedoresRodada.set(k, v);
+
+        if (list.length < TAM_PAGINA) {
+          varreduraCompleta = true;
+          break;
+        }
+      }
+
+      // Estado final da varredura (marca completa quando chegou ao fim).
+      {
+        const pv = await persistirVarredura(varreduraKey, ultimaPaginaVarrida, varreduraCompleta, totalAcumulado);
+        varreduraPersistida = pv.persistida;
+        if (pv.erro) erros.push(pv.erro);
+      }
+
+      const haMais = !varreduraCompleta;
+      const consultadoEm = new Date().toISOString();
+      const avisos: string[] = [];
+      avisos.push(
+        `info: detalhes conferidos ${totalDetalhes}${totalDetalhesFalhos ? `, falharam ${totalDetalhesFalhos}` : ""}; valores corrigidos pela conferência ${totalCorrigidos}${totalSemFornecedor ? `; ${totalSemFornecedor} sem fornecedor (salvos + alerta fornecedor_ausente)` : ""}`,
+      );
+      const rotuloModo = temJanela ? "janela" : "varredura";
+      if (haMais) {
+        avisos.push(
+          varreduraPersistida
+            ? `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaVarrida}${orcamentoEsgotado ? ", tempo da rodada esgotado" : ""}) — há mais contratos; continue para baixar o restante.`
+            : `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaVarrida}) — a tabela cgu_varredura não existe (migração pendente), então NÃO retoma. Aplique a migração.`,
+        );
+      }
+      // Log da RODADA (uma linha, log_kind NULL → aparece no Histórico).
+      const datasAssinatura = contratosRodada
+        .map((c) => c.dataAssinatura)
+        .filter((d): d is string => !!d)
+        .sort();
+      await supabaseAdmin.from("importacoes").insert({
+        fonte: "cgu",
+        orgao_cod: data.codigoOrgao,
+        escopo: base.sigla,
+        data_inicial: temJanela ? data.dataInicial! : (datasAssinatura[0] ?? null),
+        data_final: temJanela ? data.dataFinal! : (datasAssinatura[datasAssinatura.length - 1] ?? null),
+        total_bruto: contratosRodada.length,
+        importados: contratosRodada.length,
+        erros: [...erros, ...avisos],
+        consultado_em: consultadoEm,
+        user_id: context.userId,
+        endpoint: `GET ${PORTAL_BASE}/contratos?codigoOrgao=${data.codigoOrgao}${temJanela ? `&dataInicial=${isoToBR(data.dataInicial!)}&dataFinal=${isoToBR(data.dataFinal!)}` : ""} (varredura por detalhe${temJanela ? ` [vigência ${data.dataInicial}→${data.dataFinal}]` : ""}, pág. ${paginaInicial}–${ultimaPaginaVarrida}${varreduraCompleta ? " — completa" : " — parcial"})`,
+      });
+
+      return {
+        orgaos: [base] as Orgao[],
+        fornecedores: [...fornecedoresRodada.values()],
+        contratos: contratosRodada,
+        meta: {
+          totalBruto: contratosRodada.length,
+          importados: contratosRodada.length,
+          erros: [...erros, ...avisos],
+          fonte: "Portal da Transparência (CGU)",
+          consultadoEm,
+          varredura: {
+            ultimaPagina: ultimaPaginaVarrida,
+            completa: varreduraCompleta,
+            haMais,
+            totalAcumulado,
+            corrigidos: totalCorrigidos,
+            orcamentoEsgotado,
+          },
+        },
+      };
     }
-
-    const consultadoEm = new Date().toISOString();
-    const avisosImportacao = [
-      ...Array.from(descartes.entries()).map(
-        ([motivo, total]) => `info: descartados ${total} — ${motivo}`,
-      ),
-      ...(correcoesDetalhe.length > 0
-        ? [
-            `info: ${correcoesDetalhe.length} valor(es) baixo(s) da listagem corrigidos via /contratos/id (${correcoesDetalhe.slice(0, 8).join(", ")}${correcoesDetalhe.length > 8 ? ", …" : ""})`,
-          ]
-        : []),
-    ];
-    await supabaseAdmin.from("importacoes").insert({
-      orgao_cod: data.codigoOrgao,
-      data_inicial: data.dataInicial,
-      data_final: data.dataFinal,
-      total_bruto: contratosRaw.length,
-      importados: contratos.length,
-      erros: [...erros, ...avisosImportacao],
-      consultado_em: consultadoEm,
-      user_id: context.userId,
-      endpoint: `GET https://api.portaldatransparencia.gov.br/api-de-dados/contratos?codigoOrgao=${data.codigoOrgao}&dataInicial=${isoToBR(data.dataInicial)}&dataFinal=${isoToBR(data.dataFinal)}`,
-    });
-
-    const orgaos: Orgao[] = [base];
-    return {
-      orgaos,
-      fornecedores: [...fornecedoresMap.values()],
-      contratos,
-      meta: {
-        totalBruto: contratosRaw.length,
-        importados: contratos.length,
-        erros: [...erros, ...avisosImportacao],
-        fonte: "Portal da Transparência (CGU)",
-        consultadoEm,
-      },
-    };
   });
 
 export const listImportacoes = createServerFn({ method: "GET" })
@@ -326,6 +649,44 @@ export const listImportacoes = createServerFn({ method: "GET" })
       .limit(200);
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+/**
+ * Órgãos da CGU com varredura incompleta (há mais contratos a baixar). Alimenta
+ * o aviso persistente na aba Portal CGU. Tolerante à migração ainda não
+ * aplicada (tabela ausente → lista vazia).
+ */
+export type VarreduraIncompleta = {
+  orgaoCod: string;
+  ultimaPagina: number;
+  /** Janela de vigência (ISO), quando a varredura é por período. */
+  dataInicial?: string;
+  dataFinal?: string;
+};
+
+export const listarVarredurasIncompletas = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<VarreduraIncompleta[]> => {
+    await ensureAdmin(context.userId);
+    const { data, error } = await supabaseAdmin
+      .from("cgu_varredura")
+      .select("orgao_cod, ultima_pagina")
+      .eq("completa", false)
+      .gt("ultima_pagina", 0);
+    if (error) {
+      if (tabelaVarreduraAusente(error)) return [];
+      throw new Error(error.message);
+    }
+    // A chave é `orgaoCod` (varredura completa) ou `orgaoCod#dataIni#dataFim`
+    // (janela de vigência). Desmembra para a UI mostrar/continuar corretamente.
+    return (data ?? []).map((r) => {
+      const [cod, dataInicial, dataFinal] = String(r.orgao_cod).split("#");
+      return {
+        orgaoCod: cod,
+        ultimaPagina: r.ultima_pagina,
+        ...(dataInicial && dataFinal ? { dataInicial, dataFinal } : {}),
+      };
+    });
   });
 
 /**
@@ -380,6 +741,9 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("importacoes")
       .select("id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint")
+      // Exclui as linhas de REQUISIÇÃO da varredura por detalhe (uma por GET) —
+      // elas inundariam o Histórico. Mantém as linhas de rodada (log_kind NULL).
+      .or("log_kind.is.null,log_kind.neq.requisicao")
       .order("consultado_em", { ascending: false })
       .range(from, to + 1); // pega 1 extra pra detectar hasMore
 
@@ -480,6 +844,26 @@ export const clearImportData = createServerFn({ method: "POST" })
         if (remErr) throw new Error(`${table} qa-prune select: ${remErr.message}`);
         const remSet = new Set((rem ?? []).map((r) => String((r as { id: unknown }).id)));
         if (remSet.size === 0) {
+          // Apaga lacunas geradas por findings dessa fonte antes dos findings
+          // (a FK origem_qa_finding_id ficaria órfã).
+          const { data: qaIds, error: qaIdsErr } = await supabaseAdmin
+            .from("qa_findings")
+            .select("id")
+            .eq("fonte", qaFonte)
+            .limit(100000);
+          if (qaIdsErr) throw new Error(`qa_findings ids: ${qaIdsErr.message}`);
+          const ids = (qaIds ?? []).map((r) => r.id);
+          let lacCnt = 0;
+          for (let i = 0; i < ids.length; i += 500) {
+            const slice = ids.slice(i, i + 500);
+            const lr = await supabaseAdmin
+              .from("lacunas")
+              .delete({ count: "exact" })
+              .in("origem_qa_finding_id", slice);
+            if (lr.error) throw new Error(`lacunas: ${lr.error.message}`);
+            lacCnt += lr.count ?? 0;
+          }
+          removed[`lacunas:${qaFonte}`] = lacCnt;
           const r = await supabaseAdmin
             .from("qa_findings")
             .delete({ count: "exact" })
@@ -497,6 +881,18 @@ export const clearImportData = createServerFn({ method: "POST" })
         const toDelete = (qaRows ?? [])
           .filter((r) => !remSet.has(String(r.entidade_id)))
           .map((r) => r.id);
+        // Remove lacunas que apontam para esses findings antes de apagá-los.
+        let lacCnt = 0;
+        for (let i = 0; i < toDelete.length; i += 500) {
+          const slice = toDelete.slice(i, i + 500);
+          const lr = await supabaseAdmin
+            .from("lacunas")
+            .delete({ count: "exact" })
+            .in("origem_qa_finding_id", slice);
+          if (lr.error) throw new Error(`lacunas: ${lr.error.message}`);
+          lacCnt += lr.count ?? 0;
+        }
+        removed[`lacunas:${qaFonte}`] = lacCnt;
         let cnt = 0;
         for (let i = 0; i < toDelete.length; i += 500) {
           const slice = toDelete.slice(i, i + 500);
@@ -608,6 +1004,20 @@ export const clearImportData = createServerFn({ method: "POST" })
         if (qaFonte) {
           await pruneQaFindings(qaFonte, tName);
         }
+
+        // CGU: zera o estado da varredura retomável, senão uma reimportação
+        // continuaria de uma página obsoleta em vez de varrer do início.
+        // Tolerante à migração ainda não aplicada (tabela ausente = nada a zerar).
+        if (fid === "cgu") {
+          const vr = await supabaseAdmin
+            .from("cgu_varredura")
+            .delete({ count: "exact" })
+            .not("orgao_cod", "is", null);
+          if (vr.error && !tabelaVarreduraAusente(vr.error)) {
+            throw new Error(`cgu_varredura: ${vr.error.message}`);
+          }
+          removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
+        }
       }
       return { ok: true, removed };
     }
@@ -620,6 +1030,14 @@ export const clearImportData = createServerFn({ method: "POST" })
         .not("id", "is", null);
       if (error) throw new Error(`contratos_cache: ${error.message}`);
       removed.contratos = count ?? "ok";
+      const vr = await supabaseAdmin
+        .from("cgu_varredura")
+        .delete({ count: "exact" })
+        .not("orgao_cod", "is", null);
+      if (vr.error && !tabelaVarreduraAusente(vr.error)) {
+        throw new Error(`cgu_varredura: ${vr.error.message}`);
+      }
+      removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
     }
     if (data.cache) {
       const f = await supabaseAdmin.from("fornecedores_cache").delete({ count: "exact" }).not("cnpj", "is", null);
@@ -646,6 +1064,13 @@ export const clearImportData = createServerFn({ method: "POST" })
         removed[table] = r.count ?? "ok";
       }
       // Cache zerado: descarta todas as suspeitas de qualidade.
+      // Antes, apaga as lacunas geradas a partir delas para não deixar FK órfã.
+      const lac = await supabaseAdmin
+        .from("lacunas")
+        .delete({ count: "exact" })
+        .not("origem_qa_finding_id", "is", null);
+      if (lac.error) throw new Error(`lacunas: ${lac.error.message}`);
+      removed.lacunas = lac.count ?? 0;
       const qa = await supabaseAdmin
         .from("qa_findings")
         .delete({ count: "exact" })
@@ -662,6 +1087,111 @@ export const clearImportData = createServerFn({ method: "POST" })
       removed.logs = count ?? "ok";
     }
     return { ok: true, removed };
+  });
+
+export const diagnosticarPortalPagina = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        codigoOrgao: z.string().regex(/^\d{4,6}$/),
+        // Datas opcionais: a varredura da CGU não usa janela (filtra vigência).
+        // O diagnóstico inspeciona a página exatamente como o import a recebe.
+        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        pagina: z.number().int().min(1).max(2000).default(1),
+        filtrarId: z.string().optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const params: Record<string, string> = {
+      codigoOrgao: data.codigoOrgao,
+      pagina: String(data.pagina),
+    };
+    if (data.dataInicial && data.dataFinal) {
+      params.dataInicial = isoToBR(data.dataInicial);
+      params.dataFinal = isoToBR(data.dataFinal);
+    }
+    const qs = new URLSearchParams(params).toString();
+    const urlConsultada = `https://api.portaldatransparencia.gov.br/api-de-dados/contratos?${qs}`;
+    const { data: list, rawText } = await portalGetComTexto<PortalContrato[]>("/contratos", params);
+    const contratos = Array.isArray(list) ? list : [];
+    const zerosMatches = rawText.match(/\b\d+\.\d{4,}\b/g);
+    const numerosComDecimaisNoJson = zerosMatches ? [...new Set(zerosMatches)] : [];
+    const resultado = (data.filtrarId
+      ? contratos.filter((c) => String(c.id) === data.filtrarId)
+      : contratos
+    ).map((c) => {
+      const { valorInicial, valorFinal } = normalizarValoresCguListagem(
+        c.valorInicialCompra,
+        c.valorFinalCompra,
+      );
+      const toRaw = (v: unknown): string | number | null =>
+        v == null ? null : typeof v === "number" || typeof v === "string" ? v : String(v);
+      return {
+        id: c.id ?? null,
+        dataAssinatura: c.dataAssinatura ?? null,
+        valorFinalCompra_raw: toRaw(c.valorFinalCompra),
+        valorInicialCompra_raw: toRaw(c.valorInicialCompra),
+        valorFinal_parseado: valorFinal,
+        valorInicial_parseado: valorInicial,
+        objeto: (c.objeto ?? "").slice(0, 120),
+      };
+    });
+    return {
+      urlConsultada,
+      totalNaPagina: contratos.length,
+      numerosComDecimaisNoJson,
+      contratos: resultado,
+    };
+  });
+
+/**
+ * Busca UM contrato do cache por id. A página de detalhe usa isto como
+ * fallback quando o contrato não está no dataset do cliente (que é limitado a
+ * 10k linhas) — comum após varreduras grandes. Sem isso, contratos válidos
+ * (inclusive os que geram alertas de QA) davam 404.
+ */
+export const getContratoPorId = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ id: z.string().min(1).max(120) }).parse(input))
+  .handler(async ({ data }) => {
+    const { data: row, error } = await supabaseAdmin
+      .from("contratos_cache")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return { contrato: null, fornecedor: null, orgao: null };
+    const contrato: Contrato = {
+      id: row.id,
+      orgaoCod: row.orgao_cod,
+      fornecedorCnpj: row.fornecedor_cnpj,
+      objeto: row.objeto,
+      modalidade: row.modalidade as Contrato["modalidade"],
+      valor: Number(row.valor) || 0,
+      ano: row.ano,
+      dataAssinatura: row.data_assinatura ?? "",
+      dataInicioVigencia: row.data_inicio_vigencia ?? "",
+    };
+    const [{ data: forn }, { data: org }] = await Promise.all([
+      supabaseAdmin.from("fornecedores_cache").select("cnpj,nome").eq("cnpj", contrato.fornecedorCnpj).maybeSingle(),
+      supabaseAdmin.from("orgaos_cache").select("*").eq("cod", contrato.orgaoCod).maybeSingle(),
+    ]);
+    const fornecedor: Fornecedor | null = forn ? { cnpj: forn.cnpj, nome: forn.nome } : null;
+    const orgao: Orgao | null = org
+      ? {
+          cod: org.cod,
+          sigla: org.sigla,
+          nome: org.nome,
+          funcao: org.funcao,
+          poder: org.poder as Orgao["poder"],
+          disponivelPortal: org.disponivel_portal,
+          nota: org.nota ?? undefined,
+        }
+      : null;
+    return { contrato, fornecedor, orgao };
   });
 
 export const loadStoredDataset = createServerFn({ method: "GET" }).handler(async () => {
@@ -689,6 +1219,7 @@ export const loadStoredDataset = createServerFn({ method: "GET" }).handler(async
     valor: Number(c.valor) || 0,
     ano: c.ano,
     dataAssinatura: c.data_assinatura ?? "",
+    dataInicioVigencia: c.data_inicio_vigencia ?? "",
   }));
   return { orgaos, fornecedores, contratos };
 });

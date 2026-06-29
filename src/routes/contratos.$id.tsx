@@ -1,10 +1,15 @@
+import * as React from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useData, useDataSource } from "@/lib/data-store";
+import { getContratoPorId } from "@/lib/data/real/portal.functions";
+import type { Contrato, Fornecedor, Orgao } from "@/lib/data/types";
 import { FlagsCidada } from "@/components/FlagsCidada";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { ExternalLink } from "lucide-react";
+import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 
 export const Route = createFileRoute("/contratos/$id")({
   component: ContratoDetail,
@@ -20,13 +25,41 @@ function ContratoDetail() {
   const { id } = Route.useParams();
   const { hydrated } = useData();
   const ds = useDataSource();
+  const fetchPorId = useServerFn(getContratoPorId);
+
+  const local = hydrated ? ds.getContrato(id) : undefined;
+  // Fallback server-side: o dataset do cliente é limitado a 10k linhas, então
+  // contratos válidos (inclusive os sinalizados em QA) podem não estar nele.
+  // `undefined` = ainda buscando; `null` = não existe nem no banco.
+  const [remoto, setRemoto] = React.useState<
+    { contrato: Contrato; fornecedor: Fornecedor | null; orgao: Orgao | null } | null | undefined
+  >(undefined);
+  React.useEffect(() => {
+    if (!hydrated || local) return;
+    let cancel = false;
+    setRemoto(undefined);
+    fetchPorId({ data: { id } })
+      .then((r) => {
+        if (!cancel) setRemoto(r.contrato ? (r as NonNullable<typeof remoto>) : null);
+      })
+      .catch(() => {
+        if (!cancel) setRemoto(null);
+      });
+    return () => {
+      cancel = true;
+    };
+  }, [hydrated, local, id, fetchPorId]);
+
   if (!hydrated) {
     return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">Carregando…</div>;
   }
-  const c = ds.getContrato(id);
+  const c = local ?? remoto?.contrato ?? null;
+  if (!local && remoto === undefined) {
+    return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">Carregando…</div>;
+  }
   if (!c) throw notFound();
-  const orgao = ds.getOrgao(c.orgaoCod);
-  const fornecedor = ds.getFornecedor(c.fornecedorCnpj);
+  const orgao = local ? ds.getOrgao(c.orgaoCod) : (remoto?.orgao ?? undefined);
+  const fornecedor = local ? ds.getFornecedor(c.fornecedorCnpj) : (remoto?.fornecedor ?? undefined);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -42,11 +75,21 @@ function ContratoDetail() {
         Ver documento oficial <ExternalLink className="size-3.5" />
       </a>
 
+      <div className="mt-4">
+        <BotaoSalvarItem
+          entidadeTipo="contrato"
+          entidadeId={c.id}
+          titulo={sanitizarTextoPublico(c.objeto).slice(0, 200)}
+          url={`/contratos/${encodeURIComponent(c.id)}`}
+          contexto={`${c.modalidade} · ${fmtBRL(c.valor)}${orgao ? ` · ${orgao.sigla}` : ""}${fornecedor ? ` · ${fornecedor.nome}` : ""}`}
+        />
+      </div>
+
       <div className="mt-6">
         <QualidadeBanner fonte="cgu" entidadeTipo="contrato" entidadeId={c.id} />
       </div>
 
-      <div className="mt-8 grid sm:grid-cols-2 gap-4">
+      <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <div className="border border-border rounded-xl p-5 bg-card">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Valor</div>
           <div className="font-display text-3xl mt-1">{fmtBRL(c.valor)}</div>
@@ -55,8 +98,20 @@ function ContratoDetail() {
           <div className="text-xs uppercase tracking-wider text-muted-foreground">Assinado em</div>
           <div className="font-display text-3xl mt-1">
             {(() => {
-              if (!c.dataAssinatura) return "—";
+              if (!c.dataAssinatura) {
+                return <span className="text-muted-foreground">Não assinado</span>;
+              }
               const d = new Date(c.dataAssinatura);
+              return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
+            })()}
+          </div>
+        </div>
+        <div className="border border-border rounded-xl p-5 bg-card">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Início de vigência</div>
+          <div className="font-display text-3xl mt-1">
+            {(() => {
+              if (!c.dataInicioVigencia) return "—";
+              const d = new Date(c.dataInicioVigencia);
               return isNaN(d.getTime()) ? "—" : d.toLocaleDateString("pt-BR");
             })()}
           </div>

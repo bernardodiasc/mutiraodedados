@@ -27,14 +27,31 @@ import {
   StickyNote,
   Activity,
   ShieldCheck,
+  HeartHandshake,
+  HelpCircle,
+  Bookmark,
+  CircleDashed,
+  Megaphone,
+  MapPinned,
   type LucideIcon,
 } from "lucide-react";
 
-export type NavLink = { to: string; label: string; icon: LucideIcon };
+/**
+ * Modos do produto. Eixo paralelo à navegação por fonte/tema.
+ * - aprender: páginas para compreender.
+ * - perguntar: páginas para formular perguntas.
+ * - investigar: páginas para apurar evidências.
+ * - explorar: dados brutos (modo transversal — alimenta os três).
+ * - sobre: meta-informação do projeto.
+ */
+export type NavMode = "aprender" | "perguntar" | "investigar" | "explorar" | "sobre";
+
+export type NavLink = { to: string; label: string; icon: LucideIcon; mode?: NavMode };
 export type NavSubgroup = { label: string; links: NavLink[] };
 export type NavGroup = {
   label: string;
   icon: LucideIcon;
+  mode?: NavMode;
   /** Link em destaque no topo do grupo (mega-menu). */
   featured?: NavLink & { description?: string };
   /** Subgrupos dentro do grupo. Use isso OU `links`, não ambos. */
@@ -45,38 +62,24 @@ export type NavGroup = {
 
 export const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Explorar",
-    icon: Compass,
-    featured: {
-      to: "/orgaos",
-      label: "Órgãos federais",
-      icon: Building2,
-      description:
-        "Hub do universo federal: ministérios, autarquias, Legislativo, Judiciário e MPU.",
-    },
+    label: "Aprender",
+    icon: BookOpen,
+    mode: "aprender",
     subgroups: [
       {
-        label: "Parlamento",
+        label: "Compreender",
         links: [
-          { to: "/congresso", label: "Congresso Nacional", icon: Landmark },
-          { to: "/camara", label: "Câmara dos Deputados", icon: Users },
-          { to: "/senado", label: "Senado Federal", icon: Gavel },
+          { to: "/aprender", label: "Primeiros passos", icon: BookOpen, mode: "aprender" },
+          { to: "/metodologia", label: "Critérios dos sinais", icon: Microscope, mode: "aprender" },
+          { to: "/trilhas", label: "Trilhas", icon: RouteIcon, mode: "aprender" },
         ],
       },
       {
-        label: "Por fonte de dados",
+        label: "Estudar a ferramenta",
         links: [
-          { to: "/pncp", label: "Contratos (PNCP)", icon: FileText },
-          { to: "/siconfi", label: "Relatórios fiscais (SICONFI)", icon: PieChart },
-          { to: "/convenios", label: "Convênios (Transferegov)", icon: FileSignature },
-          { to: "/transferencias", label: "Transferências diretas (EC 105)", icon: HandCoins },
-        ],
-      },
-      {
-        label: "Ferramentas",
-        links: [
-          { to: "/buscar", label: "Busca unificada", icon: Search },
-          { to: "/explorar", label: "Explorar por ente", icon: Map },
+          { to: "/tutoriais", label: "Tutoriais", icon: GraduationCap, mode: "aprender" },
+          { to: "/mapas", label: "Mapas investigativos", icon: Map, mode: "aprender" },
+          { to: "/notas", label: "Notas de campo", icon: StickyNote, mode: "aprender" },
         ],
       },
     ],
@@ -84,23 +87,61 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Investigar",
     icon: AlertTriangle,
+    mode: "investigar",
     subgroups: [
       {
-        label: "Análise e contestação",
+        label: "O que está em debate",
         links: [
-          { to: "/anomalias", label: "Sinais investigativos", icon: Flame },
-          { to: "/transparencia-institucional", label: "Transparência institucional", icon: Eye },
-          { to: "/contestar", label: "Contestar análise", icon: MessageSquareWarning },
+          { to: "/perguntas", label: "Perguntas", icon: HelpCircle, mode: "perguntar" },
+          { to: "/afirmacoes", label: "Afirmações públicas", icon: Megaphone, mode: "perguntar" },
         ],
       },
       {
-        label: "Aprender",
+        label: "Sinais e contestação",
         links: [
-          { to: "/aprender", label: "Primeiros passos", icon: BookOpen },
-          { to: "/metodologia", label: "Critérios dos sinais", icon: Microscope },
-          { to: "/mapas", label: "Mapas investigativos", icon: RouteIcon },
-          { to: "/tutoriais", label: "Tutoriais da ferramenta", icon: GraduationCap },
-          { to: "/notas", label: "Notas de campo", icon: StickyNote },
+          { to: "/anomalias", label: "Sinais investigativos", icon: Flame, mode: "investigar" },
+          { to: "/transparencia-institucional", label: "Transparência institucional", icon: Eye, mode: "investigar" },
+          { to: "/contestar", label: "Contestar análise", icon: MessageSquareWarning, mode: "investigar" },
+        ],
+      },
+      {
+        label: "Confiabilidade dos dados",
+        links: [
+          { to: "/qualidade", label: "Qualidade dos dados", icon: ShieldCheck, mode: "investigar" },
+          { to: "/cobertura", label: "Cobertura dos dados", icon: Activity, mode: "investigar" },
+          { to: "/lacunas", label: "Informação que falta", icon: CircleDashed, mode: "investigar" },
+        ],
+      },
+    ],
+  },
+  {
+    label: "Explorar",
+    icon: Compass,
+    mode: "explorar",
+    subgroups: [
+      {
+        label: "Ferramentas",
+        links: [
+          { to: "/orgaos", label: "Órgãos federais", icon: Building2, mode: "explorar" },
+          { to: "/buscar", label: "Busca unificada", icon: Search, mode: "explorar" },
+          { to: "/explorar", label: "Explorar por ente", icon: MapPinned, mode: "explorar" },
+        ],
+      },
+      {
+        label: "Parlamento",
+        links: [
+          { to: "/congresso", label: "Congresso Nacional", icon: Landmark, mode: "explorar" },
+          { to: "/camara", label: "Câmara dos Deputados", icon: Users, mode: "explorar" },
+          { to: "/senado", label: "Senado Federal", icon: Gavel, mode: "explorar" },
+        ],
+      },
+      {
+        label: "Por fonte de dados",
+        links: [
+          { to: "/pncp", label: "Contratos (PNCP)", icon: FileText, mode: "explorar" },
+          { to: "/siconfi", label: "Relatórios fiscais (SICONFI)", icon: PieChart, mode: "explorar" },
+          { to: "/convenios", label: "Convênios (Transferegov)", icon: FileSignature, mode: "explorar" },
+          { to: "/transferencias", label: "Transferências diretas (EC 105)", icon: HandCoins, mode: "explorar" },
         ],
       },
     ],
@@ -108,15 +149,15 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     label: "Sobre",
     icon: Info,
+    mode: "sobre",
     links: [
-      { to: "/sobre", label: "Sobre o projeto", icon: Info },
-      { to: "/roadmap", label: "Roadmap & novidades", icon: ListChecks },
-      { to: "/cobertura", label: "Cobertura dos dados", icon: Activity },
-      { to: "/qualidade", label: "Qualidade dos dados", icon: ShieldCheck },
-      { to: "/referencias", label: "Referências & projetos similares", icon: Library },
-      { to: "/tratamento-de-dados", label: "Tratamento de dados", icon: Database },
-      { to: "/privacidade", label: "Privacidade (LGPD)", icon: Shield },
-      { to: "/termos", label: "Termos de uso", icon: Scroll },
+      { to: "/sobre", label: "Sobre o projeto", icon: Info, mode: "sobre" },
+      { to: "/roadmap", label: "Roadmap & novidades", icon: ListChecks, mode: "sobre" },
+      { to: "/referencias", label: "Referências & projetos similares", icon: Library, mode: "sobre" },
+      { to: "/tratamento-de-dados", label: "Tratamento de dados", icon: Database, mode: "sobre" },
+      { to: "/privacidade", label: "Privacidade (LGPD)", icon: Shield, mode: "sobre" },
+      { to: "/termos", label: "Termos de uso", icon: Scroll, mode: "sobre" },
+      { to: "/contribuir", label: "Contribuir com o projeto", icon: HeartHandshake, mode: "sobre" },
     ],
   },
 ];

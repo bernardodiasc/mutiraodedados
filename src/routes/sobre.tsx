@@ -107,6 +107,14 @@ function Sobre() {
         O que já está no ar, o que vem a seguir e as notas de cada entrega ficam em{" "}
         <Link to="/roadmap" className="text-accent underline">Roadmap & novidades</Link>.
       </p>
+
+      <h2 className="font-display text-2xl mt-10">Como participar</h2>
+      <p className="mt-3 text-muted-foreground">
+        Este é um projeto aberto, sustentado por uso, revisão e contribuição
+        voluntária. Se quiser ajudar — lendo dados, revisando sinais, marcando
+        informações ou contribuindo com código — veja a página{" "}
+        <Link to="/contribuir" className="text-accent underline">Contribuir com o projeto</Link>.
+      </p>
     </article>
   );
 }

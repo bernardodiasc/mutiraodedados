@@ -1,0 +1,1 @@
+ALTER TABLE public.contratos_cache ADD COLUMN IF NOT EXISTS data_inicio_vigencia date;

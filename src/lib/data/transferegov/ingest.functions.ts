@@ -3,13 +3,8 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { regrasTransferegov, flagQA, type QaFinding } from "@/lib/data/qa";
-import {
-  parseValorPortal,
-  portalGet,
-  valorPortalSuspeito,
-  corrigirComDetalhe,
-} from "@/lib/data/real/portal-client";
+import { regrasTransferegov, flagQA } from "@/lib/data/qa";
+import { parseValorPortal, portalGet } from "@/lib/data/real/portal-client";
 
 /**
  * Transferegov / Convênios — usa o endpoint /convenios do Portal da
@@ -18,12 +13,6 @@ import {
  * com o ingest de contratos. Aqui ficam só os shapes de convênio e o
  * mapeamento → linhas do cache.
  */
-
-type ConvenioDetalhe = {
-  valor?: number | string;
-  valorLiberado?: number | string;
-  valorContrapartida?: number | string;
-};
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -198,78 +187,10 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
         })
         .filter((r): r is NonNullable<typeof r> => r !== null);
 
-      // Para cada linha, se algum valor estiver abaixo do limiar de
-      // suspeita (< R$100), chamamos /convenios/id pra confirmar.
-      // Se o detalhe confirmar a listagem → nada a fazer. Se o detalhe
-      // diferir em >5% → corrigimos e emitimos QA finding de auto-
-      // correção. Se TODAS as tentativas de detalhe falharem,
-      // pulamos o registro (preferimos não importar a importar errado).
-      const rowsValidados: typeof rows = [];
-      const findingsAutoCorrecao: QaFinding[] = [];
-      let pulados = 0;
-      for (const r of rows) {
-        const algumSuspeito =
-          valorPortalSuspeito(r.valor_global) ||
-          valorPortalSuspeito(r.valor_repasse) ||
-          valorPortalSuspeito(r.valor_contrapartida);
-        const res = await corrigirComDetalhe({
-          id: r.id,
-          endpointDetalhe: "/convenios/id",
-          valoresLista: {
-            valor_global: r.valor_global,
-            valor_repasse: r.valor_repasse,
-            valor_contrapartida: r.valor_contrapartida,
-          },
-          extrairDoDetalhe: (det) => {
-            const d = det as ConvenioDetalhe;
-            return {
-              valor_global: parseValorPortal(d.valor),
-              valor_repasse: parseValorPortal(d.valorLiberado),
-              valor_contrapartida: parseValorPortal(d.valorContrapartida),
-            };
-          },
-        });
-        if (!res.ok) {
-          pulados++;
-          continue;
-        }
-        r.valor_global = res.valores.valor_global;
-        r.valor_repasse = res.valores.valor_repasse;
-        r.valor_contrapartida = res.valores.valor_contrapartida;
-        if (res.corrigido && res.valoresOriginais) {
-          findingsAutoCorrecao.push({
-            fonte: "transferegov",
-            entidade_tipo: "instrumento",
-            entidade_id: r.id,
-            regra: "valor_corrigido_via_detalhe",
-            severidade: "aviso",
-            origem: "auto_correcao",
-            status: "corrigido_origem",
-            valor_armazenado: res.valoresOriginais.valor_global,
-            valor_esperado: r.valor_global,
-            detalhes: {
-              antes: res.valoresOriginais,
-              depois: {
-                valor_global: r.valor_global,
-                valor_repasse: r.valor_repasse,
-                valor_contrapartida: r.valor_contrapartida,
-              },
-              endpoint_detalhe: "/convenios/id",
-            },
-          });
-        }
-        rowsValidados.push(r);
-        // Throttle só quando realmente consultamos o detalhe (~8 req/s).
-        if (algumSuspeito) {
-          await new Promise((r2) => setTimeout(r2, 125));
-        }
-      }
-      if (pulados > 0) {
-        console.warn(
-          `[transferegov] ${pulados} convênio(s) pulado(s) — detalhe indisponível, valor suspeito não confirmado.`,
-        );
-      }
-      const rowsFinais = rowsValidados;
+      // Valores são gravados exatamente como vieram da listagem do Portal.
+      // Não consultamos /convenios/id pra "corrigir" — discrepâncias são
+      // sinalizadas como findings de QA pra revisão manual, não auto-fix.
+      const rowsFinais = rows;
 
       for (let i = 0; i < rowsFinais.length; i += 200) {
         const { error } = await supabaseAdmin
@@ -288,9 +209,6 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             })),
           ),
         );
-        if (findingsAutoCorrecao.length > 0) {
-          await flagQA(findingsAutoCorrecao);
-        }
       } catch {
         // ignora erros de QA
       }

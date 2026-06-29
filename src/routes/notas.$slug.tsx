@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArtigoDetalheView } from "@/components/ArtigoDetalheView";
+import { ArtigoDetalhe } from "@/components/ArtigoDetalhe";
 
 export const Route = createFileRoute("/notas/$slug")({
   component: () => {
     const { slug } = Route.useParams();
-    return <ArtigoDetalheView slug={slug} voltarTo="/notas" voltarLabel="Notas" />;
+    return <ArtigoDetalhe slug={slug} voltarTo="/notas" voltarLabel="Notas" />;
   },
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">

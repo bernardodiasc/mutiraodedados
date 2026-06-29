@@ -12,11 +12,10 @@ Toda inconsistência vira um **QA finding** na tabela `qa_findings`, com:
   - `info` — nota informativa, sem indicar erro.
 - **Origem**:
   - `heuristica` — gerado por regra automática durante a ingestão.
-  - `auto_correcao` — o próprio ingest corrigiu via consulta ao endpoint de detalhe.
   - `denuncia` — registrado por cidadão a partir do site.
 - **Status**:
   - `aberto` — pendente de análise.
-  - `corrigido_origem` — a fonte oficial corrigiu (ou o ingest auto-corrigiu).
+  - `corrigido_origem` — a fonte oficial corrigiu.
   - `falso_positivo` — análise humana descartou.
   - `resolvido` — encaminhado ao canal oficial e respondido.
 
@@ -43,9 +42,9 @@ Em [`/admin/qualidade`](./admin.md) o admin pode:
 - Anotar respostas recebidas dos canais oficiais.
 - Filtrar por fonte, severidade e regra.
 
-## Auto-correção
+## Valores suspeitos do Portal CGU
 
-Quando o Portal CGU retorna valor < R$ 100 numa listagem, o ingest consulta o endpoint de detalhe daquele registro. Se a diferença for maior que 5%, corrige o cache e cria um finding de auto-correção (severidade `aviso`, status `corrigido_origem`). Se o detalhe não responder, o registro é **pulado** — não entra no cache.
+O ingest **não corrige** valores — grava o que a API devolve e sinaliza o que é anômalo. Quando a listagem traz valor < R$ 100 ou um valor inicial ≥ 1000× o final (indício de erro de escala/ponto-fixo no JSON da origem), gera um finding `possivel_ponto_fixo` (severidade `critico`) para revisão humana, reconciliado por `sincronizarQaCgu` contra o cache pós-upsert.
 
 ## Relacionado
 

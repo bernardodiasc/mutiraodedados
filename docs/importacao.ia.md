@@ -3,10 +3,10 @@
 ## `portal-client.ts` (compartilhado CGU + Transferegov)
 
 - `portalGet(path, params)` — wrapper com retry/backoff, autenticação via header `chave-api-dados`.
-- `preservarNumerosBR(json)` — pré-processa JSON antes de `JSON.parse` para preservar precisão de números grandes (evita perda de centavos).
-- `parseValorPortal(v)` — normaliza valores: aceita number, string "1.234,56" e string "1234.56".
-- `valorPortalSuspeito(v)` — `true` se `v > 0 && v < 100` (limiar `PORTAL_LIMIAR_SUSPEITA`).
-- `corrigirComDetalhe({ id, endpointDetalhe, valoresLista, extrairDoDetalhe })` — busca detalhe, compara, retorna `{ ok, corrigido, valores, valoresOriginais }`. Se `ok=false` o chamador deve pular o registro.
+- `portalGetComTexto(path, params)` — como `portalGet`, mas devolve também o body bruto (antes do `JSON.parse`), usado para auditar valores com ponto-fixo no JSON.
+- `parseValorPortal(v)` — normaliza valores: number (direto), string pt-BR "1.234,56", decimal "1234.56", milhar "60.000", null/undefined → 0.
+
+> A heurística de auto-correção via endpoint de detalhe (`corrigirComDetalhe`, `valorPortalSuspeito`, `preservarNumerosBR`) foi removida. Valores suspeitos hoje são apenas **sinalizados** como QA finding `possivel_ponto_fixo` em `portal.functions.ts` (sem corrigir).
 
 ## Contrato de QA finding (`src/lib/data/qa.ts`)
 
@@ -15,7 +15,7 @@ type QaFinding = {
   fonte: 'cgu' | 'camara' | 'senado' | 'pncp' | 'transferegov' | 'siconfi';
   entidade_tipo: 'contrato' | 'instrumento' | 'despesa' | 'votacao' | 'relatorio';
   entidade_id: string;
-  regra: string;                           // ex: 'valor_corrigido_via_detalhe'
+  regra: string;                           // ex: 'possivel_ponto_fixo'
   severidade: 'critico' | 'aviso' | 'info';
   origem?: 'heuristica' | 'auto_correcao' | 'denuncia';
   status?: 'aberto' | 'corrigido_origem' | 'falso_positivo' | 'resolvido';
@@ -26,7 +26,7 @@ type QaFinding = {
 ```
 
 - `flagQA(findings)` é idempotente — não reabre o que já foi resolvido.
-- Findings de `origem='auto_correcao'` têm `status='corrigido_origem'` e severidade `aviso`. São visíveis em `/qualidade` apenas para auditoria.
+- Valores suspeitos do Portal CGU geram findings `possivel_ponto_fixo` (severidade `critico`), reconciliados por `sincronizarQaCgu` contra o cache pós-upsert. Visíveis em `/qualidade`.
 
 ## Retries
 

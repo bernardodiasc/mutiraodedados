@@ -3,6 +3,7 @@ import { useData, useDataSource } from "@/lib/data-store";
 import { EmptyState } from "@/components/EmptyState";
 import { SerieAnualChart } from "@/components/SerieAnualChart";
 import { FlagsCidada } from "@/components/FlagsCidada";
+import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 import { GrafoFornecedor, type GrafoNo } from "@/components/GrafoFornecedor";
 import { MetodologiaPopover } from "@/components/MetodologiaPopover";
 import { fmtBRL } from "@/lib/fmt";
@@ -52,6 +53,14 @@ function FornecedorDetail() {
       <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Voltar</Link>
       <h1 className="font-display text-4xl mt-3">{f.nome}</h1>
       <div className="font-mono text-sm text-muted-foreground">CNPJ {f.cnpj}</div>
+      <div className="mt-4">
+        <BotaoSalvarItem
+          entidadeTipo="fornecedor"
+          entidadeId={f.cnpj}
+          titulo={f.nome}
+          url={`/fornecedores/${f.cnpj}`}
+        />
+      </div>
 
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <Stat label="Recebido (total)" value={fmtBRL(total)} />
