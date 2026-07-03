@@ -21,6 +21,7 @@ Consulte a documentação correspondente em:
 - Respeite a janela de disponibilidade configurada em `src/lib/data/janelas.ts` antes de gastar recursos de requisições.
 - Utilize tratamentos de erros transitórios (retries com backoff em 429/5xx).
 - Disponibilize filtros por datas, órgãos ou locais no formulário de importação localizado no painel admin `/admin/dados`.
+- **Fonte multi-endpoint (ex.: Portal CGU):** quando a mesma API expõe vários endpoints com a mesma paginação, reaproveite o motor genérico `varrerPaginado` de `src/lib/data/real/sweep.ts` (varredura retomável + chave composta em `cgu_varredura`) em vez de duplicar o loop. Trave os nomes de campo com `diagnosticarPortalEndpoint` antes de escrever o mapper — eles diferem por endpoint. Cada entidade vira um literal em `janelas.ts`/`qa.ts`/`limpeza.ts`/`cobertura.functions.ts`. Detalhes em [`docs/guia-nova-fonte.ia.md`](/docs/guia-nova-fonte.ia.md).
 
 ### 2. Armazenamento, RLS e GRANTs
 - Grave os dados normalizados em tabelas `<fonte>_<entidade>_cache` em blocos de até 200 registros.
