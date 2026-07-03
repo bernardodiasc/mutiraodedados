@@ -63,7 +63,7 @@ src/
   lib/<feature>/
     logic.ts                          # funções puras (sem React/I/O)
     logic.test.ts                     # vitest
-    mocks.ts                          # variantes para /admin/estilo
+    mocks.ts                          # variantes para /estilo
     types.ts                          # props da View
 ```
 
@@ -80,7 +80,7 @@ Regras:
   `createFileRoute`, `head()` e guards.
 - **Style guide**: cada feature exporta `<feature>Variants` em `mocks.ts` e
   se registra em `src/lib/style-guide/registry.ts`. A aba Composições em
-  `/admin/estilo` itera o registry automaticamente.
+  `/estilo` itera o registry automaticamente.
 
 UI components do shadcn (`src/components/ui/*`) já são stateless e não
 entram neste padrão — são primitivas usadas pelas Views.

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { listarVotacoes, camaraVotacoesOverview } from "@/lib/data/camara/votacoes.functions";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 
 export const Route = createFileRoute("/camara_/votacoes/")({
@@ -63,6 +64,26 @@ function ListaVotacoes() {
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
       />
+
+      {rows && rows.length > 0 && (
+        <div className="flex justify-end">
+          <BotaoBaixarCsv
+            filename="votacoes"
+            obterLinhas={() =>
+              rows.map((v) => ({
+                data: v.data ?? "",
+                orgao: v.siglaOrgao ?? "",
+                descricao: v.descricao ?? "",
+                resultado: v.aprovacao === 1 ? "Aprovado" : v.aprovacao === 0 ? "Rejeitado" : "",
+                sim: v.votosSim,
+                nao: v.votosNao,
+                outros: v.votosOutros,
+              }))
+            }
+            rotulo={`Baixar CSV (${rows.length})`}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>

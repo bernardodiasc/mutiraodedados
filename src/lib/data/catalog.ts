@@ -75,55 +75,37 @@ export const ORGAOS_BASE: Orgao[] = [
   // ===== Ministério Público da União =====
   { cod: "34000", sigla: "MPU", nome: "Ministério Público da União", funcao: "Essencial à Justiça", poder: "mpu", disponivelPortal: false, nota: "Inclui MPF, MPT, MPM e MPDFT — integração planejada." },
 
-  // ===== Estados e Municípios (cobertura nacional via agregadores) =====
-  {
-    cod: "PNCP",
-    sigla: "PNCP",
-    nome: "Contratações Públicas (União/Estados/Municípios)",
-    funcao: "Cobertura Nacional",
-    poder: "outros",
-    disponivelPortal: false,
-    rotaPropria: "/pncp",
-    nota: "Portal Nacional de Contratações Públicas — cobre os 5.598 entes federados desde 2021.",
-  },
-  {
-    cod: "SICONFI",
-    sigla: "SICONFI",
-    nome: "Receitas e Despesas dos Entes (Tesouro Nacional)",
-    funcao: "Cobertura Nacional",
-    poder: "outros",
-    disponivelPortal: false,
-    rotaPropria: "/siconfi",
-    nota: "RREO, RGF e DCA padronizados de todos os estados e municípios.",
-  },
-  {
-    cod: "TRANSF",
-    sigla: "TRANSF",
-    nome: "Convênios e Contratos de Repasse",
-    funcao: "Cobertura Nacional",
-    poder: "outros",
-    disponivelPortal: false,
-    rotaPropria: "/convenios",
-    nota: "Transferegov/SICONV via espelho CGU — exige plano de trabalho e prestação de contas.",
-  },
-  {
-    cod: "EMENDAS",
-    sigla: "EMENDAS",
-    nome: "Transferências diretas (EC 105 / emendas Pix)",
-    funcao: "Cobertura Nacional",
-    poder: "outros",
-    disponivelPortal: false,
-    rotaPropria: "/transferencias",
-    nota: "Emendas parlamentares repassadas direto aos entes — Especiais (livre aplicação) e Finalidade Definida (carimbadas).",
-  },
 ];
+
+/**
+ * Overlay de enriquecimento do Executivo: `sigla`/`funcao` que a API SIAFI
+ * (`/orgaos-siafi`) não fornece. A lista pública de `/orgaos` é dirigida a dados
+ * (órgãos que aparecem em documentos, nomes do `orgaos_cache`); este overlay só
+ * preenche os extras de exibição para os órgãos que conhecemos.
+ */
+export const ORGAOS_ENRIQUECIMENTO: Record<string, { sigla: string; funcao: string }> =
+  Object.fromEntries(
+    ORGAOS_BASE.filter((o) => o.poder === "executivo").map((o) => [
+      o.cod,
+      { sigla: o.sigla, funcao: o.funcao },
+    ]),
+  );
+
+/**
+ * Cards curados das demais esferas (Legislativo/Judiciário/MPU) para o hub
+ * `/orgaos`. Não têm documentos com código SIAFI (Câmara/Senado usam integração
+ * própria via `rotaPropria`; os demais são "planejado"), então continuam sendo
+ * editoriais — não vêm do fluxo dinâmico.
+ */
+export const ORGAOS_OUTRAS_ESFERAS: Orgao[] = ORGAOS_BASE.filter(
+  (o) => o.poder !== "executivo",
+);
 
 export const PODER_LABEL: Record<Orgao["poder"], string> = {
   executivo: "Executivo",
   legislativo: "Legislativo",
   judiciario: "Judiciário",
   mpu: "Ministério Público",
-  outros: "Bases nacionais",
 };
 
 export const FUNCOES = Array.from(new Set(ORGAOS_BASE.map((o) => o.funcao)));

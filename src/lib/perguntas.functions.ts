@@ -29,12 +29,13 @@ export type Pergunta = {
   encerrada_em: string | null;
   solicitada_publicacao_em: string | null;
   motivo_rejeicao: string | null;
+  ordem: number;
   created_at: string;
   updated_at: string;
 };
 
 const COLS =
-  "id, user_id, modelo_id, titulo, descricao, contexto, tags, status, visibilidade_publica, slug, publicada_em, arquivada_em, encerrada_em, solicitada_publicacao_em, motivo_rejeicao, created_at, updated_at";
+  "id, user_id, modelo_id, titulo, descricao, contexto, tags, status, visibilidade_publica, slug, publicada_em, arquivada_em, encerrada_em, solicitada_publicacao_em, motivo_rejeicao, ordem, created_at, updated_at";
 
 function publicClient() {
   return createClient<Database>(
@@ -348,6 +349,7 @@ export const listarPerguntasPublicasAdmin = createServerFn({ method: "GET" })
       .from("perguntas")
       .select(COLS)
       .eq("visibilidade_publica", true)
+      .order("ordem", { ascending: true })
       .order("publicada_em", { ascending: false })
       .limit(500);
     if (error) {
@@ -386,6 +388,22 @@ export const editarPerguntaAdmin = createServerFn({ method: "POST" })
     return row as Pergunta;
   });
 
+const reordenarPublicasSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(2000) });
+export const reordenarPerguntasPublicas = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => reordenarPublicasSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Apenas administradores.");
+    const resultados = await Promise.all(
+      data.ids.map((id, i) => supabase.from("perguntas").update({ ordem: i }).eq("id", id)),
+    );
+    const falha = resultados.find((r) => r.error);
+    if (falha?.error) throw new Error(`Falha ao reordenar perguntas: ${falha.error.message}`);
+    return { ok: true };
+  });
+
 // ---------- páginas públicas ----------
 
 export const listarPerguntasPublicas = createServerFn({ method: "GET" })
@@ -394,9 +412,10 @@ export const listarPerguntasPublicas = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("perguntas")
       .select(
-        "id, titulo, descricao, contexto, tags, status, slug, publicada_em, encerrada_em, updated_at",
+        "id, titulo, descricao, contexto, tags, status, slug, publicada_em, encerrada_em, ordem, updated_at",
       )
       .eq("visibilidade_publica", true)
+      .order("ordem", { ascending: true })
       .order("publicada_em", { ascending: false })
       .limit(100);
     if (error) throw new Error(`Falha ao listar perguntas públicas: ${error.message}`);

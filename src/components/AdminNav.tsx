@@ -8,6 +8,7 @@ import {
   Bookmark,
   ShieldCheck,
   HelpCircle,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +21,8 @@ export type AdminSection = {
     | "/admin/analises"
     | "/admin/sinais"
     | "/admin/marcacoes"
-    | "/admin/perguntas";
+    | "/admin/perguntas"
+    | "/admin/prompts";
   label: string;
   description: string;
   icon: LucideIcon;
@@ -58,6 +60,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     label: "Perguntas",
     description: "Modelos curados e moderação de investigações publicadas.",
     icon: HelpCircle,
+  },
+  {
+    to: "/admin/prompts",
+    label: "Prompts",
+    description: "Prompts do Kit de investigação, vinculados aos mapas.",
+    icon: Sparkles,
   },
   {
     to: "/admin/qualidade",

@@ -20,6 +20,9 @@ import { EmptyState } from "@/components/EmptyState";
 import { ConstrucaoBanner } from "@/components/ConstrucaoBanner";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { MetodologiaPopover } from "@/components/MetodologiaPopover";
+import { BotaoCopiar } from "@/components/BotaoCopiar";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
+import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { SEVERIDADE_BADGE } from "@/lib/style-guide/tokens";
 import { qaFindingMocks, contratoMocks, convenioMocks, deputadoMocks } from "@/lib/style-guide/mocks";
 
@@ -267,6 +270,43 @@ export const uiRegistry: UIEntry[] = [
     group: "Primitivos",
     variants: [
       { label: "fallback iniciais", render: () => <Avatar><AvatarFallback>AC</AvatarFallback></Avatar> },
+    ],
+  },
+  {
+    slug: "botoes-acao",
+    name: "Botões de ação (Kit)",
+    group: "Primitivos",
+    description:
+      "Primitivos contextuais do Kit de investigação: Copiar (texto/dados), Baixar CSV (dados tabulares) e Fonte oficial (registro de origem).",
+    variants: [
+      {
+        label: "BotaoCopiar (rótulo)",
+        render: () => <BotaoCopiar obterTexto={() => "conteúdo copiado"} rotulo="Copiar texto" />,
+      },
+      {
+        label: "BotaoCopiar (só ícone)",
+        render: () => <BotaoCopiar obterTexto={() => "x"} titulo="Copiar" />,
+      },
+      {
+        label: "BotaoBaixarCsv",
+        render: () => (
+          <BotaoBaixarCsv
+            filename="exemplo"
+            obterLinhas={() => [{ a: 1, b: 2 }]}
+            rotulo="Exportar CSV (1)"
+          />
+        ),
+      },
+      {
+        label: "BotaoBaixarCsv (desabilitado)",
+        render: () => (
+          <BotaoBaixarCsv filename="vazio" obterLinhas={() => []} disabled rotulo="Baixar CSV" />
+        ),
+      },
+      {
+        label: "BotaoFonteOficial",
+        render: () => <BotaoFonteOficial href="https://portaldatransparencia.gov.br" />,
+      },
     ],
   },
   {

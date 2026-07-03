@@ -15,14 +15,17 @@ export type Linha = { id: string; label: string; sublabel?: string; celulas: Cel
 export type Fonte = {
   fonte:
     | "cgu"
+    | "cgu_licitacoes"
+    | "cgu_emendas"
+    | "cgu_convenios"
     | "camara_ceap"
     | "camara_vot"
+    | "camara_props"
     | "senado_ceaps"
     | "senado_vot"
+    | "senado_mat"
     | "pncp"
     | "transferegov"
-    | "transferegov_especiais"
-    | "transferegov_finalidade"
     | "siconfi";
   titulo: string;
   descricao: string;
@@ -33,8 +36,9 @@ export type CoberturaResult = { fontes: Fonte[]; anos: number[] };
 
 /** Fontes cuja API é consultada por ano inteiro (uma requisição por ano). */
 export const FONTES_ANUAIS: ReadonlySet<Fonte["fonte"]> = new Set([
-  "transferegov_especiais",
-  "transferegov_finalidade",
+  "cgu_emendas",
+  "camara_props",
+  "senado_mat",
 ]);
 
 async function ensureAdmin(userId: string) {
@@ -58,16 +62,19 @@ export const statusCobertura = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<CoberturaResult> => {
     await ensureAdmin(context.userId);
 
-    const [cgu, ceap, camVot, ceaps, senVot, pncp, transf, transfEsp, transfFin, siconfi, tentativas] = await Promise.all([
+    const [cgu, cguLic, cguEme, cguConv, ceap, camVot, camProps, ceaps, senVot, senMat, pncp, transf, siconfi, tentativas] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
+      supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
+      supabaseAdmin.rpc("cobertura_cgu_emendas"),
+      supabaseAdmin.rpc("cobertura_cgu_convenios"),
       supabaseAdmin.rpc("cobertura_camara_ceap"),
       supabaseAdmin.rpc("cobertura_camara_votacoes"),
+      supabaseAdmin.rpc("cobertura_camara_proposicoes"),
       supabaseAdmin.rpc("cobertura_senado_ceaps"),
       supabaseAdmin.rpc("cobertura_senado_votacoes"),
+      supabaseAdmin.rpc("cobertura_senado_materias"),
       supabaseAdmin.rpc("cobertura_pncp"),
       supabaseAdmin.rpc("cobertura_transferegov"),
-      supabaseAdmin.rpc("cobertura_transferegov_emendas", { _modalidade: "especial" }),
-      supabaseAdmin.rpc("cobertura_transferegov_emendas", { _modalidade: "finalidade_definida" }),
       supabaseAdmin.rpc("cobertura_siconfi"),
       supabaseAdmin.rpc("cobertura_tentativas"),
     ]);
@@ -103,14 +110,17 @@ export const statusCobertura = createServerFn({ method: "GET" })
       for (const r of rows ?? []) if (r.ano) anosSet.add(r.ano);
     };
     colher((cgu.data as RpcRowOrgao[] | null) ?? []);
+    colher((cguLic.data as RpcRowOrgao[] | null) ?? []);
+    colher((cguEme.data as RpcRow[] | null) ?? []);
+    colher((cguConv.data as RpcRow[] | null) ?? []);
     colher((ceap.data as RpcRow[] | null) ?? []);
     colher((camVot.data as RpcRow[] | null) ?? []);
+    colher((camProps.data as RpcRow[] | null) ?? []);
     colher((ceaps.data as RpcRow[] | null) ?? []);
     colher((senVot.data as RpcRow[] | null) ?? []);
+    colher((senMat.data as RpcRow[] | null) ?? []);
     colher((pncp.data as RpcRow[] | null) ?? []);
     colher((transf.data as RpcRow[] | null) ?? []);
-    colher((transfEsp.data as RpcRow[] | null) ?? []);
-    colher((transfFin.data as RpcRow[] | null) ?? []);
     for (const r of (siconfi.data as RpcSiconfi[] | null) ?? []) if (r.ano) anosSet.add(r.ano);
     for (const t of (tentativas.data as RpcTentativa[] | null) ?? []) if (t.ano) anosSet.add(t.ano);
 
@@ -134,6 +144,23 @@ export const statusCobertura = createServerFn({ method: "GET" })
       id: cod,
       label: cod,
       celulas: marcarTentativas("cgu", cod, celulas),
+    }));
+
+    // ===== CGU licitações: linhas por órgão (mesma forma de contratos) =====
+    const cguLicRows = (cguLic.data as RpcRowOrgao[] | null) ?? [];
+    const cguLicMap = new Map<string, Celula[]>();
+    for (const r of cguLicRows) {
+      if (!cguLicMap.has(r.orgao_cod)) cguLicMap.set(r.orgao_cod, []);
+      cguLicMap.get(r.orgao_cod)!.push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
+    }
+    for (const [k] of tentMap) {
+      const [f, e] = k.split("|");
+      if (f === "cgu_licitacoes" && e && !cguLicMap.has(e)) cguLicMap.set(e, []);
+    }
+    const linhasCguLic: Linha[] = Array.from(cguLicMap.entries()).map(([cod, celulas]) => ({
+      id: cod,
+      label: cod,
+      celulas: marcarTentativas("cgu_licitacoes", cod, celulas),
     }));
 
     const linhaUnica = (rows: RpcRow[] | null, id: string, label: string): Linha[] => [
@@ -205,6 +232,29 @@ export const statusCobertura = createServerFn({ method: "GET" })
           linhas: linhasCgu,
         },
         {
+          fonte: "cgu_licitacoes",
+          titulo: "Portal CGU — licitações por órgão",
+          descricao: "Licitações do Executivo federal por órgão e mês de abertura. Clique numa célula para (re)importar aquele mês.",
+          granularidade: "mes",
+          linhas: linhasCguLic,
+        },
+        {
+          fonte: "cgu_emendas",
+          titulo: "Portal CGU — emendas parlamentares",
+          descricao:
+            "Emendas individuais/coletivas por ano (empenho/liquidação/pagamento). A API é consultada por ano inteiro — clique na coluna do ano para (re)importar.",
+          granularidade: "ano",
+          linhas: linhaAnual(cguEme.data as RpcRow[] | null, "cgu_emendas", "Emendas"),
+        },
+        {
+          fonte: "cgu_convenios",
+          titulo: "Portal CGU — convênios",
+          descricao:
+            "Convênios e contratos de repasse (eixo tema, endpoint /convenios). Granularidade por mês de referência.",
+          granularidade: "mes",
+          linhas: linhaUnica(cguConv.data as RpcRow[] | null, "cgu_convenios", "Convênios"),
+        },
+        {
           fonte: "camara_ceap",
           titulo: "Câmara — CEAP (cota parlamentar)",
           descricao: "Notas fiscais de cota parlamentar por mês (todos os ~513 deputados).",
@@ -217,6 +267,14 @@ export const statusCobertura = createServerFn({ method: "GET" })
           descricao: "Votações registradas no plenário e comissões, por mês.",
           granularidade: "mes",
           linhas: linhaUnica(camVot.data as RpcRow[] | null, "camara_vot", "Votações"),
+        },
+        {
+          fonte: "camara_props",
+          titulo: "Câmara — proposições",
+          descricao:
+            "Proposições (PL, PEC, PLP, MPV, PDL, PRC) por ano de apresentação. A API é consultada por ano inteiro — clique na coluna do ano para (re)importar.",
+          granularidade: "ano",
+          linhas: linhaAnual(camProps.data as RpcRow[] | null, "camara_props", "Proposições"),
         },
         {
           fonte: "senado_ceaps",
@@ -233,6 +291,14 @@ export const statusCobertura = createServerFn({ method: "GET" })
           linhas: linhaUnica(senVot.data as RpcRow[] | null, "senado_vot", "Votações"),
         },
         {
+          fonte: "senado_mat",
+          titulo: "Senado — matérias",
+          descricao:
+            "Matérias legislativas (PLS, PEC, PLC etc.) por ano. A API é consultada por ano inteiro — clique na coluna do ano para (re)importar.",
+          granularidade: "ano",
+          linhas: linhaAnual(senMat.data as RpcRow[] | null, "senado_mat", "Matérias"),
+        },
+        {
           fonte: "pncp",
           titulo: "PNCP — contratos (União/Estados/Municípios)",
           descricao: "Contratos publicados no Portal Nacional de Contratações Públicas.",
@@ -245,22 +311,6 @@ export const statusCobertura = createServerFn({ method: "GET" })
           descricao: "Convênios e contratos de repasse União ↔ Estados/Municípios.",
           granularidade: "mes",
           linhas: linhaUnica(transf.data as RpcRow[] | null, "transferegov", "Convênios"),
-        },
-        {
-          fonte: "transferegov_especiais",
-          titulo: "Transferegov — Transferências Especiais (EC 105)",
-          descricao:
-            "Emendas individuais com transferência direta a Estados/Municípios. A API é consultada por ano inteiro — clique na coluna do ano para (re)importar.",
-          granularidade: "ano",
-          linhas: linhaAnual(transfEsp.data as RpcRow[] | null, "transferegov_especiais", "Especiais"),
-        },
-        {
-          fonte: "transferegov_finalidade",
-          titulo: "Transferegov — Finalidade Definida (EC 105)",
-          descricao:
-            "Emendas individuais com finalidade definida pelo parlamentar. A API é consultada por ano inteiro — clique na coluna do ano para (re)importar.",
-          granularidade: "ano",
-          linhas: linhaAnual(transfFin.data as RpcRow[] | null, "transferegov_finalidade", "Finalidade definida"),
         },
         {
           fonte: "siconfi",

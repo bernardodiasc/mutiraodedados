@@ -3,8 +3,13 @@ import { useData, useDataSource } from "@/lib/data-store";
 import { EmptyState } from "@/components/EmptyState";
 import { SerieAnualChart } from "@/components/SerieAnualChart";
 import { FlagsCidada } from "@/components/FlagsCidada";
+import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
+import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
+import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
+import { linkFornecedorPortal } from "@/lib/links-oficiais";
 import { GrafoFornecedor, type GrafoNo } from "@/components/GrafoFornecedor";
+import { RadarRisco, type RadarEixo } from "@/components/RadarRisco";
 import { MetodologiaPopover } from "@/components/MetodologiaPopover";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
@@ -48,18 +53,57 @@ function FornecedorDetail() {
   const dispAltoValor = contratos.filter(c => c.modalidade === "dispensa" && c.valor >= 50_000).length;
   const orgaoUnico = porOrgao.size === 1;
 
+  // radar de risco — eixos 0..1 a partir dos contratos DESTE fornecedor (sinal, nunca prova)
+  const ticketMedio = contratos.length > 0 ? total / contratos.length : 0;
+  const maiorOrgao = porOrgao.size > 0 ? Math.max(...porOrgao.values()) : 0;
+  const eixos: RadarEixo[] = [
+    {
+      label: "Concentração",
+      valor: total > 0 ? maiorOrgao / total : 0,
+      descricao: `Maior órgão = ${total > 0 ? ((maiorOrgao / total) * 100).toFixed(0) : "0"}% do recebido.`,
+    },
+    {
+      label: "% Dispensa",
+      valor: pctDispensa,
+      descricao: `${(pctDispensa * 100).toFixed(0)}% dos contratos sem licitação.`,
+    },
+    {
+      label: "Ticket médio",
+      valor: Math.min(1, ticketMedio / 500_000),
+      descricao: `${fmtBRL(ticketMedio)} por contrato (ref. R$ 500k).`,
+    },
+    {
+      label: "Dispensa alto valor",
+      valor: Math.min(1, dispAltoValor / contratos.length),
+      descricao: `${dispAltoValor} dispensa(s) ≥ R$ 50k.`,
+    },
+  ];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
       <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Voltar</Link>
       <h1 className="font-display text-4xl mt-3">{f.nome}</h1>
       <div className="font-mono text-sm text-muted-foreground">CNPJ {f.cnpj}</div>
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(`Fornecedor ${f.nome} — CNPJ ${f.cnpj}`, null, {
+              fornecedor: f,
+              total_recebido: total,
+              contratos: contratos.length,
+            })
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados do fornecedor copiados — cole na sua IA"
+        />
         <BotaoSalvarItem
           entidadeTipo="fornecedor"
           entidadeId={f.cnpj}
           titulo={f.nome}
           url={`/fornecedores/${f.cnpj}`}
+          snapshotDe={{ fornecedor: f, total_recebido: total, contratos: contratos.length }}
         />
+        <BotaoFonteOficial href={linkFornecedorPortal(f.cnpj)} rotulo="Ver no Portal" />
       </div>
 
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
@@ -76,9 +120,22 @@ function FornecedorDetail() {
         <span>nada disso, isoladamente, é irregular — são pontos para começar a olhar.</span>
       </div>
 
-      <div className="mt-10">
-        <h2 className="font-display text-2xl mb-3">Evolução do recebido</h2>
-        <div className="border border-border rounded-xl p-4 bg-card"><SerieAnualChart data={serie} /></div>
+      <div className="mt-10 grid lg:grid-cols-2 gap-6">
+        <div>
+          <div className="flex items-baseline justify-between mb-3">
+            <h2 className="font-display text-2xl">Radar de risco</h2>
+            <MetodologiaPopover titulo="Eixos do radar">
+              <p>Cada eixo é normalizado de 0 a 1 a partir dos contratos deste fornecedor. Quanto mais próximo da borda, mais atenção o eixo merece — sempre como sinal, nunca como prova.</p>
+            </MetodologiaPopover>
+          </div>
+          <div className="border border-border rounded-xl p-4 bg-card">
+            <RadarRisco eixos={eixos} />
+          </div>
+        </div>
+        <div>
+          <h2 className="font-display text-2xl mb-3">Evolução do recebido</h2>
+          <div className="border border-border rounded-xl p-4 bg-card"><SerieAnualChart data={serie} /></div>
+        </div>
       </div>
 
       {nos.length > 1 && (

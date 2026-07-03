@@ -18,6 +18,7 @@ const baseArtigo: Artigo = {
   publico: true,
   publicado_em: "2026-04-15T12:00:00Z",
   autor_id: null,
+  ordem: 0,
   created_at: "2026-04-15T12:00:00Z",
   updated_at: "2026-04-15T12:00:00Z",
 };

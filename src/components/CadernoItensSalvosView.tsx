@@ -1,5 +1,6 @@
-import { ExternalLink, Loader2, Lock, Trash2 } from "lucide-react";
+import { AlertTriangle, Camera, ExternalLink, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
 import type { ItemSalvo } from "@/lib/itens-salvos.functions";
+import { tipoVerificavel } from "@/lib/itens-salvos/logic";
 import { formatarDataPt } from "@/lib/caderno-itens/logic";
 
 export type CadernoItensSalvosViewProps = {
@@ -8,6 +9,11 @@ export type CadernoItensSalvosViewProps = {
   errorMsg: string | null;
   removingId: string | null;
   onRemover: (id: string) => void;
+  verificandoId: string | null;
+  /** Re-busca o dado ao vivo e compara com o snapshot (não substitui). */
+  onVerificar: (id: string) => void;
+  /** Substitui o snapshot pelo dado ao vivo (ação explícita). */
+  onAtualizarSnapshot: (id: string) => void;
 };
 
 export function CadernoItensSalvosView({
@@ -16,6 +22,9 @@ export function CadernoItensSalvosView({
   errorMsg,
   removingId,
   onRemover,
+  verificandoId,
+  onVerificar,
+  onAtualizarSnapshot,
 }: CadernoItensSalvosViewProps) {
   if (isLoading) {
     return (
@@ -94,6 +103,43 @@ export function CadernoItensSalvosView({
               <span className="inline-flex items-center gap-1">
                 <Lock className="size-3" /> Privado
               </span>
+              {item.snapshot_em && (
+                <span className="inline-flex items-center gap-1" title="Cópia dos dados no momento em que você salvou — valor de prova.">
+                  <Camera className="size-3" /> Snapshot de {formatarDataPt(item.snapshot_em)}
+                </span>
+              )}
+              {item.snapshot_divergiu_em && (
+                <span className="inline-flex items-center gap-1 text-amber-600 font-semibold">
+                  <AlertTriangle className="size-3" /> Mudou desde o snapshot
+                </span>
+              )}
+              {item.snapshot_em && tipoVerificavel(item.entidade_tipo) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => onVerificar(item.id)}
+                    disabled={verificandoId === item.id}
+                    className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:bg-muted disabled:opacity-50"
+                  >
+                    {verificandoId === item.id ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" />
+                    )}
+                    Verificar mudança
+                  </button>
+                  {item.snapshot_divergiu_em && (
+                    <button
+                      type="button"
+                      onClick={() => onAtualizarSnapshot(item.id)}
+                      disabled={verificandoId === item.id}
+                      className="inline-flex items-center gap-1 rounded border border-border px-1.5 py-0.5 hover:bg-muted disabled:opacity-50"
+                    >
+                      <Camera className="size-3" /> Atualizar snapshot
+                    </button>
+                  )}
+                </>
+              )}
             </div>
           </li>
         ))}

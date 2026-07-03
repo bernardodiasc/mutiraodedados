@@ -13,7 +13,26 @@ import {
   isFutureSlot,
   countByLabelPrefix,
 } from "@/lib/sincronizar-tudo/logic";
+import { importarDeputados } from "@/lib/data/camara/ingest.functions";
+import { importarSenadores, importarSenadoresLegislatura } from "@/lib/data/senado/ingest.functions";
 import { SincronizarTudoView } from "@/components/SincronizarTudoView";
+
+// Cadastros (roster) por legislatura — pseudo-fontes do "Sincronizar tudo".
+// Não vivem na matriz de cobertura; são importados por legislatura, derivada do
+// intervalo de anos (52 = 2003–2007, +1 a cada 4 anos).
+const CADASTRO_CAMARA = "camara_deputados";
+const CADASTRO_SENADO = "senado_senadores";
+function legislaturaDoAno(ano: number): number {
+  return 52 + Math.floor((ano - 2003) / 4);
+}
+function legislaturasNoIntervalo(yIni: number, yFim: number): number[] {
+  const set = new Set<number>();
+  for (let y = yIni; y <= yFim; y++) {
+    const n = legislaturaDoAno(y);
+    if (n >= 50) set.add(n); // as APIs de roster cobrem a partir da legislatura 50 (1995)
+  }
+  return [...set].sort((a, b) => a - b);
+}
 
 type Props = {
   isRunning: boolean;
@@ -23,6 +42,9 @@ type Props = {
 export function SincronizarTudoContainer({ isRunning, runJobs }: Props) {
   const fetchCobertura = useServerFn(statusCobertura);
   const buildJob = useCoberturaJobBuilder();
+  const importarDepFn = useServerFn(importarDeputados);
+  const importarSenFn = useServerFn(importarSenadores);
+  const importarSenLegFn = useServerFn(importarSenadoresLegislatura);
 
   const [data, setData] = React.useState<CoberturaResult | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -55,10 +77,15 @@ export function SincronizarTudoContainer({ isRunning, runJobs }: Props) {
       ),
     [data],
   );
+  // Inclui os cadastros (roster) como itens selecionáveis, além das fontes da matriz.
+  const todasSelecionaveis = React.useMemo(
+    () => [...fontesDisponiveis, CADASTRO_CAMARA, CADASTRO_SENADO],
+    [fontesDisponiveis],
+  );
   const [selecionadas, setSelecionadas] = React.useState<Set<string>>(new Set());
   React.useEffect(() => {
-    setSelecionadas(new Set(fontesDisponiveis));
-  }, [fontesDisponiveis.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
+    setSelecionadas(new Set(todasSelecionaveis));
+  }, [todasSelecionaveis.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFonte = (id: string, v: boolean) => {
     setSelecionadas((prev) => {
@@ -120,9 +147,37 @@ export function SincronizarTudoContainer({ isRunning, runJobs }: Props) {
           if (j) jobs.push(wrapDelay(j));
         }
       }
+
+      // Cadastros (roster) por legislatura derivada do intervalo de anos.
+      const legs = legislaturasNoIntervalo(yIni, yFim);
+      const legAtual = legislaturaDoAno(new Date().getFullYear());
+      if (selecionadas.has(CADASTRO_CAMARA)) {
+        for (const n of legs) {
+          jobs.push(
+            wrapDelay({
+              label: `Câmara cadastro · leg ${n}`,
+              run: async () => (await importarDepFn({ data: { idLegislatura: n } })).importados,
+            }),
+          );
+        }
+      }
+      if (selecionadas.has(CADASTRO_SENADO)) {
+        for (const n of legs) {
+          jobs.push(
+            wrapDelay({
+              label: `Senado cadastro · leg ${n}`,
+              // Legislatura atual: /lista/atual (roster completo); passadas: por legislatura.
+              run: async () =>
+                n === legAtual
+                  ? (await importarSenFn({ data: {} })).importados
+                  : (await importarSenLegFn({ data: { legislatura: n } })).importados,
+            }),
+          );
+        }
+      }
       return jobs;
     },
-    [data, buildJob, selecionadas],
+    [data, buildJob, selecionadas, importarDepFn, importarSenFn, importarSenLegFn],
   );
 
   const previa = React.useMemo(() => {
@@ -193,7 +248,7 @@ export function SincronizarTudoContainer({ isRunning, runJobs }: Props) {
       selecionadas={selecionadas}
       onToggleFonte={toggleFonte}
       onToggleGrupo={toggleGrupo}
-      onSelectAll={() => setSelecionadas(new Set(fontesDisponiveis))}
+      onSelectAll={() => setSelecionadas(new Set(todasSelecionaveis))}
       onSelectNone={() => setSelecionadas(new Set())}
       onRefresh={refresh}
       previa={previa}

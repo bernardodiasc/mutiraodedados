@@ -91,17 +91,5 @@ export function buildCurlsQualidade(f: FindingAdmin): CurlEntry[] | undefined {
     });
     return out;
   }
-  if (f.fonte === "transferegov" && f.entidade.tipo === "emenda") {
-    const ctx = f.contexto_emenda;
-    if (!ctx?.codigo_emenda && !ctx?.numero_emenda) return undefined;
-    const cod = ctx.codigo_emenda ?? ctx.numero_emenda ?? "";
-    return [
-      {
-        label: "Endpoint /emendas (consulta pública)",
-        url: `https://portaldatransparencia.gov.br/emendas/consulta?codigoEmenda=${encodeURIComponent(cod)}`,
-        nota: `Consulta pública de emendas. Filtre por código ${cod} e compare 'valor' e 'valorPago' com o card.`,
-      },
-    ];
-  }
   return undefined;
 }

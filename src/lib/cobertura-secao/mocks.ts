@@ -45,7 +45,7 @@ const fonteAno: FonteCobertura = {
   ],
   porAnoMes: [],
   mesesAnoCorrente: [],
-  rota: "/siconfi",
+  rota: "/relatorios-fiscais",
 };
 
 const fonteSemDados: FonteCobertura = {

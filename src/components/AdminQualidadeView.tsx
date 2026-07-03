@@ -1,8 +1,12 @@
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, Loader2 } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
+import { Loader2 } from "lucide-react";
+import { AdminHeader } from "@/components/AdminHeader";
 import { AnomaliaInvestigacao } from "@/components/AnomaliaInvestigacao";
-import { FONTES_QA, REGRAS_QA, buildCurlsQualidade, type FindingAdmin } from "@/lib/admin-qualidade/logic";
+import {
+  FONTES_QA,
+  REGRAS_QA,
+  buildCurlsQualidade,
+  type FindingAdmin,
+} from "@/lib/admin-qualidade/logic";
 
 export type AggItem = {
   fonte: string;
@@ -22,7 +26,9 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export type AdminQualidadeActions = {
-  onRevalidarCgu: (id: string) => Promise<{ resultado: string; valor_armazenado: number; valor_detalhe: number }>;
+  onRevalidarCgu: (
+    id: string,
+  ) => Promise<{ resultado: string; valor_armazenado: number; valor_detalhe: number }>;
   onReportar: (id: string, canal: string, protocolo?: string) => Promise<void>;
   onConfirmar: (id: string) => Promise<void>;
   onMarcarCorrigido: (id: string) => Promise<void>;
@@ -56,18 +62,11 @@ export function AdminQualidadeView({
   actions,
 }: AdminQualidadeViewProps) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 space-y-6">
-      <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
-      <header>
-        <h1 className="font-display text-4xl">Qualidade dos dados</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Defeitos detectados nas bases ingeridas. Cada suspeita é investigada, re-checada contra a
-          fonte oficial e, quando confirmada como erro da origem, reportada ao órgão responsável.
-        </p>
-      </header>
-      <AdminNav />
+    <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
+      <AdminHeader titulo="Qualidade dos dados">
+        Defeitos detectados nas bases ingeridas. Cada suspeita é investigada, re-checada contra a
+        fonte oficial e, quando confirmada como erro da origem, reportada ao órgão responsável.
+      </AdminHeader>
 
       <section className="grid sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {FONTES_QA.map((f) => {
@@ -84,7 +83,16 @@ export function AdminQualidadeView({
                 <span className="text-xs font-sans text-muted-foreground"> abertas</span>
               </div>
               <div className="mt-1 grid grid-cols-2 gap-x-2 text-[11px] text-muted-foreground">
-                {(["confirmado", "reportado", "corrigido_origem", "corrigido_automaticamente", "falso_positivo", "wontfix"] as const).map((s) => (
+                {(
+                  [
+                    "confirmado",
+                    "reportado",
+                    "corrigido_origem",
+                    "corrigido_automaticamente",
+                    "falso_positivo",
+                    "wontfix",
+                  ] as const
+                ).map((s) => (
                   <span key={s}>
                     {ps[s] ?? 0} {STATUS_LABEL[s]}
                   </span>
@@ -104,7 +112,9 @@ export function AdminQualidadeView({
           >
             <option value="">Todas as fontes</option>
             {FONTES_QA.map((f) => (
-              <option key={f} value={f}>{f}</option>
+              <option key={f} value={f}>
+                {f}
+              </option>
             ))}
           </select>
           <select
@@ -128,7 +138,9 @@ export function AdminQualidadeView({
           >
             <option value="">Todas as regras</option>
             {REGRAS_QA.map((r) => (
-              <option key={r} value={r}>{r}</option>
+              <option key={r} value={r}>
+                {r}
+              </option>
             ))}
           </select>
         </div>

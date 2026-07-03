@@ -65,7 +65,7 @@ export function CoberturaMatrixView({
   return (
     <div className="space-y-6">
       <div className="grid sm:grid-cols-3 gap-3">
-        <Stat label="Órgãos no banco" value={`${carregadosSize} / ${cobertosLen}`} />
+        <Stat label="Órgãos com dados / catálogo" value={`${cobertosLen} / ${carregadosSize}`} />
         <Stat label="Contratos persistidos" value={contratosCount.toLocaleString("pt-BR")} />
         <Stat label="Total contratado" value={fmtBRL(totalContratado)} />
       </div>
@@ -180,16 +180,13 @@ function FonteSecao({
   onColunaClick: (mes: number) => void;
 }) {
   const linhas = React.useMemo<Linha[]>(() => {
+    // Linhas = órgãos com dados na cobertura (não mais o catálogo estático).
+    // Enriquecemos só o rótulo com a sigla do overlay quando conhecida; órgãos
+    // fora do overlay aparecem com o rótulo que a cobertura fornecer (cód.).
     if (fonte.fonte === "cgu") {
-      const byId = new Map(fonte.linhas.map((l) => [l.id, l]));
-      return ORGAOS_BASE.filter((o) => o.disponivelPortal).map((o) => {
-        const l = byId.get(o.cod);
-        return {
-          id: o.cod,
-          label: o.sigla,
-          sublabel: o.nome,
-          celulas: l?.celulas ?? [],
-        };
+      return fonte.linhas.map((l) => {
+        const o = ORGAOS_BASE.find((x) => x.cod === l.id);
+        return o ? { ...l, label: o.sigla, sublabel: o.nome } : l;
       });
     }
     return fonte.linhas.length > 0

@@ -142,3 +142,19 @@ export const excluirModelo = createServerFn({ method: "POST" })
     if (error) throw new Error(`Falha ao excluir modelo: ${error.message}`);
     return { ok: true };
   });
+
+const reordenarSchema = z.object({ ids: z.array(z.string().uuid()).min(1).max(2000) });
+export const reordenarModelos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => reordenarSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+    if (!isAdmin) throw new Error("Apenas administradores.");
+    const resultados = await Promise.all(
+      data.ids.map((id, i) => supabase.from("pergunta_modelos").update({ ordem: i }).eq("id", id)),
+    );
+    const falha = resultados.find((r) => r.error);
+    if (falha?.error) throw new Error(`Falha ao reordenar modelos: ${falha.error.message}`);
+    return { ok: true };
+  });

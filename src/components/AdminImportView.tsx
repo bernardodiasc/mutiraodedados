@@ -1,4 +1,4 @@
-import { Database, Loader2, History, Trash2, ShieldCheck, Info, AlertTriangle } from "lucide-react";
+import { Database, Loader2, History, Trash2, ShieldCheck, Info, AlertTriangle, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,9 @@ export type AdminImportViewProps = {
   orgao: string;
   setOrgao: (s: string) => void;
   importarUnico: () => void;
+  // Catálogo de órgãos (SIAFI): sincroniza nomes + verifica atividade (extinto).
+  onSincronizarCatalogo: () => void;
+  sincronizandoCatalogo: boolean;
   onDiagnosticarPortal: (params: {
     codigoOrgao: string;
     pagina: number;
@@ -86,6 +89,14 @@ export type AdminImportViewProps = {
   onImportarCEAPSSenado: () => void;
   onImportarMatSenado: () => void;
   onImportarVotSenado: () => void;
+
+  // Histórico de legislaturas (faixa) — compartilhado entre Câmara e Senado.
+  legHistIni: number;
+  legHistFim: number;
+  setLegHistIni: (n: number) => void;
+  setLegHistFim: (n: number) => void;
+  onImportarHistCamara: () => void;
+  onImportarHistSenado: () => void;
 
   // historico
   history: HistoricoEntrada[];
@@ -359,7 +370,13 @@ export function AdminImportView(p: AdminImportViewProps) {
             )}
           </div>
           <div className="h-1.5 bg-border rounded-full mt-3 overflow-hidden">
-            <div className="h-full bg-accent transition-all" style={{ width: `${p.progressPct}%` }} />
+            {p.isRunning && p.batch.total <= 1 ? (
+              // Uma única unidade de trabalho de duração desconhecida (ex.: varredura
+              // de 1 órgão que roda várias rodadas): barra indeterminada em vez de 0%.
+              <div className="h-full bg-accent rounded-full barra-indeterminada" />
+            ) : (
+              <div className="h-full bg-accent transition-all" style={{ width: `${p.progressPct}%` }} />
+            )}
           </div>
         </div>
       )}
@@ -380,6 +397,26 @@ export function AdminImportView(p: AdminImportViewProps) {
         </TabsContent>
 
         <TabsContent value="portal" className="space-y-4 mt-4">
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h3 className="font-display text-lg flex items-center gap-2">
+              <RefreshCw className="size-4 text-accent" />
+              Catálogo de órgãos (SIAFI)
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Sincroniza os <strong>nomes</strong> dos órgãos a partir do <code>/orgaos-siafi</code> e
+              verifica a <strong>atividade</strong> de cada órgão com dados (execução recente em
+              <code>/despesas/por-orgao</code>). Órgãos sem execução recente são marcados como
+              <strong> extintos</strong>, mantendo o histórico. Alimenta a lista de <code>/orgaos</code> e
+              o seletor de import abaixo.
+            </p>
+            <div className="mt-4">
+              <Button variant="outline" onClick={p.onSincronizarCatalogo} disabled={p.sincronizandoCatalogo || p.isRunning}>
+                {p.sincronizandoCatalogo ? <Loader2 className="size-4 mr-2 animate-spin" /> : <RefreshCw className="size-4 mr-2" />}
+                Sincronizar catálogo de órgãos
+              </Button>
+            </div>
+          </div>
+
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="font-display text-lg flex items-center gap-2">
               <Database className="size-4 text-accent" />
@@ -527,6 +564,26 @@ export function AdminImportView(p: AdminImportViewProps) {
                 Importar CEAP de {MONTHS[p.mes-1]}/{p.ano}
               </Button>
             </div>
+            <div className="border-t border-border pt-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Histórico: importa o cadastro de legislaturas passadas (partido/UF por legislatura).
+                Não sobrescreve o estado atual. Legislatura 52 = 2003 … 57 = 2023.
+              </p>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div>
+                  <Label className="text-xs">Legislatura inicial</Label>
+                  <Input type="number" value={p.legHistIni} onChange={(e) => p.setLegHistIni(Number(e.target.value))} disabled={p.camaraBusy !== null} className="mt-1 w-24" />
+                </div>
+                <div>
+                  <Label className="text-xs">Legislatura final</Label>
+                  <Input type="number" value={p.legHistFim} onChange={(e) => p.setLegHistFim(Number(e.target.value))} disabled={p.camaraBusy !== null} className="mt-1 w-24" />
+                </div>
+                <Button variant="outline" size="sm" disabled={p.camaraBusy !== null} onClick={p.onImportarHistCamara}>
+                  {p.camaraBusy === "hist" ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : null}
+                  Importar histórico de deputados
+                </Button>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
@@ -609,6 +666,26 @@ export function AdminImportView(p: AdminImportViewProps) {
                 {p.senadoBusy === "vot" ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : null}
                 Importar votações de {MONTHS[p.mes-1]}/{p.ano}
               </Button>
+            </div>
+            <div className="border-t border-border pt-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Histórico: importa o cadastro de legislaturas passadas (partido/UF por legislatura).
+                Não sobrescreve o estado atual. Legislatura 52 = 2003 … 57 = 2023.
+              </p>
+              <div className="flex flex-wrap gap-2 items-end">
+                <div>
+                  <Label className="text-xs">Legislatura inicial</Label>
+                  <Input type="number" value={p.legHistIni} onChange={(e) => p.setLegHistIni(Number(e.target.value))} disabled={p.senadoBusy !== null} className="mt-1 w-24" />
+                </div>
+                <div>
+                  <Label className="text-xs">Legislatura final</Label>
+                  <Input type="number" value={p.legHistFim} onChange={(e) => p.setLegHistFim(Number(e.target.value))} disabled={p.senadoBusy !== null} className="mt-1 w-24" />
+                </div>
+                <Button variant="outline" size="sm" disabled={p.senadoBusy !== null} onClick={p.onImportarHistSenado}>
+                  {p.senadoBusy === "hist" ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : null}
+                  Importar histórico de senadores
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>

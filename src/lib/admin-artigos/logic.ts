@@ -12,6 +12,74 @@ export const CATEGORIA_LABEL: Record<ArtigoCategoria, string> = {
   nota: "Nota",
 };
 
+export type LinhaCsvArtigo = {
+  titulo: string;
+  slug: string;
+  categoria: string;
+  publico: string;
+  dificuldade: string;
+  tempo_estimado_min: number | string;
+  resumo: string;
+  fontes_usadas: string;
+  conteudo_md: string;
+  notas_internas: string;
+  publicado_em: string;
+  created_at: string;
+  updated_at: string;
+  id: string;
+};
+
+export const CSV_COLUNAS: (keyof LinhaCsvArtigo)[] = [
+  "titulo",
+  "slug",
+  "categoria",
+  "publico",
+  "dificuldade",
+  "tempo_estimado_min",
+  "resumo",
+  "fontes_usadas",
+  "conteudo_md",
+  "notas_internas",
+  "publicado_em",
+  "created_at",
+  "updated_at",
+  "id",
+];
+
+export function artigoParaLinhaCsv(a: Artigo): LinhaCsvArtigo {
+  return {
+    titulo: a.titulo,
+    slug: a.slug,
+    categoria: CATEGORIA_LABEL[a.categoria],
+    publico: a.publico ? "sim" : "não",
+    dificuldade: a.dificuldade ?? "",
+    tempo_estimado_min: a.tempo_estimado_min ?? "",
+    resumo: a.resumo ?? "",
+    fontes_usadas: (a.fontes_usadas ?? []).join(" | "),
+    conteudo_md: a.conteudo_md ?? "",
+    notas_internas: a.notas_internas ?? "",
+    publicado_em: a.publicado_em ?? "",
+    created_at: a.created_at,
+    updated_at: a.updated_at,
+    id: a.id,
+  };
+}
+
+export function artigosParaCsv(items: Artigo[]): LinhaCsvArtigo[] {
+  return items.map(artigoParaLinhaCsv);
+}
+
+export type ArtigoCopiavel = Pick<Artigo, "titulo" | "conteudo_md"> &
+  Partial<Pick<Artigo, "resumo" | "fontes_usadas">>;
+
+export function artigoParaTextoCopiavel(a: ArtigoCopiavel): string {
+  const partes: string[] = [`# ${a.titulo}`];
+  if (a.resumo) partes.push("", a.resumo);
+  if (a.fontes_usadas?.length) partes.push("", `Fontes: ${a.fontes_usadas.join(", ")}`);
+  partes.push("", a.conteudo_md ?? "");
+  return partes.join("\n");
+}
+
 export type FormState = {
   slug: string;
   titulo: string;

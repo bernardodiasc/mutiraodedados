@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { listarMaterias, senadoMateriasOverview } from "@/lib/data/senado/materias.functions";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 
 export const Route = createFileRoute("/senado_/materias/")({
   component: ListaMaterias,
@@ -112,6 +113,24 @@ function ListaMaterias() {
           {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
+
+      {rows && rows.length > 0 && (
+        <div className="flex justify-end">
+          <BotaoBaixarCsv
+            filename="materias"
+            obterLinhas={() =>
+              rows.map((p) => ({
+                materia: `${p.siglaSubtipo} ${p.numero}/${p.ano}`,
+                apresentada: p.dataApresentacao ?? "",
+                autor: p.autorPrincipal ?? "",
+                ementa: p.ementa ?? "",
+                situacao: p.ultimaSituacao ?? "",
+              }))
+            }
+            rotulo={`Baixar CSV (${rows.length})`}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>

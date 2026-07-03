@@ -22,6 +22,34 @@ async function aggOne(table: any): Promise<StatusFonte> {
   };
 }
 
+/**
+ * Códigos SIAFI de órgão que aparecem em documentos já ingeridos (contratos ∪
+ * licitações ∪ convênios). Fonte da lista pública dinâmica de `/orgaos` e do
+ * conjunto que a sonda de atividade (`verificarAtividadeOrgaos`) verifica.
+ * Exportada como função simples para reuso server-side sem round-trip de RPC.
+ */
+export async function codigosComDados(): Promise<string[]> {
+  const [contratos, licitacoes, convenios] = await Promise.all([
+    supabaseAdmin.from("contratos_cache").select("orgao_cod").limit(50000),
+    supabaseAdmin.from("cgu_licitacoes_cache").select("orgao_cod").limit(50000),
+    supabaseAdmin.from("cgu_convenios_cache").select("orgao_cod").limit(50000),
+  ]);
+  const set = new Set<string>();
+  for (const r of [
+    ...(contratos.data ?? []),
+    ...(licitacoes.data ?? []),
+    ...(convenios.data ?? []),
+  ]) {
+    const cod = (r as { orgao_cod: string | null }).orgao_cod;
+    if (cod) set.add(cod);
+  }
+  return [...set].sort();
+}
+
+export const orgaosComDados = createServerFn({ method: "GET" }).handler(
+  async (): Promise<string[]> => codigosComDados(),
+);
+
 export const statusFontes = createServerFn({ method: "GET" }).handler(async (): Promise<StatusFontesResult> => {
   const [pncp, siconfi, transferegov, camara, senado, contratos] = await Promise.all([
     aggOne("pncp_contratos_cache"),

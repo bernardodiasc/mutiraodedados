@@ -8,6 +8,9 @@ import type { AnomaliaSeveridade } from "@/lib/anomalia";
 
 export type QaFonte =
   | "cgu"
+  | "cgu_licitacoes"
+  | "cgu_emendas"
+  | "cgu_convenios"
   | "pncp"
   | "camara_ceap"
   | "senado_ceaps"
@@ -209,6 +212,186 @@ export function regrasCgu(
   return out;
 }
 
+export type CguLicitacaoLike = {
+  id: string;
+  valor?: number | null;
+  situacao?: string | null;
+  data_abertura?: string | null;
+  ano?: number | null;
+  orgao_cod?: string | null;
+};
+
+/**
+ * Heurísticas de qualidade do endpoint /licitacoes (CGU). Roda sobre as linhas
+ * já mapeadas (mesma forma do upsert). Campos travados por inspeção ao vivo do
+ * endpoint. Foco: sinais investigativos baratos e defensáveis (licitação
+ * abandonada, data ausente/absurda, valor negativo).
+ */
+const RX_LICITACAO_SEM_DESFECHO = /revog|anulad|fracassad|desert/i;
+
+export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
+  const out: QaFinding[] = [];
+  const anoAtual = new Date().getFullYear();
+  for (const r of rows) {
+    const valor = Number(r.valor ?? 0);
+    const ano = Number(r.ano ?? 0);
+
+    // Licitação revogada/anulada/fracassada/deserta — sinal de certame
+    // abandonado (gasto planejado que não se concretizou).
+    if (r.situacao && RX_LICITACAO_SEM_DESFECHO.test(r.situacao)) {
+      out.push({
+        fonte: "cgu_licitacoes",
+        entidade_tipo: "licitacao",
+        entidade_id: r.id,
+        regra: "licitacao_sem_desfecho",
+        severidade: "aviso",
+        detalhes: { situacao: r.situacao, orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["situacaoCompra"] },
+      });
+    }
+
+    // Sem data de abertura — não é posicionável na linha do tempo da cobertura.
+    if (!r.data_abertura) {
+      out.push({
+        fonte: "cgu_licitacoes",
+        entidade_tipo: "licitacao",
+        entidade_id: r.id,
+        regra: "data_abertura_ausente",
+        severidade: "aviso",
+        detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["dataAbertura"] },
+      });
+    } else if (ano > 0 && (ano < 1988 || ano > anoAtual + 1)) {
+      // Ano fora do intervalo plausível (Constituição de 1988 → ano seguinte).
+      out.push({
+        fonte: "cgu_licitacoes",
+        entidade_tipo: "licitacao",
+        entidade_id: r.id,
+        regra: "ano_invalido",
+        severidade: "aviso",
+        valor_armazenado: ano,
+        detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["dataAbertura"] },
+      });
+    }
+
+    // Valor negativo — impossível; defeito de origem.
+    if (valor < 0) {
+      out.push({
+        fonte: "cgu_licitacoes",
+        entidade_tipo: "licitacao",
+        entidade_id: r.id,
+        regra: "valor_negativo",
+        severidade: "critico",
+        valor_armazenado: valor,
+        detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["valor"] },
+      });
+    }
+  }
+  return out;
+}
+
+export type CguEmendaLike = {
+  id: string;
+  valor_empenhado?: number | null;
+  valor_liquidado?: number | null;
+  valor_pago?: number | null;
+  ano?: number | null;
+};
+
+/**
+ * Heurísticas de qualidade do endpoint /emendas (CGU). As 3 fases da despesa
+ * (empenho → liquidação → pagamento) vêm na própria emenda, então checamos a
+ * coerência entre elas (não se paga mais do que se empenhou).
+ */
+export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
+  const out: QaFinding[] = [];
+  for (const r of rows) {
+    const emp = Number(r.valor_empenhado ?? 0);
+    const liq = Number(r.valor_liquidado ?? 0);
+    const pago = Number(r.valor_pago ?? 0);
+
+    // Pago > empenhado: impossível — só se paga o que foi reservado (empenhado).
+    if (emp > 0 && pago > emp * 1.001) {
+      out.push({
+        fonte: "cgu_emendas",
+        entidade_tipo: "emenda",
+        entidade_id: r.id,
+        regra: "pago_maior_empenhado",
+        severidade: "critico",
+        valor_armazenado: pago,
+        valor_esperado: emp,
+        detalhes: { valor_empenhado: emp, valor_pago: pago, campos_suspeitos: ["valorPago", "valorEmpenhado"] },
+      });
+    }
+    // Liquidado > empenhado: inconsistência (atesta-se mais do que se reservou).
+    if (emp > 0 && liq > emp * 1.001) {
+      out.push({
+        fonte: "cgu_emendas",
+        entidade_tipo: "emenda",
+        entidade_id: r.id,
+        regra: "liquidado_maior_empenhado",
+        severidade: "aviso",
+        valor_armazenado: liq,
+        valor_esperado: emp,
+        detalhes: { valor_empenhado: emp, valor_liquidado: liq, campos_suspeitos: ["valorLiquidado", "valorEmpenhado"] },
+      });
+    }
+    // Valores negativos — defeito de origem.
+    if (emp < 0 || liq < 0 || pago < 0) {
+      out.push({
+        fonte: "cgu_emendas",
+        entidade_tipo: "emenda",
+        entidade_id: r.id,
+        regra: "valor_negativo",
+        severidade: "critico",
+        detalhes: { valor_empenhado: emp, valor_liquidado: liq, valor_pago: pago },
+      });
+    }
+  }
+  return out;
+}
+
+export type CguConvenioLike = {
+  id: string;
+  valor?: number | null;
+  valor_liberado?: number | null;
+  situacao?: string | null;
+};
+
+/**
+ * Heurísticas de qualidade do endpoint /convenios (CGU). Foco: liberado maior
+ * que o valor global (repasse acima do pactuado) e valores impossíveis.
+ */
+export function regrasCguConvenios(rows: CguConvenioLike[]): QaFinding[] {
+  const out: QaFinding[] = [];
+  for (const r of rows) {
+    const valor = Number(r.valor ?? 0);
+    const liberado = Number(r.valor_liberado ?? 0);
+
+    if (valor > 0 && liberado > valor * 1.001) {
+      out.push({
+        fonte: "cgu_convenios",
+        entidade_tipo: "convenio",
+        entidade_id: r.id,
+        regra: "liberado_maior_global",
+        severidade: "aviso",
+        valor_armazenado: liberado,
+        valor_esperado: valor,
+        detalhes: { valor_global: valor, valor_liberado: liberado, campos_suspeitos: ["valorLiberado", "valor"] },
+      });
+    }
+    if (valor < 0 || liberado < 0) {
+      out.push({
+        fonte: "cgu_convenios",
+        entidade_tipo: "convenio",
+        entidade_id: r.id,
+        regra: "valor_negativo",
+        severidade: "critico",
+        detalhes: { valor_global: valor, valor_liberado: liberado },
+      });
+    }
+  }
+  return out;
+}
+
 export type PncpContratoLike = {
   id: string;
   valor_global?: number | null;
@@ -335,51 +518,6 @@ export function regrasTransferegov(rows: TransferegovLike[]): QaFinding[] {
         severidade: "aviso",
         valor_armazenado: glob,
         detalhes: { limite: 100, valor_repasse: rep },
-      });
-    }
-  }
-  return out;
-}
-
-export type TransferegovEmendaLike = {
-  id: string;
-  valor?: number | null;
-  valor_pago?: number | null;
-  modalidade?: string | null;
-};
-
-export function regrasTransferegovEmendas(
-  rows: TransferegovEmendaLike[],
-): QaFinding[] {
-  const out: QaFinding[] = [];
-  for (const r of rows) {
-    const v = Number(r.valor ?? 0);
-    const pago = Number(r.valor_pago ?? 0);
-    // Pago não pode ser maior que empenhado/disponibilizado (margem 1%).
-    if (v > 0 && pago > v * 1.01) {
-      out.push({
-        fonte: "transferegov",
-        entidade_tipo: "emenda",
-        entidade_id: r.id,
-        regra: "pago_maior_empenhado",
-        severidade: "critico",
-        valor_armazenado: pago,
-        valor_esperado: v,
-        detalhes: { modalidade: r.modalidade },
-      });
-      continue;
-    }
-    // Emendas com valor < R$ 100 são extremamente improváveis — costuma ser
-    // efeito de parser confundindo separador BR ("1.234" lido como 1.234).
-    if (v > 0 && v < 100) {
-      out.push({
-        fonte: "transferegov",
-        entidade_tipo: "emenda",
-        entidade_id: r.id,
-        regra: "valor_truncado_suspeito",
-        severidade: "aviso",
-        valor_armazenado: v,
-        detalhes: { limite: 100, modalidade: r.modalidade, valor_pago: pago },
       });
     }
   }

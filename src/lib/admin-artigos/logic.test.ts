@@ -8,6 +8,9 @@ import {
   rotaPublicaCategoria,
   aplicarTituloNoForm,
   formFromArtigo,
+  artigoParaLinhaCsv,
+  artigosParaCsv,
+  artigoParaTextoCopiavel,
   FORM_INICIAL,
 } from "./logic";
 import type { Artigo } from "@/lib/data/artigos.functions";
@@ -97,5 +100,31 @@ describe("admin-artigos/logic", () => {
     expect(f.fontes_usadas).toBe("PNCP, CGU");
     expect(f.tempo_estimado_min).toBe("5");
     expect(f.publico).toBe(true);
+  });
+
+  it("artigoParaLinhaCsv achata categoria, público e fontes", () => {
+    const l = artigoParaLinhaCsv(baseArtigo);
+    expect(l.categoria).toBe("Mapa investigativo");
+    expect(l.publico).toBe("sim");
+    expect(l.fontes_usadas).toBe("PNCP | CGU");
+    expect(l.id).toBe("1");
+  });
+
+  it("artigosParaCsv mapeia a lista inteira", () => {
+    expect(artigosParaCsv([baseArtigo, { ...baseArtigo, id: "2" }])).toHaveLength(2);
+  });
+
+  it("artigoParaTextoCopiavel inclui título, resumo, fontes e conteúdo", () => {
+    const t = artigoParaTextoCopiavel(baseArtigo);
+    expect(t).toContain("# Exemplo");
+    expect(t).toContain("Fontes: PNCP, CGU");
+    expect(t).toContain("c"); // conteudo_md
+  });
+
+  it("artigoParaTextoCopiavel funciona com o shape mínimo (ArtigoCopiavel)", () => {
+    const t = artigoParaTextoCopiavel({ titulo: "Só título", conteudo_md: "corpo" });
+    expect(t).toContain("# Só título");
+    expect(t).toContain("corpo");
+    expect(t).not.toContain("Fontes:");
   });
 });

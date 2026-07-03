@@ -29,6 +29,42 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     instrucoes:
       "No Fala.BR, escolha 'Comunicação' como tipo de manifestação e selecione a CGU como órgão destinatário. Cole o texto sugerido, anexe links e salve o número de protocolo gerado.",
   },
+  cgu_licitacoes: {
+    fonte: "cgu_licitacoes",
+    fonteLabel: "Portal da Transparência (CGU) — Licitações",
+    orgao: "Controladoria-Geral da União (CGU)",
+    canalPrimario: "Fala.BR",
+    urlReporte:
+      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    tipoManifestacao: "Comunicação",
+    emailSecundario: "portaldatransparencia@cgu.gov.br",
+    instrucoes:
+      "No Fala.BR, escolha 'Comunicação' e selecione a CGU. Cite o número da licitação e o número do processo, e cole o texto sugerido com os links.",
+  },
+  cgu_emendas: {
+    fonte: "cgu_emendas",
+    fonteLabel: "Portal da Transparência (CGU) — Emendas",
+    orgao: "Controladoria-Geral da União (CGU)",
+    canalPrimario: "Fala.BR",
+    urlReporte:
+      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    tipoManifestacao: "Comunicação",
+    emailSecundario: "portaldatransparencia@cgu.gov.br",
+    instrucoes:
+      "No Fala.BR, escolha 'Comunicação' e selecione a CGU. Cite o código da emenda e o ano, e cole o texto sugerido com os links.",
+  },
+  cgu_convenios: {
+    fonte: "cgu_convenios",
+    fonteLabel: "Portal da Transparência (CGU) — Convênios",
+    orgao: "Controladoria-Geral da União (CGU)",
+    canalPrimario: "Fala.BR",
+    urlReporte:
+      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    tipoManifestacao: "Comunicação",
+    emailSecundario: "portaldatransparencia@cgu.gov.br",
+    instrucoes:
+      "No Fala.BR, escolha 'Comunicação' e selecione a CGU. Cite o número do convênio e o órgão concedente, e cole o texto sugerido com os links.",
+  },
   pncp: {
     fonte: "pncp",
     fonteLabel: "Portal Nacional de Contratações Públicas (PNCP)",

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { listarVotacoesSenado, senadoVotacoesOverview } from "@/lib/data/senado/votacoes.functions";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { CheckCircle2, XCircle, MinusCircle } from "lucide-react";
 
 export const Route = createFileRoute("/senado_/votacoes/")({
@@ -62,6 +63,26 @@ function ListaVotacoesSenado() {
         value={termo}
         onChange={(e) => setTermo(e.target.value)}
       />
+
+      {rows && rows.length > 0 && (
+        <div className="flex justify-end">
+          <BotaoBaixarCsv
+            filename="votacoes-senado"
+            obterLinhas={() =>
+              rows.map((v) => ({
+                data: v.data ?? "",
+                descricao: v.descricao ?? "",
+                materia: v.materiaTitulo ?? "",
+                resultado: v.resultado ?? "",
+                sim: v.votosSim,
+                nao: v.votosNao,
+                outros: v.votosOutros,
+              }))
+            }
+            rotulo={`Baixar CSV (${rows.length})`}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>

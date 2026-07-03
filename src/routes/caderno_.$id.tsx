@@ -17,6 +17,7 @@ import {
   Plus,
   Link2,
   StickyNote,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import {
   removerItem,
   adicionarItem,
 } from "@/lib/pergunta-itens.functions";
+import { montarComposicaoDaPasta } from "@/lib/caderno-composicao.functions";
 import { formatarStatusPergunta, formatarDataPt } from "@/lib/caderno-perguntas/logic";
 
 export const Route = createFileRoute("/caderno_/$id")({
@@ -64,7 +66,9 @@ function CadernoDetalhePage() {
   const excluir = useServerFn(excluirPergunta);
   const removerItemFn = useServerFn(removerItem);
   const adicionarFn = useServerFn(adicionarItem);
+  const montarComposicaoFn = useServerFn(montarComposicaoDaPasta);
 
+  const [selecionados, setSelecionados] = React.useState<Set<string>>(new Set());
   const [formAberto, setFormAberto] = React.useState<null | "link" | "anotacao">(null);
   const [fTitulo, setFTitulo] = React.useState("");
   const [fUrl, setFUrl] = React.useState("");
@@ -113,7 +117,25 @@ function CadernoDetalhePage() {
   });
   const acaoRemoverItem = useMutation({
     mutationFn: async (itemId: string) => removerItemFn({ data: { id: itemId } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["pergunta-itens", id] }),
+    onSuccess: (_res, itemId) => {
+      setSelecionados((s) => { const n = new Set(s); n.delete(itemId); return n; });
+      queryClient.invalidateQueries({ queryKey: ["pergunta-itens", id] });
+    },
+  });
+  const acaoCopiarSelecionados = useMutation({
+    mutationFn: async () =>
+      montarComposicaoFn({ data: { pergunta_id: id, item_ids: [...selecionados] } }),
+    onSuccess: async (res) => {
+      try {
+        await navigator.clipboard.writeText(res.texto);
+        toast.success(
+          `${res.itensIncluidos} ${res.itensIncluidos === 1 ? "item copiado" : "itens copiados"} — cole na sua IA de confiança`,
+        );
+      } catch {
+        toast.error("Não foi possível acessar a área de transferência");
+      }
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Erro ao montar o texto"),
   });
   const acaoAdicionar = useMutation({
     mutationFn: async () => {
@@ -283,9 +305,52 @@ function CadernoDetalhePage() {
             pasta no botão de salvar.)
           </div>
         ) : (
-          <ul className="mt-4 grid gap-2">
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-3 border border-border rounded-xl p-3 bg-card">
+              <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="accent-foreground size-4"
+                  checked={selecionados.size === itens.length}
+                  onChange={(e) =>
+                    setSelecionados(e.target.checked ? new Set(itens.map((i) => i.id)) : new Set())
+                  }
+                />
+                Selecionar tudo
+              </label>
+              <Button
+                size="sm"
+                onClick={() => acaoCopiarSelecionados.mutate()}
+                disabled={selecionados.size === 0 || acaoCopiarSelecionados.isPending}
+              >
+                {acaoCopiarSelecionados.isPending ? (
+                  <Loader2 className="size-3.5 mr-1 animate-spin" />
+                ) : (
+                  <Copy className="size-3.5 mr-1" />
+                )}
+                Copiar selecionados{selecionados.size > 0 ? ` (${selecionados.size})` : ""}
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                Monta um texto único (procedimento → dados → prompt) para colar na sua IA.
+              </span>
+            </div>
+            <ul className="mt-3 grid gap-2">
             {itens.map((it) => (
               <li key={it.id} className="border border-border rounded-xl p-4 bg-card flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  className="accent-foreground size-4 shrink-0"
+                  aria-label={`Selecionar ${it.titulo}`}
+                  checked={selecionados.has(it.id)}
+                  onChange={(e) =>
+                    setSelecionados((s) => {
+                      const n = new Set(s);
+                      if (e.target.checked) n.add(it.id);
+                      else n.delete(it.id);
+                      return n;
+                    })
+                  }
+                />
                 <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-0.5 rounded bg-muted">
                   {it.tipo}
                 </span>
@@ -309,7 +374,8 @@ function CadernoDetalhePage() {
                 </button>
               </li>
             ))}
-          </ul>
+            </ul>
+          </>
         )}
       </section>
     </div>

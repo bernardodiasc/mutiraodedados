@@ -16,6 +16,9 @@ export const PERGUNTA_ITEM_TIPOS = [
   "parlamentar",
   "votacao",
   "anomalia",
+  "prompt",
+  "emenda",
+  "licitacao",
 ] as const;
 export type PerguntaItemTipo = (typeof PERGUNTA_ITEM_TIPOS)[number];
 
@@ -138,6 +141,37 @@ export const listarPerguntasContendoItem = createServerFn({ method: "POST" })
       .eq("ref_id", data.ref_id);
     if (error) throw new Error(`Falha ao verificar pastas: ${error.message}`);
     return (rows ?? []) as Array<{ id: string; pergunta_id: string }>;
+  });
+
+export type PastaResumo = { id: string; titulo: string };
+
+const pastasComPromptsSchema = z.object({
+  promptIds: z.array(z.string().uuid()).max(50),
+});
+
+/** Pastas (perguntas) do usuário que contêm algum dos prompts informados —
+ * usado no topo do Kit para linkar às pastas em uso naquele mapa. */
+export const listarPastasComPrompts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => pastasComPromptsSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    if (data.promptIds.length === 0) return [] as PastaResumo[];
+    const { data: itens, error } = await supabase
+      .from("pergunta_itens")
+      .select("pergunta_id")
+      .eq("user_id", userId)
+      .eq("tipo", "prompt")
+      .in("ref_id", data.promptIds);
+    if (error) throw new Error(`Falha ao listar pastas: ${error.message}`);
+    const ids = [...new Set((itens ?? []).map((i) => i.pergunta_id))];
+    if (ids.length === 0) return [] as PastaResumo[];
+    const { data: perguntas, error: e2 } = await supabase
+      .from("perguntas")
+      .select("id, titulo")
+      .in("id", ids);
+    if (e2) throw new Error(`Falha ao carregar pastas: ${e2.message}`);
+    return (perguntas ?? []) as PastaResumo[];
   });
 
 const toggleSchema = z.object({

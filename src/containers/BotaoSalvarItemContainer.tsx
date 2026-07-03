@@ -16,6 +16,7 @@ import {
   type PerguntaItemTipo,
 } from "@/lib/pergunta-itens.functions";
 import { deriveItemEstado } from "@/lib/botao-salvar-item/logic";
+import { serializarSnapshot } from "@/lib/itens-salvos/logic";
 import { BotaoSalvarItemView, type PastaOpcao } from "@/components/BotaoSalvarItemView";
 
 export type BotaoSalvarItemContainerProps = {
@@ -24,6 +25,9 @@ export type BotaoSalvarItemContainerProps = {
   titulo: string;
   url?: string;
   contexto?: string;
+  /** Dados da entidade no momento do salvar — viram snapshot de prova
+   * (serialização canônica + hash; ver src/lib/itens-salvos/logic.ts). */
+  snapshotDe?: unknown;
   className?: string;
 };
 
@@ -43,6 +47,7 @@ export function BotaoSalvarItemContainer({
   titulo,
   url,
   contexto,
+  snapshotDe,
   className,
 }: BotaoSalvarItemContainerProps) {
   const { user, loading: authLoading } = useAuth();
@@ -71,6 +76,8 @@ export function BotaoSalvarItemContainer({
           titulo,
           url: url ?? null,
           contexto: contexto ?? null,
+          conteudo_snapshot:
+            snapshotDe !== undefined ? serializarSnapshot(snapshotDe).slice(0, 20000) : null,
         },
       }),
     onSuccess: () => {

@@ -6,7 +6,7 @@ Pontos de entrada quando o cidadão **não sabe exatamente o que procura**.
 
 ## Páginas públicas
 
-- `/buscar` — busca global por termo (nome, CNPJ, número de contrato, palavras do objeto). Resultados de múltiplas bases (contratos, órgãos, parlamentares, convênios).
+- `/buscar` — busca global por termo (nome, CNPJ, número de contrato, palavras do objeto). Resultados de múltiplas bases: contratos PNCP, **licitações CGU**, **emendas CGU**, **convênios CGU** e transferências/convênios Transferegov. Por CNPJ casa órgão (CGU é por órgão, não por fornecedor) e convenente; por termo, objeto/autor/número. Ver `src/lib/data/busca.functions.ts`.
 - `/explorar` — exploração por ente federativo (UF, município).
 - `/cobertura` — matriz visual de cobertura: para cada fonte e cada mês, mostra se houve ingestão, se há dados, e se falta sincronizar. Componente: `CoberturaMatrix`.
 - `/qualidade` — central de erros detectados nas bases oficiais (ver [`qualidade-dados.md`](../qualidade-dados.md)).

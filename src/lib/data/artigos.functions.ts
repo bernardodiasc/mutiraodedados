@@ -21,12 +21,13 @@ export type Artigo = {
   publico: boolean;
   publicado_em: string | null;
   autor_id: string | null;
+  ordem: number;
   created_at: string;
   updated_at: string;
 };
 
 const COLS_PUBLICO =
-  "id,slug,titulo,resumo,conteudo_md,categoria,capa_url,dificuldade,tempo_estimado_min,fontes_usadas,publico,publicado_em,created_at,updated_at";
+  "id,slug,titulo,resumo,conteudo_md,categoria,capa_url,dificuldade,tempo_estimado_min,fontes_usadas,publico,publicado_em,ordem,created_at,updated_at";
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -43,7 +44,11 @@ const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const SalvarSchema = z.object({
   id: z.string().uuid().optional(),
-  slug: z.string().min(1).max(160).regex(slugRegex, "Slug deve usar apenas letras minúsculas, números e hífens"),
+  slug: z
+    .string()
+    .min(1)
+    .max(160)
+    .regex(slugRegex, "Slug deve usar apenas letras minúsculas, números e hífens"),
   titulo: z.string().min(1).max(300),
   resumo: z.string().max(600).nullable().optional(),
   conteudo_md: z.string().max(100_000).default(""),
@@ -69,6 +74,7 @@ export const listarArtigosPublicos = createServerFn({ method: "POST" })
       .eq("publico", true)
       .not("publicado_em", "is", null)
       .lte("publicado_em", new Date().toISOString())
+      .order("ordem", { ascending: true })
       .order("publicado_em", { ascending: false });
     if (data.categoria) q = q.eq("categoria", data.categoria);
     const { data: rows, error } = await q;
@@ -101,6 +107,7 @@ export const listarArtigos = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("artigos")
       .select("*")
+      .order("ordem", { ascending: true })
       .order("updated_at", { ascending: false });
     if (error) throw new Error(error.message);
     return (data ?? []) as Artigo[];
@@ -144,20 +151,42 @@ export const salvarArtigo = createServerFn({ method: "POST" })
         : (data.publicado_em ?? null),
     };
     if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("artigos")
-        .update(payload)
-        .eq("id", data.id);
+      const { error } = await supabaseAdmin.from("artigos").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { ok: true, id: data.id };
     }
+    // Novos artigos entram no fim da lista.
+    const { data: ult } = await supabaseAdmin
+      .from("artigos")
+      .select("ordem")
+      .order("ordem", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const proximaOrdem = ((ult?.ordem as number | undefined) ?? -1) + 1;
     const { data: row, error } = await supabaseAdmin
       .from("artigos")
-      .insert({ ...payload, autor_id: context.userId })
+      .insert({ ...payload, ordem: proximaOrdem, autor_id: context.userId })
       .select("id")
       .single();
     if (error) throw new Error(error.message);
     return { ok: true, id: row.id as string };
+  });
+
+/** Admin — reordena artigos: grava `ordem` = posição no array recebido. */
+export const reordenarArtigos = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(2000) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const updates = data.ids.map((id, i) =>
+      supabaseAdmin.from("artigos").update({ ordem: i }).eq("id", id),
+    );
+    const resultados = await Promise.all(updates);
+    const falha = resultados.find((r) => r.error);
+    if (falha?.error) throw new Error(falha.error.message);
+    return { ok: true };
   });
 
 export const excluirArtigo = createServerFn({ method: "POST" })

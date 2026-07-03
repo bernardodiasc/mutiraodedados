@@ -3,12 +3,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { useData } from "@/lib/data-store";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
+import type { Orgao } from "@/lib/data/types";
 import { clearImportData, listHistoricoUnificado, diagnosticarPortalPagina, listarVarredurasIncompletas, type HistoricoEntrada } from "@/lib/data/real/portal.functions";
+import { sincronizarOrgaosSIAFI, verificarAtividadeOrgaos } from "@/lib/data/real/orgaos-siafi.functions";
 import { ressanitizarContratosCache } from "@/lib/sanitize-ingestao.functions";
-import { importarDeputados, importarCEAPMes } from "@/lib/data/camara/ingest.functions";
+import { importarDeputados, importarDeputadosHistorico, importarCEAPMes } from "@/lib/data/camara/ingest.functions";
 import { importarProposicoes } from "@/lib/data/camara/proposicoes.functions";
 import { importarVotacoes } from "@/lib/data/camara/votacoes.functions";
-import { importarSenadores, importarCEAPSMes } from "@/lib/data/senado/ingest.functions";
+import { importarSenadores, importarSenadoresHistorico, importarCEAPSMes } from "@/lib/data/senado/ingest.functions";
 import { importarMaterias } from "@/lib/data/senado/materias.functions";
 import { importarVotacoesSenado } from "@/lib/data/senado/votacoes.functions";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,12 +30,15 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = yearList(CURRENT_YEAR);
 
 export function AdminImportContainer() {
-  const { loadRealOrgao, refreshFromDB } = useData();
+  const { dataset, loadRealOrgao, refreshFromDB } = useData();
   const listHistFn = useServerFn(listHistoricoUnificado);
   const clearFn = useServerFn(clearImportData);
   const sanitizeFn = useServerFn(ressanitizarContratosCache);
   const diagFn = useServerFn(diagnosticarPortalPagina);
   const varredurasFn = useServerFn(listarVarredurasIncompletas);
+  const sincCatalogoFn = useServerFn(sincronizarOrgaosSIAFI);
+  const verifAtivFn = useServerFn(verificarAtividadeOrgaos);
+  const [sincronizandoCatalogo, setSincronizandoCatalogo] = useState(false);
   const [varredurasIncompletas, setVarredurasIncompletas] = useState<
     Array<{ orgaoCod: string; ultimaPagina: number; dataInicial?: string; dataFinal?: string }>
   >([]);
@@ -45,9 +50,20 @@ export function AdminImportContainer() {
     }
   };
   const def = useMemo(defaultMonth, []);
-  const cobertos = useMemo(() => ORGAOS_BASE.filter((o) => o.disponivelPortal), []);
+  // Picklist de import: órgãos do catálogo enriquecido (ORGAOS_BASE cobertos pelo
+  // Portal) unidos ao catálogo dinâmico em `orgaos_cache` (dataset.orgaos, populado
+  // pelo sync SIAFI e por imports anteriores). Permite importar qualquer órgão do
+  // Executivo, não só os 21 fixos — a lista cresce conforme o catálogo é sincronizado.
+  const cobertos = useMemo(() => {
+    const map = new Map<string, Orgao>();
+    for (const o of ORGAOS_BASE) if (o.disponivelPortal) map.set(o.cod, o);
+    for (const o of dataset.orgaos) if (!map.has(o.cod)) map.set(o.cod, o);
+    return [...map.values()].sort((a, b) =>
+      (a.sigla || a.cod).localeCompare(b.sigla || b.cod, "pt-BR"),
+    );
+  }, [dataset.orgaos]);
 
-  const [orgao, setOrgao] = useState<string>(cobertos[0].cod);
+  const [orgao, setOrgao] = useState<string>(ORGAOS_BASE.find((o) => o.disponivelPortal)!.cod);
   const [ano, setAno] = useState<number>(def.ano);
   const [mes, setMes] = useState<number>(def.mes);
   // Auto-continuar a varredura por detalhe: ao terminar uma rodada, dispara a
@@ -83,16 +99,21 @@ export function AdminImportContainer() {
   };
 
   const importarDepFn = useServerFn(importarDeputados);
+  const importarDepHistFn = useServerFn(importarDeputadosHistorico);
   const importarCEAPFn = useServerFn(importarCEAPMes);
   const importarPropsFn = useServerFn(importarProposicoes);
   const importarVotsFn = useServerFn(importarVotacoes);
   const importarSenFn = useServerFn(importarSenadores);
+  const importarSenHistFn = useServerFn(importarSenadoresHistorico);
   const importarCEAPSFn = useServerFn(importarCEAPSMes);
   const importarMatSenFn = useServerFn(importarMaterias);
   const importarVotSenFn = useServerFn(importarVotacoesSenado);
   const [senadoBusy, setSenadoBusy] = useState<null | string>(null);
   const [camaraBusy, setCamaraBusy] = useState<null | string>(null);
   const [propTipo, setPropTipo] = useState<string>("PL");
+  const LEG_ATUAL = 52 + Math.floor((CURRENT_YEAR - 2003) / 4);
+  const [legHistIni, setLegHistIni] = useState<number>(52);
+  const [legHistFim, setLegHistFim] = useState<number>(LEG_ATUAL);
   const [votIni, setVotIni] = useState<string>(() => {
     const d = new Date(); d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
@@ -265,7 +286,8 @@ export function AdminImportContainer() {
   };
 
   const importarUnico = () => {
-    const o = ORGAOS_BASE.find((x) => x.cod === orgao)!;
+    const o = cobertos.find((x) => x.cod === orgao) ??
+      ({ cod: orgao, sigla: orgao, nome: orgao, funcao: "", poder: "executivo", disponivelPortal: true } as Orgao);
     // Janela de vigência opcional: quando ambas as datas estão preenchidas, a
     // varredura filtra por início de vigência; senão varre o histórico completo.
     const temJanela = !!(vigIni && vigFim);
@@ -377,6 +399,14 @@ export function AdminImportContainer() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setCamaraBusy(null); }
   };
+  const onImportarHistCamara = async () => {
+    setCamaraBusy("hist");
+    try {
+      const r = await importarDepHistFn({ data: { legIni: legHistIni, legFim: legHistFim } });
+      toast.success(`Histórico: ${r.importados} deputados em ${r.legislaturas.length} legislatura(s).`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setCamaraBusy(null); }
+  };
   const onImportarCEAPCamara = async () => {
     setCamaraBusy("ceap");
     try {
@@ -409,6 +439,14 @@ export function AdminImportContainer() {
     } catch (e) { toast.error((e as Error).message); }
     finally { setSenadoBusy(null); }
   };
+  const onImportarHistSenado = async () => {
+    setSenadoBusy("hist");
+    try {
+      const r = await importarSenHistFn({ data: { legIni: legHistIni, legFim: legHistFim } });
+      toast.success(`Histórico: ${r.importados} senadores em ${r.legislaturas.length} legislatura(s).`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setSenadoBusy(null); }
+  };
   const onImportarCEAPSSenado = async () => {
     setSenadoBusy("ceaps");
     try {
@@ -433,6 +471,23 @@ export function AdminImportContainer() {
       toast.success(`Votações ${MONTHS[mes-1]}/${ano}: ${res.votacoes} sessões, ${res.votos} votos.`);
     } catch (e) { toast.error((e as Error).message); }
     finally { setSenadoBusy(null); }
+  };
+
+  const onSincronizarCatalogo = async () => {
+    setSincronizandoCatalogo(true);
+    try {
+      const nomes = await sincCatalogoFn({ data: {} });
+      const ativ = await verifAtivFn({ data: {} });
+      toast.success(
+        `Catálogo: ${nomes.importados} órgãos (${nomes.invalidos} inválidos ignorados) · ` +
+          `atividade: ${ativ.ativos} ativos, ${ativ.inativos} extintos/inativos de ${ativ.verificados} com dados.`,
+      );
+      await refreshFromDB();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSincronizandoCatalogo(false);
+    }
   };
 
   const onSanitize = async () => {
@@ -483,6 +538,8 @@ export function AdminImportContainer() {
       orgao={orgao}
       setOrgao={setOrgao}
       importarUnico={importarUnico}
+      onSincronizarCatalogo={onSincronizarCatalogo}
+      sincronizandoCatalogo={sincronizandoCatalogo}
       onDiagnosticarPortal={(params) => diagFn({ data: params })}
       varredurasIncompletas={varredurasIncompletas}
       continuarVarredura={continuarVarredura}
@@ -508,6 +565,12 @@ export function AdminImportContainer() {
       onImportarCEAPSSenado={onImportarCEAPSSenado}
       onImportarMatSenado={onImportarMatSenado}
       onImportarVotSenado={onImportarVotSenado}
+      legHistIni={legHistIni}
+      legHistFim={legHistFim}
+      setLegHistIni={setLegHistIni}
+      setLegHistFim={setLegHistFim}
+      onImportarHistCamara={onImportarHistCamara}
+      onImportarHistSenado={onImportarHistSenado}
       history={history}
       loadingHist={loadingHist}
       histHasMore={histHasMore}

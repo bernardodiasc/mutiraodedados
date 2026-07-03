@@ -2,11 +2,43 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { buscaGlobal } from "@/lib/data/busca.functions";
+import { buscaGlobal, type ResultadoBusca } from "@/lib/data/busca.functions";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { EmptyState } from "@/components/EmptyState";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { fmtBRL } from "@/lib/fmt";
-import { Search, FileText, ArrowRightLeft, ExternalLink } from "lucide-react";
+import type { EntidadeTipo } from "@/lib/itens-salvos.functions";
+import { Search, FileText, ArrowRightLeft, Gavel, HandCoins, FileSignature } from "lucide-react";
+
+type ItemBusca = ResultadoBusca["pncp"][number];
+
+/** Uma linha de resultado com o Kit do auditor (Copiar, Salvar, Abrir fonte). */
+function ResultadoItem({ r, tipo }: { r: ItemBusca; tipo: EntidadeTipo }) {
+  return (
+    <li className="p-4 space-y-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{r.titulo}</div>
+          <div className="text-xs text-muted-foreground">{r.subtitulo}</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="font-medium">{fmtBRL(r.valor)}</div>
+          <div className="text-xs text-muted-foreground">{r.data ?? "—"}</div>
+        </div>
+      </div>
+      <AcoesDaEntidade
+        entidadeTipo={tipo}
+        entidadeId={r.id}
+        titulo={r.titulo}
+        url={r.href}
+        contexto={r.subtitulo || undefined}
+        snapshotDe={r}
+        fonteOficialHref={r.href || undefined}
+        fonteOficialLabel="Abrir"
+      />
+    </li>
+  );
+}
 
 export const Route = createFileRoute("/buscar")({
   component: BuscarPage,
@@ -37,7 +69,11 @@ function BuscarPage() {
   }
 
   const totalResultados =
-    (data?.pncp.length ?? 0) + (data?.transferencias.length ?? 0);
+    (data?.pncp.length ?? 0) +
+    (data?.licitacoes.length ?? 0) +
+    (data?.emendas.length ?? 0) +
+    (data?.convenios.length ?? 0) +
+    (data?.transferencias.length ?? 0);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 space-y-6">
@@ -93,21 +129,46 @@ function BuscarPage() {
               </h2>
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
                 {data.pncp.map((r) => (
-                  <li key={r.id} className="p-4 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{r.titulo}</div>
-                      <div className="text-xs text-muted-foreground">{r.subtitulo}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-medium">{fmtBRL(r.valor)}</div>
-                      <div className="text-xs text-muted-foreground">{r.data ?? "—"}</div>
-                      {r.href && (
-                        <a href={r.href} target="_blank" rel="noreferrer" className="text-xs text-accent underline inline-flex items-center gap-1 mt-1">
-                          Abrir <ExternalLink className="size-3" />
-                        </a>
-                      )}
-                    </div>
-                  </li>
+                  <ResultadoItem key={r.id} r={r} tipo="contrato" />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data.licitacoes.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <Gavel className="size-4" /> Licitações (CGU) — {data.licitacoes.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.licitacoes.map((r) => (
+                  <ResultadoItem key={r.id} r={r} tipo="licitacao" />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data.emendas.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <HandCoins className="size-4" /> Emendas (CGU) — {data.emendas.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.emendas.map((r) => (
+                  <ResultadoItem key={r.id} r={r} tipo="emenda" />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data.convenios.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <FileSignature className="size-4" /> Convênios (CGU) — {data.convenios.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.convenios.map((r) => (
+                  <ResultadoItem key={r.id} r={r} tipo="convenio" />
                 ))}
               </ul>
             </section>
@@ -120,21 +181,7 @@ function BuscarPage() {
               </h2>
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
                 {data.transferencias.map((r) => (
-                  <li key={r.id} className="p-4 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium">{r.titulo}</div>
-                      <div className="text-xs text-muted-foreground">{r.subtitulo}</div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="font-medium">{fmtBRL(r.valor)}</div>
-                      <div className="text-xs text-muted-foreground">{r.data ?? "—"}</div>
-                      {r.href && (
-                        <a href={r.href} target="_blank" rel="noreferrer" className="text-xs text-accent underline inline-flex items-center gap-1 mt-1">
-                          Abrir <ExternalLink className="size-3" />
-                        </a>
-                      )}
-                    </div>
-                  </li>
+                  <ResultadoItem key={r.id} r={r} tipo="convenio" />
                 ))}
               </ul>
             </section>

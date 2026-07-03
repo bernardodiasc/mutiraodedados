@@ -22,6 +22,15 @@ src/lib/data/<fonte>/
 9. Log em `importacoes` (uma linha por requisição feita).
 10. `flagQA(regrasNovaFonte(rows))` ao final do lote.
 
+## Multi-entidade: uma fonte, várias entidades
+
+Quando uma mesma API expõe vários endpoints com a mesma mecânica de paginação (caso do Portal CGU: `/contratos`, `/licitacoes`, `/emendas`, `/convenios`), **não** duplique o loop de varredura por entidade. Reaproveite o motor genérico:
+
+- **`src/lib/data/real/sweep.ts`** — `varrerPaginado({ entidade, fonte, endpoint, montarParams, mapPagina, upsertBatch, … })`: loop retomável por orçamento de tempo, upsert + QA + log por página, registro de rodada em `importacoes`. Cada entidade só fornece `montarParams(pagina)` (dimensão da varredura: órgão, ano ou janela) e `mapPagina` (campos → linha).
+- **Chave de varredura composta** em `cgu_varredura` (`montarVarreduraKey`/`parseVarreduraKey`): `<entidade>#<cod|ano>#<ini>#<fim>`. Contratos mantêm o formato legado (sem prefixo) para não invalidar varreduras em andamento.
+- **Uma fonte declara vários literais** nos registros: cada entidade vira um literal em `FonteJanela` (`janelas.ts`), `QaFonte` (`qa.ts`), `FONTES_LIMPEZA` (`limpeza.ts`), `Fonte["fonte"]` (`cobertura.functions.ts`) + um `case` no job-builder (`cobertura-jobs.ts`) e uma RPC `cobertura_<fonte>_<entidade>`.
+- **Trave os nomes de campo antes do mapper** com `diagnosticarPortalEndpoint` — eles diferem por endpoint e a inspeção ao vivo evita mappers errados.
+
 ## Tabela de cache — padrão
 
 - `id` PK (natural ou composto).

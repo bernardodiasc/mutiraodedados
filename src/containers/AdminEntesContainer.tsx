@@ -3,21 +3,16 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { importarContratosPNCP } from "@/lib/data/pncp/ingest.functions";
-import { importarRelatorioSICONFI } from "@/lib/data/siconfi/ingest.functions";
+import { importarRelatorioSICONFI, importarConjuntoSICONFI } from "@/lib/data/siconfi/ingest.functions";
 import { importarConveniosTransferegov } from "@/lib/data/transferegov/ingest.functions";
-import {
-  importarTransferenciasEspeciais,
-  importarTransferenciasFinalidade,
-} from "@/lib/data/transferegov/emendas-ingest.functions";
 import { monthRange, isMunicipio } from "@/lib/admin-entes/logic";
 import { AdminEntesView } from "@/components/AdminEntesView";
 
 export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) {
   const pncp = useServerFn(importarContratosPNCP);
   const siconfi = useServerFn(importarRelatorioSICONFI);
+  const siconfiConjunto = useServerFn(importarConjuntoSICONFI);
   const transf = useServerFn(importarConveniosTransferegov);
-  const transfEsp = useServerFn(importarTransferenciasEspeciais);
-  const transfFin = useServerFn(importarTransferenciasFinalidade);
 
   const [uf, setUf] = useState("");
   const [ibge, setIbge] = useState("");
@@ -88,6 +83,16 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
           }),
         )
       }
+      onImportSiconfiConjunto={() =>
+        run("SICONFI conjunto", () =>
+          siconfiConjunto({
+            data: {
+              codIbge: ibge,
+              exercicio: exer,
+            },
+          }),
+        )
+      }
       onImportTransferegov={() =>
         run("Transferegov", () =>
           transf({
@@ -99,12 +104,6 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
             },
           }),
         )
-      }
-      onImportTransfEspeciais={() =>
-        run("Transf. Especiais", () => transfEsp({ data: { ano, maxPaginas: 6 } }))
-      }
-      onImportTransfFinalidade={() =>
-        run("Transf. Finalidade", () => transfFin({ data: { ano, maxPaginas: 6 } }))
       }
     />
   );

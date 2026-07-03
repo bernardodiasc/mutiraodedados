@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProposicaoDetalhe } from "@/lib/data/camara/proposicoes.functions";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/camara_/proposicoes/$id")({
@@ -46,6 +47,17 @@ function ProposicaoDetalhe() {
             Apresentada em {p.dataApresentacao}
           </div>
         )}
+        <AcoesDaEntidade
+          className="mt-4"
+          entidadeTipo="proposicao"
+          entidadeId={String(p.id)}
+          titulo={`${p.siglaTipo} ${p.numero}/${p.ano}`}
+          url={`/camara/proposicoes/${p.id}`}
+          contexto={p.ementa ?? p.descricaoTipo ?? undefined}
+          snapshotDe={p}
+          fonteOficialHref={`https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${p.id}`}
+          fonteOficialLabel="Ficha na Câmara"
+        />
       </div>
 
       <section>

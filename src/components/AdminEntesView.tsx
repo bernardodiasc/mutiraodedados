@@ -24,9 +24,8 @@ export type AdminEntesViewProps = {
   busy: (k: string) => boolean;
   onImportPncp: () => void;
   onImportSiconfi: () => void;
+  onImportSiconfiConjunto: () => void;
   onImportTransferegov: () => void;
-  onImportTransfEspeciais: () => void;
-  onImportTransfFinalidade: () => void;
 };
 
 export function AdminEntesView(props: AdminEntesViewProps) {
@@ -48,9 +47,8 @@ export function AdminEntesView(props: AdminEntesViewProps) {
     busy,
     onImportPncp,
     onImportSiconfi,
+    onImportSiconfiConjunto,
     onImportTransferegov,
-    onImportTransfEspeciais,
-    onImportTransfFinalidade,
   } = props;
 
   return (
@@ -170,6 +168,13 @@ export function AdminEntesView(props: AdminEntesViewProps) {
           <Button disabled={!!loading || !ibge} onClick={onImportSiconfi}>
             {busy("SICONFI") ? <Loader2 className="size-4 animate-spin" /> : "Importar SICONFI"}
           </Button>
+          <Button variant="secondary" disabled={!!loading || !ibge} onClick={onImportSiconfiConjunto}>
+            {busy("SICONFI conjunto") ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Importar conjunto padrão (ano)"
+            )}
+          </Button>
         </div>
       </div>
 
@@ -187,34 +192,6 @@ export function AdminEntesView(props: AdminEntesViewProps) {
               <Loader2 className="size-4 animate-spin" />
             ) : (
               "Importar Convênios"
-            )}
-          </Button>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-        <h3 className="font-display text-lg flex items-center gap-2">
-          <Database className="size-4 text-accent" /> Transferegov — Emendas (EC 105/2019)
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Disponibilizações de recursos de emendas individuais (Transferências Especiais e com
-          Finalidade Definida) direto da API oficial do Transferegov. A importação é{" "}
-          <strong>anual</strong> — usa o ano {ano} selecionado acima (mês é ignorado). Filtros por
-          UF/município são aplicados depois, ao consultar os dados.
-        </p>
-        <div className="flex flex-wrap gap-2 items-end">
-          <Button disabled={!!loading} onClick={onImportTransfEspeciais}>
-            {busy("Transf. Especiais") ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              `Importar Especiais — ${ano}`
-            )}
-          </Button>
-          <Button disabled={!!loading} variant="outline" onClick={onImportTransfFinalidade}>
-            {busy("Transf. Finalidade") ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              `Importar Finalidade Definida — ${ano}`
             )}
           </Button>
         </div>

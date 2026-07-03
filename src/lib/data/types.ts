@@ -4,7 +4,7 @@ export type Orgao = {
   sigla: string;
   funcao: string;
   /** Poder/ramo do órgão. Define qual API/fluxo serve seus dados. */
-  poder: "executivo" | "legislativo" | "judiciario" | "mpu" | "outros";
+  poder: "executivo" | "legislativo" | "judiciario" | "mpu";
   /**
    * `true` se o endpoint /contratos do Portal da Transparência (CGU) cobre
    * este órgão. A maioria dos órgãos do Executivo é coberta; Legislativo,
@@ -13,6 +13,12 @@ export type Orgao = {
   disponivelPortal: boolean;
   /** Nota explicativa opcional — fonte alternativa, observações, etc. */
   nota?: string;
+  /**
+   * `false` = órgão sem execução orçamentária recente (extinto/inativo). O sinal
+   * vem da sonda `/despesas/por-orgao` (ver `verificarAtividadeOrgaos`). Ausente
+   * = tratado como ativo. Não confundir com "sem dados em cache".
+   */
+  ativo?: boolean;
   /**
    * Rota interna que já cobre este órgão por meio de uma integração própria
    * (fora do endpoint /contratos do Portal da Transparência). Ex.: `/camara`

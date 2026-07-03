@@ -1,4 +1,3 @@
-import { ORGAOS_BASE } from "@/lib/data/catalog";
 import type { CoberturaResult, Fonte } from "@/lib/data/cobertura.functions";
 
 /**
@@ -39,13 +38,10 @@ export type SyncSlot = {
 
 /**
  * Resolve a lista de "linhas" (entidades/órgãos) elegíveis para uma fonte
- * dentro de uma `CoberturaResult`. CGU usa o catálogo base; demais usam o que
- * a fonte declarou (ou o próprio nome da fonte como linha única).
+ * dentro de uma `CoberturaResult`. Usa o que a fonte declarou na cobertura
+ * ("órgãos com dados"); CGU não é mais forçado ao catálogo estático.
  */
 export function resolveLinhasIds(fonte: Fonte): string[] {
-  if (fonte.fonte === "cgu") {
-    return ORGAOS_BASE.filter((o) => o.disponivelPortal).map((o) => o.cod);
-  }
   return fonte.linhas.length > 0 ? fonte.linhas.map((l) => l.id) : [fonte.fonte];
 }
 

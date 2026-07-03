@@ -53,20 +53,15 @@ O deploy roda em Cloudflare Workers (`wrangler.jsonc`). Limites rígidos de CPU 
 Build com erro de bundle ou chave `SUPABASE_SERVICE_ROLE_KEY` vazando para o frontend.
 
 **Causa**
-Import estático top-level de `@/integrations/supabase/client.server` (que expõe `supabaseAdmin` com bypass de RLS) em arquivos `*.functions.ts`. O Vite resolve as dependências de forma estática e pode vazar o módulo para o bundle do cliente.
+`@/integrations/supabase/client.server` expõe `supabaseAdmin` (bypass de RLS, usa a `SUPABASE_SERVICE_ROLE_KEY`). O risco é esse módulo chegar ao **bundle do cliente**.
 
-**Regra**
-Nunca faça import estático de `client.server` no topo do arquivo. Carregue dinamicamente dentro do handler:
+**Regra (atualizada — reflete o código real)**
+O que importa é **quem** importa, não _como_. Arquivos de **server function** (`*.functions.ts`, e módulos `*.server.ts`) são server-only — o TanStack Start separa os handlers do bundle do cliente — então o **import estático no topo é o padrão** do projeto e é seguro:
 ```ts
-// ✅ correto
-.handler(async ({ context }) => {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // ...
-});
-
-// ❌ errado — vaza para o bundle do cliente
+// ✅ padrão em *.functions.ts / sweep.ts (server-only)
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 ```
+A regra de verdade: **nunca** importe `client.server` (nem `supabaseAdmin`) em **componentes/rotas `.tsx`** que renderizam no cliente. Se precisar de dados num componente, chame uma server function via `useServerFn`. Se um `.tsx` precisar pontualmente, use import dinâmico dentro de um handler server-side.
 
 ---
 

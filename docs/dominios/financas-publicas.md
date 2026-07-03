@@ -6,7 +6,8 @@ Acompanhar a saúde fiscal dos entes federados (União, estados, municípios) vi
 
 ## Página pública
 
-- `/siconfi` — consulta de RREO, RGF e DCA por ente, exercício e anexo.
+- `/siconfi` — hub da fonte SICONFI (eixo "Por fonte"): descreve a fonte e suas conexões; linka para a listagem.
+- `/relatorios-fiscais` — página-tipo (eixo "Por tipo"): consulta de RREO, RGF e DCA por ente, exercício e anexo.
 
 ## Padrão de card / linha
 

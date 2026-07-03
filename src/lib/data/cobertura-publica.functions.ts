@@ -85,6 +85,9 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
 
     const [
       cgu,
+      cguLic,
+      cguEme,
+      cguConv,
       pncp,
       transf,
       siconfi,
@@ -93,6 +96,9 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       senCeaps,
       senVot,
       countCgu,
+      countCguLic,
+      countCguEme,
+      countCguConv,
       countPncp,
       countTransf,
       countSiconfi,
@@ -104,12 +110,11 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countSenadores,
       updDeputados,
       updSenadores,
-      transfEsp,
-      transfFin,
-      countTransfEsp,
-      countTransfFin,
     ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
+      supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
+      supabaseAdmin.rpc("cobertura_cgu_emendas"),
+      supabaseAdmin.rpc("cobertura_cgu_convenios"),
       supabaseAdmin.rpc("cobertura_pncp"),
       supabaseAdmin.rpc("cobertura_transferegov"),
       supabaseAdmin.rpc("cobertura_siconfi"),
@@ -118,6 +123,9 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       supabaseAdmin.rpc("cobertura_senado_ceaps"),
       supabaseAdmin.rpc("cobertura_senado_votacoes"),
       countOf("contratos_cache"),
+      countOf("cgu_licitacoes_cache"),
+      countOf("cgu_transferegov_emendas_cache"),
+      countOf("cgu_convenios_cache"),
       countOf("pncp_contratos_cache"),
       countOf("transferegov_instrumentos_cache"),
       countOf("siconfi_relatorios_cache"),
@@ -129,24 +137,6 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countOf("senado_senadores_cache"),
       maxUpdated("camara_deputados_cache"),
       maxUpdated("senado_senadores_cache"),
-      supabaseAdmin.rpc("cobertura_transferegov_emendas", { _modalidade: "especial" }),
-      supabaseAdmin.rpc("cobertura_transferegov_emendas", { _modalidade: "finalidade_definida" }),
-      (async () => {
-        const { count } = await (supabaseAdmin.from as (t: string) => any)(
-          "transferegov_emendas_cache",
-        )
-          .select("*", { count: "exact", head: true })
-          .eq("modalidade", "especial");
-        return count ?? 0;
-      })(),
-      (async () => {
-        const { count } = await (supabaseAdmin.from as (t: string) => any)(
-          "transferegov_emendas_cache",
-        )
-          .select("*", { count: "exact", head: true })
-          .eq("modalidade", "finalidade_definida");
-        return count ?? 0;
-      })(),
     ]);
 
     const cguRows = ((cgu.data as RpcRowOrgao[] | null) ?? []).map((r) => ({
@@ -155,6 +145,14 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       qtd: Number(r.qtd),
       ultimo: r.ultimo,
     }));
+    const cguLicRows = ((cguLic.data as RpcRowOrgao[] | null) ?? []).map((r) => ({
+      ano: r.ano,
+      mes: r.mes,
+      qtd: Number(r.qtd),
+      ultimo: r.ultimo,
+    }));
+    const cguEmeRows = ((cguEme.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
+    const cguConvRows = ((cguConv.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
     const pncpRows = ((pncp.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
     const transfRows = ((transf.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
     const siconfiRows = ((siconfi.data as RpcSiconfi[] | null) ?? []).map((r) => ({
@@ -167,8 +165,6 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
     const camVotRows = ((camVot.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
     const senCeapsRows = ((senCeaps.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
     const senVotRows = ((senVot.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const transfEspRows = ((transfEsp.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const transfFinRows = ((transfFin.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
 
     const ultimo = (rows: { ultimo: string | null }[]): string | null => {
       let max: string | null = null;
@@ -216,6 +212,31 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         "/orgaos",
       ),
       mkFonte(
+        "cgu_licitacoes",
+        "Portal CGU — licitações do Executivo",
+        "Licitações publicadas pelo Portal da Transparência para órgãos do Executivo federal.",
+        cguLicRows,
+        countCguLic,
+        "/licitacoes",
+      ),
+      mkFonte(
+        "cgu_emendas",
+        "Portal CGU — emendas parlamentares",
+        "Emendas parlamentares (empenho, liquidação e pagamento) publicadas pelo Portal da Transparência, por ano.",
+        cguEmeRows,
+        countCguEme,
+        "/emendas",
+        "ano",
+      ),
+      mkFonte(
+        "cgu_convenios",
+        "Portal CGU — convênios",
+        "Convênios e contratos de repasse da União, pelo endpoint /convenios do Portal da Transparência.",
+        cguConvRows,
+        countCguConv,
+        "/convenios",
+      ),
+      mkFonte(
         "pncp",
         "PNCP — contratos públicos",
         "Contratos publicados no Portal Nacional de Contratações Públicas (União, Estados, Municípios).",
@@ -229,25 +250,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         "Convênios e contratos de repasse União ↔ Estados/Municípios.",
         transfRows,
         countTransf,
-        "/transferencias",
-      ),
-      mkFonte(
-        "transferegov_especiais",
-        "Transferegov — Transferências Especiais (EC 105)",
-        "Emendas individuais de transferência especial (\"emendas Pix\") repassadas direto a Estados e Municípios.",
-        transfEspRows,
-        countTransfEsp,
-        "/transferencias/especiais",
-        "ano",
-      ),
-      mkFonte(
-        "transferegov_finalidade",
-        "Transferegov — Transferências com Finalidade Definida (EC 105)",
-        "Emendas individuais com finalidade definida transferidas a Estados e Municípios.",
-        transfFinRows,
-        countTransfFin,
-        "/transferencias/finalidade",
-        "ano",
+        "/transferegov",
       ),
       mkFonte(
         "siconfi",
@@ -255,7 +258,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         "RREO/RGF/DCA por exercício e período (granularidade por período do ano).",
         siconfiRows,
         countSiconfi,
-        "/siconfi",
+        "/relatorios-fiscais",
         "periodo",
       ),
       mkFonte(

@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useDataSource, useData } from "@/lib/data-store";
-import { ORGAOS_BASE } from "@/lib/data/catalog";
+import { ORGAOS_ENRIQUECIMENTO, ORGAOS_OUTRAS_ESFERAS } from "@/lib/data/catalog";
+import type { Orgao } from "@/lib/data/types";
 import { EmptyState } from "@/components/EmptyState";
 import { SerieAnualChart } from "@/components/SerieAnualChart";
 import { FlagsCidada } from "@/components/FlagsCidada";
@@ -11,8 +12,10 @@ import { medianaPorFuncao, descreverValor } from "@/lib/contexto";
 import { calcularNotaTransparencia, corDaFaixa, rotuloDaFaixa } from "@/lib/transparencia";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { ExternalLink } from "lucide-react";
+import { BotaoCopiar } from "@/components/BotaoCopiar";
+import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
+import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 
 export const Route = createFileRoute("/orgaos_/$cod")({
   component: OrgaoDetail,
@@ -32,8 +35,6 @@ export const Route = createFileRoute("/orgaos_/$cod")({
 
 function OrgaoDetail() {
   const { cod } = Route.useParams();
-  const base = ORGAOS_BASE.find(o => o.cod === cod);
-  if (!base) throw notFound();
 
   const ds = useDataSource();
   const { dataset } = useData();
@@ -41,6 +42,29 @@ function OrgaoDetail() {
   const serie = ds.serieAnualOrgao(cod);
   const contratos = ds.contratosOrgao(cod);
   const total = serie.reduce((s, x) => s + x.valor, 0);
+
+  // Identificação do órgão em cascata — nunca 404 se houver catálogo ou dados:
+  // 1) card curado das demais esferas (Câmara/Senado/etc.);
+  // 2) catálogo `orgaos_cache` (nome/ativo) + overlay de enriquecimento (sigla/funcao);
+  // 3) tem dados mas sem catálogo → "Órgão {cod}";
+  // 4) nada → notFound().
+  const curado = ORGAOS_OUTRAS_ESFERAS.find((o) => o.cod === cod);
+  const enr = ORGAOS_ENRIQUECIMENTO[cod];
+  const temDados = contratos.length > 0 || serie.length > 0 || !!orgao;
+  if (!curado && !temDados) throw notFound();
+
+  const base: Orgao = curado ?? {
+    cod,
+    nome: orgao?.nome ?? `Órgão ${cod}`,
+    sigla: enr?.sigla ?? orgao?.sigla ?? "",
+    funcao: enr?.funcao ?? orgao?.funcao ?? "",
+    poder: orgao?.poder ?? "executivo",
+    disponivelPortal: orgao?.disponivelPortal ?? true,
+    nota: orgao?.nota,
+    ativo: orgao?.ativo ?? true,
+  };
+  const naoCatalogado = !curado && !orgao;
+  const extinto = base.ativo === false;
 
   // Top fornecedores
   const porForn = new Map<string, number>();
@@ -95,27 +119,46 @@ function OrgaoDetail() {
       <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Órgãos</Link>
       <div className="mt-3 flex items-baseline justify-between flex-wrap gap-3">
         <div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-accent">{base.funcao}</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-xs font-semibold uppercase tracking-widest text-accent">{base.funcao || "Órgão federal"}</div>
+            {extinto && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-amber-600 border-amber-500/40" title="Sem execução orçamentária recente — órgão extinto ou inativo. Histórico preservado.">
+                Extinto
+              </span>
+            )}
+            {naoCatalogado && (
+              <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-muted-foreground border-border" title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI.">
+                Não catalogado
+              </span>
+            )}
+          </div>
           <h1 className="font-display text-4xl mt-1">{base.nome}</h1>
-          <div className="font-mono text-sm text-muted-foreground mt-1">{base.sigla} · cod. {base.cod}</div>
+          <div className="font-mono text-sm text-muted-foreground mt-1">{base.sigla ? `${base.sigla} · ` : ""}cod. {base.cod}</div>
         </div>
-        <a
+        <BotaoFonteOficial
           href={`https://portaldatransparencia.gov.br/orgaos/${encodeURIComponent(base.cod)}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
-        >
-          Ver no Portal da Transparência <ExternalLink className="size-3.5" />
-        </a>
+        />
       </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(
+              base.sigla ? `${base.sigla} — ${base.nome}` : base.nome,
+              null,
+              base,
+            )
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados do órgão copiados — cole na sua IA"
+        />
         <BotaoSalvarItem
           entidadeTipo="orgao"
           entidadeId={base.cod}
-          titulo={`${base.sigla} — ${base.nome}`}
+          titulo={base.sigla ? `${base.sigla} — ${base.nome}` : base.nome}
           url={`/orgaos/${encodeURIComponent(base.cod)}`}
           contexto={base.funcao}
+          snapshotDe={base}
         />
       </div>
 

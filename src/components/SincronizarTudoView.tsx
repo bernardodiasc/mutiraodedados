@@ -10,7 +10,11 @@ import {
 } from "@/components/ui/collapsible";
 import { GRUPOS_FONTES } from "@/lib/data/cobertura-jobs";
 import type { CoberturaResult, Fonte } from "@/lib/data/cobertura.functions";
+import { ANO_INICIO_POR_FONTE } from "@/lib/data/janelas";
 import { fmtDuration } from "@/lib/sincronizar-tudo/logic";
+
+// Fontes cujos meses de recesso (jan/jul) legitimamente não têm dados.
+const FONTES_COM_RECESSO = new Set<Fonte["fonte"]>(["camara_vot", "senado_vot"]);
 
 export type SincronizarTudoPreview = {
   total: number;
@@ -62,6 +66,16 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
     onSincronizar,
   } = props;
 
+  // Piso do seletor de ano = menor início entre as fontes disponíveis (ex.: 1988
+  // para proposições/matérias), para casar com as janelas mostradas por fonte.
+  const minAno = React.useMemo(() => {
+    const inicios = (data?.fontes ?? [])
+      .map((f) => ANO_INICIO_POR_FONTE[f.fonte])
+      .filter((n): n is number => typeof n === "number");
+    return inicios.length ? Math.min(...inicios) : 2003;
+  }, [data]);
+  const anosOpcoes = Array.from({ length: anoAtual - minAno + 1 }, (_, i) => minAno + i);
+
   return (
     <Collapsible defaultOpen className="rounded-xl border border-accent/30 bg-accent/[0.03]">
       <CollapsibleTrigger asChild>
@@ -84,7 +98,10 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
             selecionado. Células com dados e células já marcadas como
             "consultado, vazio" são <strong>excluídas da contagem e da execução</strong>.
             Marque/desmarque grupos ou fontes individuais para ajustar o lote.
-            SICONFI exige código IBGE e fica de fora.
+            SICONFI exige código IBGE e fica de fora. A etiqueta{" "}
+            <strong>desde AAAA</strong> indica a janela de cada fonte (anos anteriores são
+            ignorados); nas votações, os meses de <strong>recesso (jan/jul)</strong> ficam
+            naturalmente vazios.
           </span>
         </div>
 
@@ -129,19 +146,53 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
                     {g.label}
                   </label>
                   <div className="mt-1.5 ml-5 space-y-1">
-                    {fontesGrupo.map((f) => (
-                      <label key={f.fonte} className="flex items-start gap-2 cursor-pointer text-xs">
+                    {fontesGrupo.map((f) => {
+                      const inicio = ANO_INICIO_POR_FONTE[f.fonte];
+                      const recesso = FONTES_COM_RECESSO.has(f.fonte);
+                      return (
+                        <label key={f.fonte} className="flex items-start gap-2 cursor-pointer text-xs">
+                          <Checkbox
+                            checked={selecionadas.has(f.fonte)}
+                            onCheckedChange={(v) => onToggleFonte(f.fonte, v === true)}
+                            disabled={isRunning}
+                            className="mt-0.5"
+                          />
+                          <span>
+                            <span className="font-medium text-foreground">{f.titulo}</span>
+                            {inicio ? (
+                              <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] tabular-nums text-muted-foreground align-middle">
+                                desde {inicio}
+                              </span>
+                            ) : null}
+                            {recesso ? (
+                              <span className="ml-1 text-[10px] text-muted-foreground align-middle">
+                                · jan/jul: recesso
+                              </span>
+                            ) : null}
+                          </span>
+                        </label>
+                      );
+                    })}
+                    {(g.id === "camara" || g.id === "senado") ? (
+                      <label className="flex items-start gap-2 cursor-pointer text-xs">
                         <Checkbox
-                          checked={selecionadas.has(f.fonte)}
-                          onCheckedChange={(v) => onToggleFonte(f.fonte, v === true)}
+                          checked={selecionadas.has(g.id === "camara" ? "camara_deputados" : "senado_senadores")}
+                          onCheckedChange={(v) =>
+                            onToggleFonte(g.id === "camara" ? "camara_deputados" : "senado_senadores", v === true)
+                          }
                           disabled={isRunning}
                           className="mt-0.5"
                         />
                         <span>
-                          <span className="font-medium text-foreground">{f.titulo}</span>
+                          <span className="font-medium text-foreground">
+                            {g.id === "camara" ? "Câmara — cadastro de deputados" : "Senado — cadastro de senadores"}
+                          </span>
+                          <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground align-middle">
+                            por legislatura
+                          </span>
                         </span>
                       </label>
-                    ))}
+                    ) : null}
                   </div>
                 </div>
               );
@@ -158,7 +209,7 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
               onChange={(e) => onChangeIni(Number(e.target.value))}
               disabled={isRunning}
             >
-              {Array.from({ length: anoAtual - 2003 + 1 }, (_, i) => 2003 + i).map((y) => (
+              {anosOpcoes.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>
@@ -171,7 +222,7 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
               onChange={(e) => onChangeFim(Number(e.target.value))}
               disabled={isRunning}
             >
-              {Array.from({ length: anoAtual - 2003 + 1 }, (_, i) => 2003 + i).map((y) => (
+              {anosOpcoes.map((y) => (
                 <option key={y} value={y}>{y}</option>
               ))}
             </select>

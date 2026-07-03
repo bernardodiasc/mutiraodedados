@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { getVotacaoDetalhe } from "@/lib/data/camara/votacoes.functions";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/camara_/votacoes/$id")({
@@ -69,6 +71,21 @@ function VotacaoDetalhe() {
             </Link>
           </div>
         )}
+        <AcoesDaEntidade
+          className="mt-4"
+          entidadeTipo="votacao"
+          entidadeId={String(v.id)}
+          titulo={v.descricao ?? `Votação ${v.id}`}
+          url={`/camara/votacoes/${v.id}`}
+          contexto={`${v.data ?? "—"}${v.siglaOrgao ? ` · ${v.siglaOrgao}` : ""} · Sim ${v.votosSim} / Não ${v.votosNao}`}
+          snapshotDe={v}
+          fonteOficialHref={
+            v.proposicaoId
+              ? `https://www.camara.leg.br/proposicoesWeb/fichadetramitacao?idProposicao=${v.proposicaoId}`
+              : undefined
+          }
+          fonteOficialLabel="Ver na Câmara"
+        />
       </div>
 
       <section className="grid gap-4 sm:grid-cols-4">
@@ -164,8 +181,23 @@ function VotacaoDetalhe() {
             <option value="">Todos os partidos</option>
             {partidos.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
-          <div className="text-xs text-muted-foreground self-center">
-            Mostrando {votosFiltrados.length} de {data.votos.length}
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className="self-center">
+              Mostrando {votosFiltrados.length} de {data.votos.length}
+            </span>
+            <BotaoBaixarCsv
+              filename={`votos_${v.id}`}
+              obterLinhas={() =>
+                votosFiltrados.map((vt) => ({
+                  deputado: vt.nome,
+                  partido: vt.siglaPartido ?? "",
+                  uf: vt.siglaUf ?? "",
+                  voto: vt.tipoVoto,
+                }))
+              }
+              disabled={votosFiltrados.length === 0}
+              rotulo="Baixar CSV"
+            />
           </div>
         </div>
         <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card max-h-[600px] overflow-y-auto">

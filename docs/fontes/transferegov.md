@@ -5,6 +5,15 @@
 - **Janela**: convênios desde 2017 (consistência consolidada); emendas Pix desde 2020.
 - **Documentação oficial**: <https://www.gov.br/transferegov/pt-br>
 
+## Relação com o Portal CGU (dois eixos)
+
+O endpoint `/convenios` do Portal CGU alimenta **dois lugares**, por decisão de projeto:
+
+- **Eixo "Por fonte" (esta página)**: `transferegov_instrumentos_cache` + `transferegov_emendas_cache` (EC 105). O Transferegov é a fonte nativa dos instrumentos e das emendas Pix.
+- **Eixo "Por tema"**: `cgu_convenios_cache` / `cgu_emendas_cache` (tabelas separadas, pipelines de QA/cobertura/limpeza próprios), exibido nas páginas-tópico [Convênios](../dominios/convenios-e-transferencias.md) e Emendas.
+
+Há **sobreposição deliberada**: o mesmo `/convenios` e `/emendas` são ingeridos nas duas tabelas para isolar os dois eixos. A entidade-tópico **Transferências** (endpoint `/transferencias`) é **doc-only** — ver [sanções e preços](./sancoes-precos-referencia.md) (403 + sobreposição com EC 105).
+
 ## O que importamos
 
 - **Convênios e contratos de repasse** (SICONV) via Portal CGU.

@@ -12,15 +12,18 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrilhasRouteImport } from './routes/trilhas'
 import { Route as TratamentoDeDadosRouteImport } from './routes/tratamento-de-dados'
 import { Route as TransparenciaInstitucionalRouteImport } from './routes/transparencia-institucional'
+import { Route as TransferegovRouteImport } from './routes/transferegov'
 import { Route as TermosRouteImport } from './routes/termos'
 import { Route as SobreRouteImport } from './routes/sobre'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SiconfiRouteImport } from './routes/siconfi'
 import { Route as SenadoRouteImport } from './routes/senado'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
+import { Route as RelatoriosFiscaisRouteImport } from './routes/relatorios-fiscais'
 import { Route as ReferenciasRouteImport } from './routes/referencias'
 import { Route as QualidadeRouteImport } from './routes/qualidade'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
+import { Route as PortalCguRouteImport } from './routes/portal-cgu'
 import { Route as PncpRouteImport } from './routes/pncp'
 import { Route as PerguntasRouteImport } from './routes/perguntas'
 import { Route as OrgaosRouteImport } from './routes/orgaos'
@@ -46,16 +49,21 @@ import { Route as TutoriaisIndexRouteImport } from './routes/tutoriais.index'
 import { Route as TransferenciasIndexRouteImport } from './routes/transferencias.index'
 import { Route as NotasIndexRouteImport } from './routes/notas.index'
 import { Route as MapasIndexRouteImport } from './routes/mapas.index'
+import { Route as LicitacoesIndexRouteImport } from './routes/licitacoes.index'
 import { Route as EstiloIndexRouteImport } from './routes/estilo.index'
+import { Route as EmendasIndexRouteImport } from './routes/emendas.index'
+import { Route as ContratosIndexRouteImport } from './routes/contratos.index'
 import { Route as TutoriaisSlugRouteImport } from './routes/tutoriais.$slug'
 import { Route as QualidadeIdRouteImport } from './routes/qualidade.$id'
 import { Route as PerguntasSlugRouteImport } from './routes/perguntas_.$slug'
 import { Route as OrgaosCodRouteImport } from './routes/orgaos_.$cod'
 import { Route as NotasSlugRouteImport } from './routes/notas.$slug'
 import { Route as MapasSlugRouteImport } from './routes/mapas.$slug'
+import { Route as LicitacoesIdRouteImport } from './routes/licitacoes.$id'
 import { Route as FornecedoresCnpjRouteImport } from './routes/fornecedores.$cnpj'
 import { Route as EstiloTokensRouteImport } from './routes/estilo.tokens'
 import { Route as EstiloTipografiaRouteImport } from './routes/estilo.tipografia'
+import { Route as EmendasIdRouteImport } from './routes/emendas.$id'
 import { Route as ConveniosIdRouteImport } from './routes/convenios.$id'
 import { Route as ContratosIdRouteImport } from './routes/contratos.$id'
 import { Route as CadernoNovaRouteImport } from './routes/caderno_.nova'
@@ -70,8 +78,6 @@ import { Route as EstiloComposicoesIndexRouteImport } from './routes/estilo.comp
 import { Route as CamaraVotacoesIndexRouteImport } from './routes/camara_.votacoes.index'
 import { Route as CamaraProposicoesIndexRouteImport } from './routes/camara_.proposicoes.index'
 import { Route as CamaraDeputadosIndexRouteImport } from './routes/camara_.deputados.index'
-import { Route as TransferenciasFinalidadeIdRouteImport } from './routes/transferencias.finalidade.$id'
-import { Route as TransferenciasEspeciaisIdRouteImport } from './routes/transferencias.especiais.$id'
 import { Route as SenadoVotacoesIdRouteImport } from './routes/senado_.votacoes.$id'
 import { Route as SenadoSenadoresIdRouteImport } from './routes/senado_.senadores.$id'
 import { Route as SenadoMateriasIdRouteImport } from './routes/senado_.materias.$id'
@@ -83,6 +89,7 @@ import { Route as CamaraDeputadosIdRouteImport } from './routes/camara_.deputado
 import { Route as AuthenticatedAdminSinaisRouteImport } from './routes/_authenticated/admin_.sinais'
 import { Route as AuthenticatedAdminRoadmapRouteImport } from './routes/_authenticated/admin_.roadmap'
 import { Route as AuthenticatedAdminQualidadeRouteImport } from './routes/_authenticated/admin_.qualidade'
+import { Route as AuthenticatedAdminPromptsRouteImport } from './routes/_authenticated/admin_.prompts'
 import { Route as AuthenticatedAdminPerguntasRouteImport } from './routes/_authenticated/admin_.perguntas'
 import { Route as AuthenticatedAdminMarcacoesRouteImport } from './routes/_authenticated/admin_.marcacoes'
 import { Route as AuthenticatedAdminDadosRouteImport } from './routes/_authenticated/admin_.dados'
@@ -106,6 +113,11 @@ const TransparenciaInstitucionalRoute =
     path: '/transparencia-institucional',
     getParentRoute: () => rootRouteImport,
   } as any)
+const TransferegovRoute = TransferegovRouteImport.update({
+  id: '/transferegov',
+  path: '/transferegov',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
   path: '/termos',
@@ -136,6 +148,11 @@ const RoadmapRoute = RoadmapRouteImport.update({
   path: '/roadmap',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RelatoriosFiscaisRoute = RelatoriosFiscaisRouteImport.update({
+  id: '/relatorios-fiscais',
+  path: '/relatorios-fiscais',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReferenciasRoute = ReferenciasRouteImport.update({
   id: '/referencias',
   path: '/referencias',
@@ -149,6 +166,11 @@ const QualidadeRoute = QualidadeRouteImport.update({
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortalCguRoute = PortalCguRouteImport.update({
+  id: '/portal-cgu',
+  path: '/portal-cgu',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PncpRoute = PncpRouteImport.update({
@@ -275,10 +297,25 @@ const MapasIndexRoute = MapasIndexRouteImport.update({
   path: '/mapas/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LicitacoesIndexRoute = LicitacoesIndexRouteImport.update({
+  id: '/licitacoes/',
+  path: '/licitacoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EstiloIndexRoute = EstiloIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => EstiloRoute,
+} as any)
+const EmendasIndexRoute = EmendasIndexRouteImport.update({
+  id: '/emendas/',
+  path: '/emendas/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContratosIndexRoute = ContratosIndexRouteImport.update({
+  id: '/contratos/',
+  path: '/contratos/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const TutoriaisSlugRoute = TutoriaisSlugRouteImport.update({
   id: '/tutoriais/$slug',
@@ -310,6 +347,11 @@ const MapasSlugRoute = MapasSlugRouteImport.update({
   path: '/mapas/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LicitacoesIdRoute = LicitacoesIdRouteImport.update({
+  id: '/licitacoes/$id',
+  path: '/licitacoes/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const FornecedoresCnpjRoute = FornecedoresCnpjRouteImport.update({
   id: '/fornecedores/$cnpj',
   path: '/fornecedores/$cnpj',
@@ -324,6 +366,11 @@ const EstiloTipografiaRoute = EstiloTipografiaRouteImport.update({
   id: '/tipografia',
   path: '/tipografia',
   getParentRoute: () => EstiloRoute,
+} as any)
+const EmendasIdRoute = EmendasIdRouteImport.update({
+  id: '/emendas/$id',
+  path: '/emendas/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ConveniosIdRoute = ConveniosIdRouteImport.update({
   id: '/$id',
@@ -396,18 +443,6 @@ const CamaraDeputadosIndexRoute = CamaraDeputadosIndexRouteImport.update({
   path: '/camara/deputados/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const TransferenciasFinalidadeIdRoute =
-  TransferenciasFinalidadeIdRouteImport.update({
-    id: '/transferencias/finalidade/$id',
-    path: '/transferencias/finalidade/$id',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const TransferenciasEspeciaisIdRoute =
-  TransferenciasEspeciaisIdRouteImport.update({
-    id: '/transferencias/especiais/$id',
-    path: '/transferencias/especiais/$id',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const SenadoVotacoesIdRoute = SenadoVotacoesIdRouteImport.update({
   id: '/senado_/votacoes/$id',
   path: '/senado/votacoes/$id',
@@ -464,6 +499,12 @@ const AuthenticatedAdminQualidadeRoute =
   AuthenticatedAdminQualidadeRouteImport.update({
     id: '/admin_/qualidade',
     path: '/admin/qualidade',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
+const AuthenticatedAdminPromptsRoute =
+  AuthenticatedAdminPromptsRouteImport.update({
+    id: '/admin_/prompts',
+    path: '/admin/prompts',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAdminPerguntasRoute =
@@ -523,15 +564,18 @@ export interface FileRoutesByFullPath {
   '/orgaos': typeof OrgaosRoute
   '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
+  '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
+  '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
   '/senado': typeof SenadoRoute
   '/siconfi': typeof SiconfiRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sobre': typeof SobreRoute
   '/termos': typeof TermosRoute
+  '/transferegov': typeof TransferegovRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
@@ -541,16 +585,21 @@ export interface FileRoutesByFullPath {
   '/caderno/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/emendas/$id': typeof EmendasIdRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
+  '/licitacoes/$id': typeof LicitacoesIdRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos/$cod': typeof OrgaosCodRoute
   '/perguntas/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/contratos/': typeof ContratosIndexRoute
+  '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
+  '/licitacoes/': typeof LicitacoesIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
@@ -560,6 +609,7 @@ export interface FileRoutesByFullPath {
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
+  '/admin/prompts': typeof AuthenticatedAdminPromptsRoute
   '/admin/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/admin/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/admin/sinais': typeof AuthenticatedAdminSinaisRoute
@@ -571,8 +621,6 @@ export interface FileRoutesByFullPath {
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
   '/senado/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado/votacoes/$id': typeof SenadoVotacoesIdRoute
-  '/transferencias/especiais/$id': typeof TransferenciasEspeciaisIdRoute
-  '/transferencias/finalidade/$id': typeof TransferenciasFinalidadeIdRoute
   '/camara/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes/': typeof CamaraVotacoesIndexRoute
@@ -603,15 +651,18 @@ export interface FileRoutesByTo {
   '/orgaos': typeof OrgaosRoute
   '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
+  '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
+  '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
   '/senado': typeof SenadoRoute
   '/siconfi': typeof SiconfiRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sobre': typeof SobreRoute
   '/termos': typeof TermosRoute
+  '/transferegov': typeof TransferegovRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
@@ -621,16 +672,21 @@ export interface FileRoutesByTo {
   '/caderno/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/emendas/$id': typeof EmendasIdRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
+  '/licitacoes/$id': typeof LicitacoesIdRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos/$cod': typeof OrgaosCodRoute
   '/perguntas/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/contratos': typeof ContratosIndexRoute
+  '/emendas': typeof EmendasIndexRoute
   '/estilo': typeof EstiloIndexRoute
+  '/licitacoes': typeof LicitacoesIndexRoute
   '/mapas': typeof MapasIndexRoute
   '/notas': typeof NotasIndexRoute
   '/transferencias': typeof TransferenciasIndexRoute
@@ -640,6 +696,7 @@ export interface FileRoutesByTo {
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
+  '/admin/prompts': typeof AuthenticatedAdminPromptsRoute
   '/admin/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/admin/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/admin/sinais': typeof AuthenticatedAdminSinaisRoute
@@ -651,8 +708,6 @@ export interface FileRoutesByTo {
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
   '/senado/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado/votacoes/$id': typeof SenadoVotacoesIdRoute
-  '/transferencias/especiais/$id': typeof TransferenciasEspeciaisIdRoute
-  '/transferencias/finalidade/$id': typeof TransferenciasFinalidadeIdRoute
   '/camara/deputados': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes': typeof CamaraVotacoesIndexRoute
@@ -686,15 +741,18 @@ export interface FileRoutesById {
   '/orgaos': typeof OrgaosRoute
   '/perguntas': typeof PerguntasRoute
   '/pncp': typeof PncpRoute
+  '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
   '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
+  '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
   '/senado': typeof SenadoRoute
   '/siconfi': typeof SiconfiRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/sobre': typeof SobreRoute
   '/termos': typeof TermosRoute
+  '/transferegov': typeof TransferegovRoute
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
@@ -704,16 +762,21 @@ export interface FileRoutesById {
   '/caderno_/nova': typeof CadernoNovaRoute
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
+  '/emendas/$id': typeof EmendasIdRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
+  '/licitacoes/$id': typeof LicitacoesIdRoute
   '/mapas/$slug': typeof MapasSlugRoute
   '/notas/$slug': typeof NotasSlugRoute
   '/orgaos_/$cod': typeof OrgaosCodRoute
   '/perguntas_/$slug': typeof PerguntasSlugRoute
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
+  '/contratos/': typeof ContratosIndexRoute
+  '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
+  '/licitacoes/': typeof LicitacoesIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
@@ -723,6 +786,7 @@ export interface FileRoutesById {
   '/_authenticated/admin_/dados': typeof AuthenticatedAdminDadosRoute
   '/_authenticated/admin_/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/_authenticated/admin_/perguntas': typeof AuthenticatedAdminPerguntasRoute
+  '/_authenticated/admin_/prompts': typeof AuthenticatedAdminPromptsRoute
   '/_authenticated/admin_/qualidade': typeof AuthenticatedAdminQualidadeRoute
   '/_authenticated/admin_/roadmap': typeof AuthenticatedAdminRoadmapRoute
   '/_authenticated/admin_/sinais': typeof AuthenticatedAdminSinaisRoute
@@ -734,8 +798,6 @@ export interface FileRoutesById {
   '/senado_/materias/$id': typeof SenadoMateriasIdRoute
   '/senado_/senadores/$id': typeof SenadoSenadoresIdRoute
   '/senado_/votacoes/$id': typeof SenadoVotacoesIdRoute
-  '/transferencias/especiais/$id': typeof TransferenciasEspeciaisIdRoute
-  '/transferencias/finalidade/$id': typeof TransferenciasFinalidadeIdRoute
   '/camara_/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara_/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara_/votacoes/': typeof CamaraVotacoesIndexRoute
@@ -769,15 +831,18 @@ export interface FileRouteTypes {
     | '/orgaos'
     | '/perguntas'
     | '/pncp'
+    | '/portal-cgu'
     | '/privacidade'
     | '/qualidade'
     | '/referencias'
+    | '/relatorios-fiscais'
     | '/roadmap'
     | '/senado'
     | '/siconfi'
     | '/sitemap.xml'
     | '/sobre'
     | '/termos'
+    | '/transferegov'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
@@ -787,16 +852,21 @@ export interface FileRouteTypes {
     | '/caderno/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/emendas/$id'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
+    | '/licitacoes/$id'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos/$cod'
     | '/perguntas/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/contratos/'
+    | '/emendas/'
     | '/estilo/'
+    | '/licitacoes/'
     | '/mapas/'
     | '/notas/'
     | '/transferencias/'
@@ -806,6 +876,7 @@ export interface FileRouteTypes {
     | '/admin/dados'
     | '/admin/marcacoes'
     | '/admin/perguntas'
+    | '/admin/prompts'
     | '/admin/qualidade'
     | '/admin/roadmap'
     | '/admin/sinais'
@@ -817,8 +888,6 @@ export interface FileRouteTypes {
     | '/senado/materias/$id'
     | '/senado/senadores/$id'
     | '/senado/votacoes/$id'
-    | '/transferencias/especiais/$id'
-    | '/transferencias/finalidade/$id'
     | '/camara/deputados/'
     | '/camara/proposicoes/'
     | '/camara/votacoes/'
@@ -849,15 +918,18 @@ export interface FileRouteTypes {
     | '/orgaos'
     | '/perguntas'
     | '/pncp'
+    | '/portal-cgu'
     | '/privacidade'
     | '/qualidade'
     | '/referencias'
+    | '/relatorios-fiscais'
     | '/roadmap'
     | '/senado'
     | '/siconfi'
     | '/sitemap.xml'
     | '/sobre'
     | '/termos'
+    | '/transferegov'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
@@ -867,16 +939,21 @@ export interface FileRouteTypes {
     | '/caderno/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/emendas/$id'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
+    | '/licitacoes/$id'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos/$cod'
     | '/perguntas/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/contratos'
+    | '/emendas'
     | '/estilo'
+    | '/licitacoes'
     | '/mapas'
     | '/notas'
     | '/transferencias'
@@ -886,6 +963,7 @@ export interface FileRouteTypes {
     | '/admin/dados'
     | '/admin/marcacoes'
     | '/admin/perguntas'
+    | '/admin/prompts'
     | '/admin/qualidade'
     | '/admin/roadmap'
     | '/admin/sinais'
@@ -897,8 +975,6 @@ export interface FileRouteTypes {
     | '/senado/materias/$id'
     | '/senado/senadores/$id'
     | '/senado/votacoes/$id'
-    | '/transferencias/especiais/$id'
-    | '/transferencias/finalidade/$id'
     | '/camara/deputados'
     | '/camara/proposicoes'
     | '/camara/votacoes'
@@ -931,15 +1007,18 @@ export interface FileRouteTypes {
     | '/orgaos'
     | '/perguntas'
     | '/pncp'
+    | '/portal-cgu'
     | '/privacidade'
     | '/qualidade'
     | '/referencias'
+    | '/relatorios-fiscais'
     | '/roadmap'
     | '/senado'
     | '/siconfi'
     | '/sitemap.xml'
     | '/sobre'
     | '/termos'
+    | '/transferegov'
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
@@ -949,16 +1028,21 @@ export interface FileRouteTypes {
     | '/caderno_/nova'
     | '/contratos/$id'
     | '/convenios/$id'
+    | '/emendas/$id'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
+    | '/licitacoes/$id'
     | '/mapas/$slug'
     | '/notas/$slug'
     | '/orgaos_/$cod'
     | '/perguntas_/$slug'
     | '/qualidade/$id'
     | '/tutoriais/$slug'
+    | '/contratos/'
+    | '/emendas/'
     | '/estilo/'
+    | '/licitacoes/'
     | '/mapas/'
     | '/notas/'
     | '/transferencias/'
@@ -968,6 +1052,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin_/dados'
     | '/_authenticated/admin_/marcacoes'
     | '/_authenticated/admin_/perguntas'
+    | '/_authenticated/admin_/prompts'
     | '/_authenticated/admin_/qualidade'
     | '/_authenticated/admin_/roadmap'
     | '/_authenticated/admin_/sinais'
@@ -979,8 +1064,6 @@ export interface FileRouteTypes {
     | '/senado_/materias/$id'
     | '/senado_/senadores/$id'
     | '/senado_/votacoes/$id'
-    | '/transferencias/especiais/$id'
-    | '/transferencias/finalidade/$id'
     | '/camara_/deputados/'
     | '/camara_/proposicoes/'
     | '/camara_/votacoes/'
@@ -1014,27 +1097,35 @@ export interface RootRouteChildren {
   OrgaosRoute: typeof OrgaosRoute
   PerguntasRoute: typeof PerguntasRoute
   PncpRoute: typeof PncpRoute
+  PortalCguRoute: typeof PortalCguRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
   QualidadeRoute: typeof QualidadeRouteWithChildren
   ReferenciasRoute: typeof ReferenciasRoute
+  RelatoriosFiscaisRoute: typeof RelatoriosFiscaisRoute
   RoadmapRoute: typeof RoadmapRoute
   SenadoRoute: typeof SenadoRoute
   SiconfiRoute: typeof SiconfiRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SobreRoute: typeof SobreRoute
   TermosRoute: typeof TermosRoute
+  TransferegovRoute: typeof TransferegovRoute
   TransparenciaInstitucionalRoute: typeof TransparenciaInstitucionalRoute
   TratamentoDeDadosRoute: typeof TratamentoDeDadosRoute
   TrilhasRoute: typeof TrilhasRoute
   CadernoIdRoute: typeof CadernoIdRoute
   CadernoNovaRoute: typeof CadernoNovaRoute
   ContratosIdRoute: typeof ContratosIdRoute
+  EmendasIdRoute: typeof EmendasIdRoute
   FornecedoresCnpjRoute: typeof FornecedoresCnpjRoute
+  LicitacoesIdRoute: typeof LicitacoesIdRoute
   MapasSlugRoute: typeof MapasSlugRoute
   NotasSlugRoute: typeof NotasSlugRoute
   OrgaosCodRoute: typeof OrgaosCodRoute
   PerguntasSlugRoute: typeof PerguntasSlugRoute
   TutoriaisSlugRoute: typeof TutoriaisSlugRoute
+  ContratosIndexRoute: typeof ContratosIndexRoute
+  EmendasIndexRoute: typeof EmendasIndexRoute
+  LicitacoesIndexRoute: typeof LicitacoesIndexRoute
   MapasIndexRoute: typeof MapasIndexRoute
   NotasIndexRoute: typeof NotasIndexRoute
   TransferenciasIndexRoute: typeof TransferenciasIndexRoute
@@ -1045,8 +1136,6 @@ export interface RootRouteChildren {
   SenadoMateriasIdRoute: typeof SenadoMateriasIdRoute
   SenadoSenadoresIdRoute: typeof SenadoSenadoresIdRoute
   SenadoVotacoesIdRoute: typeof SenadoVotacoesIdRoute
-  TransferenciasEspeciaisIdRoute: typeof TransferenciasEspeciaisIdRoute
-  TransferenciasFinalidadeIdRoute: typeof TransferenciasFinalidadeIdRoute
   CamaraDeputadosIndexRoute: typeof CamaraDeputadosIndexRoute
   CamaraProposicoesIndexRoute: typeof CamaraProposicoesIndexRoute
   CamaraVotacoesIndexRoute: typeof CamaraVotacoesIndexRoute
@@ -1077,6 +1166,13 @@ declare module '@tanstack/react-router' {
       path: '/transparencia-institucional'
       fullPath: '/transparencia-institucional'
       preLoaderRoute: typeof TransparenciaInstitucionalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transferegov': {
+      id: '/transferegov'
+      path: '/transferegov'
+      fullPath: '/transferegov'
+      preLoaderRoute: typeof TransferegovRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/termos': {
@@ -1121,6 +1217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoadmapRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/relatorios-fiscais': {
+      id: '/relatorios-fiscais'
+      path: '/relatorios-fiscais'
+      fullPath: '/relatorios-fiscais'
+      preLoaderRoute: typeof RelatoriosFiscaisRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/referencias': {
       id: '/referencias'
       path: '/referencias'
@@ -1140,6 +1243,13 @@ declare module '@tanstack/react-router' {
       path: '/privacidade'
       fullPath: '/privacidade'
       preLoaderRoute: typeof PrivacidadeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portal-cgu': {
+      id: '/portal-cgu'
+      path: '/portal-cgu'
+      fullPath: '/portal-cgu'
+      preLoaderRoute: typeof PortalCguRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pncp': {
@@ -1317,12 +1427,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/licitacoes/': {
+      id: '/licitacoes/'
+      path: '/licitacoes'
+      fullPath: '/licitacoes/'
+      preLoaderRoute: typeof LicitacoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/estilo/': {
       id: '/estilo/'
       path: '/'
       fullPath: '/estilo/'
       preLoaderRoute: typeof EstiloIndexRouteImport
       parentRoute: typeof EstiloRoute
+    }
+    '/emendas/': {
+      id: '/emendas/'
+      path: '/emendas'
+      fullPath: '/emendas/'
+      preLoaderRoute: typeof EmendasIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contratos/': {
+      id: '/contratos/'
+      path: '/contratos'
+      fullPath: '/contratos/'
+      preLoaderRoute: typeof ContratosIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/tutoriais/$slug': {
       id: '/tutoriais/$slug'
@@ -1366,6 +1497,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MapasSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/licitacoes/$id': {
+      id: '/licitacoes/$id'
+      path: '/licitacoes/$id'
+      fullPath: '/licitacoes/$id'
+      preLoaderRoute: typeof LicitacoesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/fornecedores/$cnpj': {
       id: '/fornecedores/$cnpj'
       path: '/fornecedores/$cnpj'
@@ -1386,6 +1524,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/estilo/tipografia'
       preLoaderRoute: typeof EstiloTipografiaRouteImport
       parentRoute: typeof EstiloRoute
+    }
+    '/emendas/$id': {
+      id: '/emendas/$id'
+      path: '/emendas/$id'
+      fullPath: '/emendas/$id'
+      preLoaderRoute: typeof EmendasIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/convenios/$id': {
       id: '/convenios/$id'
@@ -1485,20 +1630,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CamaraDeputadosIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/transferencias/finalidade/$id': {
-      id: '/transferencias/finalidade/$id'
-      path: '/transferencias/finalidade/$id'
-      fullPath: '/transferencias/finalidade/$id'
-      preLoaderRoute: typeof TransferenciasFinalidadeIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/transferencias/especiais/$id': {
-      id: '/transferencias/especiais/$id'
-      path: '/transferencias/especiais/$id'
-      fullPath: '/transferencias/especiais/$id'
-      preLoaderRoute: typeof TransferenciasEspeciaisIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/senado_/votacoes/$id': {
       id: '/senado_/votacoes/$id'
       path: '/senado/votacoes/$id'
@@ -1576,6 +1707,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminQualidadeRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin_/prompts': {
+      id: '/_authenticated/admin_/prompts'
+      path: '/admin/prompts'
+      fullPath: '/admin/prompts'
+      preLoaderRoute: typeof AuthenticatedAdminPromptsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin_/perguntas': {
       id: '/_authenticated/admin_/perguntas'
       path: '/admin/perguntas'
@@ -1629,6 +1767,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminDadosRoute: typeof AuthenticatedAdminDadosRoute
   AuthenticatedAdminMarcacoesRoute: typeof AuthenticatedAdminMarcacoesRoute
   AuthenticatedAdminPerguntasRoute: typeof AuthenticatedAdminPerguntasRoute
+  AuthenticatedAdminPromptsRoute: typeof AuthenticatedAdminPromptsRoute
   AuthenticatedAdminQualidadeRoute: typeof AuthenticatedAdminQualidadeRoute
   AuthenticatedAdminRoadmapRoute: typeof AuthenticatedAdminRoadmapRoute
   AuthenticatedAdminSinaisRoute: typeof AuthenticatedAdminSinaisRoute
@@ -1642,6 +1781,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminDadosRoute: AuthenticatedAdminDadosRoute,
   AuthenticatedAdminMarcacoesRoute: AuthenticatedAdminMarcacoesRoute,
   AuthenticatedAdminPerguntasRoute: AuthenticatedAdminPerguntasRoute,
+  AuthenticatedAdminPromptsRoute: AuthenticatedAdminPromptsRoute,
   AuthenticatedAdminQualidadeRoute: AuthenticatedAdminQualidadeRoute,
   AuthenticatedAdminRoadmapRoute: AuthenticatedAdminRoadmapRoute,
   AuthenticatedAdminSinaisRoute: AuthenticatedAdminSinaisRoute,
@@ -1720,27 +1860,35 @@ const rootRouteChildren: RootRouteChildren = {
   OrgaosRoute: OrgaosRoute,
   PerguntasRoute: PerguntasRoute,
   PncpRoute: PncpRoute,
+  PortalCguRoute: PortalCguRoute,
   PrivacidadeRoute: PrivacidadeRoute,
   QualidadeRoute: QualidadeRouteWithChildren,
   ReferenciasRoute: ReferenciasRoute,
+  RelatoriosFiscaisRoute: RelatoriosFiscaisRoute,
   RoadmapRoute: RoadmapRoute,
   SenadoRoute: SenadoRoute,
   SiconfiRoute: SiconfiRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   SobreRoute: SobreRoute,
   TermosRoute: TermosRoute,
+  TransferegovRoute: TransferegovRoute,
   TransparenciaInstitucionalRoute: TransparenciaInstitucionalRoute,
   TratamentoDeDadosRoute: TratamentoDeDadosRoute,
   TrilhasRoute: TrilhasRoute,
   CadernoIdRoute: CadernoIdRoute,
   CadernoNovaRoute: CadernoNovaRoute,
   ContratosIdRoute: ContratosIdRoute,
+  EmendasIdRoute: EmendasIdRoute,
   FornecedoresCnpjRoute: FornecedoresCnpjRoute,
+  LicitacoesIdRoute: LicitacoesIdRoute,
   MapasSlugRoute: MapasSlugRoute,
   NotasSlugRoute: NotasSlugRoute,
   OrgaosCodRoute: OrgaosCodRoute,
   PerguntasSlugRoute: PerguntasSlugRoute,
   TutoriaisSlugRoute: TutoriaisSlugRoute,
+  ContratosIndexRoute: ContratosIndexRoute,
+  EmendasIndexRoute: EmendasIndexRoute,
+  LicitacoesIndexRoute: LicitacoesIndexRoute,
   MapasIndexRoute: MapasIndexRoute,
   NotasIndexRoute: NotasIndexRoute,
   TransferenciasIndexRoute: TransferenciasIndexRoute,
@@ -1751,8 +1899,6 @@ const rootRouteChildren: RootRouteChildren = {
   SenadoMateriasIdRoute: SenadoMateriasIdRoute,
   SenadoSenadoresIdRoute: SenadoSenadoresIdRoute,
   SenadoVotacoesIdRoute: SenadoVotacoesIdRoute,
-  TransferenciasEspeciaisIdRoute: TransferenciasEspeciaisIdRoute,
-  TransferenciasFinalidadeIdRoute: TransferenciasFinalidadeIdRoute,
   CamaraDeputadosIndexRoute: CamaraDeputadosIndexRoute,
   CamaraProposicoesIndexRoute: CamaraProposicoesIndexRoute,
   CamaraVotacoesIndexRoute: CamaraVotacoesIndexRoute,

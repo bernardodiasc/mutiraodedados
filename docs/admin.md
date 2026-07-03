@@ -30,6 +30,12 @@ Gestão dos sinais investigativos detectados sobre dados corretos (ex: fracionam
 
 Editor Markdown para criar/editar mapas, tutoriais e notas. Toca tabela `artigos`. Slug amigável é usado nas rotas públicas `/mapas/$slug`, `/tutoriais/$slug`, `/notas/$slug`.
 
+### `/admin/prompts` — Prompts do Kit
+
+CRUD dos prompts do Kit de investigação (`prompt_modelos`) e vínculo N:N com mapas (`mapa_prompts`). Um prompt só aparece no site quando está `ativo` **e** vinculado a um mapa público.
+
+Cada variável do prompt (`{{var}}`) é editada aqui com **nome**, **dica** de preenchimento e **link interno** para onde colher o dado. Esse link deve apontar para a página que os passos daquele mapa indicam (ex.: `/emendas` no mapa das emendas, `/camara/deputados` na cota parlamentar) — não há catálogo hardcoded no código; tudo se ajusta por esta tela. Ver [`dominios/laboratorio-civico.md`](./dominios/laboratorio-civico.md).
+
 ### `/admin/marcacoes` — Moderação
 
 Modera contribuições da comunidade (marcações em registros pelos usuários).

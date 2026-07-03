@@ -36,10 +36,17 @@ import { CadernoPerguntasSalvasView } from "@/components/CadernoPerguntasSalvasV
 import { cadernoPerguntasSalvasVariants } from "@/lib/caderno-perguntas/mocks";
 import { CadernoItensSalvosView } from "@/components/CadernoItensSalvosView";
 import { cadernoItensSalvosVariants } from "@/lib/caderno-itens/mocks";
+import { KitInvestigacaoView } from "@/components/KitInvestigacaoView";
+import { kitInvestigacaoVariants } from "@/lib/kit-investigacao/mocks";
 import { ArtigoDetalheView } from "@/components/ArtigoDetalheView";
 import { artigoDetalheVariants } from "@/lib/artigo-detalhe/mocks";
 import { QualidadeBannerView } from "@/components/QualidadeBannerView";
 import { qualidadeBannerVariants } from "@/lib/qualidade-banner/mocks";
+import { IconeAcaoDemoView, ListaOrdenavelDemoView } from "@/components/AdminPadroesDemo";
+import { iconeAcaoVariants, listaOrdenavelVariants } from "@/lib/admin-padroes/mocks";
+import { FiltroAbas } from "@/components/FiltroAbas";
+import { SecaoLista } from "@/components/SecaoLista";
+import { filtroAbasVariants, secaoListaVariants } from "@/lib/secao-lista/mocks";
 
 export type ViewVariant<P> = { label: string; props: P };
 export type ViewVariants<P> = ReadonlyArray<ViewVariant<P>>;
@@ -119,6 +126,13 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     variants: coberturaResumoVariants,
   },
   {
+    name: "FiltroAbas",
+    description:
+      "Navegação de filtro por abas com contadores — padrão das listas do admin (Tudo / status).",
+    View: FiltroAbas,
+    variants: filtroAbasVariants,
+  },
+  {
     name: "FonteCard",
     description: "Card de uma fonte na página de cobertura — variantes compact, full (heatmap), anual e sem dados.",
     View: FonteCard,
@@ -131,16 +145,44 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     variants: flagsCidadaVariants,
   },
   {
+    name: "IconeAcao",
+    description:
+      "Padrão de botões de ação (só ícone) das linhas de listas do admin: copiar, alternar, editar, excluir.",
+    View: IconeAcaoDemoView,
+    variants: iconeAcaoVariants,
+  },
+  {
     name: "InvestigacaoInline",
     description: "Wrapper que abre investigação (finding) embutida abaixo de um card de entidade.",
     View: InvestigacaoInlineView,
     variants: investigacaoInlineVariants,
   },
   {
+    name: "KitInvestigacao",
+    description:
+      "Painel lateral dos mapas: copiar o procedimento, salvar no caderno e a lista de prompts para a IA do usuário.",
+    View: KitInvestigacaoView,
+    variants: kitInvestigacaoVariants,
+  },
+  {
+    name: "ListaOrdenavel",
+    description:
+      "Lista reordenável por drag-and-drop (arraste pela alça). Usada para definir a ordem pública das listas do admin.",
+    View: ListaOrdenavelDemoView,
+    variants: listaOrdenavelVariants,
+  },
+  {
     name: "QualidadeBanner",
     description: "Banner sinalizando inconsistências (QA findings) ativas para uma entidade.",
     View: QualidadeBannerView,
     variants: qualidadeBannerVariants,
+  },
+  {
+    name: "SecaoLista",
+    description:
+      "Cabeçalho padrão das listas do admin: título + filtro por abas + Baixar CSV (do subconjunto filtrado).",
+    View: SecaoLista,
+    variants: secaoListaVariants,
   },
   {
     name: "ReporteOficialModal",

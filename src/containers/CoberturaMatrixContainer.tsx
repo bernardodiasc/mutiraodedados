@@ -2,7 +2,6 @@ import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { statusCobertura, type CoberturaResult, type Fonte, type Linha } from "@/lib/data/cobertura.functions";
-import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { useData } from "@/lib/data-store";
 import { useCoberturaJobBuilder, type CoberturaJob } from "@/lib/data/cobertura-jobs";
 import {
@@ -61,16 +60,6 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
         if (j) jobs.push(j);
       }
     }
-    if (fonte.fonte === "cgu") {
-      const listados = new Set(fonte.linhas.map((l) => l.id));
-      for (const o of ORGAOS_BASE) {
-        if (!o.disponivelPortal || listados.has(o.cod)) continue;
-        for (let m = 1; m <= 12; m++) {
-          const j = buildJob("cgu", o.cod, ano, m);
-          if (j) jobs.push(j);
-        }
-      }
-    }
     return jobs;
   }, [ano, buildJob]);
 
@@ -125,9 +114,7 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
 
   const reimportarColuna = async (fonte: Fonte, m: number) => {
     if (fonte.fonte === "siconfi") return;
-    const linhas = fonte.fonte === "cgu"
-      ? ORGAOS_BASE.filter((o) => o.disponivelPortal).map((o) => ({ id: o.cod }))
-      : fonte.linhas;
+    const linhas = fonte.linhas;
     const jobs: CoberturaJob[] = [];
     for (const linha of linhas) {
       const j = buildJob(fonte.fonte, linha.id, ano, m);
@@ -138,7 +125,13 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
     await refresh();
   };
 
-  const cobertos = React.useMemo(() => ORGAOS_BASE.filter((o) => o.disponivelPortal), []);
+  // "Órgãos com dados" = os que já têm contratos em cache (a lista dinâmica que
+  // substitui o antigo ORGAOS_BASE.filter). `carregados` = tamanho do catálogo
+  // (orgaos_cache, populado pelo sync SIAFI).
+  const comDados = React.useMemo(
+    () => new Set(dataset.contratos.map((c) => c.orgaoCod)),
+    [dataset.contratos],
+  );
   const carregados = React.useMemo(
     () => new Set(dataset.orgaos.map((o) => o.cod)),
     [dataset.orgaos],
@@ -159,7 +152,7 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
       selecionadas={selecionadas}
       onSelecionadasChange={setSelecionadas}
       onRefresh={refresh}
-      cobertosLen={cobertos.length}
+      cobertosLen={comDados.size}
       carregadosSize={carregados.size}
       contratosCount={dataset.contratos.length}
       totalContratado={totalContratado}

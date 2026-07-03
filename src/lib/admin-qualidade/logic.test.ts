@@ -16,13 +16,16 @@ describe("admin-qualidade logic", () => {
       id: "f1",
       fonte: "cgu",
       entidade: { tipo: "contrato", id: "12345" },
-      contexto_origem: { orgao_cod: "26000", data_assinatura: "2024-05-09" },
+      // A CGU filtra /contratos por vigência, não por assinatura — a nota usa o
+      // codigoOrgao da varredura (sem dataInicial/dataFinal), não a data.
+      contexto_origem: { orgao_cod: "26000" },
     } as unknown as FindingAdmin;
     const r = buildCurlsQualidade(f);
     expect(r).toBeDefined();
     expect(r!.length).toBe(2);
     expect(r![0].url).toContain("swagger-ui");
-    expect(r![0].nota).toContain("09/05/2024");
+    expect(r![0].nota).toContain("codigoOrgao=26000");
+    expect(r![0].nota).toContain("sem dataInicial/dataFinal");
   });
 
   it("buildCurlsQualidade retorna undefined para fonte/tipo não suportado", () => {

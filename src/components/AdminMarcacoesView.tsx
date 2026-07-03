@@ -1,7 +1,6 @@
 import * as React from "react";
-import { Link } from "@tanstack/react-router";
-import { ArrowLeft, ExternalLink, Loader2, Trash2 } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
+import { ExternalLink, Loader2, Trash2 } from "lucide-react";
+import { AdminHeader } from "@/components/AdminHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { InvestigacaoInline } from "@/components/InvestigacaoInline";
@@ -33,7 +32,11 @@ export type AdminMarcacoesViewProps = {
   setStatusFlag: (v: string) => void;
   contestacoes: { isLoading: boolean; data: Contestacao[] | undefined };
   marcacoes: { isLoading: boolean; data: Marcacao[] | undefined };
-  onSalvarContestacao: (c: Contestacao, status: StatusContestacao, resposta?: string) => Promise<void>;
+  onSalvarContestacao: (
+    c: Contestacao,
+    status: StatusContestacao,
+    resposta?: string,
+  ) => Promise<void>;
   onDeletarMarcacao: (m: Marcacao) => Promise<void>;
 };
 
@@ -53,35 +56,38 @@ export function AdminMarcacoesView({
   onDeletarMarcacao,
 }: AdminMarcacoesViewProps) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 space-y-6">
-      <Link to="/admin" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
-      <header>
-        <h1 className="font-display text-4xl">Marcações</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Curadoria do que a comunidade envia: <strong>contestações</strong> (pedidos formais de correção em páginas do site) e <strong>marcações cidadãs</strong> (flags em órgãos, fornecedores e contratos).
-        </p>
-      </header>
-      <AdminNav />
+    <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
+      <AdminHeader titulo="Marcações">
+        Curadoria do que a comunidade envia: <strong>contestações</strong> (pedidos formais de
+        correção em páginas do site) e <strong>marcações cidadãs</strong> (flags em órgãos,
+        fornecedores e contratos).
+      </AdminHeader>
 
       <section className="grid sm:grid-cols-4 gap-3">
         <div className="rounded-lg border border-border bg-card p-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Contestações abertas</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Contestações abertas
+          </div>
           <div className="text-2xl font-display mt-1">{agg?.contestacoes.aberta ?? 0}</div>
           <div className="text-[11px] text-muted-foreground">
-            {agg?.contestacoes.em_analise ?? 0} em análise · {agg?.contestacoes.respondida ?? 0} respondidas
+            {agg?.contestacoes.em_analise ?? 0} em análise · {agg?.contestacoes.respondida ?? 0}{" "}
+            respondidas
           </div>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Contestações total</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Contestações total
+          </div>
           <div className="text-2xl font-display mt-1">{agg?.contestacoes.total ?? 0}</div>
         </div>
         <div className="rounded-lg border border-border bg-card p-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Marcações cidadãs</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Marcações cidadãs
+          </div>
           <div className="text-2xl font-display mt-1">{agg?.marcacoes.total ?? 0}</div>
           <div className="text-[11px] text-muted-foreground">
-            {agg?.marcacoes.orgao ?? 0} órgãos · {agg?.marcacoes.fornecedor ?? 0} fornecedores · {agg?.marcacoes.contrato ?? 0} contratos
+            {agg?.marcacoes.orgao ?? 0} órgãos · {agg?.marcacoes.fornecedor ?? 0} fornecedores ·{" "}
+            {agg?.marcacoes.contrato ?? 0} contratos
           </div>
         </div>
       </section>
@@ -101,10 +107,16 @@ export function AdminMarcacoesView({
       {aba === "contestacoes" ? (
         <section className="space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
-            <select className="rounded-md border border-input bg-background px-2 py-1" value={statusCt} onChange={(e) => setStatusCt(e.target.value)}>
+            <select
+              className="rounded-md border border-input bg-background px-2 py-1"
+              value={statusCt}
+              onChange={(e) => setStatusCt(e.target.value)}
+            >
               <option value="">Todos os status</option>
               {STATUS_CONTESTACAO.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option key={s} value={s}>
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -116,20 +128,32 @@ export function AdminMarcacoesView({
             <p className="text-sm text-muted-foreground">Nenhuma contestação nesses filtros.</p>
           ) : (
             (contestacoes.data ?? []).map((c) => (
-              <ContestacaoCard key={c.id} item={c} onSalvar={(s, r) => onSalvarContestacao(c, s, r)} />
+              <ContestacaoCard
+                key={c.id}
+                item={c}
+                onSalvar={(s, r) => onSalvarContestacao(c, s, r)}
+              />
             ))
           )}
         </section>
       ) : (
         <section className="space-y-3">
           <div className="flex flex-wrap gap-2 text-xs">
-            <select className="rounded-md border border-input bg-background px-2 py-1" value={tipoFlag} onChange={(e) => setTipoFlag(e.target.value)}>
+            <select
+              className="rounded-md border border-input bg-background px-2 py-1"
+              value={tipoFlag}
+              onChange={(e) => setTipoFlag(e.target.value)}
+            >
               <option value="">Todos os tipos</option>
               <option value="orgao">órgão</option>
               <option value="fornecedor">fornecedor</option>
               <option value="contrato">contrato</option>
             </select>
-            <select className="rounded-md border border-input bg-background px-2 py-1" value={statusFlag} onChange={(e) => setStatusFlag(e.target.value)}>
+            <select
+              className="rounded-md border border-input bg-background px-2 py-1"
+              value={statusFlag}
+              onChange={(e) => setStatusFlag(e.target.value)}
+            >
               <option value="">Todos os status</option>
               <option value="aberto">Aberto</option>
               <option value="confirmado">Confirmado</option>
@@ -175,12 +199,20 @@ export function AdminMarcacoesView({
                         <div className="text-[11px] uppercase tracking-wider text-accent font-semibold">
                           {f.tipo} · {f.entidade_tipo}
                         </div>
-                        <a href={href} target="_blank" rel="noreferrer" className="text-sm underline inline-flex items-center gap-1 mt-0.5">
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm underline inline-flex items-center gap-1 mt-0.5"
+                        >
                           {f.entidade_id} <ExternalLink className="size-3" />
                         </a>
-                        {f.comentario && <p className="text-sm text-foreground/80 mt-1">{f.comentario}</p>}
+                        {f.comentario && (
+                          <p className="text-sm text-foreground/80 mt-1">{f.comentario}</p>
+                        )}
                         <div className="text-[11px] text-muted-foreground mt-1">
-                          {new Date(f.created_at).toLocaleString("pt-BR")} · votos: {f.votos_score >= 0 ? "+" : ""}
+                          {new Date(f.created_at).toLocaleString("pt-BR")} · votos:{" "}
+                          {f.votos_score >= 0 ? "+" : ""}
                           {f.votos_score} ({f.votos_total})
                         </div>
                       </div>
@@ -226,7 +258,12 @@ function ContestacaoCard({
           <div className="text-[11px] uppercase tracking-wider text-accent font-semibold">
             {TIPO_CONTESTACAO_LABEL[item.tipo] ?? item.tipo} · {item.solicitante_tipo}
           </div>
-          <a href={item.url_pagina} target="_blank" rel="noreferrer" className="text-sm underline break-all inline-flex items-center gap-1 mt-0.5">
+          <a
+            href={item.url_pagina}
+            target="_blank"
+            rel="noreferrer"
+            className="text-sm underline break-all inline-flex items-center gap-1 mt-0.5"
+          >
             {item.url_pagina} <ExternalLink className="size-3 shrink-0" />
           </a>
           <div className="text-[11px] text-muted-foreground mt-1">
@@ -240,26 +277,34 @@ function ContestacaoCard({
       </header>
 
       <div>
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Descrição</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+          Descrição
+        </div>
         <p className="text-sm whitespace-pre-wrap">{item.descricao}</p>
       </div>
       {item.fundamento && (
         <div>
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Fundamento</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+            Fundamento
+          </div>
           <p className="text-sm whitespace-pre-wrap text-foreground/80">{item.fundamento}</p>
         </div>
       )}
 
       <div className="grid sm:grid-cols-[160px_1fr] gap-3 pt-2 border-t border-border">
         <div>
-          <label className="text-[11px] uppercase tracking-wider text-muted-foreground block mb-1">Status</label>
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground block mb-1">
+            Status
+          </label>
           <select
             className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
             value={status}
             onChange={(e) => setStatus(e.target.value as StatusContestacao)}
           >
             {STATUS_CONTESTACAO.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
         </div>

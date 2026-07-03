@@ -256,3 +256,15 @@
     transform: translateY(1px);
   }
 }
+
+/* Barra de progresso indeterminada (lotes de 1 unidade / duração desconhecida,
+   ex.: varredura de 1 órgão da CGU que roda várias rodadas). Sinaliza atividade
+   sem uma porcentagem enganosa presa em 0%. */
+@keyframes barra-indeterminada {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(340%); }
+}
+.barra-indeterminada {
+  width: 30%;
+  animation: barra-indeterminada 1.2s ease-in-out infinite;
+}

@@ -13,6 +13,11 @@ const i1: ItemSalvo = {
   url: "/contratos/c-1",
   contexto: "Valor R$ 2,3 mi; órgão XPTO.",
   tags: [],
+  conteudo_snapshot: '{\n  "valor": 2300000\n}',
+  snapshot_em: "2026-06-01T10:00:00Z",
+  snapshot_hash: "abc123",
+  snapshot_verificado_em: null,
+  snapshot_divergiu_em: null,
   created_at: "2026-06-01T10:00:00Z",
   updated_at: "2026-06-01T10:00:00Z",
 };
@@ -23,6 +28,9 @@ const base: CadernoItensSalvosViewProps = {
   errorMsg: null,
   removingId: null,
   onRemover: noopP,
+  verificandoId: null,
+  onVerificar: noopP,
+  onAtualizarSnapshot: noopP,
 };
 
 export const cadernoItensSalvosVariants: ViewVariants<CadernoItensSalvosViewProps> = [

@@ -8,7 +8,6 @@ import {
   regrasCamaraCeap,
   regrasSenadoCeaps,
   regrasTransferegov,
-  regrasTransferegovEmendas,
   regrasSiconfi,
   sincronizarQaCgu,
   flagQA,
@@ -46,7 +45,7 @@ function urlInternaPara(
   if (fonte === "cgu" && tipo === "fornecedor") return `/fornecedores/${id}`;
   if (fonte === "pncp" && tipo === "contrato") return `/pncp`;
   if (fonte === "transferegov" && tipo === "instrumento") return `/convenios/${id}`;
-  if (fonte === "transferegov" && tipo === "emenda") return `/transferencias/especiais/${id}`;
+  if (fonte === "transferegov" && tipo === "emenda") return `/emendas/${id}`;
   return undefined;
 }
 
@@ -634,43 +633,6 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
       }
     }
 
-    // Enriquecer findings de emendas (Transferegov SE) com número, autor e
-    // valor pago — usado pra contexto e pra montar o cURL ao endpoint público.
-    const emendaIds = lista
-      .filter((r) => r.fonte === "transferegov" && r.entidade_tipo === "emenda")
-      .map((r) => r.entidade_id);
-    const ctxEmenda = new Map<
-      string,
-      {
-        modalidade: string | null;
-        numero_emenda: string | null;
-        codigo_emenda: string | null;
-        autor_emenda: string | null;
-        ano: number | null;
-        valor: number | null;
-        valor_pago: number | null;
-      }
-    >();
-    if (emendaIds.length > 0) {
-      const { data: cs } = await supabaseAdmin
-        .from("transferegov_emendas_cache")
-        .select(
-          "id,modalidade,numero_emenda,codigo_emenda,autor_emenda,ano,valor,valor_pago",
-        )
-        .in("id", emendaIds);
-      for (const c of cs ?? []) {
-        ctxEmenda.set(c.id, {
-          modalidade: c.modalidade ?? null,
-          numero_emenda: c.numero_emenda ?? null,
-          codigo_emenda: c.codigo_emenda ?? null,
-          autor_emenda: c.autor_emenda ?? null,
-          ano: c.ano ?? null,
-          valor: c.valor ?? null,
-          valor_pago: c.valor_pago ?? null,
-        });
-      }
-    }
-
     return lista.map((r) => {
       // Injeta valores do cache em `detalhes` ANTES de chamar rowToAnomalia,
       // para que `comparacaoPara` exiba o valor atual em vez do snapshot
@@ -699,7 +661,6 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
         });
       }
       const ctxI = ctxInstr.get(r.entidade_id);
-      const ctxE = ctxEmenda.get(r.entidade_id);
       // Sobrescreve url_oficial: se temos o código SICONV (dimConvenio.codigo
       // da CGU), montamos o link direto pra página do convênio no
       // transferegov.sistema.gov.br. Sem código, caímos numa busca pelo
@@ -742,7 +703,6 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
             }
           : null,
         contexto_instrumento: ctxI ?? null,
-        contexto_emenda: ctxE ?? null,
       };
     });
   });
@@ -992,12 +952,6 @@ export const aplicarHeuristicasFonte = createServerFn({ method: "POST" })
         .select("id, valor_repasse, valor_global");
       totalAnalisado = rows?.length ?? 0;
       inseridos = await flagQA(regrasTransferegov(rows ?? []));
-      // Inclui também emendas (instrumentos + emendas compõem "transferegov").
-      const { data: emRows } = await supabaseAdmin
-        .from("transferegov_emendas_cache")
-        .select("id, valor, valor_pago, modalidade");
-      totalAnalisado += emRows?.length ?? 0;
-      inseridos += await flagQA(regrasTransferegovEmendas(emRows ?? []));
     } else if (fonte === "siconfi") {
       const { data: rows } = await supabaseAdmin
         .from("siconfi_relatorios_cache")

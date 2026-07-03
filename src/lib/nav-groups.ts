@@ -33,6 +33,12 @@ import {
   CircleDashed,
   Megaphone,
   MapPinned,
+  Paintbrush,
+  ScrollText,
+  Scale,
+  Banknote,
+  Share2,
+  Calculator,
   type LucideIcon,
 } from "lucide-react";
 
@@ -100,8 +106,18 @@ export const NAV_GROUPS: NavGroup[] = [
         label: "Sinais e contestação",
         links: [
           { to: "/anomalias", label: "Sinais investigativos", icon: Flame, mode: "investigar" },
-          { to: "/transparencia-institucional", label: "Transparência institucional", icon: Eye, mode: "investigar" },
-          { to: "/contestar", label: "Contestar análise", icon: MessageSquareWarning, mode: "investigar" },
+          {
+            to: "/transparencia-institucional",
+            label: "Transparência institucional",
+            icon: Eye,
+            mode: "investigar",
+          },
+          {
+            to: "/contestar",
+            label: "Contestar análise",
+            icon: MessageSquareWarning,
+            mode: "investigar",
+          },
         ],
       },
       {
@@ -122,9 +138,9 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Ferramentas",
         links: [
-          { to: "/orgaos", label: "Órgãos federais", icon: Building2, mode: "explorar" },
           { to: "/buscar", label: "Busca unificada", icon: Search, mode: "explorar" },
           { to: "/explorar", label: "Explorar por ente", icon: MapPinned, mode: "explorar" },
+          { to: "/orgaos", label: "Órgãos federais", icon: Building2, mode: "explorar" },
         ],
       },
       {
@@ -138,10 +154,35 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Por fonte de dados",
         links: [
-          { to: "/pncp", label: "Contratos (PNCP)", icon: FileText, mode: "explorar" },
-          { to: "/siconfi", label: "Relatórios fiscais (SICONFI)", icon: PieChart, mode: "explorar" },
-          { to: "/convenios", label: "Convênios (Transferegov)", icon: FileSignature, mode: "explorar" },
-          { to: "/transferencias", label: "Transferências diretas (EC 105)", icon: HandCoins, mode: "explorar" },
+          {
+            to: "/portal-cgu",
+            label: "Portal da Transparência (CGU)",
+            icon: Banknote,
+            mode: "explorar",
+          },
+          { to: "/pncp", label: "Portal Nacional de Contratações Públicas (PNCP)", icon: FileText, mode: "explorar" },
+          {
+            to: "/siconfi",
+            label: "Sistema de Informações Contábeis e Fiscais (SICONFI)",
+            icon: PieChart,
+            mode: "explorar",
+          },
+          { to: "/transferegov", label: "Transferegov", icon: Share2, mode: "explorar" },
+        ],
+      },
+      {
+        label: "Por tipo de dados",
+        links: [
+          { to: "/contratos", label: "Contratos", icon: ScrollText, mode: "explorar" },
+          { to: "/licitacoes", label: "Licitações", icon: Scale, mode: "explorar" },
+          { to: "/convenios", label: "Convênios", icon: FileSignature, mode: "explorar" },
+          { to: "/emendas", label: "Emendas parlamentares", icon: HandCoins, mode: "explorar" },
+          {
+            to: "/relatorios-fiscais",
+            label: "Relatórios fiscais",
+            icon: Calculator,
+            mode: "explorar",
+          },
         ],
       },
     ],
@@ -153,11 +194,17 @@ export const NAV_GROUPS: NavGroup[] = [
     links: [
       { to: "/sobre", label: "Sobre o projeto", icon: Info, mode: "sobre" },
       { to: "/roadmap", label: "Roadmap & novidades", icon: ListChecks, mode: "sobre" },
-      { to: "/referencias", label: "Referências & projetos similares", icon: Library, mode: "sobre" },
+      {
+        to: "/referencias",
+        label: "Referências & projetos similares",
+        icon: Library,
+        mode: "sobre",
+      },
       { to: "/tratamento-de-dados", label: "Tratamento de dados", icon: Database, mode: "sobre" },
       { to: "/privacidade", label: "Privacidade (LGPD)", icon: Shield, mode: "sobre" },
       { to: "/termos", label: "Termos de uso", icon: Scroll, mode: "sobre" },
       { to: "/contribuir", label: "Contribuir com o projeto", icon: HeartHandshake, mode: "sobre" },
+      { to: "/estilo", label: "Guia de estilo", icon: Paintbrush, mode: "sobre" },
     ],
   },
 ];

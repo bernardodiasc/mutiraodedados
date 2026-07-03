@@ -42,14 +42,18 @@ Tabelas que sustentam os modos **Perguntar** e **Investigar** (ver [`dominios/la
 | Tabela         | Função                                                                                       |
 | -------------- | -------------------------------------------------------------------------------------------- |
 | `perguntas`    | Perguntas formuladas pelos cidadãos. Campos: `texto`, `contexto`, `estado`, `tags[]`, `origem_url`, `publicada`. Estados: `aberta`, `em_investigacao`, `respondida_parcialmente`, `respondida`, `sem_resposta_possivel`, `dormente`. |
-| `itens_salvos` | Itens salvos no caderno do usuário (polimórficos). Chave: `(user_id, entidade_tipo, entidade_id)`. Tipos: `orgao`, `contrato`, `fornecedor`, `convenio`, `pergunta`, `anomalia`, `lacuna`. |
+| `itens_salvos` | Itens salvos no caderno do usuário (polimórficos). Chave: `(user_id, entidade_tipo, entidade_id)`. Tipos: `orgao`, `contrato`, `fornecedor`, `convenio`, `emenda`, `licitacao`, `pergunta`, `anomalia`, `lacuna`, `artigo`, `mapa`, `tutorial`, `prompt`, `busca`. Colunas de **snapshot de prova** (valor no momento em que o item foi salvo): `conteudo_snapshot` (JSON canônico), `snapshot_em`, `snapshot_hash` (sha256), `snapshot_verificado_em`, `snapshot_divergiu_em`. |
 | `anotacoes`    | Notas em markdown privadas. Campos: `titulo?`, `conteudo_md`, `tags[]`. Âncoras opcionais: `pergunta_id`, `(entidade_tipo, entidade_id)`. |
 | `lacunas`      | Informações que faltam. Campos: `titulo`, `descricao`, `tipo` (`transparencia`, `avaliacao`, `mensuracao`, `documental`, `institucional`, `metodologica`), `ciclo` (`nasce`→`qualificada`→`evolui`→`conecta`→`encerra`), `qa_finding_id?`, `entidade_tipo?`, `entidade_id?`. |
+| `prompt_modelos` | Prompts curados do Kit de investigação (o cidadão copia para a IA dele). Campos: `titulo`, `descricao?`, `prompt_template` (com placeholders `{{var}}`), `variaveis` (**jsonb**: array de `{ nome, dica?, href?, hrefLabel? }` — `href` é rota interna, editável em `/admin/prompts`), `tags[]`, `ordem`, `ativo`. |
+| `mapa_prompts` | Associação N:N entre mapas (`artigos.categoria='mapa'`) e `prompt_modelos`. PK `(artigo_id, prompt_modelo_id)` + `ordem`. Um prompt genérico serve a vários mapas. |
 
 RLS:
 - `perguntas`: leitura pública quando `publicada=true`; autor sempre lê/edita as suas.
 - `itens_salvos` e `anotacoes`: estritamente privadas (`auth.uid() = user_id`).
 - `lacunas`: leitura pública; escrita restrita a `admin`. Conversão a partir de `qa_findings` via server function `converterFindingEmLacuna`.
+- `prompt_modelos`: leitura pública apenas de prompts `ativo=true` **vinculados a um mapa público**; CRUD restrito a `admin` (GRANT ao `anon` mantido — ver [`padroes/migrations.md`](./padroes/migrations.md)).
+- `mapa_prompts`: leitura pública quando o `artigo` alvo é público; escrita restrita a `admin`.
 
 ## Convenções
 

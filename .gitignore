@@ -31,10 +31,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# Environment files (NUNCA commitar — usar .env.example)
+# Environment files
 .env
 .env.local
 .env.*.local
 
-# Lovable internal metadata (não versionar no fork open source)
-# (mantido aqui para referência — o repo privado já trackea .lovable/)
+# Claude Code
+.claude/settings.local.json
+.claude/worktrees/

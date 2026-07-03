@@ -21,8 +21,18 @@ import {
   portalGetComTexto,
   PORTAL_BASE,
 } from "@/lib/data/real/portal-client";
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+import {
+  sleep,
+  parseDatePortal as parseDate,
+  isoToBR,
+  ensureAdmin,
+  tabelaVarreduraAusente,
+  inserirLogsRequisicao,
+  persistirVarredura,
+  montarVarreduraKey,
+  parseVarreduraKey,
+  type LogRequisicao,
+} from "@/lib/data/real/sweep";
 
 // Re-export para compatibilidade (testes e código legado importam daqui).
 export { parseValorPortal };
@@ -59,49 +69,12 @@ export function normalizarValoresCguListagem(rawInicial: unknown, rawFinal: unkn
 }
 
 
-function parseDate(br: string | undefined): string {
-  if (!br) return "";
-  // A API às vezes retorna ISO (YYYY-MM-DD) e às vezes BR (DD/MM/YYYY).
-  const iso = br.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-  const [d, m, y] = br.split("/");
-  if (!d || !m || !y) return "";
-  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
-}
-
 function normalizeModalidade(s: string | undefined): Contrato["modalidade"] {
   const x = (s ?? "").toLowerCase();
   if (x.includes("dispensa")) return "dispensa";
   if (x.includes("inexigi")) return "inexigibilidade";
   if (x.includes("concorr")) return "concorrencia";
   return "pregao";
-}
-
-function isoToBR(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-}
-
-/**
- * Erro do PostgREST quando a tabela ainda não existe no schema (migração não
- * aplicada). Tratamos como benigno: a `cgu_varredura` é opcional — sem ela a
- * varredura só perde a capacidade de retomar.
- */
-function tabelaVarreduraAusente(err: { message?: string; code?: string } | null | undefined): boolean {
-  if (!err) return false;
-  const m = err.message ?? "";
-  return err.code === "PGRST205" || /could not find the table|schema cache|does not exist/i.test(m);
-}
-
-async function ensureAdmin(userId: string) {
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error) throw new Error("Falha ao verificar permissão.");
-  if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
 // ---------------------------------------------------------------------------
@@ -168,16 +141,25 @@ function construirContratoCgu(
 }
 
 async function upsertOrgaoCache(base: Orgao): Promise<void> {
-  await supabaseAdmin.from("orgaos_cache").upsert({
+  // Quando não temos um nome real do órgão (código importado avulso, fora do
+  // catálogo enriquecido), o `nome` é o próprio código. Nesse caso NÃO
+  // sobrescrevemos uma linha existente — o nome bom vem do sync SIAFI
+  // (`sincronizarOrgaosSIAFI`). `ignoreDuplicates` só insere se ainda não houver
+  // linha, preservando nome/sigla já sincronizados.
+  const nomeConhecido = !!base.nome && base.nome !== base.cod;
+  const row = {
     cod: base.cod,
-    sigla: base.sigla,
+    sigla: base.sigla || null,
     nome: base.nome,
-    funcao: base.funcao,
+    funcao: base.funcao || null,
     poder: base.poder,
     disponivel_portal: base.disponivelPortal,
     nota: base.nota ?? null,
     updated_at: new Date().toISOString(),
-  });
+  };
+  await supabaseAdmin
+    .from("orgaos_cache")
+    .upsert(row, nomeConhecido ? { onConflict: "cod" } : { onConflict: "cod", ignoreDuplicates: true });
 }
 
 async function upsertFornecedoresCache(map: Map<string, Fornecedor>): Promise<void> {
@@ -240,47 +222,6 @@ async function fetchDetalheContrato(id: string): Promise<{ valorInicial: number;
   };
 }
 
-// Linha de log de UMA requisição (página ou detalhe). Marcada com
-// log_kind='requisicao' para o Histórico filtrá-la fora; ano/mes ficam NULL
-// para `cobertura_tentativas` ignorá-la automaticamente.
-type LogRequisicao = {
-  fonte: string;
-  orgao_cod: string;
-  escopo: string;
-  log_kind: string;
-  endpoint: string;
-  total_bruto: number;
-  importados: number;
-  erros: string[];
-  consultado_em: string;
-  user_id: string;
-};
-
-async function inserirLogsRequisicao(rows: LogRequisicao[]): Promise<void> {
-  if (rows.length === 0) return;
-  await supabaseAdmin.from("importacoes").insert(rows);
-}
-
-async function persistirVarredura(
-  orgaoCod: string,
-  ultimaPagina: number,
-  completa: boolean,
-  totalImportado: number,
-): Promise<{ persistida: boolean; erro: string | null }> {
-  const up = await supabaseAdmin.from("cgu_varredura").upsert({
-    orgao_cod: orgaoCod,
-    ultima_pagina: ultimaPagina,
-    completa,
-    total_importado: totalImportado,
-    atualizado_em: new Date().toISOString(),
-  });
-  if (up.error) {
-    if (tabelaVarreduraAusente(up.error)) return { persistida: false, erro: null };
-    return { persistida: true, erro: `cgu_varredura: ${up.error.message}` };
-  }
-  return { persistida: true, erro: null };
-}
-
 export const fetchPortalOrgao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -310,9 +251,23 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    const base = ORGAOS_BASE.find((o) => o.cod === data.codigoOrgao);
-    if (!base) throw new Error(`Órgão ${data.codigoOrgao} não catalogado.`);
-    if (!base.disponivelPortal) throw new Error(`${base.sigla} não é coberto pelo Portal. ${base.nota ?? ""}`);
+    // Órgão pode não estar no catálogo enriquecido (ORGAOS_BASE): o Portal
+    // /contratos aceita qualquer código de órgão máximo do Executivo. Se estiver
+    // catalogado e explicitamente marcado como fora do Portal (Câmara/Senado, com
+    // integração própria), bloqueia; senão, importa com um base mínimo (o nome bom
+    // vem do sync SIAFI / do payload dos contratos).
+    const catalogado = ORGAOS_BASE.find((o) => o.cod === data.codigoOrgao);
+    if (catalogado && !catalogado.disponivelPortal) {
+      throw new Error(`${catalogado.sigla} não é coberto pelo Portal. ${catalogado.nota ?? ""}`);
+    }
+    const base: Orgao = catalogado ?? {
+      cod: data.codigoOrgao,
+      sigla: data.codigoOrgao,
+      nome: data.codigoOrgao,
+      funcao: "",
+      poder: "executivo",
+      disponivelPortal: true,
+    };
 
     const temJanela = !!data.dataInicial && !!data.dataFinal;
     // O endpoint /contratos pagina em blocos fixos de 15. Página menor = última.
@@ -334,9 +289,14 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
     // =========================================================================
     // Chave da varredura em cgu_varredura: órgão (varredura completa) ou
     // órgão#dataIni#dataFim (janela). Estados independentes, ambos retomáveis.
-    const varreduraKey = temJanela
-      ? `${data.codigoOrgao}#${data.dataInicial}#${data.dataFinal}`
-      : data.codigoOrgao;
+    // Contratos mantêm o formato legado (sem prefixo de entidade); ver
+    // `montarVarreduraKey` em `sweep.ts`.
+    const varreduraKey = montarVarreduraKey(
+      "contratos",
+      data.codigoOrgao,
+      data.dataInicial,
+      data.dataFinal,
+    );
     {
       // Retoma de onde parou (cgu_varredura). Sem estado, ou já completa →
       // recomeça do zero (re-varredura).
@@ -657,6 +617,8 @@ export const listImportacoes = createServerFn({ method: "GET" })
  * aplicada (tabela ausente → lista vazia).
  */
 export type VarreduraIncompleta = {
+  /** Entidade da varredura (contratos, licitacoes, …). Ver `sweep.ts`. */
+  entidade: string;
   orgaoCod: string;
   ultimaPagina: number;
   /** Janela de vigência (ISO), quando a varredura é por período. */
@@ -677,16 +639,21 @@ export const listarVarredurasIncompletas = createServerFn({ method: "GET" })
       if (tabelaVarreduraAusente(error)) return [];
       throw new Error(error.message);
     }
-    // A chave é `orgaoCod` (varredura completa) ou `orgaoCod#dataIni#dataFim`
-    // (janela de vigência). Desmembra para a UI mostrar/continuar corretamente.
-    return (data ?? []).map((r) => {
-      const [cod, dataInicial, dataFinal] = String(r.orgao_cod).split("#");
-      return {
-        orgaoCod: cod,
-        ultimaPagina: r.ultima_pagina,
-        ...(dataInicial && dataFinal ? { dataInicial, dataFinal } : {}),
-      };
-    });
+    // A chave compõe entidade + órgão + janela opcional (ver `parseVarreduraKey`
+    // em `sweep.ts`). Esta lista alimenta o aviso de "continuar varredura" da aba
+    // de contratos, então filtramos só a entidade contratos; as demais entidades
+    // expõem seus próprios avisos.
+    return (data ?? [])
+      .map((r): VarreduraIncompleta => {
+        const { entidade, orgaoCod, dataInicial, dataFinal } = parseVarreduraKey(String(r.orgao_cod));
+        return {
+          entidade,
+          orgaoCod,
+          ultimaPagina: r.ultima_pagina,
+          ...(dataInicial && dataFinal ? { dataInicial, dataFinal } : {}),
+        };
+      })
+      .filter((v) => v.entidade === "contratos");
   });
 
 /**
@@ -715,10 +682,11 @@ const FONTE_LABEL: Record<string, string> = {
   senado_vot: "Senado votações",
   pncp: "PNCP",
   transferegov: "Transferegov",
-  transferegov_especiais: "Transferegov — Especiais",
-  transferegov_finalidade: "Transferegov — Finalidade",
   siconfi: "SICONFI",
   cgu: "Portal CGU",
+  cgu_licitacoes: "Portal CGU — Licitações",
+  cgu_emendas: "Portal CGU — Emendas",
+  cgu_convenios: "Portal CGU — Convênios",
 };
 
 const MESES_CURTO = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
@@ -766,8 +734,7 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
         }
       }
       const isCgu = r.fonte === "cgu" && r.data_inicial && r.data_final;
-      const isAnual =
-        r.fonte === "transferegov_especiais" || r.fonte === "transferegov_finalidade";
+      const isAnual = r.fonte === "cgu_emendas";
       let escopo = r.escopo || "—";
       if (isCgu && r.orgao_cod) {
         const o = ORGAOS_BASE.find((x) => x.cod === r.orgao_cod);
@@ -828,6 +795,9 @@ export const clearImportData = createServerFn({ method: "POST" })
       // qa_findings. Só fontes que têm regras de qualidade aparecem aqui.
       const QA_FONTE_MAP: Record<string, string> = {
         cgu: "cgu",
+        cgu_licitacoes: "cgu_licitacoes",
+        cgu_emendas: "cgu_emendas",
+        cgu_convenios: "cgu_convenios",
         camara_ceap: "camara_ceap",
         senado_ceaps: "senado_ceaps",
         pncp: "pncp",
@@ -1149,6 +1119,87 @@ export const diagnosticarPortalPagina = createServerFn({ method: "POST" })
   });
 
 /**
+ * Inspeciona o JSON cru de QUALQUER endpoint do Portal da Transparência, sem
+ * mapeamento específico de entidade. É a ferramenta de de-risking (Fase 0): o
+ * admin aponta para `/licitacoes`, `/emendas`, `/transferencias`, `/convenios`
+ * etc. e recebe os NOMES DE CAMPO reais (chaves de topo + um nível aninhado),
+ * uma amostra de itens crus e os números com 4+ casas decimais (candidatos ao
+ * bug de escala ÷10000). Serve para TRAVAR a lista de campos antes de escrever
+ * cada mapper — o passo de maior risco, pois os campos diferem por endpoint.
+ *
+ * `diagnosticarPortalPagina` continua sendo o inspetor específico de contratos
+ * (parseia valores). Este é o genérico.
+ */
+export const diagnosticarPortalEndpoint = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        // Caminho do endpoint sob /api-de-dados (ex.: "/licitacoes").
+        endpoint: z.string().regex(/^\/[a-z0-9/-]{2,60}$/i),
+        codigoOrgao: z.string().regex(/^\d{4,6}$/).optional(),
+        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        // Como passar a janela à API: a maioria dos endpoints da CGU filtra em
+        // BR (DD/MM/YYYY); alguns aceitam ISO. Default BR.
+        datasBR: z.boolean().default(true),
+        pagina: z.number().int().min(1).max(2000).default(1),
+        amostra: z.number().int().min(1).max(10).default(3),
+        // Parâmetros de query extras (ex.: ano, codigoIbge) por endpoint.
+        params: z.record(z.string(), z.string()).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const params: Record<string, string> = {
+      pagina: String(data.pagina),
+      ...(data.codigoOrgao ? { codigoOrgao: data.codigoOrgao } : {}),
+      ...(data.params ?? {}),
+    };
+    if (data.dataInicial && data.dataFinal) {
+      params.dataInicial = data.datasBR ? isoToBR(data.dataInicial) : data.dataInicial;
+      params.dataFinal = data.datasBR ? isoToBR(data.dataFinal) : data.dataFinal;
+    }
+    const qs = new URLSearchParams(params).toString();
+    const urlConsultada = `${PORTAL_BASE}${data.endpoint}?${qs}`;
+    const { data: list, rawText } = await portalGetComTexto<unknown[]>(data.endpoint, params);
+    const itens = Array.isArray(list) ? list : list != null ? [list] : [];
+
+    // Chaves de topo + um nível aninhado (caminhos pontilhados), para travar os
+    // nomes de campo. Amostra de até 50 itens cobre variação de presença.
+    const chaves = new Set<string>();
+    for (const it of itens.slice(0, 50)) {
+      if (it && typeof it === "object" && !Array.isArray(it)) {
+        for (const [k, v] of Object.entries(it as Record<string, unknown>)) {
+          chaves.add(k);
+          if (v && typeof v === "object" && !Array.isArray(v)) {
+            for (const k2 of Object.keys(v as Record<string, unknown>)) chaves.add(`${k}.${k2}`);
+          }
+        }
+      }
+    }
+
+    const zerosMatches = rawText.match(/\b\d+\.\d{4,}\b/g);
+    const numerosComDecimaisNoJson = zerosMatches ? [...new Set(zerosMatches)].slice(0, 40) : [];
+
+    return {
+      urlConsultada,
+      totalNaPagina: itens.length,
+      // Lista de campos reais — copie daqui para escrever o mapper da entidade.
+      camposDetectados: [...chaves].sort(),
+      numerosComDecimaisNoJson,
+      // Itens crus (primeiros N) como JSON identado, para inspeção dos formatos
+      // de valor/data. String (não objeto) por ser sempre serializável e mais
+      // legível no painel admin.
+      amostra: itens.slice(0, data.amostra).map((it) => {
+        const s = JSON.stringify(it, null, 2);
+        return s.length > 4000 ? `${s.slice(0, 4000)}\n… (truncado)` : s;
+      }),
+    };
+  });
+
+/**
  * Busca UM contrato do cache por id. A página de detalhe usa isto como
  * fallback quando o contrato não está no dataset do cliente (que é limitado a
  * 10k linhas) — comum após varreduras grandes. Sem isso, contratos válidos
@@ -1183,12 +1234,13 @@ export const getContratoPorId = createServerFn({ method: "GET" })
     const orgao: Orgao | null = org
       ? {
           cod: org.cod,
-          sigla: org.sigla,
+          sigla: org.sigla ?? "",
           nome: org.nome,
-          funcao: org.funcao,
+          funcao: org.funcao ?? "",
           poder: org.poder as Orgao["poder"],
           disponivelPortal: org.disponivel_portal,
           nota: org.nota ?? undefined,
+          ativo: org.ativo,
         }
       : null;
     return { contrato, fornecedor, orgao };
@@ -1202,12 +1254,13 @@ export const loadStoredDataset = createServerFn({ method: "GET" }).handler(async
   ]);
   const orgaos: Orgao[] = (orgaosRes.data ?? []).map((o) => ({
     cod: o.cod,
-    sigla: o.sigla,
+    sigla: o.sigla ?? "",
     nome: o.nome,
-    funcao: o.funcao,
+    funcao: o.funcao ?? "",
     poder: o.poder as Orgao["poder"],
     disponivelPortal: o.disponivel_portal,
     nota: o.nota ?? undefined,
+    ativo: o.ativo,
   }));
   const fornecedores: Fornecedor[] = (fornRes.data ?? []).map((f) => ({ cnpj: f.cnpj, nome: f.nome }));
   const contratos: Contrato[] = (contRes.data ?? []).map((c) => ({

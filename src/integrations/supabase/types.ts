@@ -64,6 +64,7 @@ export type Database = {
           fontes_usadas: string[]
           id: string
           notas_internas: string | null
+          ordem: number
           publicado_em: string | null
           publico: boolean
           resumo: string | null
@@ -82,6 +83,7 @@ export type Database = {
           fontes_usadas?: string[]
           id?: string
           notas_internas?: string | null
+          ordem?: number
           publicado_em?: string | null
           publico?: boolean
           resumo?: string | null
@@ -100,6 +102,7 @@ export type Database = {
           fontes_usadas?: string[]
           id?: string
           notas_internas?: string | null
+          ordem?: number
           publicado_em?: string | null
           publico?: boolean
           resumo?: string | null
@@ -152,6 +155,36 @@ export type Database = {
           tamanho_bytes?: number
           updated_at?: string
           url?: string
+        }
+        Relationships: []
+      }
+      camara_deputado_legislaturas: {
+        Row: {
+          condicao_eleitoral: string | null
+          deputado_id: number
+          id_legislatura: number
+          sigla_partido: string | null
+          sigla_uf: string | null
+          situacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          condicao_eleitoral?: string | null
+          deputado_id: number
+          id_legislatura: number
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          condicao_eleitoral?: string | null
+          deputado_id?: number
+          id_legislatura?: number
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -419,6 +452,237 @@ export type Database = {
         }
         Relationships: []
       }
+      cgu_convenios_cache: {
+        Row: {
+          ano: number
+          codigo_siconv: string | null
+          convenente_cnpj: string | null
+          convenente_nome: string | null
+          data_fim_vigencia: string | null
+          data_inicio_vigencia: string | null
+          data_publicacao: string | null
+          id: string
+          mes_referencia: number | null
+          municipio_ibge: string | null
+          municipio_nome: string | null
+          numero: string | null
+          objeto: string | null
+          orgao_cnpj: string | null
+          orgao_cod: string | null
+          orgao_nome: string | null
+          situacao: string | null
+          tipo_instrumento: string | null
+          uf: string | null
+          updated_at: string
+          url_oficial: string | null
+          valor: number | null
+          valor_contrapartida: number | null
+          valor_liberado: number | null
+        }
+        Insert: {
+          ano: number
+          codigo_siconv?: string | null
+          convenente_cnpj?: string | null
+          convenente_nome?: string | null
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string | null
+          data_publicacao?: string | null
+          id: string
+          mes_referencia?: number | null
+          municipio_ibge?: string | null
+          municipio_nome?: string | null
+          numero?: string | null
+          objeto?: string | null
+          orgao_cnpj?: string | null
+          orgao_cod?: string | null
+          orgao_nome?: string | null
+          situacao?: string | null
+          tipo_instrumento?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor?: number | null
+          valor_contrapartida?: number | null
+          valor_liberado?: number | null
+        }
+        Update: {
+          ano?: number
+          codigo_siconv?: string | null
+          convenente_cnpj?: string | null
+          convenente_nome?: string | null
+          data_fim_vigencia?: string | null
+          data_inicio_vigencia?: string | null
+          data_publicacao?: string | null
+          id?: string
+          mes_referencia?: number | null
+          municipio_ibge?: string | null
+          municipio_nome?: string | null
+          numero?: string | null
+          objeto?: string | null
+          orgao_cnpj?: string | null
+          orgao_cod?: string | null
+          orgao_nome?: string | null
+          situacao?: string | null
+          tipo_instrumento?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor?: number | null
+          valor_contrapartida?: number | null
+          valor_liberado?: number | null
+        }
+        Relationships: []
+      }
+      cgu_licitacoes_cache: {
+        Row: {
+          ano: number
+          data_abertura: string | null
+          data_publicacao: string | null
+          data_resultado: string | null
+          id: string
+          mes_referencia: number | null
+          modalidade: string | null
+          municipio_ibge: string | null
+          municipio_nome: string | null
+          numero: string | null
+          numero_processo: string | null
+          objeto: string | null
+          orgao_cnpj: string | null
+          orgao_cod: string
+          situacao: string | null
+          uf: string | null
+          unidade_gestora: string | null
+          updated_at: string
+          url_oficial: string | null
+          valor: number | null
+        }
+        Insert: {
+          ano: number
+          data_abertura?: string | null
+          data_publicacao?: string | null
+          data_resultado?: string | null
+          id: string
+          mes_referencia?: number | null
+          modalidade?: string | null
+          municipio_ibge?: string | null
+          municipio_nome?: string | null
+          numero?: string | null
+          numero_processo?: string | null
+          objeto?: string | null
+          orgao_cnpj?: string | null
+          orgao_cod: string
+          situacao?: string | null
+          uf?: string | null
+          unidade_gestora?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor?: number | null
+        }
+        Update: {
+          ano?: number
+          data_abertura?: string | null
+          data_publicacao?: string | null
+          data_resultado?: string | null
+          id?: string
+          mes_referencia?: number | null
+          modalidade?: string | null
+          municipio_ibge?: string | null
+          municipio_nome?: string | null
+          numero?: string | null
+          numero_processo?: string | null
+          objeto?: string | null
+          orgao_cnpj?: string | null
+          orgao_cod?: string
+          situacao?: string | null
+          uf?: string | null
+          unidade_gestora?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      cgu_transferegov_emendas_cache: {
+        Row: {
+          ano: number
+          areas_politicas: string | null
+          autor: string | null
+          beneficiario_cnpj: string | null
+          beneficiario_nome: string | null
+          funcao: string | null
+          id: string
+          localidade: string | null
+          numero_emenda: string | null
+          plano_acao_situacao: string | null
+          planos_acao_count: number | null
+          subfuncao: string | null
+          tipo_emenda: string | null
+          uf: string | null
+          updated_at: string
+          url_oficial: string | null
+          valor_custeio: number | null
+          valor_empenhado: number | null
+          valor_investimento: number | null
+          valor_liquidado: number | null
+          valor_pago: number | null
+          valor_resto_cancelado: number | null
+          valor_resto_inscrito: number | null
+          valor_resto_pago: number | null
+        }
+        Insert: {
+          ano: number
+          areas_politicas?: string | null
+          autor?: string | null
+          beneficiario_cnpj?: string | null
+          beneficiario_nome?: string | null
+          funcao?: string | null
+          id: string
+          localidade?: string | null
+          numero_emenda?: string | null
+          plano_acao_situacao?: string | null
+          planos_acao_count?: number | null
+          subfuncao?: string | null
+          tipo_emenda?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor_custeio?: number | null
+          valor_empenhado?: number | null
+          valor_investimento?: number | null
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+          valor_resto_cancelado?: number | null
+          valor_resto_inscrito?: number | null
+          valor_resto_pago?: number | null
+        }
+        Update: {
+          ano?: number
+          areas_politicas?: string | null
+          autor?: string | null
+          beneficiario_cnpj?: string | null
+          beneficiario_nome?: string | null
+          funcao?: string | null
+          id?: string
+          localidade?: string | null
+          numero_emenda?: string | null
+          plano_acao_situacao?: string | null
+          planos_acao_count?: number | null
+          subfuncao?: string | null
+          tipo_emenda?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_oficial?: string | null
+          valor_custeio?: number | null
+          valor_empenhado?: number | null
+          valor_investimento?: number | null
+          valor_liquidado?: number | null
+          valor_pago?: number | null
+          valor_resto_cancelado?: number | null
+          valor_resto_inscrito?: number | null
+          valor_resto_pago?: number | null
+        }
+        Relationships: []
+      }
       cgu_varredura: {
         Row: {
           atualizado_em: string
@@ -616,12 +880,17 @@ export type Database = {
       }
       itens_salvos: {
         Row: {
+          conteudo_snapshot: string | null
           contexto: string | null
           created_at: string
           entidade_id: string
           entidade_tipo: string
           id: string
           pergunta_id: string | null
+          snapshot_divergiu_em: string | null
+          snapshot_em: string | null
+          snapshot_hash: string | null
+          snapshot_verificado_em: string | null
           tags: string[]
           titulo: string
           updated_at: string
@@ -629,12 +898,17 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          conteudo_snapshot?: string | null
           contexto?: string | null
           created_at?: string
           entidade_id: string
           entidade_tipo: string
           id?: string
           pergunta_id?: string | null
+          snapshot_divergiu_em?: string | null
+          snapshot_em?: string | null
+          snapshot_hash?: string | null
+          snapshot_verificado_em?: string | null
           tags?: string[]
           titulo: string
           updated_at?: string
@@ -642,12 +916,17 @@ export type Database = {
           user_id: string
         }
         Update: {
+          conteudo_snapshot?: string | null
           contexto?: string | null
           created_at?: string
           entidade_id?: string
           entidade_tipo?: string
           id?: string
           pergunta_id?: string | null
+          snapshot_divergiu_em?: string | null
+          snapshot_em?: string | null
+          snapshot_hash?: string | null
+          snapshot_verificado_em?: string | null
           tags?: string[]
           titulo?: string
           updated_at?: string
@@ -723,35 +1002,86 @@ export type Database = {
           },
         ]
       }
+      mapa_prompts: {
+        Row: {
+          artigo_id: string
+          created_at: string
+          ordem: number
+          prompt_modelo_id: string
+        }
+        Insert: {
+          artigo_id: string
+          created_at?: string
+          ordem?: number
+          prompt_modelo_id: string
+        }
+        Update: {
+          artigo_id?: string
+          created_at?: string
+          ordem?: number
+          prompt_modelo_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mapa_prompts_artigo_id_fkey"
+            columns: ["artigo_id"]
+            isOneToOne: false
+            referencedRelation: "artigos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mapa_prompts_prompt_modelo_id_fkey"
+            columns: ["prompt_modelo_id"]
+            isOneToOne: false
+            referencedRelation: "prompt_modelos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orgaos_cache: {
         Row: {
+          ano_ultima_despesa: number | null
+          ativo: boolean
           cod: string
           disponivel_portal: boolean
-          funcao: string
+          funcao: string | null
           nome: string
           nota: string | null
+          orgao_vinculado_cod: string | null
+          orgao_vinculado_nome: string | null
           poder: string
-          sigla: string
+          sigla: string | null
+          ultima_verificacao_atividade: string | null
           updated_at: string
         }
         Insert: {
+          ano_ultima_despesa?: number | null
+          ativo?: boolean
           cod: string
           disponivel_portal?: boolean
-          funcao: string
+          funcao?: string | null
           nome: string
           nota?: string | null
-          poder: string
-          sigla: string
+          orgao_vinculado_cod?: string | null
+          orgao_vinculado_nome?: string | null
+          poder?: string
+          sigla?: string | null
+          ultima_verificacao_atividade?: string | null
           updated_at?: string
         }
         Update: {
+          ano_ultima_despesa?: number | null
+          ativo?: boolean
           cod?: string
           disponivel_portal?: boolean
-          funcao?: string
+          funcao?: string | null
           nome?: string
           nota?: string | null
+          orgao_vinculado_cod?: string | null
+          orgao_vinculado_nome?: string | null
           poder?: string
-          sigla?: string
+          sigla?: string | null
+          ultima_verificacao_atividade?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -876,6 +1206,7 @@ export type Database = {
           modelo_id: string | null
           moderador_id: string | null
           motivo_rejeicao: string | null
+          ordem: number
           publicada_em: string | null
           revisada_em: string | null
           slug: string | null
@@ -897,6 +1228,7 @@ export type Database = {
           modelo_id?: string | null
           moderador_id?: string | null
           motivo_rejeicao?: string | null
+          ordem?: number
           publicada_em?: string | null
           revisada_em?: string | null
           slug?: string | null
@@ -918,6 +1250,7 @@ export type Database = {
           modelo_id?: string | null
           moderador_id?: string | null
           motivo_rejeicao?: string | null
+          ordem?: number
           publicada_em?: string | null
           revisada_em?: string | null
           slug?: string | null
@@ -1032,6 +1365,45 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+        }
+        Relationships: []
+      }
+      prompt_modelos: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          id: string
+          ordem: number
+          prompt_template: string
+          tags: string[]
+          titulo: string
+          updated_at: string
+          variaveis: Json
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          prompt_template: string
+          tags?: string[]
+          titulo: string
+          updated_at?: string
+          variaveis?: Json
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          ordem?: number
+          prompt_template?: string
+          tags?: string[]
+          titulo?: string
+          updated_at?: string
+          variaveis?: Json
         }
         Relationships: []
       }
@@ -1257,6 +1629,33 @@ export type Database = {
         }
         Relationships: []
       }
+      senado_senador_legislaturas: {
+        Row: {
+          codigo_parlamentar: number
+          legislatura: number
+          participacao: string | null
+          sigla_partido: string | null
+          sigla_uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo_parlamentar: number
+          legislatura: number
+          participacao?: string | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo_parlamentar?: number
+          legislatura?: number
+          participacao?: string | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       senado_senadores_cache: {
         Row: {
           codigo_parlamentar: number
@@ -1416,72 +1815,6 @@ export type Database = {
           uf?: string | null
           updated_at?: string
           valor?: number | null
-        }
-        Relationships: []
-      }
-      transferegov_emendas_cache: {
-        Row: {
-          ano: number
-          autor_emenda: string | null
-          beneficiario_cnpj: string | null
-          beneficiario_nome: string | null
-          codigo_emenda: string | null
-          data_referencia: string | null
-          finalidade: string | null
-          funcao: string | null
-          id: string
-          modalidade: string
-          municipio_ibge: string | null
-          municipio_nome: string | null
-          numero_emenda: string | null
-          subfuncao: string | null
-          uf: string | null
-          updated_at: string
-          url_transferegov: string | null
-          valor: number
-          valor_pago: number
-        }
-        Insert: {
-          ano: number
-          autor_emenda?: string | null
-          beneficiario_cnpj?: string | null
-          beneficiario_nome?: string | null
-          codigo_emenda?: string | null
-          data_referencia?: string | null
-          finalidade?: string | null
-          funcao?: string | null
-          id: string
-          modalidade: string
-          municipio_ibge?: string | null
-          municipio_nome?: string | null
-          numero_emenda?: string | null
-          subfuncao?: string | null
-          uf?: string | null
-          updated_at?: string
-          url_transferegov?: string | null
-          valor?: number
-          valor_pago?: number
-        }
-        Update: {
-          ano?: number
-          autor_emenda?: string | null
-          beneficiario_cnpj?: string | null
-          beneficiario_nome?: string | null
-          codigo_emenda?: string | null
-          data_referencia?: string | null
-          finalidade?: string | null
-          funcao?: string | null
-          id?: string
-          modalidade?: string
-          municipio_ibge?: string | null
-          municipio_nome?: string | null
-          numero_emenda?: string | null
-          subfuncao?: string | null
-          uf?: string | null
-          updated_at?: string
-          url_transferegov?: string | null
-          valor?: number
-          valor_pago?: number
         }
         Relationships: []
       }
@@ -1654,6 +1987,15 @@ export type Database = {
           ultimo: string
         }[]
       }
+      cobertura_camara_proposicoes: {
+        Args: never
+        Returns: {
+          ano: number
+          mes: number
+          qtd: number
+          ultimo: string
+        }[]
+      }
       cobertura_camara_votacoes: {
         Args: never
         Returns: {
@@ -1673,6 +2015,34 @@ export type Database = {
           ultimo: string
         }[]
       }
+      cobertura_cgu_convenios: {
+        Args: never
+        Returns: {
+          ano: number
+          mes: number
+          qtd: number
+          ultimo: string
+        }[]
+      }
+      cobertura_cgu_emendas: {
+        Args: never
+        Returns: {
+          ano: number
+          mes: number
+          qtd: number
+          ultimo: string
+        }[]
+      }
+      cobertura_cgu_licitacoes: {
+        Args: never
+        Returns: {
+          ano: number
+          mes: number
+          orgao_cod: string
+          qtd: number
+          ultimo: string
+        }[]
+      }
       cobertura_pncp: {
         Args: never
         Returns: {
@@ -1683,6 +2053,15 @@ export type Database = {
         }[]
       }
       cobertura_senado_ceaps: {
+        Args: never
+        Returns: {
+          ano: number
+          mes: number
+          qtd: number
+          ultimo: string
+        }[]
+      }
+      cobertura_senado_materias: {
         Args: never
         Returns: {
           ano: number
@@ -1723,15 +2102,6 @@ export type Database = {
       }
       cobertura_transferegov: {
         Args: never
-        Returns: {
-          ano: number
-          mes: number
-          qtd: number
-          ultimo: string
-        }[]
-      }
-      cobertura_transferegov_emendas: {
-        Args: { _modalidade: string }
         Returns: {
           ano: number
           mes: number
@@ -1830,6 +2200,9 @@ export type Database = {
         | "parlamentar"
         | "votacao"
         | "anomalia"
+        | "prompt"
+        | "emenda"
+        | "licitacao"
       pergunta_status:
         | "privada"
         | "em_revisao"
@@ -1985,6 +2358,9 @@ export const Constants = {
         "parlamentar",
         "votacao",
         "anomalia",
+        "prompt",
+        "emenda",
+        "licitacao",
       ],
       pergunta_status: [
         "privada",

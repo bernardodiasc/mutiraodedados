@@ -3,16 +3,28 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 import { CheckCircle2, Circle, Loader2, Sparkles, ListChecks } from "lucide-react";
-import { listarRoadmapPublico, type RoadmapItem, type RoadmapStatus } from "@/lib/data/roadmap.functions";
+import {
+  listarRoadmapPublico,
+  type RoadmapItem,
+  type RoadmapStatus,
+} from "@/lib/data/roadmap.functions";
+import { ordenarConcluidos } from "@/lib/admin-roadmap/logic";
 
 export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
   head: () => ({
     meta: [
       { title: "Roadmap & novidades — Auditoria Cidadã" },
-      { name: "description", content: "O que já está no ar, o que está em construção e o que vem a seguir na Auditoria Cidadã. Inclui notas de versão por entrega." },
+      {
+        name: "description",
+        content:
+          "O que já está no ar, o que está em construção e o que vem a seguir na Auditoria Cidadã. Inclui notas de versão por entrega.",
+      },
       { property: "og:title", content: "Roadmap & novidades — Auditoria Cidadã" },
-      { property: "og:description", content: "Histórico de entregas e prioridades em construção, com notas de cada lançamento." },
+      {
+        property: "og:description",
+        content: "Histórico de entregas e prioridades em construção, com notas de cada lançamento.",
+      },
       { property: "og:url", content: "https://auditoriacidada.ia.br/roadmap" },
     ],
     links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/roadmap" }],
@@ -35,17 +47,20 @@ function RoadmapPage() {
   });
   const [aba, setAba] = React.useState<Aba>("tudo");
 
-  const concluidos = [...data]
-    .filter((i) => i.status === "concluido")
-    .sort((a, b) => (b.concluido_em ?? "").localeCompare(a.concluido_em ?? ""));
+  // Concluídos: por data de conclusão (mais recente primeiro) e, dentro do mesmo
+  // dia, pela ordem manual — mesma regra do /admin/roadmap.
+  const concluidos = ordenarConcluidos(data.filter((i) => i.status === "concluido"));
   const emAndamento = data.filter((i) => i.status === "em_andamento");
   const planejados = data.filter((i) => i.status === "planejado");
 
   const visiveis: RoadmapItem[] =
-    aba === "concluido" ? concluidos :
-    aba === "em_andamento" ? emAndamento :
-    aba === "planejado" ? planejados :
-    [...emAndamento, ...planejados, ...concluidos];
+    aba === "concluido"
+      ? concluidos
+      : aba === "em_andamento"
+        ? emAndamento
+        : aba === "planejado"
+          ? planejados
+          : [...emAndamento, ...planejados, ...concluidos];
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-12">
@@ -54,8 +69,8 @@ function RoadmapPage() {
       </span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">O que estamos construindo</h1>
       <p className="mt-4 text-lg text-muted-foreground">
-        Estado real da plataforma: o que já está no ar, o que está em construção e o
-        que vem a seguir. A aba{" "}
+        Estado real da plataforma: o que já está no ar, o que está em construção e o que vem a
+        seguir. A aba{" "}
         <button data-flat className="text-accent underline" onClick={() => setAba("concluido")}>
           Concluídos
         </button>{" "}
@@ -63,12 +78,14 @@ function RoadmapPage() {
       </p>
 
       <nav className="mt-8 inline-flex flex-wrap rounded-lg border border-border bg-card/50 p-1 text-xs">
-        {([
-          ["tudo", "Tudo", data.length],
-          ["em_andamento", "Em construção", emAndamento.length],
-          ["planejado", "Planejado", planejados.length],
-          ["concluido", "Concluídos", concluidos.length],
-        ] as const).map(([k, l, qtd]) => (
+        {(
+          [
+            ["tudo", "Tudo", data.length],
+            ["em_andamento", "Em construção", emAndamento.length],
+            ["planejado", "Planejado", planejados.length],
+            ["concluido", "Concluídos", concluidos.length],
+          ] as const
+        ).map(([k, l, qtd]) => (
           <button
             data-flat
             key={k}
@@ -78,9 +95,11 @@ function RoadmapPage() {
             }`}
           >
             {l}
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-              aba === k ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
-            }`}>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                aba === k ? "bg-accent/20 text-accent" : "bg-muted text-muted-foreground"
+              }`}
+            >
               {qtd}
             </span>
           </button>
@@ -98,27 +117,37 @@ function RoadmapPage() {
           <ReleaseNotes itens={concluidos} />
         ) : (
           <ul className="space-y-3">
-            {visiveis.map((it) => <ItemCard key={it.id} item={it} />)}
+            {visiveis.map((it) => (
+              <ItemCard key={it.id} item={it} />
+            ))}
           </ul>
         )}
       </section>
 
       <p className="mt-10 text-xs text-muted-foreground">
         Tem sugestão, crítica ou achou um erro?{" "}
-        <Link to="/contestar" className="text-accent underline">Conte para nós</Link>.
-        Quer ajudar a construir o que vem a seguir? Veja{" "}
-        <Link to="/contribuir" className="text-accent underline">como contribuir</Link>.
+        <Link to="/contestar" className="text-accent underline">
+          Conte para nós
+        </Link>
+        . Quer ajudar a construir o que vem a seguir? Veja{" "}
+        <Link to="/contribuir" className="text-accent underline">
+          como contribuir
+        </Link>
+        .
       </p>
     </article>
   );
 }
 
-
 function ItemCard({ item }: { item: RoadmapItem }) {
-  const Icon = item.status === "concluido" ? CheckCircle2 : item.status === "em_andamento" ? Sparkles : Circle;
+  const Icon =
+    item.status === "concluido" ? CheckCircle2 : item.status === "em_andamento" ? Sparkles : Circle;
   const iconCls =
-    item.status === "concluido" ? "text-emerald-600 dark:text-emerald-400" :
-    item.status === "em_andamento" ? "text-accent" : "text-muted-foreground";
+    item.status === "concluido"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : item.status === "em_andamento"
+        ? "text-accent"
+        : "text-muted-foreground";
   return (
     <li className="rounded-xl border border-border bg-card p-5">
       <div className="flex items-start gap-3">
@@ -160,7 +189,7 @@ function RenderMarkdownLinks({ text }: { text: string }) {
     parts.push(
       <Link key={key} to={href} className="text-accent underline">
         {label}
-      </Link>
+      </Link>,
     );
     lastIndex = regex.lastIndex;
   }
@@ -185,7 +214,9 @@ function ReleaseNotes({ itens }: { itens: RoadmapItem[] }) {
             {mes === "sem-data" ? "Sem data registrada" : formatarMes(mes)}
           </h2>
           <ul className="space-y-3">
-            {lista.map((it) => <ItemCard key={it.id} item={it} />)}
+            {lista.map((it) => (
+              <ItemCard key={it.id} item={it} />
+            ))}
           </ul>
         </div>
       ))}
@@ -197,10 +228,25 @@ function formatarData(iso: string) {
   try {
     const [a, m, d] = iso.split("-");
     return `${d}/${m}/${a}`;
-  } catch { return iso; }
+  } catch {
+    return iso;
+  }
 }
 function formatarMes(ym: string) {
   const [a, m] = ym.split("-");
-  const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+  const meses = [
+    "Janeiro",
+    "Fevereiro",
+    "Março",
+    "Abril",
+    "Maio",
+    "Junho",
+    "Julho",
+    "Agosto",
+    "Setembro",
+    "Outubro",
+    "Novembro",
+    "Dezembro",
+  ];
   return `${meses[Number(m) - 1] ?? m} de ${a}`;
 }

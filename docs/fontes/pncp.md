@@ -5,6 +5,10 @@
 - **Janela**: 2021 (criação do portal).
 - **Documentação oficial**: <https://pncp.gov.br/api/consulta/swagger-ui/index.html>
 
+## Relação com o Portal CGU (eixo "Por fonte")
+
+O PNCP é a **fonte autoritativa da camada jurídica** das contratações: edital, termo de referência, atas de lances e o contrato assinado. O [Portal CGU](./portal-cgu.md) traz o **resumo financeiro** de contratos e licitações (eixo "Por tema"), mas **não expõe a chave `numeroControlePNCP`** no JSON — confirmado por inspeção ao vivo. Por isso o cross-link das páginas de Contratos/Licitações para o PNCP é um **link de busca** por CNPJ do órgão + número, não um deep-link. O PNCP é o destino natural para baixar os documentos completos a partir do resumo da CGU.
+
 ## O que importamos
 
 - **Contratos** publicados sob a [Lei 14.133/2021](../conceitos/pncp-e-nova-lei-licitacoes.md) — de **todos os entes federados** (União, estados, municípios), não só Executivo Federal.

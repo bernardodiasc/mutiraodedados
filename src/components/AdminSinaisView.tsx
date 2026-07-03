@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
-import { ArrowLeft, AlertTriangle } from "lucide-react";
-import { AdminNav } from "@/components/AdminNav";
+import { AlertTriangle } from "lucide-react";
+import { AdminHeader } from "@/components/AdminHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { InvestigacaoInline } from "@/components/InvestigacaoInline";
 import type { Anomalia } from "@/lib/data/types";
@@ -41,46 +41,29 @@ export function AdminSinaisView({
   onLimpar,
 }: AdminSinaisViewProps) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-10 space-y-6">
-      <Link
-        to="/admin"
-        className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
-      >
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
-      <header>
-        <h1 className="font-display text-4xl">Sinais</h1>
-        <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-          Padrões estatísticos detectados pelo heurístico cidadão sobre os
-          dados em cache. São <strong>indícios</strong>, não irregularidades —
-          a visão pública vive em{" "}
-          <Link to="/anomalias" className="underline">
-            /anomalias
-          </Link>
-          . Aqui você prioriza o que merece virar finding investigado em{" "}
-          <Link to="/admin/qualidade" className="underline">
-            Qualidade
-          </Link>
-          .
-        </p>
-      </header>
-      <AdminNav />
+    <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
+      <AdminHeader titulo="Sinais">
+        Padrões estatísticos detectados pelo heurístico cidadão sobre os dados em cache. São{" "}
+        <strong>indícios</strong>, não irregularidades — a visão pública vive em{" "}
+        <Link to="/anomalias" className="underline">
+          /anomalias
+        </Link>
+        . Aqui você prioriza o que merece virar finding investigado em{" "}
+        <Link to="/admin/qualidade" className="underline">
+          Qualidade
+        </Link>
+        .
+      </AdminHeader>
 
       <section className="grid sm:grid-cols-4 gap-3">
         <div className="rounded-lg border border-border bg-card p-3">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Total
-          </div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Total</div>
           <div className="text-2xl font-display mt-1">{all.length}</div>
         </div>
         {(["alta", "media", "baixa"] as const).map((s) => (
           <div key={s} className="rounded-lg border border-border bg-card p-3">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              {s}
-            </div>
-            <div className="text-2xl font-display mt-1">
-              {contarPorSeveridade(all, s)}
-            </div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">{s}</div>
+            <div className="text-2xl font-display mt-1">{contarPorSeveridade(all, s)}</div>
           </div>
         ))}
       </section>
@@ -96,10 +79,7 @@ export function AdminSinaisView({
               onClick={() => onToggleSev(s)}
               className={`px-2.5 py-1 rounded-full border transition ${sevSel === s ? "bg-foreground text-background border-foreground" : "bg-card border-border hover:bg-muted"}`}
             >
-              {s}{" "}
-              <span className="opacity-60 ml-1">
-                {contarPorSeveridade(all, s)}
-              </span>
+              {s} <span className="opacity-60 ml-1">{contarPorSeveridade(all, s)}</span>
             </button>
           ))}
         </div>
@@ -176,9 +156,7 @@ export function AdminSinaisView({
               }}
               curls={buildCurlsSinal(f)}
             >
-              <div
-                className={`rounded-md -m-4 p-4 ${SEV_STYLES[f.severidade] ?? ""}`}
-              >
+              <div className={`rounded-md -m-4 p-4 ${SEV_STYLES[f.severidade] ?? ""}`}>
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
@@ -190,9 +168,7 @@ export function AdminSinaisView({
                     <h3 className="font-display text-lg mt-1 leading-tight text-foreground">
                       {f.titulo}
                     </h3>
-                    <p className="text-xs text-foreground/80 mt-1">
-                      {f.explicacao}
-                    </p>
+                    <p className="text-xs text-foreground/80 mt-1">{f.explicacao}</p>
                     <div className="text-xs text-foreground/80 mt-1">
                       <a
                         href={hrefSinal(f)}

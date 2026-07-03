@@ -7,17 +7,23 @@ import {
   listarRoadmap,
   salvarItemRoadmap,
   excluirItemRoadmap,
+  reordenarRoadmap,
   type RoadmapItem,
 } from "@/lib/data/roadmap.functions";
+import { downloadCSV } from "@/lib/csv";
+import { mesclarOrdemFiltrada } from "@/lib/lista-ordenavel/logic";
 import { AdminRoadmapView } from "@/components/AdminRoadmapView";
 import {
   type Aba,
   type FormRoadmap,
+  CSV_COLUNAS_ROADMAP,
   FORM_INICIAL,
   buildSavePayload,
   formFromItem,
+  itemParaTextoCopiavel,
+  itensParaCsv,
+  itensVisiveis,
   ordenarItens,
-  vizinhoParaTroca,
 } from "@/lib/admin-roadmap/logic";
 
 export function AdminRoadmapContainer() {
@@ -26,6 +32,7 @@ export function AdminRoadmapContainer() {
   const fetchAll = useServerFn(listarRoadmap);
   const save = useServerFn(salvarItemRoadmap);
   const remove = useServerFn(excluirItemRoadmap);
+  const reordenar = useServerFn(reordenarRoadmap);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["admin-roadmap"],
@@ -33,19 +40,21 @@ export function AdminRoadmapContainer() {
     enabled: isAdmin,
   });
 
-  const [editing, setEditing] = React.useState<RoadmapItem | null>(null);
-  const [form, setForm] = React.useState<FormRoadmap>(FORM_INICIAL);
+  const [criarAberto, setCriarAberto] = React.useState(false);
+  const [criarForm, setCriarForm] = React.useState<FormRoadmap>(FORM_INICIAL);
+  const [editandoId, setEditandoId] = React.useState<string | null>(null);
+  const [editForm, setEditForm] = React.useState<FormRoadmap>(FORM_INICIAL);
   const [busy, setBusy] = React.useState(false);
   const [aba, setAba] = React.useState<Aba>("tudo");
 
-  const reset = () => {
-    setEditing(null);
-    setForm(FORM_INICIAL);
+  const startEdit = (it: RoadmapItem) => {
+    setEditandoId(it.id);
+    setEditForm(formFromItem(it));
   };
 
-  const startEdit = (it: RoadmapItem) => {
-    setEditing(it);
-    setForm(formFromItem(it));
+  const cancelEdit = () => {
+    setEditandoId(null);
+    setEditForm(FORM_INICIAL);
   };
 
   const invalidar = async () => {
@@ -54,17 +63,46 @@ export function AdminRoadmapContainer() {
     await qc.invalidateQueries({ queryKey: ["roadmap-publico"] });
   };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const salvar = async (form: FormRoadmap, editing: RoadmapItem | null): Promise<boolean> => {
     if (!form.titulo.trim()) {
       toast.error("Informe um título.");
-      return;
+      return false;
     }
     setBusy(true);
     try {
       await save({ data: buildSavePayload(form, editing, items.length) });
       toast.success(editing ? "Item atualizado." : "Item adicionado.");
-      reset();
+      await invalidar();
+      return true;
+    } catch (err) {
+      toast.error((err as Error).message);
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onCriarSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (await salvar(criarForm, null)) {
+      setCriarForm(FORM_INICIAL);
+      setCriarAberto(false);
+    }
+  };
+
+  const onEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const editing = items.find((x) => x.id === editandoId) ?? null;
+    if (!editing) return;
+    if (await salvar(editForm, editing)) cancelEdit();
+  };
+
+  const onReordenar = async (visiveisNaNovaOrdem: string[]) => {
+    const completos = ordenarItens(items).map((it) => it.id);
+    const ids = mesclarOrdemFiltrada(completos, visiveisNaNovaOrdem);
+    setBusy(true);
+    try {
+      await reordenar({ data: { ids } });
       await invalidar();
     } catch (err) {
       toast.error((err as Error).message);
@@ -73,10 +111,7 @@ export function AdminRoadmapContainer() {
     }
   };
 
-  const move = async (it: RoadmapItem, dir: -1 | 1) => {
-    const sorted = ordenarItens(items);
-    const swap = vizinhoParaTroca(sorted, it.id, dir);
-    if (!swap) return;
+  const onTogglePublicar = async (it: RoadmapItem) => {
     setBusy(true);
     try {
       await save({
@@ -85,24 +120,13 @@ export function AdminRoadmapContainer() {
           titulo: it.titulo,
           descricao: it.descricao,
           status: it.status,
-          ordem: swap.ordem,
-          publico: it.publico,
+          ordem: it.ordem,
+          publico: !it.publico,
           notas: it.notas,
           concluido_em: it.concluido_em,
         },
       });
-      await save({
-        data: {
-          id: swap.id,
-          titulo: swap.titulo,
-          descricao: swap.descricao,
-          status: swap.status,
-          ordem: it.ordem,
-          publico: swap.publico,
-          notas: swap.notas,
-          concluido_em: swap.concluido_em,
-        },
-      });
+      toast.success(it.publico ? "Item despublicado." : "Item publicado.");
       await invalidar();
     } catch (err) {
       toast.error((err as Error).message);
@@ -117,12 +141,26 @@ export function AdminRoadmapContainer() {
     try {
       await remove({ data: { id: it.id } });
       toast.success("Item excluído.");
-      if (editing?.id === it.id) reset();
+      if (editandoId === it.id) cancelEdit();
       await invalidar();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  const onDownloadLista = () => {
+    const visiveis = itensVisiveis(ordenarItens(items), aba);
+    downloadCSV(`roadmap_${aba}`, itensParaCsv(visiveis), CSV_COLUNAS_ROADMAP);
+  };
+
+  const onCopiarItem = async (it: RoadmapItem) => {
+    try {
+      await navigator.clipboard.writeText(itemParaTextoCopiavel(it));
+      toast.success("Texto do item copiado.");
+    } catch {
+      toast.error("Não foi possível copiar.");
     }
   };
 
@@ -136,17 +174,27 @@ export function AdminRoadmapContainer() {
     <AdminRoadmapView
       isLoading={isLoading}
       sorted={sorted}
-      editing={editing}
-      form={form}
-      setForm={setForm}
       busy={busy}
       aba={aba}
       setAba={setAba}
-      onSubmit={submit}
-      onReset={reset}
+      criarAberto={criarAberto}
+      setCriarAberto={setCriarAberto}
+      criarForm={criarForm}
+      setCriarForm={setCriarForm}
+      onCriarSubmit={onCriarSubmit}
+      editandoId={editandoId}
+      editForm={editForm}
+      setEditForm={setEditForm}
+      onEditSubmit={onEditSubmit}
       onStartEdit={startEdit}
-      onMove={move}
+      onCancelEdit={cancelEdit}
+      onReordenar={onReordenar}
+      onTogglePublicar={onTogglePublicar}
       onDelete={del}
+      onDownloadLista={onDownloadLista}
+      onCopiarItem={onCopiarItem}
     />
   );
 }
+
+AdminRoadmapContainer.displayName = "AdminRoadmapContainer";

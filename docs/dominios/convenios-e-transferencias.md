@@ -4,13 +4,23 @@
 
 Acompanhar repasses do governo federal para estados, municípios e entidades — incluindo convênios tradicionais e emendas Pix.
 
+## Modelo: página ↔ endpoint do Portal CGU
+
+Cada página-tópico do eixo "Por tema" corresponde a um endpoint `/api-de-dados/*`:
+
+- `/emendas` ↔ `/emendas` (origem das emendas — **inclui as EC 105 / "emendas Pix"** via `tipoEmenda`).
+- `/convenios` ↔ `/convenios` (instrumentos de cooperação).
+- `/transferencias` ↔ `/transferencias` (repasses no nível de **Ordem Bancária** — execução).
+
+As **EC 105 ("emendas Pix")** são um *tipo de emenda*, não uma fonte à parte: vivem em `/emendas` (filtre por tipo "Finalidade Definida" ou "Especial"). O Transferegov é o *sistema-fonte* que as opera e fornece detalhe de execução.
+
 ## Páginas públicas
 
-- `/convenios` — lista de convênios e contratos de repasse (SICONV). Filtros por UF, município, modalidade, situação.
-- `/convenios/$id` — detalhe de um convênio: concedente, convenente, valores (global/repasse/contrapartida), vigência, plano de trabalho, link para Portal da Transparência e Transferegov.
-- `/transferencias` — emendas Pix (transferências especiais e com finalidade definida, EC 105/2019).
-- `/transferencias/especiais/$id` — detalhe de transferência especial: ente recebedor, valor, autor da emenda.
-- `/transferencias/finalidade/$id` — detalhe de transferência com finalidade definida.
+- `/emendas` e `/emendas/$id` — **emendas parlamentares** (endpoint `/emendas`, `cgu_emendas_cache`, varredura por ano). 3 fases da despesa (empenhado/liquidado/pago) + restos. Filtro por tipo (incl. EC 105). Eixo "Por tema".
+- `/convenios` — convênios e contratos de repasse pelo endpoint `/convenios` (`cgu_convenios_cache`). Filtros por UF, ano, situação, valor.
+- `/convenios/$id` — detalhe (concedente, convenente, valores, vigência, link Portal).
+- `/transferencias` — página do endpoint `/transferencias` (repasses OB). **Doc-only:** o endpoint retorna 403 com a chave atual; a página explica o conceito, a "fratura Fundo a Fundo" e aponta para Emendas (EC 105), Convênios e SICONFI.
+- `/transferencias/especiais/$id` e `/transferencias/finalidade/$id` — detalhe legado de uma EC 105 vinda do Transferegov (`transferegov_emendas_cache`). Mantidos para links antigos; a navegação primária da EC 105 é via `/emendas`.
 
 ## Padrão de card
 
@@ -25,8 +35,9 @@ Card de transferência mostra: tipo, ente recebedor, valor, autor (deputado/sena
 
 ## Fontes
 
-- Convênios: [Portal CGU](../fontes/portal-cgu.md) (via `/convenios`).
-- Emendas Pix: [Transferegov](../fontes/transferegov.md).
+- Convênios: [Portal CGU](../fontes/portal-cgu.md) (endpoint `/convenios` → `cgu_convenios_cache`).
+- Emendas (incl. EC 105 / Pix): [Portal CGU](../fontes/portal-cgu.md) (endpoint `/emendas` → `cgu_emendas_cache`). O [Transferegov](../fontes/transferegov.md) é o sistema-fonte que opera as EC 105 e fornece detalhe de execução (`transferegov_emendas_cache`).
+- Transferências (Ordem Bancária): endpoint `/transferencias` do Portal — doc-only (403), ver [Transferegov](../fontes/transferegov.md) e [sanções e preços](../fontes/sancoes-precos-referencia.md).
 
 ## Conceitos relacionados
 

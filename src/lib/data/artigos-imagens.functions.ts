@@ -51,8 +51,13 @@ export const listarImagensGaleria = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .range(data.offset, data.offset + data.limit - 1);
     if (data.q && data.q.trim()) {
-      const termo = `%${data.q.trim()}%`;
-      q = q.or(`nome_original.ilike.${termo},legenda.ilike.${termo}`);
+      // remove caracteres estruturais da sintaxe de filtros PostgREST (`.or=`)
+      // para impedir injeção de condições adicionais via termo de busca
+      const limpo = data.q.replace(/[%(),.*]/g, " ").replace(/\s+/g, " ").trim();
+      if (limpo) {
+        const termo = `%${limpo}%`;
+        q = q.or(`nome_original.ilike.${termo},legenda.ilike.${termo}`);
+      }
     }
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);

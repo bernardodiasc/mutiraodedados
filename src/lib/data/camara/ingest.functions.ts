@@ -8,17 +8,39 @@ import { regrasCamaraCeap, flagQA } from "@/lib/data/qa";
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
 const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
 
-async function camaraGet<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * GET na API da Câmara com retry/backoff. A API fica atrás de um gateway que
+ * às vezes devolve 429/5xx transitórios (ex.: 504 do Cloudflare). Repetimos
+ * com espera exponencial (500 → 1500 → 4500 ms); 4xx são erros definitivos.
+ */
+async function camaraGet<T = unknown>(
+  path: string,
+  params: Record<string, string> = {},
+  tentativas = 4,
+): Promise<T> {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}${qs ? `?${qs}` : ""}`;
-  const res = await fetch(url, {
-    headers: { accept: "application/json", "user-agent": UA },
-  });
-  if (!res.ok) {
+  let ultimoErro = "sem resposta";
+  for (let tent = 0; tent < tentativas; tent++) {
+    if (tent > 0) await sleep(500 * 3 ** (tent - 1));
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { accept: "application/json", "user-agent": UA } });
+    } catch (e) {
+      ultimoErro = (e as Error).message; // rede → retry
+      continue;
+    }
+    if (res.ok) return (await res.json()) as T;
+    if (res.status === 429 || res.status >= 500) {
+      ultimoErro = `${res.status}`; // transitório → retry
+      continue;
+    }
     const body = await res.text().catch(() => "");
-    throw new Error(`Câmara API ${res.status}: ${body.slice(0, 200)}`);
+    throw new Error(`Câmara API ${res.status}: ${body.slice(0, 200)}`); // 4xx definitivo
   }
-  return (await res.json()) as T;
+  throw new Error(`Câmara API indisponível após ${tentativas} tentativas (último: ${ultimoErro}).`);
 }
 
 type CamaraEnvelope<T> = { dados: T; links?: Array<{ rel: string; href: string }> };
@@ -34,7 +56,138 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-/** Importa o cadastro completo de deputados da legislatura indicada (padrão: atual). */
+/** Legislatura corrente (52 = 2003–2007, +1 a cada 4 anos). 2023–2027 = 57. */
+export function legislaturaAtualCamara(): number {
+  return 52 + Math.floor((new Date().getFullYear() - 2003) / 4);
+}
+function anoInicioLegislatura(n: number): number {
+  return 2003 + (n - 52) * 4;
+}
+
+type DepListItem = {
+  id: number;
+  nome: string;
+  siglaPartido?: string;
+  siglaUf?: string;
+  idLegislatura?: number;
+  urlFoto?: string;
+  email?: string;
+};
+
+/**
+ * Núcleo: importa o cadastro de deputados de UMA legislatura.
+ *
+ * - Legislatura ATUAL: grava a linha completa do roster (partido/UF/situação).
+ * - Legislaturas PASSADAS: grava só a IDENTIDADE no roster (nome/foto/email) para
+ *   NÃO sobrescrever o estado atual; partido/UF da legislatura vão para a tabela
+ *   filha `camara_deputado_legislaturas` (histórico de mandatos).
+ * Sempre grava a linha-filha da legislatura e registra a rodada em `importacoes`.
+ */
+async function ingerirDeputadosLegislatura(
+  idLegislatura: number | undefined,
+  userId: string,
+): Promise<{ importados: number; legislatura: number }> {
+  const legAtual = legislaturaAtualCamara();
+  const legAlvo = idLegislatura ?? legAtual;
+  const ehAtual = legAlvo === legAtual;
+
+  const params: Record<string, string> = {
+    itens: "100",
+    ordem: "ASC",
+    ordenarPor: "nome",
+    idLegislatura: String(legAlvo),
+  };
+
+  const all: DepListItem[] = [];
+  let pagina = 1;
+  while (pagina < 20) {
+    const json = await camaraGet<CamaraEnvelope<DepListItem[]>>("/deputados", {
+      ...params,
+      pagina: String(pagina),
+    });
+    const list = json.dados ?? [];
+    if (list.length === 0) break;
+    all.push(...list);
+    if (list.length < 100) break;
+    pagina++;
+  }
+
+  if (all.length === 0) return { importados: 0, legislatura: legAlvo };
+
+  // A API pode repetir o mesmo deputado (titular + suplente que assumiu) na
+  // mesma legislatura; dedupe por id para o upsert não afetar a mesma linha 2x.
+  const unicos = [...new Map(all.map((d) => [d.id, d])).values()];
+
+  const now = new Date().toISOString();
+  // Roster: completo para a legislatura atual; só identidade para as passadas.
+  const rosterRows = unicos.map((d) =>
+    ehAtual
+      ? {
+          id: d.id,
+          nome: d.nome,
+          nome_civil: null,
+          sigla_partido: d.siglaPartido ?? null,
+          sigla_uf: d.siglaUf ?? null,
+          id_legislatura: d.idLegislatura ?? legAlvo,
+          url_foto: d.urlFoto ?? null,
+          email: d.email ?? null,
+          situacao: "Exercício",
+          condicao_eleitoral: null,
+          updated_at: now,
+        }
+      : {
+          // Legislaturas passadas: só identidade estável, para NÃO sobrescrever
+          // foto/email/partido/UF do estado atual do deputado.
+          id: d.id,
+          nome: d.nome,
+          updated_at: now,
+        },
+  );
+
+  for (let i = 0; i < rosterRows.length; i += 200) {
+    const { error } = await supabaseAdmin
+      .from("camara_deputados_cache")
+      .upsert(rosterRows.slice(i, i + 200));
+    if (error) throw new Error(`db: ${error.message}`);
+  }
+
+  // Linha-filha: histórico de partido/UF por legislatura.
+  const legRows = unicos.map((d) => ({
+    deputado_id: d.id,
+    id_legislatura: legAlvo,
+    sigla_partido: d.siglaPartido ?? null,
+    sigla_uf: d.siglaUf ?? null,
+    situacao: ehAtual ? "Exercício" : null,
+    condicao_eleitoral: null,
+    updated_at: now,
+  }));
+  for (let i = 0; i < legRows.length; i += 200) {
+    const { error } = await supabaseAdmin
+      .from("camara_deputado_legislaturas")
+      .upsert(legRows.slice(i, i + 200));
+    if (error) throw new Error(`db: ${error.message}`);
+  }
+
+  try {
+    await supabaseAdmin.from("importacoes").insert({
+      fonte: "camara_deputados",
+      escopo: `legislatura ${legAlvo}`,
+      ano: anoInicioLegislatura(legAlvo),
+      mes: 1,
+      total_bruto: all.length,
+      importados: unicos.length,
+      erros: [],
+      user_id: userId,
+      endpoint: `GET https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=${legAlvo}`,
+    });
+  } catch (e) {
+    console.error("[camara_deputados] falha ao registrar importacao", e);
+  }
+
+  return { importados: unicos.length, legislatura: legAlvo };
+}
+
+/** Importa o cadastro de deputados de uma legislatura (padrão: atual). */
 export const importarDeputados = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -46,57 +199,38 @@ export const importarDeputados = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
+    return ingerirDeputadosLegislatura(data.idLegislatura, context.userId);
+  });
 
-    type DepListItem = {
-      id: number;
-      nome: string;
-      siglaPartido?: string;
-      siglaUf?: string;
-      idLegislatura?: number;
-      urlFoto?: string;
-      email?: string;
-    };
-
-    const params: Record<string, string> = { itens: "100", ordem: "ASC", ordenarPor: "nome" };
-    if (data.idLegislatura) params.idLegislatura = String(data.idLegislatura);
-
-    const all: DepListItem[] = [];
-    let pagina = 1;
-    while (pagina < 20) {
-      const json = await camaraGet<CamaraEnvelope<DepListItem[]>>("/deputados", {
-        ...params,
-        pagina: String(pagina),
-      });
-      const list = json.dados ?? [];
-      if (list.length === 0) break;
-      all.push(...list);
-      if (list.length < 100) break;
-      pagina++;
+/** Importa o histórico de deputados de uma FAIXA de legislaturas (inclusive). */
+export const importarDeputadosHistorico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        legIni: z.number().int().min(50).max(100),
+        legFim: z.number().int().min(50).max(100),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const ini = Math.min(data.legIni, data.legFim);
+    const fim = Math.max(data.legIni, data.legFim);
+    let importados = 0;
+    const legislaturas: number[] = [];
+    const erros: string[] = [];
+    for (let n = fim; n >= ini; n--) {
+      try {
+        const r = await ingerirDeputadosLegislatura(n, context.userId);
+        importados += r.importados;
+        legislaturas.push(n);
+      } catch (e) {
+        erros.push(`leg ${n}: ${(e as Error).message}`);
+        console.error(`[camara_deputados] legislatura ${n} falhou`, e);
+      }
     }
-
-    if (all.length === 0) return { importados: 0 };
-
-    const rows = all.map((d) => ({
-      id: d.id,
-      nome: d.nome,
-      nome_civil: null,
-      sigla_partido: d.siglaPartido ?? null,
-      sigla_uf: d.siglaUf ?? null,
-      id_legislatura: d.idLegislatura ?? null,
-      url_foto: d.urlFoto ?? null,
-      email: d.email ?? null,
-      situacao: "Exercício",
-      condicao_eleitoral: null,
-      updated_at: new Date().toISOString(),
-    }));
-
-    for (let i = 0; i < rows.length; i += 200) {
-      const { error } = await supabaseAdmin
-        .from("camara_deputados_cache")
-        .upsert(rows.slice(i, i + 200));
-      if (error) throw new Error(`db: ${error.message}`);
-    }
-    return { importados: rows.length };
+    return { importados, legislaturas, erros };
   });
 
 /** Importa despesas CEAP de um mês/ano para TODOS os deputados em cache. */

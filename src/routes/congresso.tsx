@@ -33,7 +33,8 @@ function CongressoHub() {
   const { data: cam } = useQuery({ queryKey: ["camara", "overview"], queryFn: () => camFn() });
   const { data: sen } = useQuery({ queryKey: ["senado", "overview"], queryFn: () => senFn() });
 
-  const totalParlamentares = (cam?.totalDeputados ?? 0) + (sen?.totalSenadores ?? 0);
+  const totalParlamentares = (cam?.atuais ?? 0) + (sen?.atuais ?? 0);
+  const totalHistoricos = (cam?.historicos ?? 0) + (sen?.historicos ?? 0);
   const totalGasto = (cam?.totalGasto ?? 0) + (sen?.totalGasto ?? 0);
   const totalNotas = (cam?.totalDespesas ?? 0) + (sen?.totalDespesas ?? 0);
 
@@ -53,7 +54,12 @@ function CongressoHub() {
       <AvisoMetodologico />
 
       <section className="grid gap-4 sm:grid-cols-3">
-        <Stat icon={<Users className="size-4" />} label="Parlamentares" value={String(totalParlamentares)} sub="513 dep. + 81 sen." />
+        <Stat
+          icon={<Users className="size-4" />}
+          label="Parlamentares (legislatura atual)"
+          value={totalParlamentares.toLocaleString("pt-BR")}
+          sub={totalHistoricos > 0 ? `+ ${totalHistoricos.toLocaleString("pt-BR")} no histórico de legislaturas passadas` : "513 dep. + 81 sen."}
+        />
         <Stat icon={<Building2 className="size-4" />} label="Total reembolsado (CEAP+CEAPS)" value={fmtBRL(totalGasto)} />
         <Stat icon={<Receipt className="size-4" />} label="Notas fiscais em cache" value={totalNotas.toLocaleString("pt-BR")} />
       </section>
@@ -65,7 +71,8 @@ function CongressoHub() {
             to="/camara"
             casa="Câmara dos Deputados"
             tagline="Representação proporcional do povo"
-            parlamentares={cam?.totalDeputados ?? 0}
+            parlamentares={cam?.atuais ?? 0}
+            historicos={cam?.historicos ?? 0}
             parlLabel="deputados"
             gasto={cam?.totalGasto ?? 0}
             notas={cam?.totalDespesas ?? 0}
@@ -76,7 +83,8 @@ function CongressoHub() {
             to="/senado"
             casa="Senado Federal"
             tagline="Representação federativa dos estados"
-            parlamentares={sen?.totalSenadores ?? 0}
+            parlamentares={sen?.atuais ?? 0}
+            historicos={sen?.historicos ?? 0}
             parlLabel="senadores"
             gasto={sen?.totalGasto ?? 0}
             notas={sen?.totalDespesas ?? 0}
@@ -132,10 +140,10 @@ function Stat({ icon, label, value, sub }: { icon: React.ReactNode; label: strin
 }
 
 function CasaCard({
-  to, casa, tagline, parlamentares, parlLabel, gasto, notas, periodo, cota,
+  to, casa, tagline, parlamentares, historicos, parlLabel, gasto, notas, periodo, cota,
 }: {
   to: "/camara" | "/senado"; casa: string; tagline: string;
-  parlamentares: number; parlLabel: string; gasto: number; notas: number;
+  parlamentares: number; historicos: number; parlLabel: string; gasto: number; notas: number;
   periodo: string | null; cota: string;
 }) {
   return (
@@ -144,8 +152,13 @@ function CasaCard({
       <div className="text-xs text-muted-foreground mt-1">{tagline}</div>
       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div>
-          <dt className="text-xs text-muted-foreground uppercase tracking-wider">{parlLabel}</dt>
-          <dd className="font-mono">{parlamentares}</dd>
+          <dt className="text-xs text-muted-foreground uppercase tracking-wider">{parlLabel} (atuais)</dt>
+          <dd className="font-mono">
+            {parlamentares}
+            {historicos > 0 && (
+              <span className="text-xs text-muted-foreground"> · +{historicos} no histórico</span>
+            )}
+          </dd>
         </div>
         <div>
           <dt className="text-xs text-muted-foreground uppercase tracking-wider">{cota} total</dt>

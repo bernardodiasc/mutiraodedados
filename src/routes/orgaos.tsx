@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useDataSource } from "@/lib/data-store";
-import { ORGAOS_BASE, PODER_LABEL } from "@/lib/data/catalog";
-import { EmptyState } from "@/components/EmptyState";
-import { fmtBRL } from "@/lib/fmt";
+import * as React from "react";
+import { ORGAOS_ENRIQUECIMENTO, ORGAOS_OUTRAS_ESFERAS, PODER_LABEL } from "@/lib/data/catalog";
 import type { Orgao } from "@/lib/data/types";
-import { statusFontes, type StatusFonte } from "@/lib/data/status.functions";
+import { useData } from "@/lib/data-store";
+import { statusFontes, orgaosComDados, type StatusFonte } from "@/lib/data/status.functions";
 import heroOrgaos from "@/assets/ac-orgaos.png";
 
 export const Route = createFileRoute("/orgaos")({
@@ -14,45 +13,66 @@ export const Route = createFileRoute("/orgaos")({
   head: () => ({
     meta: [
       { title: "Órgãos federais — Auditoria Cidadã" },
-      { name: "description", content: "Lista dos órgãos federais cobertos pela plataforma, com totais contratados e status de carregamento por fonte." },
-      { property: "og:title", content: "Órgãos federais cobertos pela Auditoria Cidadã" },
-      { property: "og:description", content: "Navegue ministérios e autarquias por volume contratado e situação de cobertura de dados." },
+      { name: "description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos. Inclui órgãos extintos, com histórico preservado." },
+      { property: "og:title", content: "Órgãos federais — Auditoria Cidadã" },
+      { property: "og:description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos." },
       { property: "og:url", content: "https://auditoriacidada.ia.br/orgaos" },
     ],
     links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/orgaos" }],
   }),
 });
 
-function OrgaosList() {
-  const ds = useDataSource();
-  const loaded = new Set(ds.listOrgaos().map(o => o.cod));
+/** Órgão do Executivo montado dinamicamente: dados (código) + catálogo (nome/ativo) + overlay (sigla/funcao). */
+type OrgaoExecutivo = {
+  cod: string;
+  nome: string;
+  sigla: string;
+  funcao: string;
+  ativo: boolean;
+  naoCatalogado: boolean;
+};
 
+function OrgaosList() {
   const fetchStatus = useServerFn(statusFontes);
+  const fetchComDados = useServerFn(orgaosComDados);
+  const { dataset } = useData();
+  const [busca, setBusca] = React.useState("");
+
   const { data: status } = useQuery({
     queryKey: ["orgaos", "status-fontes"],
     queryFn: () => fetchStatus(),
     staleTime: 5 * 60 * 1000,
   });
+  const { data: codigos } = useQuery({
+    queryKey: ["orgaos", "com-dados"],
+    queryFn: () => fetchComDados(),
+    staleTime: 5 * 60 * 1000,
+  });
 
-  function statusDe(o: Orgao): StatusFonte | null {
-    if (!status) return null;
-    if (o.rotaPropria === "/pncp") return status.pncp;
-    if (o.rotaPropria === "/siconfi") return status.siconfi;
-    if (o.rotaPropria === "/convenios") return status.transferegov;
-    if (o.rotaPropria === "/transferencias") return status.transferegov;
-    if (o.rotaPropria === "/camara") return status.camara;
-    if (o.rotaPropria === "/senado") return status.senado;
-    if (o.disponivelPortal) return status.contratosPorOrgao[o.cod] ?? { updatedAt: null, count: 0 };
-    return null;
-  }
+  const executivos: OrgaoExecutivo[] = React.useMemo(() => {
+    const orgById = new Map(dataset.orgaos.map((o) => [o.cod, o]));
+    return (codigos ?? [])
+      .map((cod) => {
+        const o = orgById.get(cod);
+        const enr = ORGAOS_ENRIQUECIMENTO[cod];
+        return {
+          cod,
+          nome: o?.nome ?? `Órgão ${cod}`,
+          sigla: enr?.sigla ?? o?.sigla ?? "",
+          funcao: enr?.funcao ?? o?.funcao ?? "",
+          ativo: o?.ativo ?? true,
+          naoCatalogado: !o,
+        };
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [codigos, dataset.orgaos]);
 
-  // Agrupa por poder para deixar claro que o universo federal vai muito
-  // além dos ministérios do Executivo.
-  const grupos: Array<{ poder: Orgao["poder"]; orgaos: Orgao[] }> = (
-    ["executivo", "legislativo", "judiciario", "mpu", "outros"] as const
-  )
-    .map((p) => ({ poder: p, orgaos: ORGAOS_BASE.filter((o) => o.poder === p) }))
-    .filter((g) => g.orgaos.length > 0);
+  const termo = busca.trim().toLowerCase();
+  const casa = (nome: string, sigla: string) =>
+    !termo || nome.toLowerCase().includes(termo) || sigla.toLowerCase().includes(termo);
+
+  const executivosFiltrados = executivos.filter((o) => casa(o.nome, o.sigla));
+  const outrasFiltradas = ORGAOS_OUTRAS_ESFERAS.filter((o) => casa(o.nome, o.sigla));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
@@ -60,7 +80,7 @@ function OrgaosList() {
         <div className="order-2 md:order-1 max-w-2xl">
           <h1 className="font-display text-4xl">Órgãos federais</h1>
           <p className="text-muted-foreground mt-2">
-            {ORGAOS_BASE.length} órgãos catalogados — Executivo, Legislativo, Judiciário e MPU. Por ora apenas o Executivo é coberto pela API de contratos do Portal da Transparência; os demais terão integrações próprias.
+            Cada página reúne contratos, licitações e convênios públicos, fornecedores e série histórica de gastos. A lista do Executivo é montada a partir dos documentos já importados e cresce conforme novos órgãos entram na base. Órgãos extintos permanecem com o histórico preservado.
           </p>
         </div>
         <img
@@ -70,84 +90,128 @@ function OrgaosList() {
         />
       </div>
 
-      <div className="mt-10 space-y-10">
-        {grupos.map((g) => (
-          <section key={g.poder}>
-            <h2 className="font-display text-2xl">{PODER_LABEL[g.poder]}</h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {g.orgaos.map((o) => {
-                const total = loaded.has(o.cod)
-                  ? ds.serieAnualOrgao(o.cod).reduce((s, x) => s + x.valor, 0)
-                  : null;
-                const linkProps = o.rotaPropria
-                  ? { to: o.rotaPropria }
-                  : { to: "/orgaos/$cod", params: { cod: o.cod } };
-                const st = statusDe(o);
-                const badge = renderBadge(st, o);
-                return (
-                  <Link
-                    key={o.cod}
-                    {...(linkProps as any)}
-                    className="border border-border rounded-xl p-5 bg-card hover:border-accent transition-colors block"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs text-muted-foreground">{o.funcao}</div>
-                      <span
-                        className={`text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border ${badge.tone}`}
-                        title={badge.title}
-                      >
+      <div className="mt-8">
+        <input
+          type="search"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          placeholder="Buscar por nome ou sigla…"
+          className="w-full sm:max-w-md border border-border rounded-lg bg-card px-3 py-2 text-sm focus:outline-none focus:border-accent"
+        />
+      </div>
+
+      <section className="mt-8">
+        <div className="flex items-baseline justify-between gap-2">
+          <h2 className="font-display text-2xl">{PODER_LABEL.executivo}</h2>
+          <span className="text-xs text-muted-foreground">
+            {executivosFiltrados.length} {executivosFiltrados.length === 1 ? "órgão" : "órgãos"} com dados
+          </span>
+        </div>
+        {executivosFiltrados.length === 0 ? (
+          <p className="text-sm text-muted-foreground mt-4">
+            {codigos === undefined
+              ? "Carregando…"
+              : termo
+                ? "Nenhum órgão do Executivo corresponde à busca."
+                : "Nenhum órgão com dados importados ainda."}
+          </p>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {executivosFiltrados.map((o) => {
+              const st = status ? status.contratosPorOrgao[o.cod] ?? { updatedAt: null, count: 0 } : null;
+              const badge = renderBadge(st);
+              return (
+                <Link
+                  key={o.cod}
+                  to="/orgaos/$cod"
+                  params={{ cod: o.cod }}
+                  className="border border-border rounded-xl p-5 bg-card hover:border-accent transition-colors block"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-xs text-muted-foreground truncate">{o.funcao || "—"}</div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {!o.ativo && (
+                        <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-amber-600 border-amber-500/40" title="Sem execução orçamentária recente — órgão extinto ou inativo. Histórico preservado.">
+                          Extinto
+                        </span>
+                      )}
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border ${badge.tone}`} title={badge.title}>
                         {badge.label}
                       </span>
                     </div>
-                    <div className="font-display text-lg mt-1 leading-tight">{o.nome}</div>
-                    <div className="mt-3 flex items-end justify-between">
-                      <span className="text-xs font-mono text-muted-foreground">{o.sigla}</span>
-                      {o.rotaPropria ? (
-                        <span className="text-xs text-accent">Ver portal próprio →</span>
-                      ) : total !== null ? (
-                        <span className="font-mono text-sm">{fmtBRL(total)}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">
-                          {o.disponivelPortal ? "não consultado" : "integração planejada"}
-                        </span>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-      </div>
+                  </div>
+                  <div className="font-display text-lg mt-1 leading-tight">{o.nome}</div>
+                  <div className="mt-3 flex items-center gap-2">
+                    {o.sigla && <span className="text-xs font-mono text-muted-foreground">{o.sigla}</span>}
+                    {o.naoCatalogado && (
+                      <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5" title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI.">
+                        Não catalogado
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
-      {loaded.size === 0 && (
-        <div className="mt-10">
-          <EmptyState
-            title="Nenhum órgão carregado ainda"
-            hint="Use os botões acima para buscar dados reais no Portal da Transparência."
-          />
-        </div>
+      {outrasFiltradas.length > 0 && (
+        <section className="mt-12">
+          <h2 className="font-display text-2xl">Outras esferas</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Legislativo, Judiciário e Ministério Público — cobertos por integrações próprias ou planejadas, fora do fluxo de contratos do Executivo.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {outrasFiltradas.map((o) => (
+              <CardOutraEsfera key={o.cod} o={o} />
+            ))}
+          </div>
+        </section>
       )}
     </div>
   );
 }
 
-function renderBadge(
-  st: StatusFonte | null,
-  o: Orgao,
-): { label: string; tone: string; title: string } {
+function CardOutraEsfera({ o }: { o: Orgao }) {
+  const conteudo = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">{PODER_LABEL[o.poder]}</div>
+        <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-accent border-accent/40">
+          {o.rotaPropria ? "Conectado" : "Planejado"}
+        </span>
+      </div>
+      <div className="font-display text-lg mt-1 leading-tight">{o.nome}</div>
+      <div className="mt-3">
+        <span className="text-xs font-mono text-muted-foreground">{o.sigla}</span>
+      </div>
+    </>
+  );
+  const cls = "border border-border rounded-xl p-5 bg-card hover:border-accent transition-colors block";
+  if (o.rotaPropria) {
+    return (
+      <Link key={o.cod} to={o.rotaPropria} className={cls}>
+        {conteudo}
+      </Link>
+    );
+  }
+  return (
+    <Link key={o.cod} to="/orgaos/$cod" params={{ cod: o.cod }} className={cls}>
+      {conteudo}
+    </Link>
+  );
+}
+
+function renderBadge(st: StatusFonte | null): { label: string; tone: string; title: string } {
   if (st === null) {
-    return {
-      label: "Planejado",
-      tone: "text-muted-foreground border-border",
-      title: "Integração ainda não disponível",
-    };
+    return { label: "—", tone: "text-muted-foreground border-border", title: "Carregando…" };
   }
   if (st.count === 0 || !st.updatedAt) {
     return {
-      label: "Sem dados",
+      label: "Sem contratos",
       tone: "text-muted-foreground border-border",
-      title: o.rotaPropria ? "Fonte conectada, ainda sem registros em cache." : "Nenhum contrato em cache para este órgão.",
+      title: "Nenhum contrato em cache para este órgão (pode ter licitações ou convênios).",
     };
   }
   const rel = formatRelative(st.updatedAt);

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { listarProposicoes, camaraProposicoesOverview } from "@/lib/data/camara/proposicoes.functions";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/EmptyState";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 
 export const Route = createFileRoute("/camara_/proposicoes/")({
   component: ListaProposicoes,
@@ -113,6 +114,23 @@ function ListaProposicoes() {
           {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
         </select>
       </div>
+
+      {rows && rows.length > 0 && (
+        <div className="flex justify-end">
+          <BotaoBaixarCsv
+            filename="proposicoes"
+            obterLinhas={() =>
+              rows.map((p) => ({
+                proposicao: `${p.siglaTipo} ${p.numero}/${p.ano}`,
+                apresentada: p.dataApresentacao ?? "",
+                ementa: p.ementa ?? "",
+                situacao: p.ultimoStatusSituacao ?? p.ultimoStatusDescricao ?? "",
+              }))
+            }
+            rotulo={`Baixar CSV (${rows.length})`}
+          />
+        </div>
+      )}
 
       {isLoading ? (
         <div className="text-sm text-muted-foreground">Carregando…</div>

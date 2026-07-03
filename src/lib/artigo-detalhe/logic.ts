@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 export type ArtigoDificuldade = "iniciante" | "intermediario" | "avancado";
 
 export const DIFICULDADE_LABEL: Record<string, string> = {
@@ -24,4 +26,8 @@ export type ArtigoDetalheViewProps = {
   } | null;
   voltarTo: "/mapas" | "/tutoriais" | "/notas";
   voltarLabel: string;
+  /** Kit de investigação (aside sticky) — presente só em mapas. */
+  kit?: ReactNode;
+  /** Ações do artigo (copiar/salvar) — usadas em tutoriais e notas. */
+  acoes?: ReactNode;
 };

@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMateriaDetalhe } from "@/lib/data/senado/materias.functions";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/senado_/materias/$id")({
@@ -52,6 +53,20 @@ function MateriaDetalhe() {
             <ExternalLink className="size-3" /> Página oficial no Senado
           </a>
         )}
+        <AcoesDaEntidade
+          className="mt-4"
+          entidadeTipo="materia"
+          entidadeId={String(numId)}
+          titulo={`${materia.siglaSubtipo} ${materia.numero}/${materia.ano}`}
+          url={`/senado/materias/${numId}`}
+          contexto={materia.ementa ?? materia.ultimaSituacao ?? undefined}
+          snapshotDe={materia}
+          fonteOficialHref={
+            materia.urlTexto ??
+            `https://www25.senado.leg.br/web/atividade/materias/-/materia/${numId}`
+          }
+          fonteOficialLabel="Ver no Senado"
+        />
       </div>
 
       <section>

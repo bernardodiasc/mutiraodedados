@@ -6,15 +6,30 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
 
-async function senadoGet<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { accept: "application/json", "user-agent": UA },
-  });
-  if (!res.ok) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// GET com retry/backoff (500 → 1500 → 4500 ms) para 429/5xx e erros de rede
+// transitórios; 4xx é erro definitivo.
+async function senadoGet<T = unknown>(path: string, tentativas = 4): Promise<T> {
+  let ultimoErro = "sem resposta";
+  for (let tent = 0; tent < tentativas; tent++) {
+    if (tent > 0) await sleep(500 * 3 ** (tent - 1));
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}${path}`, { headers: { accept: "application/json", "user-agent": UA } });
+    } catch (e) {
+      ultimoErro = (e as Error).message;
+      continue;
+    }
+    if (res.ok) return (await res.json()) as T;
+    if (res.status === 429 || res.status >= 500) {
+      ultimoErro = `${res.status}`;
+      continue;
+    }
     const body = await res.text().catch(() => "");
     throw new Error(`Senado API ${res.status}: ${body.slice(0, 200)}`);
   }
-  return (await res.json()) as T;
+  throw new Error(`Senado API indisponível após ${tentativas} tentativas (último: ${ultimoErro}).`);
 }
 
 function asArray<T>(v: T | T[] | null | undefined): T[] {

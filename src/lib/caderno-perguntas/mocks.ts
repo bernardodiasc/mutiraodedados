@@ -21,6 +21,7 @@ const p1: Pergunta = {
   encerrada_em: null,
   solicitada_publicacao_em: null,
   motivo_rejeicao: null,
+  ordem: 0,
   created_at: "2026-06-15T12:00:00Z",
   updated_at: "2026-06-15T12:00:00Z",
 };

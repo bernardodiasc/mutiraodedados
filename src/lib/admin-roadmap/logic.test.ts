@@ -2,10 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   formFromItem,
   ordenarItens,
+  ordenarConcluidos,
+  itensVisiveis,
   filtrarPorAba,
   contarPorStatus,
   buildSavePayload,
   vizinhoParaTroca,
+  itemParaLinhaCsv,
+  itemParaTextoCopiavel,
   FORM_INICIAL,
 } from "./logic";
 import type { RoadmapItem } from "@/lib/data/roadmap.functions";
@@ -46,6 +50,28 @@ describe("admin-roadmap/logic", () => {
     expect(filtrarPorAba(items, "concluido")).toHaveLength(1);
   });
 
+  it("ordenarConcluidos: data desc, e mesmo dia pela ordem manual", () => {
+    const items = [
+      base({ id: "d10-b", status: "concluido", concluido_em: "2026-01-10", ordem: 5 }),
+      base({ id: "d05-a", status: "concluido", concluido_em: "2026-01-05", ordem: 0 }),
+      base({ id: "d10-a", status: "concluido", concluido_em: "2026-01-10", ordem: 1 }),
+      base({ id: "d05-b", status: "concluido", concluido_em: "2026-01-05", ordem: 9 }),
+    ];
+    // dia mais recente primeiro; dentro do dia, ordem manual asc
+    expect(ordenarConcluidos(items).map((x) => x.id)).toEqual(["d10-a", "d10-b", "d05-a", "d05-b"]);
+  });
+
+  it("itensVisiveis: concluídos por data, demais por ordem", () => {
+    const porOrdem = ordenarItens([
+      base({ id: "p", status: "planejado", ordem: 0 }),
+      base({ id: "c-novo", status: "concluido", ordem: 1, concluido_em: "2026-02-01" }),
+      base({ id: "c-velho", status: "concluido", ordem: 2, concluido_em: "2026-01-01" }),
+    ]);
+    expect(itensVisiveis(porOrdem, "concluido").map((x) => x.id)).toEqual(["c-novo", "c-velho"]);
+    expect(itensVisiveis(porOrdem, "planejado").map((x) => x.id)).toEqual(["p"]);
+    expect(itensVisiveis(porOrdem, "tudo")).toHaveLength(3);
+  });
+
   it("contarPorStatus", () => {
     const c = contarPorStatus([
       base({ status: "planejado" }),
@@ -73,5 +99,24 @@ describe("admin-roadmap/logic", () => {
     expect(vizinhoParaTroca(sorted, "a", -1)).toBeNull();
     expect(vizinhoParaTroca(sorted, "a", 1)?.id).toBe("b");
     expect(vizinhoParaTroca(sorted, "c", 1)).toBeNull();
+  });
+
+  it("itemParaLinhaCsv traduz status e publico", () => {
+    const l = itemParaLinhaCsv(
+      base({ titulo: "X", status: "concluido", publico: false, concluido_em: "2026-01" }),
+    );
+    expect(l.status).toBe("Concluído");
+    expect(l.publico).toBe("não");
+    expect(l.concluido_em).toBe("2026-01");
+  });
+
+  it("itemParaTextoCopiavel inclui status, descrição e notas", () => {
+    const txt = itemParaTextoCopiavel(
+      base({ titulo: "T", descricao: "desc", notas: "nota", status: "em_andamento" }),
+    );
+    expect(txt).toContain("# T");
+    expect(txt).toContain("Status: Em andamento");
+    expect(txt).toContain("desc");
+    expect(txt).toContain("Notas internas: nota");
   });
 });

@@ -62,7 +62,11 @@ const SalvarSchema = z.object({
   ordem: z.number().int().min(0).max(100000).default(0),
   publico: z.boolean().default(true),
   notas: z.string().max(4000).nullable().optional(),
-  concluido_em: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+  concluido_em: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullable()
+    .optional(),
 });
 
 export const salvarItemRoadmap = createServerFn({ method: "POST" })
@@ -83,10 +87,7 @@ export const salvarItemRoadmap = createServerFn({ method: "POST" })
           : null,
     };
     if (data.id) {
-      const { error } = await supabaseAdmin
-        .from("roadmap_itens")
-        .update(payload)
-        .eq("id", data.id);
+      const { error } = await supabaseAdmin.from("roadmap_itens").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);
       return { ok: true, id: data.id };
     }
@@ -106,5 +107,23 @@ export const excluirItemRoadmap = createServerFn({ method: "POST" })
     await ensureAdmin(context.userId);
     const { error } = await supabaseAdmin.from("roadmap_itens").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Admin — reordena itens: grava `ordem` = posição no array recebido. */
+export const reordenarRoadmap = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ ids: z.array(z.string().uuid()).min(1).max(2000) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const resultados = await Promise.all(
+      data.ids.map((id, i) =>
+        supabaseAdmin.from("roadmap_itens").update({ ordem: i }).eq("id", id),
+      ),
+    );
+    const falha = resultados.find((r) => r.error);
+    if (falha?.error) throw new Error(falha.error.message);
     return { ok: true };
   });

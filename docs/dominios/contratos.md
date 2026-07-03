@@ -6,7 +6,9 @@ Permitir ao cidadão investigar **um contrato específico** ou **uma empresa con
 
 ## Páginas públicas
 
+- `/contratos` — **índice-tópico** de contratos do Executivo Federal (filtros por órgão, ano, modalidade, valor + CSV). Lê `contratos_cache`. Eixo "Por tema".
 - `/contratos/$id` — detalhe de um contrato (Executivo Federal). Mostra órgão, fornecedor, objeto sanitizado, valor, datas, modalidade, link para Portal da Transparência. Dados de [Portal CGU](../fontes/portal-cgu.md).
+- `/licitacoes` e `/licitacoes/$id` — **licitações** do Executivo Federal (endpoint `/licitacoes`, `cgu_licitacoes_cache`). É o procedimento que origina o contrato; cross-link de **busca** para o PNCP (a API da CGU não traz a chave `numeroControlePNCP`).
 - `/fornecedores/$cnpj` — perfil de uma empresa contratada. Histórico de contratos, órgãos com quem mais contrata, série anual.
 - `/pncp` — busca de contratos sob a Lei 14.133 (qualquer ente federado). Dados do [PNCP](../fontes/pncp.md).
 

@@ -161,13 +161,6 @@ export function SiteHeaderView({
                     </Link>
                   </DropdownMenuItem>
                 )}
-                {isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/estilo" className="flex items-center gap-2 text-accent">
-                      <Palette className="size-4" /> Estilo
-                    </Link>
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => void onSignOut()} className="text-muted-foreground">
                   <LogOut className="size-4 mr-2" /> Sair
@@ -233,11 +226,6 @@ export function SiteHeaderView({
                       {isAdmin && (
                         <Link to="/admin" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm text-accent flex items-center gap-2">
                           <Shield className="size-4" /> Admin
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link to="/estilo" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm text-accent flex items-center gap-2">
-                          <Palette className="size-4" /> Estilo
                         </Link>
                       )}
                       <button

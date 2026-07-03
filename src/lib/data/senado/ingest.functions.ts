@@ -8,15 +8,32 @@ import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
 
-async function senadoGet<T = unknown>(path: string): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    headers: { accept: "application/json", "user-agent": UA },
-  });
-  if (!res.ok) {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * GET na API do Senado com retry/backoff (500 → 1500 → 4500 ms) para 429/5xx e
+ * erros de rede transitórios. 4xx são erros definitivos (sem retry).
+ */
+async function senadoGet<T = unknown>(path: string, tentativas = 4): Promise<T> {
+  let ultimoErro = "sem resposta";
+  for (let tent = 0; tent < tentativas; tent++) {
+    if (tent > 0) await sleep(500 * 3 ** (tent - 1));
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}${path}`, { headers: { accept: "application/json", "user-agent": UA } });
+    } catch (e) {
+      ultimoErro = (e as Error).message;
+      continue;
+    }
+    if (res.ok) return (await res.json()) as T;
+    if (res.status === 429 || res.status >= 500) {
+      ultimoErro = `${res.status}`;
+      continue;
+    }
     const body = await res.text().catch(() => "");
     throw new Error(`Senado API ${res.status}: ${body.slice(0, 200)}`);
   }
-  return (await res.json()) as T;
+  throw new Error(`Senado API indisponível após ${tentativas} tentativas (último: ${ultimoErro}).`);
 }
 
 /** Garante que o caller é admin. */
@@ -57,6 +74,51 @@ type Parlamentar = {
   };
 };
 
+/** Legislatura corrente (52 = 2003–2007, +1 a cada 4 anos). 2023–2027 = 57. */
+export function legislaturaAtualSenado(): number {
+  return 52 + Math.floor((new Date().getFullYear() - 2003) / 4);
+}
+function anoInicioLegislatura(n: number): number {
+  return 2003 + (n - 52) * 4;
+}
+
+/** Grava as linhas-filhas de mandato por legislatura e ignora erros de log. */
+async function upsertSenadorLegislaturas(
+  rows: Array<{
+    codigo_parlamentar: number;
+    legislatura: number;
+    sigla_partido: string | null;
+    sigla_uf: string | null;
+    participacao: string | null;
+    updated_at: string;
+  }>,
+) {
+  for (let i = 0; i < rows.length; i += 100) {
+    const { error } = await supabaseAdmin
+      .from("senado_senador_legislaturas")
+      .upsert(rows.slice(i, i + 100));
+    if (error) throw new Error(`db: ${error.message}`);
+  }
+}
+
+async function logImportacaoSenadores(legislatura: number, total: number, userId: string) {
+  try {
+    await supabaseAdmin.from("importacoes").insert({
+      fonte: "senado_senadores",
+      escopo: `legislatura ${legislatura}`,
+      ano: anoInicioLegislatura(legislatura),
+      mes: 1,
+      total_bruto: total,
+      importados: total,
+      erros: [],
+      user_id: userId,
+      endpoint: `GET https://legis.senado.leg.br/dadosabertos/senador/lista/legislatura/${legislatura}`,
+    });
+  } catch (e) {
+    console.error("[senado_senadores] falha ao registrar importacao", e);
+  }
+}
+
 /** Importa os 81 senadores em exercício. */
 export const importarSenadores = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -73,7 +135,7 @@ export const importarSenadores = createServerFn({ method: "POST" })
     const arr = asArray(json.ListaParlamentarEmExercicio?.Parlamentares?.Parlamentar);
     if (arr.length === 0) throw new Error("Senado retornou lista vazia.");
 
-    const rows = arr
+    const rowsBrutos = arr
       .map((p) => {
         const i = p.IdentificacaoParlamentar ?? {};
         const id = Number(i.CodigoParlamentar);
@@ -93,13 +155,186 @@ export const importarSenadores = createServerFn({ method: "POST" })
       })
       .filter((r): r is NonNullable<typeof r> => r !== null);
 
+    // Dedupe defensivo por código do parlamentar (a lista pode repetir o mesmo
+    // senador), para o upsert não afetar a mesma linha duas vezes.
+    const rows = [...new Map(rowsBrutos.map((r) => [r.id, r])).values()];
+
     for (let i = 0; i < rows.length; i += 100) {
       const { error } = await supabaseAdmin
         .from("senado_senadores_cache")
         .upsert(rows.slice(i, i + 100));
       if (error) throw new Error(`db: ${error.message}`);
     }
+
+    // Linha-filha da legislatura atual (histórico de mandatos).
+    const legAtual = legislaturaAtualSenado();
+    const now = new Date().toISOString();
+    await upsertSenadorLegislaturas(
+      rows.map((r) => ({
+        codigo_parlamentar: r.codigo_parlamentar,
+        legislatura: legAtual,
+        sigla_partido: r.sigla_partido,
+        sigla_uf: r.sigla_uf,
+        participacao: "Exercício",
+        updated_at: now,
+      })),
+    );
+    await logImportacaoSenadores(legAtual, rows.length, context.userId);
+
     return { importados: rows.length };
+  });
+
+/**
+ * Item da lista por legislatura: além da identificação, traz os mandatos (de onde
+ * vêm UF e participação para a legislatura consultada).
+ */
+type ParlamentarLegislatura = Parlamentar & {
+  Mandatos?: {
+    Mandato?: MandatoRaw | MandatoRaw[];
+  };
+};
+type LegRef = { NumeroLegislatura?: string | number };
+type MandatoRaw = {
+  UfParlamentar?: string;
+  DescricaoParticipacao?: string;
+  PrimeiraLegislaturaDoMandato?: LegRef;
+  SegundaLegislaturaDoMandato?: LegRef;
+};
+
+/** Extrai UF + participação do mandato que cobre a legislatura consultada. */
+function mandatoDaLegislatura(
+  p: ParlamentarLegislatura,
+  legislatura: number,
+): { uf: string | null; participacao: string | null } {
+  const mandatos = asArray(p.Mandatos?.Mandato);
+  const alvo =
+    mandatos.find(
+      (m) =>
+        Number(m.PrimeiraLegislaturaDoMandato?.NumeroLegislatura) === legislatura ||
+        Number(m.SegundaLegislaturaDoMandato?.NumeroLegislatura) === legislatura,
+    ) ?? mandatos[0];
+  return {
+    uf: alvo?.UfParlamentar ?? null,
+    participacao: alvo?.DescricaoParticipacao ?? null,
+  };
+}
+
+/**
+ * Importa o cadastro de senadores de UMA legislatura passada.
+ * Endpoint: /senador/lista/legislatura/{n}.
+ * Roster: só identidade (não sobrescreve o estado atual); partido/UF/participação
+ * da legislatura vão para `senado_senador_legislaturas`.
+ */
+async function ingerirSenadoresLegislatura(
+  legislatura: number,
+  userId: string,
+): Promise<{ importados: number; legislatura: number }> {
+  const json = await senadoGet<{
+    ListaParlamentarLegislatura?: {
+      Parlamentares?: { Parlamentar?: ParlamentarLegislatura | ParlamentarLegislatura[] };
+    };
+  }>(`/senador/lista/legislatura/${legislatura}`);
+
+  const arrBruto = asArray(json.ListaParlamentarLegislatura?.Parlamentares?.Parlamentar);
+  if (arrBruto.length === 0) return { importados: 0, legislatura };
+
+  // A lista por legislatura pode repetir o mesmo parlamentar; dedupe por código
+  // para o upsert (roster e mandato) não afetar a mesma linha duas vezes.
+  const arr = [
+    ...new Map(
+      arrBruto
+        .filter((p) => Number(p.IdentificacaoParlamentar?.CodigoParlamentar) > 0)
+        .map((p) => [Number(p.IdentificacaoParlamentar?.CodigoParlamentar), p] as const),
+    ).values(),
+  ];
+
+  const now = new Date().toISOString();
+
+  const identidades = arr
+    .map((p) => {
+      const i = p.IdentificacaoParlamentar ?? {};
+      const id = Number(i.CodigoParlamentar);
+      if (!Number.isFinite(id) || id <= 0) return null;
+      return {
+        id,
+        codigo_parlamentar: id,
+        nome: i.NomeParlamentar ?? `Senador ${id}`,
+        nome_completo: i.NomeCompletoParlamentar ?? null,
+        updated_at: now,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  for (let i = 0; i < identidades.length; i += 100) {
+    const { error } = await supabaseAdmin
+      .from("senado_senadores_cache")
+      .upsert(identidades.slice(i, i + 100));
+    if (error) throw new Error(`db: ${error.message}`);
+  }
+
+  const legRows = arr
+    .map((p) => {
+      const i = p.IdentificacaoParlamentar ?? {};
+      const id = Number(i.CodigoParlamentar);
+      if (!Number.isFinite(id) || id <= 0) return null;
+      const { uf, participacao } = mandatoDaLegislatura(p, legislatura);
+      return {
+        codigo_parlamentar: id,
+        legislatura,
+        sigla_partido: i.SiglaPartidoParlamentar ?? null,
+        sigla_uf: uf,
+        participacao,
+        updated_at: now,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  await upsertSenadorLegislaturas(legRows);
+  await logImportacaoSenadores(legislatura, identidades.length, userId);
+
+  return { importados: identidades.length, legislatura };
+}
+
+/** Importa o cadastro de senadores de UMA legislatura passada. */
+export const importarSenadoresLegislatura = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z.object({ legislatura: z.number().int().min(50).max(100) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    return ingerirSenadoresLegislatura(data.legislatura, context.userId);
+  });
+
+/** Importa o histórico de senadores de uma FAIXA de legislaturas (inclusive). */
+export const importarSenadoresHistorico = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        legIni: z.number().int().min(50).max(100),
+        legFim: z.number().int().min(50).max(100),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const ini = Math.min(data.legIni, data.legFim);
+    const fim = Math.max(data.legIni, data.legFim);
+    let importados = 0;
+    const legislaturas: number[] = [];
+    const erros: string[] = [];
+    for (let n = fim; n >= ini; n--) {
+      try {
+        const r = await ingerirSenadoresLegislatura(n, context.userId);
+        importados += r.importados;
+        legislaturas.push(n);
+      } catch (e) {
+        erros.push(`leg ${n}: ${(e as Error).message}`);
+        console.error(`[senado_senadores] legislatura ${n} falhou`, e);
+      }
+    }
+    return { importados, legislaturas, erros };
   });
 
 type DespesaRaw = {

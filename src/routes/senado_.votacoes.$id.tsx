@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { getVotacaoSenadoDetalhe } from "@/lib/data/senado/votacoes.functions";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 
 export const Route = createFileRoute("/senado_/votacoes/$id")({
   component: VotacaoSenadoDetalhe,
@@ -64,6 +66,15 @@ function VotacaoSenadoDetalhe() {
           <span className="text-rose-500">Não {votacao.votosNao}</span>{" · "}
           <span className="text-muted-foreground">Outros {votacao.votosOutros}</span>
         </div>
+        <AcoesDaEntidade
+          className="mt-4"
+          entidadeTipo="votacao"
+          entidadeId={String(id)}
+          titulo={votacao.descricao ?? `Votação ${id}`}
+          url={`/senado/votacoes/${id}`}
+          contexto={`${votacao.data ?? "—"}${votacao.materiaTitulo ? ` · ${votacao.materiaTitulo}` : ""} · Sim ${votacao.votosSim} / Não ${votacao.votosNao}`}
+          snapshotDe={votacao}
+        />
       </div>
 
       <section>
@@ -132,6 +143,19 @@ function VotacaoSenadoDetalhe() {
             <option value="">Todos partidos</option>
             {partidos.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
+          <BotaoBaixarCsv
+            filename={`votos_senado_${id}`}
+            obterLinhas={() =>
+              votosFiltrados.map((v) => ({
+                senador: v.nome,
+                partido: v.siglaPartido ?? "",
+                uf: v.siglaUf ?? "",
+                voto: v.tipoVoto,
+              }))
+            }
+            disabled={votosFiltrados.length === 0}
+            rotulo="Baixar CSV"
+          />
         </div>
         <div className="mt-3 rounded-xl border border-border bg-card overflow-hidden">
           <table className="w-full text-sm">

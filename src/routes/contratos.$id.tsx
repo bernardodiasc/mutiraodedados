@@ -8,8 +8,10 @@ import { FlagsCidada } from "@/components/FlagsCidada";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { ExternalLink } from "lucide-react";
+import { BotaoCopiar } from "@/components/BotaoCopiar";
+import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
+import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 
 export const Route = createFileRoute("/contratos/$id")({
   component: ContratoDetail,
@@ -66,22 +68,31 @@ function ContratoDetail() {
       <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Voltar</Link>
       <div className="text-xs font-semibold uppercase tracking-widest text-accent mt-3">{c.modalidade}</div>
       <h1 className="font-display text-3xl mt-1">{sanitizarTextoPublico(c.objeto)}</h1>
-      <a
-        href={`https://portaldatransparencia.gov.br/contratos/${encodeURIComponent(c.id)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-flex items-center gap-1 text-sm text-accent hover:underline mt-2"
-      >
-        Ver documento oficial <ExternalLink className="size-3.5" />
-      </a>
+      <div className="mt-2">
+        <BotaoFonteOficial
+          href={`https://portaldatransparencia.gov.br/contratos/${encodeURIComponent(c.id)}`}
+        />
+      </div>
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-wrap gap-2">
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(
+              `Contrato ${c.id} — ${sanitizarTextoPublico(c.objeto).slice(0, 120)}`,
+              null,
+              { contrato: c, fornecedor, orgao: orgao ? { cod: orgao.cod, sigla: orgao.sigla, nome: orgao.nome } : null },
+            )
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados do contrato copiados — cole na sua IA"
+        />
         <BotaoSalvarItem
           entidadeTipo="contrato"
           entidadeId={c.id}
           titulo={sanitizarTextoPublico(c.objeto).slice(0, 200)}
           url={`/contratos/${encodeURIComponent(c.id)}`}
           contexto={`${c.modalidade} · ${fmtBRL(c.valor)}${orgao ? ` · ${orgao.sigla}` : ""}${fornecedor ? ` · ${fornecedor.nome}` : ""}`}
+          snapshotDe={c}
         />
       </div>
 

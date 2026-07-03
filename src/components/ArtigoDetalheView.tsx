@@ -9,6 +9,8 @@ export function ArtigoDetalheView({
   artigo,
   voltarTo,
   voltarLabel,
+  kit,
+  acoes,
 }: ArtigoDetalheViewProps) {
   if (isLoading) {
     return (
@@ -20,8 +22,8 @@ export function ArtigoDetalheView({
   if (error) throw error;
   if (!artigo) throw notFound();
 
-  return (
-    <article className="mx-auto max-w-3xl px-4 py-10 space-y-6">
+  const corpo = (
+    <>
       <Link
         to={voltarTo}
         className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
@@ -55,10 +57,24 @@ export function ArtigoDetalheView({
             ))}
           </div>
         )}
+        {acoes}
       </header>
 
       <ArtigoRenderer conteudo={artigo.conteudo_md} />
-    </article>
+    </>
+  );
+
+  if (!kit) {
+    return <article className="mx-auto max-w-3xl px-4 py-10 space-y-6">{corpo}</article>;
+  }
+
+  // Mapas: grid [conteúdo | Kit] que colapsa em coluna no mobile. O Kit é alto
+  // (procedimento + prompts), então rola junto com a página — não é sticky.
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-10 lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-10 lg:items-start">
+      <article className="max-w-3xl space-y-6 min-w-0">{corpo}</article>
+      <aside className="mt-10 lg:mt-0">{kit}</aside>
+    </div>
   );
 }
 ArtigoDetalheView.displayName = "ArtigoDetalheView";
