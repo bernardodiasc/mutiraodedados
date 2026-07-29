@@ -9,7 +9,7 @@ import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 export const Route = createFileRoute("/senado_/votacoes/$id")({
   component: VotacaoSenadoDetalhe,
   head: ({ params }) => ({
-    meta: [{ title: `Votação ${params.id} — Senado — Auditoria Cidadã` }],
+    meta: [{ title: `Votação ${params.id} — Senado — Mutirão de Dados` }],
   }),
 });
 

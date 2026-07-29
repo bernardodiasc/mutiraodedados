@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 async function camaraGet<T = unknown>(path: string, params: Record<string, string> = {}): Promise<T> {
   const qs = new URLSearchParams(params).toString();

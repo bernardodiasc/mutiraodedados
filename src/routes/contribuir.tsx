@@ -5,14 +5,14 @@ export const Route = createFileRoute("/contribuir")({
   component: Contribuir,
   head: () => ({
     meta: [
-      { title: "Contribuir — Auditoria Cidadã" },
-      { name: "description", content: "Como participar da Auditoria Cidadã: lendo dados, revisando sinais, marcando informações ou contribuindo com código no repositório open source." },
-      { property: "og:title", content: "Contribuir — Auditoria Cidadã" },
+      { title: "Contribuir — Mutirão de Dados" },
+      { name: "description", content: "Como participar do Mutirão de Dados: lendo dados, revisando sinais, marcando informações ou contribuindo com código no repositório open source." },
+      { property: "og:title", content: "Contribuir — Mutirão de Dados" },
       { property: "og:description", content: "Open data, open source e participação cidadã: caminhos para colaborar com o projeto." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/contribuir" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/contribuir" },
       { property: "og:type", content: "article" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/contribuir" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/contribuir" }],
   }),
 });
 
@@ -26,7 +26,7 @@ function Contribuir() {
         Este projeto se faz com gente
       </h1>
       <p className="mt-6 text-lg text-muted-foreground">
-        A Auditoria Cidadã não nasceu de uma empresa nem de um governo. Nasceu de
+        O Mutirão de Dados não nasceu de uma empresa nem de um governo. Nasceu de
         um movimento mais antigo, internacional e teimoso, que entende que
         informação pública pertence ao público — e que tecnologia também.
       </p>
@@ -106,12 +106,12 @@ function Contribuir() {
           fica em:
           <div className="mt-3">
             <a
-              href="https://github.com/bernardodiasc/auditoriacidada/"
+              href="https://github.com/bernardodiasc/mutiraodedados/"
               target="_blank"
               rel="noreferrer noopener"
               className="inline-flex items-center gap-1.5 text-accent underline break-all"
             >
-              github.com/bernardodiasc/auditoriacidada
+              github.com/bernardodiasc/mutiraodedados
               <ExternalLink className="size-3.5 shrink-0" />
             </a>
           </div>

@@ -10,7 +10,7 @@ export const Route = createFileRoute("/camara")({
   component: CamaraHome,
   head: () => ({
     meta: [
-      { title: "Câmara dos Deputados — Auditoria Cidadã" },
+      { title: "Câmara dos Deputados — Mutirão de Dados" },
       {
         name: "description",
         content:

@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { Database } from "@/integrations/supabase/types";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 
 export type PerguntaModelo = {
@@ -18,18 +17,13 @@ export type PerguntaModelo = {
 
 const COLS = "id, titulo, descricao, contexto, tags, ordem, ativo, created_at, updated_at";
 
-function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
-}
-
+// Leitura pública via service role (server-side), filtrando ativo=true. Evita a
+// policy RLS de pergunta_modelos, que chama public.has_role(...) — função cujo
+// EXECUTE foi revogado do anon (migração 20260629001626), o que quebrava o
+// caminho anônimo com "permission denied for function has_role".
 export const listarModelosAtivos = createServerFn({ method: "GET" })
   .handler(async () => {
-    const supabase = publicClient();
-    const { data, error } = await supabase
+    const { data, error } = await supabaseAdmin
       .from("pergunta_modelos")
       .select(COLS)
       .eq("ativo", true)
@@ -43,8 +37,7 @@ const obterSchema = z.object({ id: z.string().uuid() });
 export const obterModelo = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => obterSchema.parse(data))
   .handler(async ({ data }) => {
-    const supabase = publicClient();
-    const { data: row, error } = await supabase
+    const { data: row, error } = await supabaseAdmin
       .from("pergunta_modelos")
       .select(COLS)
       .eq("id", data.id)

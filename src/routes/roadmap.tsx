@@ -14,20 +14,20 @@ export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
   head: () => ({
     meta: [
-      { title: "Roadmap & novidades — Auditoria Cidadã" },
+      { title: "Roadmap & novidades — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "O que já está no ar, o que está em construção e o que vem a seguir na Auditoria Cidadã. Inclui notas de versão por entrega.",
+          "O que já está no ar, o que está em construção e o que vem a seguir no Mutirão de Dados. Inclui notas de versão por entrega.",
       },
-      { property: "og:title", content: "Roadmap & novidades — Auditoria Cidadã" },
+      { property: "og:title", content: "Roadmap & novidades — Mutirão de Dados" },
       {
         property: "og:description",
         content: "Histórico de entregas e prioridades em construção, com notas de cada lançamento.",
       },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/roadmap" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/roadmap" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/roadmap" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/roadmap" }],
   }),
 });
 

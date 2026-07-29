@@ -9,11 +9,11 @@ export const Route = createFileRoute("/portal-cgu")({
   component: PortalCguPage,
   head: () => ({
     meta: [
-      { title: "Portal da Transparência (CGU) — Auditoria Cidadã" },
+      { title: "Portal da Transparência (CGU) — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "O que o Portal da Transparência da CGU cobre na Auditoria Cidadã: contratos, licitações, convênios, emendas e transferências do Executivo Federal.",
+          "O que o Portal da Transparência da CGU cobre no Mutirão de Dados: contratos, licitações, convênios, emendas e transferências do Executivo Federal.",
       },
     ],
   }),

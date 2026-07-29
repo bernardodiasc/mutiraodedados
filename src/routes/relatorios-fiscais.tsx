@@ -16,7 +16,7 @@ export const Route = createFileRoute("/relatorios-fiscais")({
   component: RelatoriosFiscaisPage,
   head: () => ({
     meta: [
-      { title: "Relatórios fiscais (RREO, RGF, DCA) — Auditoria Cidadã" },
+      { title: "Relatórios fiscais (RREO, RGF, DCA) — Mutirão de Dados" },
       {
         name: "description",
         content:

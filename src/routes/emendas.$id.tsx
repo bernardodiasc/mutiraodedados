@@ -12,7 +12,7 @@ import { fmtBRL } from "@/lib/fmt";
 
 export const Route = createFileRoute("/emendas/$id")({
   component: EmendaDetalhe,
-  head: () => ({ meta: [{ title: "Emenda parlamentar — Auditoria Cidadã" }] }),
+  head: () => ({ meta: [{ title: "Emenda parlamentar — Mutirão de Dados" }] }),
 });
 
 function EmendaDetalhe() {

@@ -1,4 +1,4 @@
-# Documentação do Auditoria Cidadã
+# Documentação do Mutirão de Dados
 
 Esta pasta é a fonte única de verdade sobre como o projeto funciona. Foi escrita para ser lida por humanos (colaboradores, jornalistas, cidadãos curiosos) e também usada por agentes de IA que vão modificar o código no futuro.
 
@@ -29,6 +29,7 @@ Veja o índice em [`fontes/README.md`](./fontes/README.md). Cada arquivo explica
 - [PNCP — Portal Nacional de Contratações Públicas](./fontes/pncp.md)
 - [Transferegov](./fontes/transferegov.md)
 - [SICONFI — Tesouro Nacional](./fontes/siconfi.md)
+- [TSE — Dados Abertos Eleitorais](./fontes/tse.md)
 
 ### Domínios temáticos
 

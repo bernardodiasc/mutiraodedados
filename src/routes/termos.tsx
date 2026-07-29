@@ -4,9 +4,9 @@ export const Route = createFileRoute("/termos")({
   component: TermosPage,
   head: () => ({
     meta: [
-      { title: "Termos de Uso — Auditoria Cidadã" },
-      { name: "description", content: "Condições de uso da plataforma Auditoria Cidadã. Natureza experimental, responsabilidades do usuário e limites de interpretação dos dados." },
-      { property: "og:title", content: "Termos de Uso — Auditoria Cidadã" },
+      { title: "Termos de Uso — Mutirão de Dados" },
+      { name: "description", content: "Condições de uso da plataforma Mutirão de Dados. Natureza experimental, responsabilidades do usuário e limites de interpretação dos dados." },
+      { property: "og:title", content: "Termos de Uso — Mutirão de Dados" },
       { property: "og:description", content: "Regras de uso, vedações e limites de responsabilidade." },
     ],
   }),
@@ -21,7 +21,7 @@ function TermosPage() {
 
       <h2 className="font-display text-2xl mt-10">1. Natureza da plataforma</h2>
       <p className="mt-3 text-muted-foreground">
-        A Auditoria Cidadã é uma plataforma <strong className="text-foreground">experimental</strong> de
+        O Mutirão de Dados é uma plataforma <strong className="text-foreground">experimental</strong> de
         pesquisa em transparência pública. Seu propósito é reorganizar, contextualizar e
         interpretar dados administrativos publicados por entes governamentais. Não substitui
         órgãos oficiais de controle (CGU, TCU, Ministério Público).
@@ -43,7 +43,7 @@ function TermosPage() {
       <ul className="mt-3 space-y-2 text-muted-foreground">
         <li>Não atribuir caráter conclusivo aos sinais aqui apresentados;</li>
         <li>Não usar a plataforma para difamação, calúnia, injúria ou perseguição;</li>
-        <li>Indicar a Auditoria Cidadã como fonte secundária e o portal oficial como fonte primária;</li>
+        <li>Indicar o Mutirão de Dados como fonte secundária e o portal oficial como fonte primária;</li>
         <li>Respeitar os direitos de terceiros, em especial a presunção de inocência e a honra.</li>
       </ul>
 

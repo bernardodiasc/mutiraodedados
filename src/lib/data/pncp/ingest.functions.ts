@@ -11,7 +11,7 @@ import { regrasPncp, flagQA } from "@/lib/data/qa";
  * Cobre União + Estados + Municípios desde 2021 (Lei 14.133).
  */
 const BASE = "https://pncp.gov.br/api/consulta";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 async function pncpGet<T = unknown>(path: string, params: Record<string, string | number>): Promise<T> {
   const qs = new URLSearchParams(

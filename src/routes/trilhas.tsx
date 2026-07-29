@@ -19,21 +19,21 @@ export const Route = createFileRoute("/trilhas")({
   component: TrilhasPage,
   head: () => ({
     meta: [
-      { title: "Trilhas — Auditoria Cidadã" },
+      { title: "Trilhas — Mutirão de Dados" },
       {
         name: "description",
         content:
           "Rotas de aprendizado metodológico para investigar o Estado: como pensar, o que observar e quais perguntas registrar. O método antes da ferramenta.",
       },
-      { property: "og:title", content: "Trilhas — Auditoria Cidadã" },
+      { property: "og:title", content: "Trilhas — Mutirão de Dados" },
       {
         property: "og:description",
         content:
           "Trilhas ensinam o mindset do auditor cidadão em 3 passos. Para o manual técnico de cliques e cruzamentos, veja os Mapas Investigativos.",
       },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/trilhas" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/trilhas" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/trilhas" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/trilhas" }],
   }),
 });
 

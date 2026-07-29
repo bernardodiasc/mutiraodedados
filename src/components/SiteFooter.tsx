@@ -6,7 +6,7 @@ export function SiteFooter() {
     <footer className="border-t border-border mt-20">
       <div className="mx-auto max-w-7xl px-4 py-12 grid gap-8 sm:grid-cols-2 lg:grid-cols-5 text-sm">
         <div>
-          <div className="font-display text-xl">Auditoria Cidadã</div>
+          <div className="font-display text-xl">Mutirão de Dados</div>
           <p className="text-muted-foreground mt-2 leading-relaxed">
             Observatório cívico de interpretação pública do Estado. Reorganiza dados
             administrativos para fortalecer o controle social responsável.

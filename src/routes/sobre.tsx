@@ -3,25 +3,25 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/sobre")({
   component: Sobre,
   head: () => ({ meta: [
-    { title: "Sobre — Auditoria Cidadã" },
-    { name: "description", content: "Observatório cívico de interpretação pública do Estado. Premissas, limites analíticos, fontes e responsabilidades editoriais da Auditoria Cidadã." },
-    { property: "og:title", content: "Sobre — Auditoria Cidadã" },
+    { title: "Sobre — Mutirão de Dados" },
+    { name: "description", content: "Observatório cívico de interpretação pública do Estado. Premissas, limites analíticos, fontes e responsabilidades editoriais do Mutirão de Dados." },
+    { property: "og:title", content: "Sobre — Mutirão de Dados" },
     { property: "og:description", content: "Quem somos, o que fazemos, o que deliberadamente não fazemos." },
-    { property: "og:url", content: "https://auditoriacidada.ia.br/sobre" },
+    { property: "og:url", content: "https://mutiraodedados.com.br/sobre" },
     { property: "og:type", content: "article" },
   ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/sobre" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/sobre" }],
     scripts: [
       {
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Article",
-          headline: "Sobre a Auditoria Cidadã",
+          headline: "Sobre o Mutirão de Dados",
           description: "Observatório cívico de interpretação pública do Estado. Premissas, limites analíticos, fontes e responsabilidades editoriais.",
-          author: { "@type": "Organization", name: "Auditoria Cidadã" },
-          publisher: { "@type": "Organization", name: "Auditoria Cidadã" },
-          mainEntityOfPage: "https://auditoriacidada.ia.br/sobre",
+          author: { "@type": "Organization", name: "Mutirão de Dados" },
+          publisher: { "@type": "Organization", name: "Mutirão de Dados" },
+          mainEntityOfPage: "https://mutiraodedados.com.br/sobre",
         }),
       },
     ],
@@ -35,7 +35,7 @@ function Sobre() {
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Um observatório cívico</h1>
 
       <p className="mt-6 text-lg text-muted-foreground">
-        Auditoria Cidadã é uma plataforma independente de pesquisa em transparência pública.
+        Mutirão de Dados é uma plataforma independente de pesquisa em transparência pública.
         Trabalhamos com uma premissa: transparência não é a publicação de dados. É a
         possibilidade de interpretá-los.
       </p>

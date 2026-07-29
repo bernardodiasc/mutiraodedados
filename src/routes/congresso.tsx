@@ -11,13 +11,13 @@ export const Route = createFileRoute("/congresso")({
   component: CongressoHub,
   head: () => ({
     meta: [
-      { title: "Congresso Nacional — Auditoria Cidadã" },
+      { title: "Congresso Nacional — Mutirão de Dados" },
       {
         name: "description",
         content:
           "Comparativo Câmara × Senado: parlamentares, despesas reembolsadas e atividade legislativa do Congresso Nacional.",
       },
-      { property: "og:title", content: "Congresso Nacional — Auditoria Cidadã" },
+      { property: "og:title", content: "Congresso Nacional — Mutirão de Dados" },
       {
         property: "og:description",
         content:

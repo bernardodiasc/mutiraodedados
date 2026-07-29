@@ -9,12 +9,12 @@ export const Route = createFileRoute("/caderno")({
   component: CadernoPage,
   head: () => ({
     meta: [
-      { title: "Meu caderno — Auditoria Cidadã" },
+      { title: "Meu caderno — Mutirão de Dados" },
       { name: "description", content: "Caderno pessoal de investigação cidadã: perguntas e itens salvos, privados por padrão." },
-      { property: "og:title", content: "Meu caderno — Auditoria Cidadã" },
+      { property: "og:title", content: "Meu caderno — Mutirão de Dados" },
       { property: "og:description", content: "Salve perguntas, contratos, anomalias e órgãos. Privado por padrão. Você decide quando compartilhar." },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/caderno" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/caderno" }],
   }),
 });
 

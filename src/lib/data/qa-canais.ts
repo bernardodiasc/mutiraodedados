@@ -105,6 +105,16 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     instrucoes:
       "Reporte pela página de suporte do Transferegov, mencionando número do instrumento.",
   },
+  tse: {
+    fonte: "tse",
+    fonteLabel: "TSE — Dados Abertos Eleitorais",
+    orgao: "Tribunal Superior Eleitoral (TSE)",
+    canalPrimario: "Fale com o TSE (Ouvidoria)",
+    urlReporte: "https://www.tse.jus.br/servicos-eleitorais/ouvidoria",
+    emailSecundario: "dados.abertos@tse.jus.br",
+    instrucoes:
+      "Use a Ouvidoria do TSE (ou o e-mail da equipe de dados abertos) citando o dataset (candidatos, bens, prestação de contas ou votação), o ano da eleição, a UF e o SQ_CANDIDATO afetado. Cole o texto sugerido com os links.",
+  },
   siconfi: {
     fonte: "siconfi",
     fonteLabel: "SICONFI (STN/Tesouro Nacional)",

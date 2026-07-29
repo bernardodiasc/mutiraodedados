@@ -4,9 +4,9 @@ export const Route = createFileRoute("/tratamento-de-dados")({
   component: TratamentoPage,
   head: () => ({
     meta: [
-      { title: "Tratamento de Dados Públicos — Auditoria Cidadã" },
-      { name: "description", content: "Como dados públicos são reprocessados pela Auditoria Cidadã, princípio da minimização e o que deliberadamente não republicamos." },
-      { property: "og:title", content: "Tratamento de Dados Públicos — Auditoria Cidadã" },
+      { title: "Tratamento de Dados Públicos — Mutirão de Dados" },
+      { name: "description", content: "Como dados públicos são reprocessados pelo Mutirão de Dados, princípio da minimização e o que deliberadamente não republicamos." },
+      { property: "og:title", content: "Tratamento de Dados Públicos — Mutirão de Dados" },
       { property: "og:description", content: "Minimização, sanitização e responsabilidade no tratamento de dados administrativos." },
     ],
   }),
@@ -18,7 +18,7 @@ function TratamentoPage() {
       <span className="inline-block text-xs font-semibold tracking-widest text-accent uppercase">Governança</span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Tratamento de dados públicos</h1>
       <p className="mt-6 text-lg text-muted-foreground">
-        Dado público não é dado livre de cuidado. A Auditoria Cidadã reorganiza informações de
+        Dado público não é dado livre de cuidado. O Mutirão de Dados reorganiza informações de
         portais governamentais para fins de transparência e controle social — e o faz sob os
         princípios da minimização, da proporcionalidade e do interesse público.
       </p>

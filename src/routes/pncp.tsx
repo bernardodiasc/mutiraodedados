@@ -8,11 +8,11 @@ export const Route = createFileRoute("/pncp")({
   component: PNCPPage,
   head: () => ({
     meta: [
-      { title: "PNCP — Portal Nacional de Contratações Públicas — Auditoria Cidadã" },
+      { title: "PNCP — Portal Nacional de Contratações Públicas — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "O que o PNCP cobre na Auditoria Cidadã: contratos e licitações sob a Lei 14.133, de todos os entes (União, estados, municípios).",
+          "O que o PNCP cobre no Mutirão de Dados: contratos e licitações sob a Lei 14.133, de todos os entes (União, estados, municípios).",
       },
     ],
   }),

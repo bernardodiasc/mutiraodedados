@@ -13,7 +13,7 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 
 export const Route = createFileRoute("/convenios/$id")({
   component: ConvenioDetalhe,
-  head: () => ({ meta: [{ title: "Convênio — Auditoria Cidadã" }] }),
+  head: () => ({ meta: [{ title: "Convênio — Mutirão de Dados" }] }),
 });
 
 function ConvenioDetalhe() {

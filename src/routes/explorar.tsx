@@ -17,9 +17,9 @@ export const Route = createFileRoute("/explorar")({
   component: ExplorarPage,
   head: () => ({
     meta: [
-      { title: "Explorar por ente — Auditoria Cidadã" },
+      { title: "Explorar por ente — Mutirão de Dados" },
       { name: "description", content: "Visão consolidada de um estado ou município: contratos, relatórios fiscais e transferências da União em um só lugar." },
-      { property: "og:title", content: "Explorar por ente — Auditoria Cidadã" },
+      { property: "og:title", content: "Explorar por ente — Mutirão de Dados" },
       { property: "og:description", content: "Visão consolidada de um estado ou município: contratos, relatórios fiscais e transferências da União em um só lugar." },
     ],
   }),

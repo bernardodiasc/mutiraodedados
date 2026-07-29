@@ -10,7 +10,7 @@ import { ExternalLink } from "lucide-react";
 export const Route = createFileRoute("/camara_/votacoes/$id")({
   component: VotacaoDetalhe,
   head: ({ params }) => ({
-    meta: [{ title: `Votação ${params.id} — Auditoria Cidadã` }],
+    meta: [{ title: `Votação ${params.id} — Mutirão de Dados` }],
   }),
 });
 

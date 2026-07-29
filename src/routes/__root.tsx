@@ -69,37 +69,27 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Auditoria Cidadã — Gastos federais sob escrutínio" },
+      { title: "Mutirão de Dados — Gastos federais sob escrutínio" },
       {
         name: "description",
         content:
           "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
       },
-      { name: "author", content: "Auditoria Cidadã" },
-      { property: "og:title", content: "Auditoria Cidadã — Gastos federais sob escrutínio" },
+      { name: "author", content: "Mutirão de Dados" },
+      { property: "og:title", content: "Mutirão de Dados — Gastos federais sob escrutínio" },
       {
         property: "og:description",
         content:
           "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
       },
       { property: "og:type", content: "website" },
-      { property: "og:site_name", content: "Auditoria Cidadã" },
+      { property: "og:site_name", content: "Mutirão de Dados" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "Auditoria Cidadã — Gastos federais sob escrutínio" },
+      { name: "twitter:title", content: "Mutirão de Dados — Gastos federais sob escrutínio" },
       {
         name: "twitter:description",
         content:
           "Observatório cívico que organiza, compara e contextualiza gastos federais brasileiros para o controle social.",
-      },
-      {
-        property: "og:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png",
-      },
-      {
-        name: "twitter:image",
-        content:
-          "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/53f48119-18f7-4687-a3ee-49b32dcdc5a1/id-preview-99de29eb--00000000-0000-0000-0000-000000000000.lovable.app-1779070926485.png",
       },
     ],
     links: [
@@ -122,14 +112,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@graph": [
             {
               "@type": "Organization",
-              name: "Auditoria Cidadã",
-              url: "https://auditoriacidada.ia.br",
+              name: "Mutirão de Dados",
+              url: "https://mutiraodedados.com.br",
               description: "Observatório cívico de gastos públicos federais brasileiros.",
             },
             {
               "@type": "WebSite",
-              name: "Auditoria Cidadã",
-              url: "https://auditoriacidada.ia.br",
+              name: "Mutirão de Dados",
+              url: "https://mutiraodedados.com.br",
               inLanguage: "pt-BR",
             },
           ],

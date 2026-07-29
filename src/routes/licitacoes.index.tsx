@@ -79,7 +79,7 @@ export const Route = createFileRoute("/licitacoes/")({
   component: LicitacoesPage,
   head: () => ({
     meta: [
-      { title: "Licitações do Executivo federal — Auditoria Cidadã" },
+      { title: "Licitações do Executivo federal — Mutirão de Dados" },
       {
         name: "description",
         content:

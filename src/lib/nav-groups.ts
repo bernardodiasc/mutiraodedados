@@ -39,6 +39,7 @@ import {
   Banknote,
   Share2,
   Calculator,
+  Vote,
   type LucideIcon,
 } from "lucide-react";
 
@@ -160,7 +161,12 @@ export const NAV_GROUPS: NavGroup[] = [
             icon: Banknote,
             mode: "explorar",
           },
-          { to: "/pncp", label: "Portal Nacional de Contratações Públicas (PNCP)", icon: FileText, mode: "explorar" },
+          {
+            to: "/pncp",
+            label: "Portal Nacional de Contratações Públicas (PNCP)",
+            icon: FileText,
+            mode: "explorar",
+          },
           {
             to: "/siconfi",
             label: "Sistema de Informações Contábeis e Fiscais (SICONFI)",
@@ -168,6 +174,12 @@ export const NAV_GROUPS: NavGroup[] = [
             mode: "explorar",
           },
           { to: "/transferegov", label: "Transferegov", icon: Share2, mode: "explorar" },
+          {
+            to: "/tse",
+            label: "Tribunal Superior Eleitoral (TSE)",
+            icon: Vote,
+            mode: "explorar",
+          },
         ],
       },
       {
@@ -177,6 +189,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { to: "/licitacoes", label: "Licitações", icon: Scale, mode: "explorar" },
           { to: "/convenios", label: "Convênios", icon: FileSignature, mode: "explorar" },
           { to: "/emendas", label: "Emendas parlamentares", icon: HandCoins, mode: "explorar" },
+          { to: "/eleicoes", label: "Eleições", icon: Megaphone, mode: "explorar" },
           {
             to: "/relatorios-fiscais",
             label: "Relatórios fiscais",

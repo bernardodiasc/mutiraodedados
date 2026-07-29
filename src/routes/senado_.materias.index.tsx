@@ -11,7 +11,7 @@ export const Route = createFileRoute("/senado_/materias/")({
   component: ListaMaterias,
   head: () => ({
     meta: [
-      { title: "Matérias legislativas — Senado — Auditoria Cidadã" },
+      { title: "Matérias legislativas — Senado — Mutirão de Dados" },
       {
         name: "description",
         content:

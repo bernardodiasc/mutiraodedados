@@ -11,7 +11,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/minhas-marcacoes")({
   component: MinhasMarcacoes,
-  head: () => ({ meta: [{ title: "Minhas marcações — Auditoria Cidadã" }]}),
+  head: () => ({ meta: [{ title: "Minhas marcações — Mutirão de Dados" }]}),
 });
 
 type Flag = { id: string; entidade_tipo: string; entidade_id: string; tipo: string; comentario: string | null; created_at: string };

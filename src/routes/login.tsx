@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
-  head: () => ({ meta: [{ title: "Entrar — Auditoria Cidadã" }]}),
+  head: () => ({ meta: [{ title: "Entrar — Mutirão de Dados" }]}),
   validateSearch: z.object({ redirect: z.string().optional() }),
 });
 

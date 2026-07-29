@@ -27,8 +27,20 @@ export type CoberturaPublicaResult = {
 };
 
 type RpcRow = { ano: number; mes: number; qtd: number; ultimo: string | null };
-type RpcRowOrgao = { orgao_cod: string; ano: number; mes: number; qtd: number; ultimo: string | null };
-type RpcSiconfi = { tipo_relatorio: string; ano: number; periodo: number; qtd: number; ultimo: string | null };
+type RpcRowOrgao = {
+  orgao_cod: string;
+  ano: number;
+  mes: number;
+  qtd: number;
+  ultimo: string | null;
+};
+type RpcSiconfi = {
+  tipo_relatorio: string;
+  ano: number;
+  periodo: number;
+  qtd: number;
+  ultimo: string | null;
+};
 
 async function maxUpdated(table: string): Promise<string | null> {
   const { data } = await (supabaseAdmin.from as (t: string) => any)(table)
@@ -46,7 +58,9 @@ async function countOf(table: string): Promise<number> {
   return count ?? 0;
 }
 
-function agregarPorAno(rows: { ano: number; qtd: number | string }[]): { ano: number; qtd: number }[] {
+function agregarPorAno(
+  rows: { ano: number; qtd: number | string }[],
+): { ano: number; qtd: number }[] {
   const m = new Map<number, number>();
   for (const r of rows) {
     if (!r.ano) continue;
@@ -57,7 +71,10 @@ function agregarPorAno(rows: { ano: number; qtd: number | string }[]): { ano: nu
     .sort((a, b) => a.ano - b.ano);
 }
 
-function mesesPresentes(rows: { ano: number; mes: number; qtd: number | string }[], ano: number): number[] {
+function mesesPresentes(
+  rows: { ano: number; mes: number; qtd: number | string }[],
+  ano: number,
+): number[] {
   const s = new Set<number>();
   for (const r of rows) {
     if (r.ano === ano && r.mes && Number(r.qtd) > 0) s.add(r.mes);
@@ -110,6 +127,11 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countSenadores,
       updDeputados,
       updSenadores,
+      tseContagem,
+      countTseCandidatos,
+      countTseReceitas,
+      countTseDespesas,
+      updTse,
     ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
       supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
@@ -137,6 +159,11 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countOf("senado_senadores_cache"),
       maxUpdated("camara_deputados_cache"),
       maxUpdated("senado_senadores_cache"),
+      supabaseAdmin.rpc("tse_contagem_ano_uf"),
+      countOf("tse_candidatos_cache"),
+      countOf("tse_receitas_campanha_cache"),
+      countOf("tse_despesas_campanha_cache"),
+      maxUpdated("tse_candidatos_cache"),
     ]);
 
     const cguRows = ((cgu.data as RpcRowOrgao[] | null) ?? []).map((r) => ({
@@ -151,20 +178,44 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       qtd: Number(r.qtd),
       ultimo: r.ultimo,
     }));
-    const cguEmeRows = ((cguEme.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const cguConvRows = ((cguConv.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const pncpRows = ((pncp.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const transfRows = ((transf.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
+    const cguEmeRows = ((cguEme.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const cguConvRows = ((cguConv.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const pncpRows = ((pncp.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const transfRows = ((transf.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
     const siconfiRows = ((siconfi.data as RpcSiconfi[] | null) ?? []).map((r) => ({
       ano: r.ano,
       mes: r.periodo,
       qtd: Number(r.qtd),
       ultimo: r.ultimo,
     }));
-    const camCeapRows = ((camCeap.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const camVotRows = ((camVot.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const senCeapsRows = ((senCeaps.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
-    const senVotRows = ((senVot.data as RpcRow[] | null) ?? []).map((r) => ({ ...r, qtd: Number(r.qtd) }));
+    const camCeapRows = ((camCeap.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const camVotRows = ((camVot.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const senCeapsRows = ((senCeaps.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const senVotRows = ((senVot.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
 
     const ultimo = (rows: { ultimo: string | null }[]): string | null => {
       let max: string | null = null;
@@ -307,6 +358,17 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         mesesAnoCorrente: [],
         rota: "/camara/deputados",
       },
+      mkFonte(
+        "tse",
+        "TSE — eleições (candidatos, bens, votos e contas)",
+        `Dados abertos eleitorais de 2014 em diante. Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
+        ((tseContagem.data as { ano_eleicao: number; candidatos: number }[] | null) ?? []).map(
+          (r) => ({ ano: r.ano_eleicao, mes: 1, qtd: Number(r.candidatos), ultimo: updTse }),
+        ),
+        countTseCandidatos,
+        "/eleicoes",
+        "ano",
+      ),
       {
         id: "senado_senadores",
         titulo: "Senado — cadastro de senadores",

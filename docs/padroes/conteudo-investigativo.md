@@ -1,6 +1,6 @@
 # Diretrizes de Conteúdo Investigativo
 
-Referência para criação de **Trilhas Investigativas**, **Mapas Investigativos** e **Notas de Campo** na plataforma Auditoria Cidadã.
+Referência para criação de **Trilhas Investigativas**, **Mapas Investigativos** e **Notas de Campo** na plataforma Mutirão de Dados.
 
 O objetivo central não é "caçar escândalos" nem apontar o "gasto mais alto", mas **capacitar o cidadão a compreender a mecânica da máquina pública** por meio de engenharia reversa orçamentária.
 

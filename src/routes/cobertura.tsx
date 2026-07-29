@@ -8,13 +8,13 @@ export const Route = createFileRoute("/cobertura")({
   component: CoberturaPage,
   head: () => ({
     meta: [
-      { title: "Cobertura dos dados — Auditoria Cidadã" },
+      { title: "Cobertura dos dados — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "Quanto a Auditoria Cidadã já baixou de cada fonte pública: período coberto, frescor da última atualização e lacunas por ano e mês.",
+          "Quanto o Mutirão de Dados já baixou de cada fonte pública: período coberto, frescor da última atualização e lacunas por ano e mês.",
       },
-      { property: "og:title", content: "Cobertura dos dados — Auditoria Cidadã" },
+      { property: "og:title", content: "Cobertura dos dados — Mutirão de Dados" },
       {
         property: "og:description",
         content:
@@ -39,7 +39,7 @@ function CoberturaPage() {
       </span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Cobertura dos dados</h1>
       <p className="mt-6 text-lg text-muted-foreground max-w-3xl">
-        Aqui mostramos honestamente o quanto cada fonte pública já está armazenada na Auditoria Cidadã,
+        Aqui mostramos honestamente o quanto cada fonte pública já está armazenada no Mutirão de Dados,
         o período coberto e quando foi a última atualização. Lacunas e fontes defasadas são o ponto —
         não escondemos.
       </p>

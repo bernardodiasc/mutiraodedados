@@ -14,7 +14,7 @@ export const Route = createFileRoute("/qualidade")({
   component: QualidadePage,
   head: () => ({
     meta: [
-      { title: "Qualidade dos dados — Auditoria Cidadã" },
+      { title: "Qualidade dos dados — Mutirão de Dados" },
       {
         name: "description",
         content:
@@ -22,7 +22,7 @@ export const Route = createFileRoute("/qualidade")({
       },
       {
         property: "og:title",
-        content: "Qualidade dos dados — Auditoria Cidadã",
+        content: "Qualidade dos dados — Mutirão de Dados",
       },
       {
         property: "og:description",

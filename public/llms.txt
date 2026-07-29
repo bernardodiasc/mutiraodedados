@@ -1,4 +1,4 @@
-# Auditoria Cidadã
+# Mutirão de Dados
 
 > Observatório cívico brasileiro que organiza, compara e contextualiza gastos federais, contratos públicos e atividade parlamentar para o controle social.
 

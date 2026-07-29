@@ -6,7 +6,7 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -119,6 +119,132 @@ async function logImportacaoSenadores(legislatura: number, total: number, userId
   }
 }
 
+// ── Mandatos: exercícios (afastamentos) + cadeia de suplência ────────────────
+type ExercicioRaw = {
+  DataInicio?: string;
+  DataFim?: string;
+  SiglaCausaAfastamento?: string;
+  DescricaoCausaAfastamento?: string;
+};
+type SuplenteRaw = {
+  DescricaoParticipacao?: string;
+  NomeParlamentar?: string;
+  CodigoParlamentar?: string | number;
+};
+type MandatoDetalhe = {
+  UfParlamentar?: string;
+  DescricaoParticipacao?: string;
+  PrimeiraLegislaturaDoMandato?: { NumeroLegislatura?: string | number };
+  SegundaLegislaturaDoMandato?: { NumeroLegislatura?: string | number };
+  Exercicios?: { Exercicio?: ExercicioRaw | ExercicioRaw[] };
+  Suplentes?: { Suplente?: SuplenteRaw | SuplenteRaw[] };
+};
+
+async function mandatosSenador(cod: number): Promise<MandatoDetalhe[]> {
+  try {
+    const j = await senadoGet<{
+      MandatoParlamentar?: { Parlamentar?: { Mandatos?: { Mandato?: MandatoDetalhe | MandatoDetalhe[] } } };
+    }>(`/senador/${cod}/mandatos`);
+    return asArray(j.MandatoParlamentar?.Parlamentar?.Mandatos?.Mandato);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Ingere, para um conjunto de senadores, os períodos em exercício (com causa de
+ * afastamento) e a cadeia de suplência (os suplentes de cada titular, por
+ * legislatura). Lotes paralelos; delete+insert por código (idempotente). É de
+ * `Exercicios` que se lê quando/por que alguém deixou o cargo, e de `Suplentes`
+ * quem entra no lugar.
+ */
+async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
+  const LOTE = 6;
+  const now = new Date().toISOString();
+  for (let i = 0; i < codigos.length; i += LOTE) {
+    const lote = codigos.slice(i, i + LOTE);
+    const res = await Promise.all(lote.map((cod) => mandatosSenador(cod).then((m) => [cod, m] as const)));
+    const exRows: Array<{
+      codigo_parlamentar: number;
+      data_inicio: string | null;
+      data_fim: string | null;
+      sigla_causa: string | null;
+      descricao_causa: string | null;
+      participacao: string | null;
+      uf: string | null;
+      updated_at: string;
+    }> = [];
+    const supRows: Array<{
+      titular_codigo: number;
+      legislatura: number;
+      ordem: string | null;
+      suplente_codigo: number | null;
+      suplente_nome: string | null;
+      updated_at: string;
+    }> = [];
+    const situacaoUpd: Array<{ cod: number; situacao: string }> = [];
+    for (const [cod, mandatos] of res) {
+      // Situação atual derivada dos exercícios: em exercício se há período aberto;
+      // já ocupou mas encerrou → "Fora de exercício"; nenhum exercício em toda a
+      // trajetória → "Nunca exerceu" (suplente que jamais assumiu a cadeira — sem
+      // posse e, em geral, sem foto oficial). Distingue esses do "Fora de exercício".
+      const exs = mandatos.flatMap((m) => asArray(m.Exercicios?.Exercicio));
+      const situacao = exs.some((e) => !e.DataFim)
+        ? "Exercício"
+        : exs.length > 0
+          ? "Fora de exercício"
+          : "Nunca exerceu";
+      situacaoUpd.push({ cod, situacao });
+      for (const m of mandatos) {
+        const uf = m.UfParlamentar ?? null;
+        const participacao = m.DescricaoParticipacao ?? null;
+        for (const e of asArray(m.Exercicios?.Exercicio)) {
+          exRows.push({
+            codigo_parlamentar: cod,
+            data_inicio: e.DataInicio ?? null,
+            data_fim: e.DataFim ?? null,
+            sigla_causa: e.SiglaCausaAfastamento ?? null,
+            descricao_causa: e.DescricaoCausaAfastamento ?? null,
+            participacao,
+            uf,
+            updated_at: now,
+          });
+        }
+        const legs = [
+          Number(m.PrimeiraLegislaturaDoMandato?.NumeroLegislatura),
+          Number(m.SegundaLegislaturaDoMandato?.NumeroLegislatura),
+        ].filter((n) => Number.isFinite(n) && n > 0);
+        for (const s of asArray(m.Suplentes?.Suplente)) {
+          const sc = Number(s.CodigoParlamentar);
+          for (const leg of legs) {
+            supRows.push({
+              titular_codigo: cod,
+              legislatura: leg,
+              ordem: s.DescricaoParticipacao ?? null,
+              suplente_codigo: Number.isFinite(sc) && sc > 0 ? sc : null,
+              suplente_nome: s.NomeParlamentar ?? null,
+              updated_at: now,
+            });
+          }
+        }
+      }
+    }
+    await supabaseAdmin.from("senado_exercicios").delete().in("codigo_parlamentar", lote);
+    await supabaseAdmin.from("senado_suplencia").delete().in("titular_codigo", lote);
+    for (let j = 0; j < exRows.length; j += 200) {
+      const { error } = await supabaseAdmin.from("senado_exercicios").insert(exRows.slice(j, j + 200));
+      if (error) throw new Error(`db exercicios: ${error.message}`);
+    }
+    for (let j = 0; j < supRows.length; j += 200) {
+      const { error } = await supabaseAdmin.from("senado_suplencia").insert(supRows.slice(j, j + 200));
+      if (error) throw new Error(`db suplencia: ${error.message}`);
+    }
+    for (const { cod, situacao } of situacaoUpd) {
+      await supabaseAdmin.from("senado_senadores_cache").update({ situacao }).eq("id", cod);
+    }
+  }
+}
+
 /** Importa os 81 senadores em exercício. */
 export const importarSenadores = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -180,6 +306,7 @@ export const importarSenadores = createServerFn({ method: "POST" })
       })),
     );
     await logImportacaoSenadores(legAtual, rows.length, context.userId);
+    await ingerirMandatosSenadores(rows.map((r) => r.codigo_parlamentar));
 
     return { importados: rows.length };
   });
@@ -291,6 +418,7 @@ async function ingerirSenadoresLegislatura(
 
   await upsertSenadorLegislaturas(legRows);
   await logImportacaoSenadores(legislatura, identidades.length, userId);
+  await ingerirMandatosSenadores(identidades.map((r) => r.codigo_parlamentar));
 
   return { importados: identidades.length, legislatura };
 }

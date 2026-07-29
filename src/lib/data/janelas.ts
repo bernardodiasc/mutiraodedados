@@ -16,7 +16,8 @@ export type FonteJanela =
   | "senado_mat"
   | "pncp"
   | "transferegov"
-  | "siconfi";
+  | "siconfi"
+  | "tse";
 
 // Ano a partir do qual a fonte tem (ou tipicamente tem) dados publicados.
 // Valores conservadores baseados na documentação das APIs.
@@ -34,6 +35,7 @@ export const ANO_INICIO_POR_FONTE: Record<FonteJanela, number> = {
   pncp: 2021,         // Portal Nacional de Contratações Públicas
   transferegov: 2017, // Espelho CGU consolida convênios consistentes a partir de 2017
   siconfi: 2013,      // RREO/RGF/DCA via API SICONFI
+  tse: 2014,          // Dados abertos do TSE (eleições de 2014 em diante)
 };
 
 /** True se (ano, mes) está dentro da janela conhecida e não é futuro. */

@@ -15,7 +15,16 @@ export type QaFonte =
   | "camara_ceap"
   | "senado_ceaps"
   | "transferegov"
-  | "siconfi";
+  | "siconfi"
+  | "tse"
+  | "tse-cruzamento";
+
+/**
+ * Tipo do sinal — taxonomia normativa em docs/qualidade-dados.md.
+ * Regra de classificação: cruzamento de dados → 'investigativo';
+ * ausência esperada → 'lacuna'; inspeção do próprio registro → 'qualidade'.
+ */
+export type QaTipoSinal = "qualidade" | "lacuna" | "investigativo";
 
 export type QaFinding = {
   fonte: QaFonte;
@@ -23,6 +32,8 @@ export type QaFinding = {
   entidade_id: string;
   regra: string;
   severidade: AnomaliaSeveridade;
+  /** Default: 'qualidade'. */
+  tipo?: QaTipoSinal;
   valor_armazenado?: number | null;
   valor_esperado?: number | null;
   detalhes?: Record<string, unknown>;
@@ -598,6 +609,7 @@ export async function flagQA(findings: QaFinding[]): Promise<number> {
           entidade_tipo: f.entidade_tipo,
           entidade_id: f.entidade_id,
           regra: f.regra,
+          tipo: f.tipo ?? "qualidade",
           severidade: f.severidade,
           origem: f.origem ?? "heuristica",
           valor_armazenado: f.valor_armazenado ?? null,

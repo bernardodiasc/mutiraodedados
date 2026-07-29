@@ -12,13 +12,13 @@ export const Route = createFileRoute("/orgaos")({
   component: OrgaosList,
   head: () => ({
     meta: [
-      { title: "Órgãos federais — Auditoria Cidadã" },
+      { title: "Órgãos federais — Mutirão de Dados" },
       { name: "description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos. Inclui órgãos extintos, com histórico preservado." },
-      { property: "og:title", content: "Órgãos federais — Auditoria Cidadã" },
+      { property: "og:title", content: "Órgãos federais — Mutirão de Dados" },
       { property: "og:description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/orgaos" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/orgaos" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/orgaos" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/orgaos" }],
   }),
 });
 

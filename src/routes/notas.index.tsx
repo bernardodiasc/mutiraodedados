@@ -15,12 +15,12 @@ export const Route = createFileRoute("/notas/")({
   ),
   head: () => ({
     meta: [
-      { title: "Notas de campo — Auditoria Cidadã" },
+      { title: "Notas de campo — Mutirão de Dados" },
       { name: "description", content: "Notas curtas sobre casos, mudanças em fontes e limitações de dados." },
-      { property: "og:title", content: "Notas de campo — Auditoria Cidadã" },
+      { property: "og:title", content: "Notas de campo — Mutirão de Dados" },
       { property: "og:description", content: "Notas curtas sobre casos, fontes e dados públicos." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/notas" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/notas" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/notas" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/notas" }],
   }),
 });

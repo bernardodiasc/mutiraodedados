@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TseRouteImport } from './routes/tse'
 import { Route as TrilhasRouteImport } from './routes/trilhas'
 import { Route as TratamentoDeDadosRouteImport } from './routes/tratamento-de-dados'
 import { Route as TransparenciaInstitucionalRouteImport } from './routes/transparencia-institucional'
@@ -52,6 +53,7 @@ import { Route as MapasIndexRouteImport } from './routes/mapas.index'
 import { Route as LicitacoesIndexRouteImport } from './routes/licitacoes.index'
 import { Route as EstiloIndexRouteImport } from './routes/estilo.index'
 import { Route as EmendasIndexRouteImport } from './routes/emendas.index'
+import { Route as EleicoesIndexRouteImport } from './routes/eleicoes.index'
 import { Route as ContratosIndexRouteImport } from './routes/contratos.index'
 import { Route as TutoriaisSlugRouteImport } from './routes/tutoriais.$slug'
 import { Route as QualidadeIdRouteImport } from './routes/qualidade.$id'
@@ -75,6 +77,7 @@ import { Route as SenadoSenadoresIndexRouteImport } from './routes/senado_.senad
 import { Route as SenadoMateriasIndexRouteImport } from './routes/senado_.materias.index'
 import { Route as EstiloUiIndexRouteImport } from './routes/estilo.ui.index'
 import { Route as EstiloComposicoesIndexRouteImport } from './routes/estilo.composicoes.index'
+import { Route as EleicoesCandidatosIndexRouteImport } from './routes/eleicoes.candidatos.index'
 import { Route as CamaraVotacoesIndexRouteImport } from './routes/camara_.votacoes.index'
 import { Route as CamaraProposicoesIndexRouteImport } from './routes/camara_.proposicoes.index'
 import { Route as CamaraDeputadosIndexRouteImport } from './routes/camara_.deputados.index'
@@ -83,6 +86,9 @@ import { Route as SenadoSenadoresIdRouteImport } from './routes/senado_.senadore
 import { Route as SenadoMateriasIdRouteImport } from './routes/senado_.materias.$id'
 import { Route as EstiloUiSlugRouteImport } from './routes/estilo.ui.$slug'
 import { Route as EstiloComposicoesNameRouteImport } from './routes/estilo.composicoes.$name'
+import { Route as EleicoesPartidosSiglaRouteImport } from './routes/eleicoes.partidos.$sigla'
+import { Route as EleicoesCandidatosSqRouteImport } from './routes/eleicoes.candidatos.$sq'
+import { Route as EleicoesAnoUfRouteImport } from './routes/eleicoes.$ano.$uf'
 import { Route as CamaraVotacoesIdRouteImport } from './routes/camara_.votacoes.$id'
 import { Route as CamaraProposicoesIdRouteImport } from './routes/camara_.proposicoes.$id'
 import { Route as CamaraDeputadosIdRouteImport } from './routes/camara_.deputados.$id'
@@ -97,6 +103,11 @@ import { Route as AuthenticatedAdminArtigosRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminAnalisesRouteImport } from './routes/_authenticated/admin_.analises'
 import { Route as EstiloPreviewNameVariantRouteImport } from './routes/estilo_.preview.$name.$variant'
 
+const TseRoute = TseRouteImport.update({
+  id: '/tse',
+  path: '/tse',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TrilhasRoute = TrilhasRouteImport.update({
   id: '/trilhas',
   path: '/trilhas',
@@ -312,6 +323,11 @@ const EmendasIndexRoute = EmendasIndexRouteImport.update({
   path: '/emendas/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EleicoesIndexRoute = EleicoesIndexRouteImport.update({
+  id: '/eleicoes/',
+  path: '/eleicoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContratosIndexRoute = ContratosIndexRouteImport.update({
   id: '/contratos/',
   path: '/contratos/',
@@ -428,6 +444,11 @@ const EstiloComposicoesIndexRoute = EstiloComposicoesIndexRouteImport.update({
   path: '/composicoes/',
   getParentRoute: () => EstiloRoute,
 } as any)
+const EleicoesCandidatosIndexRoute = EleicoesCandidatosIndexRouteImport.update({
+  id: '/eleicoes/candidatos/',
+  path: '/eleicoes/candidatos/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CamaraVotacoesIndexRoute = CamaraVotacoesIndexRouteImport.update({
   id: '/camara_/votacoes/',
   path: '/camara/votacoes/',
@@ -467,6 +488,21 @@ const EstiloComposicoesNameRoute = EstiloComposicoesNameRouteImport.update({
   id: '/composicoes/$name',
   path: '/composicoes/$name',
   getParentRoute: () => EstiloRoute,
+} as any)
+const EleicoesPartidosSiglaRoute = EleicoesPartidosSiglaRouteImport.update({
+  id: '/eleicoes/partidos/$sigla',
+  path: '/eleicoes/partidos/$sigla',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EleicoesCandidatosSqRoute = EleicoesCandidatosSqRouteImport.update({
+  id: '/eleicoes/candidatos/$sq',
+  path: '/eleicoes/candidatos/$sq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EleicoesAnoUfRoute = EleicoesAnoUfRouteImport.update({
+  id: '/eleicoes/$ano/$uf',
+  path: '/eleicoes/$ano/$uf',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const CamaraVotacoesIdRoute = CamaraVotacoesIdRouteImport.update({
   id: '/camara_/votacoes/$id',
@@ -579,6 +615,7 @@ export interface FileRoutesByFullPath {
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
+  '/tse': typeof TseRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
   '/caderno/$id': typeof CadernoIdRoute
@@ -597,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos/': typeof ContratosIndexRoute
+  '/eleicoes/': typeof EleicoesIndexRoute
   '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
   '/licitacoes/': typeof LicitacoesIndexRoute
@@ -616,6 +654,9 @@ export interface FileRoutesByFullPath {
   '/camara/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/eleicoes/$ano/$uf': typeof EleicoesAnoUfRoute
+  '/eleicoes/candidatos/$sq': typeof EleicoesCandidatosSqRoute
+  '/eleicoes/partidos/$sigla': typeof EleicoesPartidosSiglaRoute
   '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
   '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
@@ -624,6 +665,7 @@ export interface FileRoutesByFullPath {
   '/camara/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes/': typeof CamaraVotacoesIndexRoute
+  '/eleicoes/candidatos/': typeof EleicoesCandidatosIndexRoute
   '/estilo/composicoes/': typeof EstiloComposicoesIndexRoute
   '/estilo/ui/': typeof EstiloUiIndexRoute
   '/senado/materias/': typeof SenadoMateriasIndexRoute
@@ -666,6 +708,7 @@ export interface FileRoutesByTo {
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
+  '/tse': typeof TseRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
   '/caderno/$id': typeof CadernoIdRoute
@@ -684,6 +727,7 @@ export interface FileRoutesByTo {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos': typeof ContratosIndexRoute
+  '/eleicoes': typeof EleicoesIndexRoute
   '/emendas': typeof EmendasIndexRoute
   '/estilo': typeof EstiloIndexRoute
   '/licitacoes': typeof LicitacoesIndexRoute
@@ -703,6 +747,9 @@ export interface FileRoutesByTo {
   '/camara/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/eleicoes/$ano/$uf': typeof EleicoesAnoUfRoute
+  '/eleicoes/candidatos/$sq': typeof EleicoesCandidatosSqRoute
+  '/eleicoes/partidos/$sigla': typeof EleicoesPartidosSiglaRoute
   '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
   '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado/materias/$id': typeof SenadoMateriasIdRoute
@@ -711,6 +758,7 @@ export interface FileRoutesByTo {
   '/camara/deputados': typeof CamaraDeputadosIndexRoute
   '/camara/proposicoes': typeof CamaraProposicoesIndexRoute
   '/camara/votacoes': typeof CamaraVotacoesIndexRoute
+  '/eleicoes/candidatos': typeof EleicoesCandidatosIndexRoute
   '/estilo/composicoes': typeof EstiloComposicoesIndexRoute
   '/estilo/ui': typeof EstiloUiIndexRoute
   '/senado/materias': typeof SenadoMateriasIndexRoute
@@ -756,6 +804,7 @@ export interface FileRoutesById {
   '/transparencia-institucional': typeof TransparenciaInstitucionalRoute
   '/tratamento-de-dados': typeof TratamentoDeDadosRoute
   '/trilhas': typeof TrilhasRoute
+  '/tse': typeof TseRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/minhas-marcacoes': typeof AuthenticatedMinhasMarcacoesRoute
   '/caderno_/$id': typeof CadernoIdRoute
@@ -774,6 +823,7 @@ export interface FileRoutesById {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos/': typeof ContratosIndexRoute
+  '/eleicoes/': typeof EleicoesIndexRoute
   '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
   '/licitacoes/': typeof LicitacoesIndexRoute
@@ -793,6 +843,9 @@ export interface FileRoutesById {
   '/camara_/deputados/$id': typeof CamaraDeputadosIdRoute
   '/camara_/proposicoes/$id': typeof CamaraProposicoesIdRoute
   '/camara_/votacoes/$id': typeof CamaraVotacoesIdRoute
+  '/eleicoes/$ano/$uf': typeof EleicoesAnoUfRoute
+  '/eleicoes/candidatos/$sq': typeof EleicoesCandidatosSqRoute
+  '/eleicoes/partidos/$sigla': typeof EleicoesPartidosSiglaRoute
   '/estilo/composicoes/$name': typeof EstiloComposicoesNameRoute
   '/estilo/ui/$slug': typeof EstiloUiSlugRoute
   '/senado_/materias/$id': typeof SenadoMateriasIdRoute
@@ -801,6 +854,7 @@ export interface FileRoutesById {
   '/camara_/deputados/': typeof CamaraDeputadosIndexRoute
   '/camara_/proposicoes/': typeof CamaraProposicoesIndexRoute
   '/camara_/votacoes/': typeof CamaraVotacoesIndexRoute
+  '/eleicoes/candidatos/': typeof EleicoesCandidatosIndexRoute
   '/estilo/composicoes/': typeof EstiloComposicoesIndexRoute
   '/estilo/ui/': typeof EstiloUiIndexRoute
   '/senado_/materias/': typeof SenadoMateriasIndexRoute
@@ -846,6 +900,7 @@ export interface FileRouteTypes {
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
+    | '/tse'
     | '/admin'
     | '/minhas-marcacoes'
     | '/caderno/$id'
@@ -864,6 +919,7 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos/'
+    | '/eleicoes/'
     | '/emendas/'
     | '/estilo/'
     | '/licitacoes/'
@@ -883,6 +939,9 @@ export interface FileRouteTypes {
     | '/camara/deputados/$id'
     | '/camara/proposicoes/$id'
     | '/camara/votacoes/$id'
+    | '/eleicoes/$ano/$uf'
+    | '/eleicoes/candidatos/$sq'
+    | '/eleicoes/partidos/$sigla'
     | '/estilo/composicoes/$name'
     | '/estilo/ui/$slug'
     | '/senado/materias/$id'
@@ -891,6 +950,7 @@ export interface FileRouteTypes {
     | '/camara/deputados/'
     | '/camara/proposicoes/'
     | '/camara/votacoes/'
+    | '/eleicoes/candidatos/'
     | '/estilo/composicoes/'
     | '/estilo/ui/'
     | '/senado/materias/'
@@ -933,6 +993,7 @@ export interface FileRouteTypes {
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
+    | '/tse'
     | '/admin'
     | '/minhas-marcacoes'
     | '/caderno/$id'
@@ -951,6 +1012,7 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos'
+    | '/eleicoes'
     | '/emendas'
     | '/estilo'
     | '/licitacoes'
@@ -970,6 +1032,9 @@ export interface FileRouteTypes {
     | '/camara/deputados/$id'
     | '/camara/proposicoes/$id'
     | '/camara/votacoes/$id'
+    | '/eleicoes/$ano/$uf'
+    | '/eleicoes/candidatos/$sq'
+    | '/eleicoes/partidos/$sigla'
     | '/estilo/composicoes/$name'
     | '/estilo/ui/$slug'
     | '/senado/materias/$id'
@@ -978,6 +1043,7 @@ export interface FileRouteTypes {
     | '/camara/deputados'
     | '/camara/proposicoes'
     | '/camara/votacoes'
+    | '/eleicoes/candidatos'
     | '/estilo/composicoes'
     | '/estilo/ui'
     | '/senado/materias'
@@ -1022,6 +1088,7 @@ export interface FileRouteTypes {
     | '/transparencia-institucional'
     | '/tratamento-de-dados'
     | '/trilhas'
+    | '/tse'
     | '/_authenticated/admin'
     | '/_authenticated/minhas-marcacoes'
     | '/caderno_/$id'
@@ -1040,6 +1107,7 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos/'
+    | '/eleicoes/'
     | '/emendas/'
     | '/estilo/'
     | '/licitacoes/'
@@ -1059,6 +1127,9 @@ export interface FileRouteTypes {
     | '/camara_/deputados/$id'
     | '/camara_/proposicoes/$id'
     | '/camara_/votacoes/$id'
+    | '/eleicoes/$ano/$uf'
+    | '/eleicoes/candidatos/$sq'
+    | '/eleicoes/partidos/$sigla'
     | '/estilo/composicoes/$name'
     | '/estilo/ui/$slug'
     | '/senado_/materias/$id'
@@ -1067,6 +1138,7 @@ export interface FileRouteTypes {
     | '/camara_/deputados/'
     | '/camara_/proposicoes/'
     | '/camara_/votacoes/'
+    | '/eleicoes/candidatos/'
     | '/estilo/composicoes/'
     | '/estilo/ui/'
     | '/senado_/materias/'
@@ -1112,6 +1184,7 @@ export interface RootRouteChildren {
   TransparenciaInstitucionalRoute: typeof TransparenciaInstitucionalRoute
   TratamentoDeDadosRoute: typeof TratamentoDeDadosRoute
   TrilhasRoute: typeof TrilhasRoute
+  TseRoute: typeof TseRoute
   CadernoIdRoute: typeof CadernoIdRoute
   CadernoNovaRoute: typeof CadernoNovaRoute
   ContratosIdRoute: typeof ContratosIdRoute
@@ -1124,6 +1197,7 @@ export interface RootRouteChildren {
   PerguntasSlugRoute: typeof PerguntasSlugRoute
   TutoriaisSlugRoute: typeof TutoriaisSlugRoute
   ContratosIndexRoute: typeof ContratosIndexRoute
+  EleicoesIndexRoute: typeof EleicoesIndexRoute
   EmendasIndexRoute: typeof EmendasIndexRoute
   LicitacoesIndexRoute: typeof LicitacoesIndexRoute
   MapasIndexRoute: typeof MapasIndexRoute
@@ -1133,12 +1207,16 @@ export interface RootRouteChildren {
   CamaraDeputadosIdRoute: typeof CamaraDeputadosIdRoute
   CamaraProposicoesIdRoute: typeof CamaraProposicoesIdRoute
   CamaraVotacoesIdRoute: typeof CamaraVotacoesIdRoute
+  EleicoesAnoUfRoute: typeof EleicoesAnoUfRoute
+  EleicoesCandidatosSqRoute: typeof EleicoesCandidatosSqRoute
+  EleicoesPartidosSiglaRoute: typeof EleicoesPartidosSiglaRoute
   SenadoMateriasIdRoute: typeof SenadoMateriasIdRoute
   SenadoSenadoresIdRoute: typeof SenadoSenadoresIdRoute
   SenadoVotacoesIdRoute: typeof SenadoVotacoesIdRoute
   CamaraDeputadosIndexRoute: typeof CamaraDeputadosIndexRoute
   CamaraProposicoesIndexRoute: typeof CamaraProposicoesIndexRoute
   CamaraVotacoesIndexRoute: typeof CamaraVotacoesIndexRoute
+  EleicoesCandidatosIndexRoute: typeof EleicoesCandidatosIndexRoute
   SenadoMateriasIndexRoute: typeof SenadoMateriasIndexRoute
   SenadoSenadoresIndexRoute: typeof SenadoSenadoresIndexRoute
   SenadoVotacoesIndexRoute: typeof SenadoVotacoesIndexRoute
@@ -1147,6 +1225,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tse': {
+      id: '/tse'
+      path: '/tse'
+      fullPath: '/tse'
+      preLoaderRoute: typeof TseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/trilhas': {
       id: '/trilhas'
       path: '/trilhas'
@@ -1448,6 +1533,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmendasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/eleicoes/': {
+      id: '/eleicoes/'
+      path: '/eleicoes'
+      fullPath: '/eleicoes/'
+      preLoaderRoute: typeof EleicoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contratos/': {
       id: '/contratos/'
       path: '/contratos'
@@ -1609,6 +1701,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstiloComposicoesIndexRouteImport
       parentRoute: typeof EstiloRoute
     }
+    '/eleicoes/candidatos/': {
+      id: '/eleicoes/candidatos/'
+      path: '/eleicoes/candidatos'
+      fullPath: '/eleicoes/candidatos/'
+      preLoaderRoute: typeof EleicoesCandidatosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/camara_/votacoes/': {
       id: '/camara_/votacoes/'
       path: '/camara/votacoes'
@@ -1664,6 +1763,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/estilo/composicoes/$name'
       preLoaderRoute: typeof EstiloComposicoesNameRouteImport
       parentRoute: typeof EstiloRoute
+    }
+    '/eleicoes/partidos/$sigla': {
+      id: '/eleicoes/partidos/$sigla'
+      path: '/eleicoes/partidos/$sigla'
+      fullPath: '/eleicoes/partidos/$sigla'
+      preLoaderRoute: typeof EleicoesPartidosSiglaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eleicoes/candidatos/$sq': {
+      id: '/eleicoes/candidatos/$sq'
+      path: '/eleicoes/candidatos/$sq'
+      fullPath: '/eleicoes/candidatos/$sq'
+      preLoaderRoute: typeof EleicoesCandidatosSqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/eleicoes/$ano/$uf': {
+      id: '/eleicoes/$ano/$uf'
+      path: '/eleicoes/$ano/$uf'
+      fullPath: '/eleicoes/$ano/$uf'
+      preLoaderRoute: typeof EleicoesAnoUfRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/camara_/votacoes/$id': {
       id: '/camara_/votacoes/$id'
@@ -1875,6 +1995,7 @@ const rootRouteChildren: RootRouteChildren = {
   TransparenciaInstitucionalRoute: TransparenciaInstitucionalRoute,
   TratamentoDeDadosRoute: TratamentoDeDadosRoute,
   TrilhasRoute: TrilhasRoute,
+  TseRoute: TseRoute,
   CadernoIdRoute: CadernoIdRoute,
   CadernoNovaRoute: CadernoNovaRoute,
   ContratosIdRoute: ContratosIdRoute,
@@ -1887,6 +2008,7 @@ const rootRouteChildren: RootRouteChildren = {
   PerguntasSlugRoute: PerguntasSlugRoute,
   TutoriaisSlugRoute: TutoriaisSlugRoute,
   ContratosIndexRoute: ContratosIndexRoute,
+  EleicoesIndexRoute: EleicoesIndexRoute,
   EmendasIndexRoute: EmendasIndexRoute,
   LicitacoesIndexRoute: LicitacoesIndexRoute,
   MapasIndexRoute: MapasIndexRoute,
@@ -1896,12 +2018,16 @@ const rootRouteChildren: RootRouteChildren = {
   CamaraDeputadosIdRoute: CamaraDeputadosIdRoute,
   CamaraProposicoesIdRoute: CamaraProposicoesIdRoute,
   CamaraVotacoesIdRoute: CamaraVotacoesIdRoute,
+  EleicoesAnoUfRoute: EleicoesAnoUfRoute,
+  EleicoesCandidatosSqRoute: EleicoesCandidatosSqRoute,
+  EleicoesPartidosSiglaRoute: EleicoesPartidosSiglaRoute,
   SenadoMateriasIdRoute: SenadoMateriasIdRoute,
   SenadoSenadoresIdRoute: SenadoSenadoresIdRoute,
   SenadoVotacoesIdRoute: SenadoVotacoesIdRoute,
   CamaraDeputadosIndexRoute: CamaraDeputadosIndexRoute,
   CamaraProposicoesIndexRoute: CamaraProposicoesIndexRoute,
   CamaraVotacoesIndexRoute: CamaraVotacoesIndexRoute,
+  EleicoesCandidatosIndexRoute: EleicoesCandidatosIndexRoute,
   SenadoMateriasIndexRoute: SenadoMateriasIndexRoute,
   SenadoSenadoresIndexRoute: SenadoSenadoresIndexRoute,
   SenadoVotacoesIndexRoute: SenadoVotacoesIndexRoute,

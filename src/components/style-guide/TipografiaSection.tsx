@@ -43,7 +43,7 @@ export function TipografiaSection() {
           <div className="font-display text-2xl">Heading 3 — display 2xl</div>
           <div className="text-xl">Heading 4 — sans xl</div>
           <p className="text-base">
-            Corpo de texto padrão. Auditoria Cidadã apresenta dados públicos com sinais
+            Corpo de texto padrão. Mutirão de Dados apresenta dados públicos com sinais
             investigativos, sem fazer acusações. Use parágrafos curtos e tom direto.
           </p>
           <p className="text-sm text-muted-foreground">

@@ -15,16 +15,16 @@ export const Route = createFileRoute("/mapas/")({
   ),
   head: () => ({
     meta: [
-      { title: "Mapas investigativos — Auditoria Cidadã" },
+      { title: "Mapas investigativos — Mutirão de Dados" },
       {
         name: "description",
         content:
           "Manual técnico da fiscalização: receitas práticas de cruzamento de dados e sistemas (CNPJ, nota de empenho, convênio) a partir das fontes oficiais brasileiras.",
       },
-      { property: "og:title", content: "Mapas investigativos — Auditoria Cidadã" },
+      { property: "og:title", content: "Mapas investigativos — Mutirão de Dados" },
       { property: "og:description", content: "Receitas práticas de engenharia de dados sobre as fontes oficiais — chaves de cruzamento para responder dúvidas específicas." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/mapas" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/mapas" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/mapas" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/mapas" }],
   }),
 });

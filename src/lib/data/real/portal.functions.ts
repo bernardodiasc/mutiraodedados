@@ -6,6 +6,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { FONTES_LIMPEZA, FONTE_IDS } from "@/lib/data/limpeza";
+import type { Database } from "@/integrations/supabase/types";
+
+// Nomes de TABELA (sem views) — o catálogo de limpeza só aponta para tabelas;
+// restringir aqui mantém a resolução de tipos do PostgREST no overload certo.
+type TabelaLimpeza = keyof Database["public"]["Tables"];
 import {
   sincronizarQaCgu,
   flagQA,
@@ -804,7 +809,7 @@ export const clearImportData = createServerFn({ method: "POST" })
         siconfi: "siconfi",
         transferegov: "transferegov",
       };
-      const pruneQaFindings = async (qaFonte: string, table: Parameters<typeof supabaseAdmin.from>[0]) => {
+      const pruneQaFindings = async (qaFonte: string, table: TabelaLimpeza) => {
         // Coleta ids ainda presentes na tabela-fonte e remove qualquer
         // qa_findings cujo entidade_id não exista mais (alerta órfão).
         const { data: rem, error: remErr } = await supabaseAdmin
@@ -812,7 +817,7 @@ export const clearImportData = createServerFn({ method: "POST" })
           .select("id")
           .limit(100000);
         if (remErr) throw new Error(`${table} qa-prune select: ${remErr.message}`);
-        const remSet = new Set((rem ?? []).map((r) => String((r as { id: unknown }).id)));
+        const remSet = new Set((rem ?? []).map((r) => String((r as unknown as { id: unknown }).id)));
         if (remSet.size === 0) {
           // Apaga lacunas geradas por findings dessa fonte antes dos findings
           // (a FK origem_qa_finding_id ficaria órfã).
@@ -878,7 +883,7 @@ export const clearImportData = createServerFn({ method: "POST" })
       for (const fid of data.fontes) {
         if (!FONTE_IDS.includes(fid)) continue;
         const fonte = FONTES_LIMPEZA.find((f) => f.id === fid)!;
-        const tName = fonte.table as Parameters<typeof supabaseAdmin.from>[0];
+        const tName = fonte.table as TabelaLimpeza;
 
         // Resolver filtro por período
         let parentIdsForChild: Array<string | number> | null = null;
@@ -900,6 +905,7 @@ export const clearImportData = createServerFn({ method: "POST" })
             if (!fonte.logKind) {
               const anyPk =
                 fonte.parentPk ??
+                fonte.pk ??
                 (fonte.table === "fornecedores_cache"
                   ? "cnpj"
                   : fonte.table === "orgaos_cache"
@@ -915,7 +921,7 @@ export const clearImportData = createServerFn({ method: "POST" })
             // importados > 0 OU erros não vazio
             q = q.or("importados.gt.0,erros.neq.[]");
           } else if (fonte.logKind === "vazios") {
-            q = q.eq("importados", 0).eq("erros", "[]");
+            q = q.filter("importados", "eq", 0).filter("erros", "eq", "[]");
           }
           return q;
         };
@@ -933,9 +939,9 @@ export const clearImportData = createServerFn({ method: "POST" })
           if (fonte.extraEq) psel = psel.eq(fonte.extraEq.col, fonte.extraEq.value);
           const { data: pRows, error: pErr } = await psel.limit(50000);
           if (pErr) throw new Error(`${fonte.table} select: ${pErr.message}`);
-          parentIdsForChild = (pRows ?? []).map((r) => (r as Record<string, string | number>)[fonte.parentPk!]).filter((v) => v != null);
+          parentIdsForChild = (pRows ?? []).map((r) => (r as unknown as Record<string, string | number>)[fonte.parentPk!]).filter((v) => v != null);
           if (parentIdsForChild.length > 0) {
-            const cName = fonte.childTable as Parameters<typeof supabaseAdmin.from>[0];
+            const cName = fonte.childTable as TabelaLimpeza;
             // chunk de 500 ids
             let childCount = 0;
             for (let i = 0; i < parentIdsForChild.length; i += 500) {
@@ -973,6 +979,20 @@ export const clearImportData = createServerFn({ method: "POST" })
         const qaFonte = QA_FONTE_MAP[fid];
         if (qaFonte) {
           await pruneQaFindings(qaFonte, tName);
+        }
+
+        // TSE: zera o estado retomável (tse_varredura) da entidade limpa,
+        // senão a reimportação pularia linhas de um cache que não existe mais.
+        if (fid.startsWith("tse_")) {
+          const tipoTse = fid.slice(4); // tse_candidatos → candidatos
+          const vr = await supabaseAdmin
+            .from("tse_varredura")
+            .delete({ count: "exact" })
+            .like("chave", `${tipoTse}#%`);
+          if (vr.error && !tabelaVarreduraAusente(vr.error)) {
+            throw new Error(`tse_varredura: ${vr.error.message}`);
+          }
+          removed[`tse_varredura:${tipoTse}`] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
         }
 
         // CGU: zera o estado da varredura retomável, senão uma reimportação

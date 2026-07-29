@@ -14,7 +14,7 @@ import { listarPerguntasEmRevisao } from "@/lib/perguntas.functions";
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: ensureAdminBeforeLoad,
   component: AdminPage,
-  head: () => ({ meta: [{ title: "Admin — Auditoria Cidadã" }] }),
+  head: () => ({ meta: [{ title: "Admin — Mutirão de Dados" }] }),
 });
 
 function AdminPage() {

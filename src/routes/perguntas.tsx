@@ -9,13 +9,13 @@ export const Route = createFileRoute("/perguntas")({
   component: PerguntasPage,
   head: () => ({
     meta: [
-      { title: "Perguntas — Auditoria Cidadã" },
+      { title: "Perguntas — Mutirão de Dados" },
       { name: "description", content: "Modelos de pergunta e investigações públicas. Comece sua pasta de investigação." },
-      { property: "og:title", content: "Perguntas — Auditoria Cidadã" },
+      { property: "og:title", content: "Perguntas — Mutirão de Dados" },
       { property: "og:description", content: "Modelos para começar uma investigação e perguntas já em andamento publicamente." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/perguntas" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/perguntas" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/perguntas" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/perguntas" }],
   }),
   loader: async ({ context }) => {
     await Promise.all([

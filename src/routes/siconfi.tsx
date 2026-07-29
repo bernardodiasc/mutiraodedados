@@ -9,11 +9,11 @@ export const Route = createFileRoute("/siconfi")({
   component: SICONFIPage,
   head: () => ({
     meta: [
-      { title: "SICONFI (Tesouro Nacional) — Auditoria Cidadã" },
+      { title: "SICONFI (Tesouro Nacional) — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "O que o SICONFI cobre na Auditoria Cidadã: relatórios fiscais (RREO, RGF, DCA) padronizados de todos os entes federados, e como ela se conecta às demais fontes.",
+          "O que o SICONFI cobre no Mutirão de Dados: relatórios fiscais (RREO, RGF, DCA) padronizados de todos os entes federados, e como ela se conecta às demais fontes.",
       },
     ],
   }),

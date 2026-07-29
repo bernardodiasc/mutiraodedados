@@ -9,7 +9,7 @@ export const Route = createFileRoute("/qualidade/$id")({
   component: QualidadeDetalhePage,
   head: () => ({
     meta: [
-      { title: "Defeito auditado — Auditoria Cidadã" },
+      { title: "Defeito auditado — Mutirão de Dados" },
       {
         name: "description",
         content:

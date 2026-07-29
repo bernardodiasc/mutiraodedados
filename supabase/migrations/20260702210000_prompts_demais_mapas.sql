@@ -13,7 +13,7 @@ WITH dados(map_slug, titulo, descricao, prompt_template, variaveis, tags, ordem)
     'contrato-federal-pncp',
     'Autópsia de um contrato do PNCP',
     'Lê os dados de um contrato e do fornecedor e aponta o que merece verificação.',
-    'Você vai analisar um contrato público federal registrado no PNCP. Abaixo estão (A) os dados do contrato e (B) o histórico do fornecedor, ambos copiados da plataforma Auditoria Cidadã.
+    'Você vai analisar um contrato público federal registrado no PNCP. Abaixo estão (A) os dados do contrato e (B) o histórico do fornecedor, ambos copiados da plataforma Mutirão de Dados.
 
 Tarefas:
 1. Resuma o contrato: órgão, objeto, modalidade, valor global e vigência.
@@ -39,7 +39,7 @@ Importante: cada ponto é um sinal para checar, nunca prova de irregularidade �
     'contrato-federal-pncp',
     'Compra sem licitação: a dispensa se sustenta?',
     'Foca em contratos por dispensa ou inexigibilidade e no risco de fracionamento.',
-    'Você vai examinar um contrato firmado por dispensa ou inexigibilidade de licitação. Os dados abaixo vieram da plataforma Auditoria Cidadã.
+    'Você vai examinar um contrato firmado por dispensa ou inexigibilidade de licitação. Os dados abaixo vieram da plataforma Mutirão de Dados.
 
 Tarefas:
 1. Confirme a base legal alegada e o valor do contrato.
@@ -161,7 +161,7 @@ Sócios da empresa vencedora:
     'o-labirinto-dos-convenios-rastreando-repasses-federais-para-municipios',
     'Raio-x de um convênio federal com município',
     'Lê objeto, plano de trabalho, situação e vigência de um convênio.',
-    'Você vai analisar um convênio de repasse federal para um município. Os dados abaixo vieram da página de Convênios da Auditoria Cidadã.
+    'Você vai analisar um convênio de repasse federal para um município. Os dados abaixo vieram da página de Convênios da Mutirão de Dados.
 
 Tarefas:
 1. Resuma: concedente, município beneficiário ({{municipio}}), objeto, valor e vigência.
@@ -184,7 +184,7 @@ Dados do convênio:
     'o-labirinto-dos-convenios-rastreando-repasses-federais-para-municipios',
     'A obra acabou ou o prazo venceu antes?',
     'Compara vigência, execução e prestação de contas de um conjunto de convênios.',
-    'Você vai analisar a execução de convênios de um município. Abaixo está o CSV de convênios exportado da Auditoria Cidadã.
+    'Você vai analisar a execução de convênios de um município. Abaixo está o CSV de convênios exportado da Mutirão de Dados.
 
 Tarefas:
 1. Para cada convênio, compare a vigência com a situação de execução e de prestação de contas.

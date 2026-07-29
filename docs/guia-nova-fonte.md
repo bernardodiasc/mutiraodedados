@@ -18,15 +18,21 @@ Checklist humano antes de mexer em código. O passo-a-passo técnico está em [`
 - Server function de ingestão sempre usa `requireSupabaseAuth` + `ensureAdmin`.
 - Use o cliente compartilhado `portal-client.ts` apenas se a API for compatível (mesma autenticação CGU). Caso contrário, crie cliente próprio com mesmo padrão de retry.
 - Adicione a fonte em `src/lib/data/janelas.ts` com o ano de início.
-- Crie regras de QA correspondentes em `src/lib/data/qa.ts`.
+- **Os três tipos de sinal** (ver [qualidade-dados](./qualidade-dados.md)): planeje regras de **qualidade** (defeitos do dado), **lacunas** (ausências detectáveis) e, quando houver cruzamento possível, **sinais investigativos** — em `src/lib/data/<fonte>/qualidade.ts`, `lacunas.ts` e `investigativos.ts`. Fonte sem nenhum sinal planejado é sinal de escopo mal definido.
 - Adicione um arquivo em `docs/fontes/<nova-fonte>.md` seguindo o padrão das fontes existentes.
 
-## Antes de mergear
+## Antes de mergear — o "arsenal" completo da fonte
+
+Uma fonte só está pronta quando entrega o arsenal completo, não só a importação:
 
 - Página `/admin/dados` precisa expor a nova fonte (ver `AdminImportPanel`).
 - Página `/cobertura` precisa enxergar (ajustar `cobertura-jobs.ts`).
 - Rota pública correspondente existe e tem `head()` com metadados próprios.
+- **Sinais implementados nos três tipos aplicáveis** e visíveis nas páginas públicas (não só no admin); sinais investigativos com `AvisoMetodologico`.
+- **Regras explicadas em `/metodologia`** — toda regra que gera sinal tem explicação pública.
+- **Materiais de apoio**: pelo menos um tutorial ou mapa investigativo que use a fonte, e uma nota de campo registrando o processo de integração (decisões, surpresas, limitações).
 - Documentação atualizada: `fontes/<nova>.md`, link em `fontes/README.md`, domínio relacionado em `dominios/`.
+- Skill em `.agents/skills/` quando a fonte tem operação própria (importação chunked, parsers por ano etc.), referenciando os docs — sem duplicar regra de negócio.
 - Se introduziu conceito do mundo real novo (ex: novo tipo de transferência), adicione em `conceitos/`.
 
 ## Regras de ouro

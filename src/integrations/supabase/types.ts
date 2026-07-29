@@ -230,6 +230,105 @@ export type Database = {
         }
         Relationships: []
       }
+      camara_deputado_eventos: {
+        Row: {
+          condicao_eleitoral: string | null
+          data_hora: string | null
+          deputado_id: number
+          descricao: string | null
+          id: number
+          id_legislatura: number | null
+          sigla_partido: string | null
+          sigla_uf: string | null
+          situacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          condicao_eleitoral?: string | null
+          data_hora?: string | null
+          deputado_id: number
+          descricao?: string | null
+          id_legislatura?: number | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          condicao_eleitoral?: string | null
+          data_hora?: string | null
+          deputado_id?: number
+          descricao?: string | null
+          id_legislatura?: number | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      senado_exercicios: {
+        Row: {
+          codigo_parlamentar: number
+          data_fim: string | null
+          data_inicio: string | null
+          descricao_causa: string | null
+          id: number
+          participacao: string | null
+          sigla_causa: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo_parlamentar: number
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao_causa?: string | null
+          participacao?: string | null
+          sigla_causa?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo_parlamentar?: number
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao_causa?: string | null
+          participacao?: string | null
+          sigla_causa?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      senado_suplencia: {
+        Row: {
+          id: number
+          legislatura: number | null
+          ordem: string | null
+          suplente_codigo: number | null
+          suplente_nome: string | null
+          titular_codigo: number
+          updated_at: string
+        }
+        Insert: {
+          legislatura?: number | null
+          ordem?: string | null
+          suplente_codigo?: number | null
+          suplente_nome?: string | null
+          titular_codigo: number
+          updated_at?: string
+        }
+        Update: {
+          legislatura?: number | null
+          ordem?: string | null
+          suplente_codigo?: number | null
+          suplente_nome?: string | null
+          titular_codigo?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       camara_despesas_cache: {
         Row: {
           ano: number
@@ -1425,6 +1524,7 @@ export type Database = {
           revalidado_em: string | null
           severidade: string
           status: string
+          tipo: string
           updated_at: string
           valor_armazenado: number | null
           valor_esperado: number | null
@@ -1446,6 +1546,7 @@ export type Database = {
           revalidado_em?: string | null
           severidade?: string
           status?: string
+          tipo?: string
           updated_at?: string
           valor_armazenado?: number | null
           valor_esperado?: number | null
@@ -1467,6 +1568,7 @@ export type Database = {
           revalidado_em?: string | null
           severidade?: string
           status?: string
+          tipo?: string
           updated_at?: string
           valor_armazenado?: number | null
           valor_esperado?: number | null
@@ -1893,6 +1995,303 @@ export type Database = {
         }
         Relationships: []
       }
+      tse_bens_candidato_cache: {
+        Row: {
+          ano_eleicao: number
+          descricao: string | null
+          ordem_bem: number
+          sq_candidato: string
+          tipo_bem: string | null
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          ano_eleicao: number
+          descricao?: string | null
+          ordem_bem: number
+          sq_candidato: string
+          tipo_bem?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          ano_eleicao?: number
+          descricao?: string | null
+          ordem_bem?: number
+          sq_candidato?: string
+          tipo_bem?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      tse_candidatos_cache: {
+        Row: {
+          ano_eleicao: number
+          bens_total_declarado: number | null
+          cargo_cod: number | null
+          cargo_nome: string | null
+          cor_raca: string | null
+          cpf: string | null
+          genero: string | null
+          grau_instrucao: string | null
+          municipio_cod: string | null
+          nome_completo: string | null
+          nome_urna: string | null
+          nr_turno: number
+          numero_candidato: string | null
+          ocupacao: string | null
+          partido_numero: number | null
+          partido_sigla: string | null
+          situacao_candidatura: string | null
+          situacao_totalizacao: string | null
+          sq_candidato: string
+          titulo_eleitoral: string | null
+          uf: string | null
+          updated_at: string
+          url_prestacao_contas: string | null
+        }
+        Insert: {
+          ano_eleicao: number
+          bens_total_declarado?: number | null
+          cargo_cod?: number | null
+          cargo_nome?: string | null
+          cor_raca?: string | null
+          cpf?: string | null
+          genero?: string | null
+          grau_instrucao?: string | null
+          municipio_cod?: string | null
+          nome_completo?: string | null
+          nome_urna?: string | null
+          nr_turno?: number
+          numero_candidato?: string | null
+          ocupacao?: string | null
+          partido_numero?: number | null
+          partido_sigla?: string | null
+          situacao_candidatura?: string | null
+          situacao_totalizacao?: string | null
+          sq_candidato: string
+          titulo_eleitoral?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_prestacao_contas?: string | null
+        }
+        Update: {
+          ano_eleicao?: number
+          bens_total_declarado?: number | null
+          cargo_cod?: number | null
+          cargo_nome?: string | null
+          cor_raca?: string | null
+          cpf?: string | null
+          genero?: string | null
+          grau_instrucao?: string | null
+          municipio_cod?: string | null
+          nome_completo?: string | null
+          nome_urna?: string | null
+          nr_turno?: number
+          numero_candidato?: string | null
+          ocupacao?: string | null
+          partido_numero?: number | null
+          partido_sigla?: string | null
+          situacao_candidatura?: string | null
+          situacao_totalizacao?: string | null
+          sq_candidato?: string
+          titulo_eleitoral?: string | null
+          uf?: string | null
+          updated_at?: string
+          url_prestacao_contas?: string | null
+        }
+        Relationships: []
+      }
+      tse_despesas_campanha_cache: {
+        Row: {
+          ano_eleicao: number
+          cnpj_fornecedor: string | null
+          data: string | null
+          descricao: string | null
+          id: string
+          nome_fornecedor: string | null
+          sq_candidato: string
+          tipo_despesa: string | null
+          uf: string | null
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          ano_eleicao: number
+          cnpj_fornecedor?: string | null
+          data?: string | null
+          descricao?: string | null
+          id: string
+          nome_fornecedor?: string | null
+          sq_candidato: string
+          tipo_despesa?: string | null
+          uf?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          ano_eleicao?: number
+          cnpj_fornecedor?: string | null
+          data?: string | null
+          descricao?: string | null
+          id?: string
+          nome_fornecedor?: string | null
+          sq_candidato?: string
+          tipo_despesa?: string | null
+          uf?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      tse_parlamentar_candidato: {
+        Row: {
+          ano_eleicao: number
+          cpf: string | null
+          match_confianca: number
+          match_metodo: string
+          parlamentar_id: string
+          parlamentar_tipo: string
+          revisado: boolean
+          sq_candidato: string
+          updated_at: string
+        }
+        Insert: {
+          ano_eleicao: number
+          cpf?: string | null
+          match_confianca?: number
+          match_metodo: string
+          parlamentar_id: string
+          parlamentar_tipo: string
+          revisado?: boolean
+          sq_candidato: string
+          updated_at?: string
+        }
+        Update: {
+          ano_eleicao?: number
+          cpf?: string | null
+          match_confianca?: number
+          match_metodo?: string
+          parlamentar_id?: string
+          parlamentar_tipo?: string
+          revisado?: boolean
+          sq_candidato?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      tse_receitas_campanha_cache: {
+        Row: {
+          ano_eleicao: number
+          cnpj_doador_originario: string | null
+          cpf_cnpj_doador: string | null
+          data: string | null
+          forma_recebimento: string | null
+          id: string
+          nome_doador: string | null
+          sq_candidato: string
+          tipo_doador: string | null
+          tipo_receita: string | null
+          uf: string | null
+          updated_at: string
+          valor: number | null
+        }
+        Insert: {
+          ano_eleicao: number
+          cnpj_doador_originario?: string | null
+          cpf_cnpj_doador?: string | null
+          data?: string | null
+          forma_recebimento?: string | null
+          id: string
+          nome_doador?: string | null
+          sq_candidato: string
+          tipo_doador?: string | null
+          tipo_receita?: string | null
+          uf?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Update: {
+          ano_eleicao?: number
+          cnpj_doador_originario?: string | null
+          cpf_cnpj_doador?: string | null
+          data?: string | null
+          forma_recebimento?: string | null
+          id?: string
+          nome_doador?: string | null
+          sq_candidato?: string
+          tipo_doador?: string | null
+          tipo_receita?: string | null
+          uf?: string | null
+          updated_at?: string
+          valor?: number | null
+        }
+        Relationships: []
+      }
+      tse_resultados_cache: {
+        Row: {
+          ano_eleicao: number
+          municipio_cod: string
+          municipio_nome: string | null
+          nr_turno: number
+          situacao_totalizacao: string | null
+          sq_candidato: string
+          uf: string
+          updated_at: string
+          votos_nominais: number
+          votos_nominais_validos: number
+        }
+        Insert: {
+          ano_eleicao: number
+          municipio_cod: string
+          municipio_nome?: string | null
+          nr_turno?: number
+          situacao_totalizacao?: string | null
+          sq_candidato: string
+          uf: string
+          updated_at?: string
+          votos_nominais?: number
+          votos_nominais_validos?: number
+        }
+        Update: {
+          ano_eleicao?: number
+          municipio_cod?: string
+          municipio_nome?: string | null
+          nr_turno?: number
+          situacao_totalizacao?: string | null
+          sq_candidato?: string
+          uf?: string
+          updated_at?: string
+          votos_nominais?: number
+          votos_nominais_validos?: number
+        }
+        Relationships: []
+      }
+      tse_varredura: {
+        Row: {
+          atualizado_em: string
+          chave: string
+          completa: boolean
+          importados: number
+          linhas_processadas: number
+        }
+        Insert: {
+          atualizado_em?: string
+          chave: string
+          completa?: boolean
+          importados?: number
+          linhas_processadas?: number
+        }
+        Update: {
+          atualizado_em?: string
+          chave?: string
+          completa?: boolean
+          importados?: number
+          linhas_processadas?: number
+        }
+        Relationships: []
+      }
       user_flags: {
         Row: {
           comentario: string | null
@@ -1975,9 +2374,43 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      camara_gasto_por_deputado: {
+        Row: {
+          deputado_id: number | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      senado_gasto_por_senador: {
+        Row: {
+          senador_id: number | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      v_fornecedor_doador: {
+        Row: {
+          ano_eleicao: number | null
+          cnpj: string | null
+          cnpj_fornecedor_formatado: string | null
+          data_doacao: string | null
+          nome_doador: string | null
+          nome_fornecedor_contratos: string | null
+          sq_candidato: string | null
+          valor_doado: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      camara_gasto_total: {
+        Args: never
+        Returns: number
+      }
+      senado_gasto_total: {
+        Args: never
+        Returns: number
+      }
       cobertura_camara_ceap: {
         Args: never
         Returns: {
@@ -2134,6 +2567,7 @@ export type Database = {
           revalidado_em: string
           severidade: string
           status: string
+          tipo: string
           valor_armazenado: number
           valor_esperado: number
         }[]
@@ -2147,6 +2581,9 @@ export type Database = {
           criticos: number
           falsos_positivos: number
           fonte: string
+          investigativos: number
+          lacunas: number
+          qualidade: number
           reportados: number
           total: number
         }[]
@@ -2157,6 +2594,7 @@ export type Database = {
           _limit?: number
           _regra?: string
           _status?: string
+          _tipo?: string
         }
         Returns: {
           detectado_em: string
@@ -2173,8 +2611,100 @@ export type Database = {
           revalidado_em: string
           severidade: string
           status: string
+          tipo: string
           valor_armazenado: number
           valor_esperado: number
+        }[]
+      }
+      tse_candidatos_sem_bens: {
+        Args: { _ano: number }
+        Returns: {
+          cargo_nome: string
+          nome_urna: string
+          sq_candidato: string
+          uf: string
+        }[]
+      }
+      tse_contagem_ano_uf: {
+        Args: never
+        Returns: {
+          ano_eleicao: number
+          candidatos: number
+          uf: string
+        }[]
+      }
+      tse_doacoes_de_fornecedores: {
+        Args: { _minimo: number }
+        Returns: {
+          ano_eleicao: number
+          cnpj: string
+          cnpj_formatado: string
+          data_doacao: string
+          match_confianca: number
+          nome_doador: string
+          nome_fornecedor: string
+          parlamentar_id: string
+          parlamentar_tipo: string
+          sq_candidato: string
+          valor_doado: number
+        }[]
+      }
+      tse_eleitos_sem_contas: {
+        Args: { _ano: number }
+        Returns: {
+          cargo_nome: string
+          municipio_cod: string
+          nome_urna: string
+          sq_candidato: string
+          uf: string
+        }[]
+      }
+      tse_evolucao_patrimonial: {
+        Args: { _minimo_final: number; _multiplo: number }
+        Returns: {
+          ano_anterior: number
+          ano_recente: number
+          bens_anterior: number
+          bens_recente: number
+          cpf: string
+          nome_urna: string
+          sq_anterior: string
+          sq_recente: string
+          uf: string
+        }[]
+      }
+      tse_fornecedor_concentrado: {
+        Args: { _ano: number; _fracao_minima: number; _min_candidatos: number }
+        Returns: {
+          candidatos: number
+          cnpj_fornecedor: string
+          fracao: number
+          nome_fornecedor: string
+          partido_sigla: string
+          total_fornecedor: number
+          total_grupo: number
+          uf: string
+        }[]
+      }
+      tse_resumo_eleicoes: {
+        Args: never
+        Returns: {
+          ano_eleicao: number
+          cargo_cod: number
+          cargo_nome: string
+          eleitos: number
+          total: number
+          ufs: number
+        }[]
+      }
+      tse_resumo_partido: {
+        Args: { _sigla: string }
+        Returns: {
+          ano_eleicao: number
+          bens_medio: number
+          cargo_nome: string
+          eleitos: number
+          total: number
         }[]
       }
     }

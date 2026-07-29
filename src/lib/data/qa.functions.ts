@@ -46,6 +46,16 @@ function urlInternaPara(
   if (fonte === "pncp" && tipo === "contrato") return `/pncp`;
   if (fonte === "transferegov" && tipo === "instrumento") return `/convenios/${id}`;
   if (fonte === "transferegov" && tipo === "emenda") return `/emendas/${id}`;
+  // TSE: entidade_id de candidato/série no formato `<sq>-<ano>`.
+  if ((fonte === "tse" || fonte === "tse-cruzamento") && tipo === "candidato") {
+    const m = id.match(/^(\d+)-(\d{4})$/);
+    if (m) return `/eleicoes/candidatos/${m[1]}?ano=${m[2]}`;
+  }
+  if (fonte === "tse-cruzamento" && tipo === "cruzamento_doador_fornecedor") {
+    // id `<cnpj>-<sq>-<ano>` → ficha do candidato beneficiado.
+    const m = id.match(/^\d{14}-(\d+)-(\d{4})$/);
+    if (m) return `/eleicoes/candidatos/${m[1]}?ano=${m[2]}`;
+  }
   return undefined;
 }
 

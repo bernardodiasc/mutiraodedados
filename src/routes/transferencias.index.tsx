@@ -6,7 +6,7 @@ export const Route = createFileRoute("/transferencias/")({
   component: TransferenciasPage,
   head: () => ({
     meta: [
-      { title: "Transferências (repasses) — Auditoria Cidadã" },
+      { title: "Transferências (repasses) — Mutirão de Dados" },
       {
         name: "description",
         content:

@@ -1,26 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/referencias")({
   component: Referencias,
   head: () => ({
     meta: [
-      { title: "Referências e projetos similares — Auditoria Cidadã" },
+      { title: "Referências e projetos similares — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "Portais oficiais, APIs públicas, fontes de dados e projetos de transparência e auditoria cidadã usados ou recomendados pela Auditoria Cidadã.",
+          "Portais oficiais, APIs públicas, fontes de dados e projetos de transparência e mutirão de dados usados ou recomendados pelo Mutirão de Dados.",
       },
-      { property: "og:title", content: "Referências — Auditoria Cidadã" },
+      { property: "og:title", content: "Referências — Mutirão de Dados" },
       {
         property: "og:description",
         content:
           "Fontes oficiais, APIs públicas e outros projetos de transparência. Quanto mais gente usando dados abertos, melhor.",
       },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/referencias" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/referencias" },
       { property: "og:type", content: "article" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/referencias" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/referencias" }],
   }),
 });
 
@@ -280,7 +280,7 @@ function Referencias() {
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Referências</h1>
 
       <p className="mt-6 text-lg text-muted-foreground">
-        Esta página reúne as fontes oficiais que alimentam a Auditoria Cidadã, as APIs públicas que
+        Esta página reúne as fontes oficiais que alimentam o Mutirão de Dados, as APIs públicas que
         usamos ou recomendamos, e outras iniciativas de transparência e auditoria pública. Quanto
         mais pessoas trabalhando com dados públicos brasileiros, melhor — mesmo que os projetos
         fiquem parecidos.
@@ -317,15 +317,15 @@ function Referencias() {
       <p className="mt-3 text-muted-foreground">
         Transparência pública não é zona de competição — é bem comum. Listamos abaixo projetos
         brasileiros que usam dados públicos para devolver interpretação ao cidadão. Se você está
-        pensando em criar algo parecido com a Auditoria Cidadã, <strong className="text-foreground">faça</strong>.
+        pensando em criar algo parecido com o Mutirão de Dados, <strong className="text-foreground">faça</strong>.
         Os dados são os mesmos e estão disponíveis. Quanto mais leituras independentes, mais difícil
         é capturar a narrativa pública. Se sua iniciativa não está aqui e deveria estar,{" "}
-        <a
-          href="mailto:contato@auditoriacidada.ia.br"
+        <Link
+          to="/contestar"
           className="text-accent underline-offset-4 hover:underline"
         >
           escreva para a gente
-        </a>
+        </Link>
         .
       </p>
       <RefList items={PROJETOS_SIMILARES} />

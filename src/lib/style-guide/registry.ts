@@ -47,6 +47,18 @@ import { iconeAcaoVariants, listaOrdenavelVariants } from "@/lib/admin-padroes/m
 import { FiltroAbas } from "@/components/FiltroAbas";
 import { SecaoLista } from "@/components/SecaoLista";
 import { filtroAbasVariants, secaoListaVariants } from "@/lib/secao-lista/mocks";
+import { EleicoesHubView } from "@/components/EleicoesHubView";
+import { eleicoesHubVariants } from "@/lib/eleicoes-hub/mocks";
+import { CandidatosListaView } from "@/components/CandidatosListaView";
+import { candidatosListaVariants } from "@/lib/candidatos-lista/mocks";
+import { CandidatoFichaView } from "@/components/CandidatoFichaView";
+import { candidatoFichaVariants } from "@/lib/candidato-ficha/mocks";
+import { TseImportPanelView } from "@/components/TseImportPanelView";
+import { tseImportPanelVariants } from "@/lib/tse-import/mocks";
+import { SecaoEleicaoView } from "@/components/SecaoEleicaoView";
+import { secaoEleicaoVariants } from "@/lib/secao-eleicao/mocks";
+import { DoacoesEleitoraisView } from "@/components/DoacoesEleitoraisView";
+import { doacoesEleitoraisVariants } from "@/lib/doacoes-eleitorais/mocks";
 
 export type ViewVariant<P> = { label: string; props: P };
 export type ViewVariants<P> = ReadonlyArray<ViewVariant<P>>;
@@ -113,6 +125,20 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     variants: cadernoPerguntasSalvasVariants,
   },
   {
+    name: "CandidatoFicha",
+    description:
+      "Ficha eleitoral de um candidato (TSE): identidade, votação, bens declarados e histórico de candidaturas.",
+    View: CandidatoFichaView,
+    variants: candidatoFichaVariants,
+  },
+  {
+    name: "CandidatosLista",
+    description:
+      "Busca de candidatos por eleição, UF e nome, com badge de situação e total de bens (fonte TSE).",
+    View: CandidatosListaView,
+    variants: candidatosListaVariants,
+  },
+  {
     name: "CoberturaMatrix",
     description:
       "Matriz ano × mês × fonte com ações de re-importação por célula, linha e coluna.",
@@ -137,6 +163,20 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     description: "Card de uma fonte na página de cobertura — variantes compact, full (heatmap), anual e sem dados.",
     View: FonteCard,
     variants: fonteCardVariants,
+  },
+  {
+    name: "DoacoesEleitorais",
+    description:
+      "Seção da ficha do fornecedor: campanhas que receberam doações deste CNPJ (fonte TSE), com aviso metodológico.",
+    View: DoacoesEleitoraisView,
+    variants: doacoesEleitoraisVariants,
+  },
+  {
+    name: "EleicoesHub",
+    description:
+      "Hub público /eleicoes: blocos por eleição com contagens de candidaturas e eleitos por cargo (fonte TSE).",
+    View: EleicoesHubView,
+    variants: eleicoesHubVariants,
   },
   {
     name: "FlagsCidada",
@@ -185,10 +225,24 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     variants: secaoListaVariants,
   },
   {
+    name: "SecaoEleicao",
+    description:
+      "Seção 'Eleições' das fichas de deputado/senador: candidaturas, bens, top doadores e fornecedores de campanha (via ponte TSE).",
+    View: SecaoEleicaoView,
+    variants: secaoEleicaoVariants,
+  },
+  {
     name: "ReporteOficialModal",
     description: "Modal para registrar reporte oficial em canal externo (Fala.BR, Compras, etc.).",
     View: ReporteOficialModalView,
     variants: reporteOficialVariants,
     iframe: true,
+  },
+  {
+    name: "TseImportPanel",
+    description:
+      "Aba TSE do admin: importação por (arquivo, ano, UF) com auto-continuar e progresso das varreduras.",
+    View: TseImportPanelView,
+    variants: tseImportPanelVariants,
   },
 ];

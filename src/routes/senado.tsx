@@ -10,7 +10,7 @@ export const Route = createFileRoute("/senado")({
   component: SenadoHome,
   head: () => ({
     meta: [
-      { title: "Senado Federal — Auditoria Cidadã" },
+      { title: "Senado Federal — Mutirão de Dados" },
       {
         name: "description",
         content:

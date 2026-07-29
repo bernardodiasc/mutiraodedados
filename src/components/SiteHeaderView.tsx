@@ -40,8 +40,8 @@ export function SiteHeaderView({
       <div className="mx-auto max-w-7xl px-4 h-16 flex items-center gap-4">
         <div className="flex-1 min-w-0 flex">
           <Link to="/" className="flex items-baseline gap-2">
-            <span className="font-display text-2xl tracking-tight">AUDITORIA</span>
-            <span className="font-display text-2xl text-accent">CIDADÃ</span>
+            <span className="font-display text-2xl tracking-tight">MUTIRÃO</span>
+            <span className="font-display text-2xl text-accent">DE DADOS</span>
           </Link>
         </div>
         <nav className="hidden lg:flex items-center gap-1 text-sm font-medium shrink-0">

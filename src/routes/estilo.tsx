@@ -5,7 +5,7 @@ export const Route = createFileRoute("/estilo")({
   component: EstiloLayout,
   head: () => ({
     meta: [
-      { title: "Estilo — Auditoria Cidadã" },
+      { title: "Estilo — Mutirão de Dados" },
       {
         name: "description",
         content:

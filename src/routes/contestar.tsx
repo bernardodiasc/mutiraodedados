@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Mail, Send, CheckCircle2 } from "lucide-react";
+import { Send, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,15 +14,13 @@ export const Route = createFileRoute("/contestar")({
   component: ContestarPage,
   head: () => ({
     meta: [
-      { title: "Contestar uma análise — Auditoria Cidadã" },
+      { title: "Contestar uma análise — Mutirão de Dados" },
       { name: "description", content: "Canal de contestação, correção ou remoção de análises publicadas. Procedimento aberto a órgãos, empresas e cidadãos." },
-      { property: "og:title", content: "Contestar uma análise — Auditoria Cidadã" },
+      { property: "og:title", content: "Contestar uma análise — Mutirão de Dados" },
       { property: "og:description", content: "Procedimento de contestação e correção de análises." },
     ],
   }),
 });
-
-const emailContato = "contato@auditoriacidada.ia.br";
 
 const TIPOS = [
   { v: "correcao_factual", l: "Correção factual" },
@@ -53,10 +51,6 @@ function ContestarPage() {
   const { user } = useAuth();
   const [enviado, setEnviado] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const mailto = `mailto:${emailContato}?subject=${encodeURIComponent("Contestação de análise — Auditoria Cidadã")}&body=${encodeURIComponent(
-    "URL da página em questão:\n\nO que precisa ser corrigido/removido:\n\nFundamento (fato novo, dado desatualizado, dado pessoal exposto, classificação inadequada):\n\nQuem está contestando (cidadão, órgão, empresa, representante legal):\n\nContato para resposta:\n",
-  )}`;
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -90,7 +84,7 @@ function ContestarPage() {
       .single();
     setLoading(false);
     if (error) {
-      toast.error("Não foi possível registrar a contestação. Tente o e-mail abaixo.");
+      toast.error("Não foi possível registrar a contestação. Tente novamente em instantes.");
       return;
     }
     setEnviado(data!.id);
@@ -145,7 +139,7 @@ function ContestarPage() {
         <form onSubmit={onSubmit} className="mt-6 space-y-5 border border-border rounded-xl bg-card p-6">
           <div className="grid gap-1.5">
             <Label htmlFor="url_pagina">URL da página em questão *</Label>
-            <Input id="url_pagina" name="url_pagina" required placeholder="https://auditoria-cidada.lovable.app/orgaos/..." />
+            <Input id="url_pagina" name="url_pagina" required placeholder="https://mutiraodedados.com.br/orgaos/..." />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="grid gap-1.5">
@@ -190,17 +184,6 @@ function ContestarPage() {
         Em casos de exposição de dado pessoal, a retirada provisória pode ocorrer em até
         72 horas, enquanto a análise prossegue.
       </p>
-
-      <h2 className="font-display text-2xl mt-10">Canal alternativo</h2>
-      <div className="mt-3 border border-border rounded-xl bg-card p-5">
-        <p className="text-sm text-muted-foreground mb-3">
-          Se preferir, envie por e-mail. O formulário acima é o canal recomendado por
-          registrar protocolo rastreável.
-        </p>
-        <a href={mailto} className="inline-flex items-center gap-2 font-semibold text-accent">
-          <Mail className="size-4" /> {emailContato}
-        </a>
-      </div>
 
       <h2 className="font-display text-2xl mt-10">O que não fazemos</h2>
       <p className="mt-3 text-muted-foreground">

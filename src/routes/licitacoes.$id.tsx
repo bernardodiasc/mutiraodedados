@@ -14,7 +14,7 @@ import { linkBuscaPncp } from "@/lib/links-oficiais";
 
 export const Route = createFileRoute("/licitacoes/$id")({
   component: LicitacaoDetalhe,
-  head: () => ({ meta: [{ title: "Licitação — Auditoria Cidadã" }] }),
+  head: () => ({ meta: [{ title: "Licitação — Mutirão de Dados" }] }),
 });
 
 function LicitacaoDetalhe() {

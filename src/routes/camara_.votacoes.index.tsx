@@ -12,7 +12,7 @@ export const Route = createFileRoute("/camara_/votacoes/")({
   component: ListaVotacoes,
   head: () => ({
     meta: [
-      { title: "Votações nominais — Auditoria Cidadã" },
+      { title: "Votações nominais — Mutirão de Dados" },
       {
         name: "description",
         content:

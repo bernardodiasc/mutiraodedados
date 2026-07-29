@@ -39,13 +39,13 @@ Quando uma mesma API expõe vários endpoints com a mesma mecânica de paginaç�
 - `GRANT SELECT ... TO anon, authenticated`; `GRANT ALL ... TO service_role`.
 - RLS enabled; policy `SELECT` `using (true)`; sem policy de write.
 
-## Regras de QA
+## Sinais — os três tipos
 
-Em `src/lib/data/qa.ts`, exportar `regras<NovaFonte>(rows)` retornando `QaFinding[]`. Padrões a verificar:
+Taxonomia normativa em [`qualidade-dados.md`](./qualidade-dados.md) (cruzamento → `investigativo`; ausência esperada → `lacuna`; próprio registro → `qualidade`). Todo finding carrega `tipo` (`QaTipoSinal` em `src/lib/data/qa.ts`; default `'qualidade'`).
 
-- Valores zerados ou negativos onde não deveriam.
-- Datas absurdas (futuro > 5 anos, passado < 1988).
-- Inconsistência entre campos relacionados (ex: valor_global < valor_repasse).
+- **Qualidade** — fonte simples: `regras<NovaFonte>(rows)` em `src/lib/data/qa.ts` retornando `QaFinding[]`. Fonte com catálogo completo: `src/lib/data/<fonte>/qualidade.ts`. Padrões: valores zerados/negativos onde não deveriam; datas absurdas (futuro > 5 anos, passado < 1988); inconsistência entre campos relacionados (ex: valor_global < valor_repasse); sentinelas não tratadas; duplicatas do lote.
+- **Lacunas** — `src/lib/data/<fonte>/lacunas.ts`, rodando pós-importação (a ausência só é detectável com o conjunto no cache). Findings com `tipo='lacuna'`; promoção à curadoria via `converterFindingEmLacuna`.
+- **Investigativos** — `src/lib/data/<fonte>/investigativos.ts` (nunca em arquivo "qa"). Findings com `tipo='investigativo'`, severidade `aviso`, e `AvisoMetodologico` obrigatório na exposição pública. Teste automatizado garantindo que cruzamento nunca grava `tipo='qualidade'`.
 
 ## Janela
 

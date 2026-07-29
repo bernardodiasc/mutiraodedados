@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getSenadorDetalhe } from "@/lib/data/senado/queries.functions";
+import { SecaoEleicaoContainer as SecaoEleicao } from "@/containers/SecaoEleicaoContainer";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { SituacaoBadge, Trajetoria, type ItemTrajetoria } from "@/components/Trajetoria";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { fmtBRL } from "@/lib/fmt";
 import { ExternalLink, ChevronDown } from "lucide-react";
@@ -23,10 +25,42 @@ function anosDaLegislatura(n: number): string {
   return `${ini}–${ini + 4}`;
 }
 
+function SupChip({
+  ordem,
+  codigo,
+  nome,
+  legislaturas,
+}: {
+  ordem: string | null;
+  codigo: number | null;
+  nome: string | null;
+  legislaturas?: number[];
+}) {
+  const label = `${ordem ? `${ordem}: ` : ""}${nome ?? (codigo ? `Senador ${codigo}` : "—")}`;
+  const legs = legislaturas ?? [];
+  const periodo = legs.length
+    ? ` · ${legs[0]}ª${legs.length > 1 && legs[legs.length - 1] !== legs[0] ? `–${legs[legs.length - 1]}ª` : ""}`
+    : "";
+  const cls = "rounded-md border border-border bg-muted/40 px-2 py-1 text-xs";
+  const inner = (
+    <>
+      {label}
+      {periodo && <span className="text-muted-foreground">{periodo}</span>}
+    </>
+  );
+  return codigo ? (
+    <Link to="/senado/senadores/$id" params={{ id: String(codigo) }} className={`${cls} hover:border-accent hover:text-accent`}>
+      {inner}
+    </Link>
+  ) : (
+    <span className={cls}>{inner}</span>
+  );
+}
+
 export const Route = createFileRoute("/senado_/senadores/$id")({
   component: SenadorDetalhe,
   head: ({ params }) => ({
-    meta: [{ title: `Senador ${params.id} — Auditoria Cidadã` }],
+    meta: [{ title: `Senador ${params.id} — Mutirão de Dados` }],
   }),
 });
 
@@ -46,6 +80,30 @@ function SenadorDetalhe() {
   if (!data) throw notFound();
 
   const { senador, perfil, mandatos, legislaturas, despesas } = data;
+  // Exercícios → linha do tempo (entrada + saída com causa), igual à da Câmara.
+  const trajetoriaSenado: ItemTrajetoria[] = data.exercicios
+    .flatMap((e) => {
+      const evs: ItemTrajetoria[] = [
+        {
+          data: e.dataInicio,
+          situacao: "Exercício",
+          meta: e.uf,
+          detalhe: e.participacao,
+          descricao: "Início do período em exercício",
+        },
+      ];
+      if (e.dataFim) {
+        evs.push({
+          data: e.dataFim,
+          situacao: e.siglaCausa === "TER" ? "Fim de mandato" : "Afastamento",
+          meta: e.uf,
+          detalhe: e.participacao,
+          descricao: e.descricaoCausa,
+        });
+      }
+      return evs;
+    })
+    .sort((a, b) => (b.data ?? "").localeCompare(a.data ?? ""));
   const anos = anosDisponiveis(despesas);
   const meses = mesesDisponiveis(despesas, ano);
   const visiveis = filtrarDespesas(despesas, ano, mes);
@@ -86,9 +144,11 @@ function SenadorDetalhe() {
           />
           <div className="flex-1 min-w-[260px]">
             <h1 className="font-display text-4xl leading-tight">{senador.nome}</h1>
-            <div className="mt-2 text-sm text-muted-foreground">
-              {senador.siglaPartido ?? "—"} · {senador.siglaUf ?? "—"}
-              {senador.situacao ? ` · ${senador.situacao}` : ""}
+            <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
+              <span>
+                {senador.siglaPartido ?? "—"} · {senador.siglaUf ?? "—"}
+              </span>
+              {senador.situacao && <SituacaoBadge situacao={senador.situacao} />}
             </div>
             {senador.email && (
               <a href={`mailto:${senador.email}`} className="text-sm text-accent underline mt-1 inline-block">
@@ -210,6 +270,50 @@ function SenadorDetalhe() {
                 </div>
               </CollapsibleContent>
             </Collapsible>
+          )}
+        </section>
+      )}
+
+      {data.exercicios.length > 0 && (
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="font-display text-xl">Trajetória no mandato</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Entradas em exercício e afastamentos registrados pelo Senado — do mais recente ao mais antigo.
+            Um afastamento com causa (renúncia, licença, investidura em cargo, falecimento) mostra quando —
+            e por quê — deixou a cadeira, abrindo vaga para o suplente. "Término do mandato" é o fim normal.
+          </p>
+          <Trajetoria items={trajetoriaSenado} />
+        </section>
+      )}
+
+      {(data.meusSuplentes.length > 0 || data.souSuplenteDe.length > 0) && (
+        <section className="rounded-xl border border-border bg-card p-5 space-y-3">
+          <div>
+            <h2 className="font-display text-xl">Cadeia de suplência</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Suplentes não são eleitos diretamente para a cadeira — assumem quando o titular se afasta.
+              Aqui, quem substitui quem.
+            </p>
+          </div>
+          {data.meusSuplentes.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Suplentes deste senador</div>
+              <div className="flex flex-wrap gap-2">
+                {data.meusSuplentes.map((s, i) => (
+                  <SupChip key={i} ordem={s.ordem} codigo={s.codigo} nome={s.nome} legislaturas={s.legislaturas} />
+                ))}
+              </div>
+            </div>
+          )}
+          {data.souSuplenteDe.length > 0 && (
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">É suplente de</div>
+              <div className="flex flex-wrap gap-2">
+                {data.souSuplenteDe.map((t, i) => (
+                  <SupChip key={i} ordem={t.ordem} codigo={t.codigo} nome={t.nome} legislaturas={t.legislaturas} />
+                ))}
+              </div>
+            </div>
           )}
         </section>
       )}
@@ -400,6 +504,8 @@ function SenadorDetalhe() {
           </section>
         </>
       )}
+
+      <SecaoEleicao tipo="senador" id={String(senador.codigoParlamentar)} />
     </div>
   );
 }

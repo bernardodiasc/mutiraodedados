@@ -11,7 +11,7 @@ export const Route = createFileRoute("/camara_/proposicoes/")({
   component: ListaProposicoes,
   head: () => ({
     meta: [
-      { title: "Proposições legislativas — Auditoria Cidadã" },
+      { title: "Proposições legislativas — Mutirão de Dados" },
       {
         name: "description",
         content:

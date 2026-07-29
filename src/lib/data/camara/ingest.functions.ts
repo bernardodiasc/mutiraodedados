@@ -6,7 +6,7 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasCamaraCeap, flagQA } from "@/lib/data/qa";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -44,6 +44,94 @@ async function camaraGet<T = unknown>(
 }
 
 type CamaraEnvelope<T> = { dados: T; links?: Array<{ rel: string; href: string }> };
+
+/**
+ * Item de /deputados/{id}/historico: a linha do tempo de entradas/saídas do
+ * mandato (posse, licença, afastamento, vacância, reassunção…), com o motivo em
+ * `descricaoStatus` e a legislatura de cada evento.
+ */
+type HistoricoItem = {
+  idLegislatura?: number;
+  siglaPartido?: string;
+  siglaUf?: string;
+  dataHora?: string;
+  situacao?: string | null;
+  condicaoEleitoral?: string | null;
+  descricaoStatus?: string;
+};
+
+async function historicoDeputado(id: number): Promise<HistoricoItem[]> {
+  try {
+    const j = await camaraGet<CamaraEnvelope<HistoricoItem[]>>(`/deputados/${id}/historico`);
+    return j.dados ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Ingere a trajetória (eventos de /historico) de um conjunto de deputados, em
+ * lotes paralelos, gravando em `camara_deputado_eventos` (delete+insert por id,
+ * idempotente). Devolve a situação ATUAL de cada um (último evento com situação),
+ * usada para o roster — assim quem renunciou/faleceu deixa de constar "Exercício".
+ */
+async function ingerirEventosDeputados(ids: number[]): Promise<Map<number, string>> {
+  const situacaoAtual = new Map<number, string>();
+  const LOTE = 8;
+  const now = new Date().toISOString();
+  for (let i = 0; i < ids.length; i += LOTE) {
+    const lote = ids.slice(i, i + LOTE);
+    const hists = await Promise.all(
+      lote.map((id) => historicoDeputado(id).then((h) => [id, h] as const)),
+    );
+    const rows: Array<{
+      deputado_id: number;
+      id_legislatura: number | null;
+      data_hora: string | null;
+      situacao: string | null;
+      condicao_eleitoral: string | null;
+      sigla_partido: string | null;
+      sigla_uf: string | null;
+      descricao: string | null;
+      updated_at: string;
+    }> = [];
+    for (const [id, h] of hists) {
+      for (let k = h.length - 1; k >= 0; k--) {
+        const s = h[k].situacao;
+        if (s) {
+          situacaoAtual.set(id, s);
+          break;
+        }
+      }
+      for (const e of h) {
+        rows.push({
+          deputado_id: id,
+          id_legislatura: e.idLegislatura ?? null,
+          data_hora: e.dataHora ?? null,
+          situacao: e.situacao ?? null,
+          condicao_eleitoral: e.condicaoEleitoral ?? null,
+          sigla_partido: e.siglaPartido ?? null,
+          sigla_uf: e.siglaUf ?? null,
+          descricao: e.descricaoStatus ?? null,
+          updated_at: now,
+        });
+      }
+    }
+    // Idempotência: apaga os eventos destes ids e regrava.
+    const { error: delErr } = await supabaseAdmin
+      .from("camara_deputado_eventos")
+      .delete()
+      .in("deputado_id", lote);
+    if (delErr) throw new Error(`db eventos: ${delErr.message}`);
+    for (let j = 0; j < rows.length; j += 200) {
+      const { error } = await supabaseAdmin
+        .from("camara_deputado_eventos")
+        .insert(rows.slice(j, j + 200));
+      if (error) throw new Error(`db eventos: ${error.message}`);
+    }
+  }
+  return situacaoAtual;
+}
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
@@ -131,6 +219,7 @@ async function ingerirDeputadosLegislatura(
           id_legislatura: d.idLegislatura ?? legAlvo,
           url_foto: d.urlFoto ?? null,
           email: d.email ?? null,
+          // Situação real (afastado/vacância/…) vem à parte, por importarTrajetoriaCamara.
           situacao: "Exercício",
           condicao_eleitoral: null,
           updated_at: now,
@@ -231,6 +320,54 @@ export const importarDeputadosHistorico = createServerFn({ method: "POST" })
       }
     }
     return { importados, legislaturas, erros };
+  });
+
+/**
+ * Importa a TRAJETÓRIA (linha do tempo de /historico) de uma legislatura, em
+ * LOTES — para não estourar o limite de sub-requisições/tempo do Cloudflare, que
+ * uma legislatura inteira (~600 deputados × 1 chamada cada) ultrapassaria numa só
+ * requisição. O cliente chama repetidamente avançando `offset` até `proximoOffset`
+ * ser null, exibindo progresso. Grava eventos e, na legislatura vigente, atualiza
+ * a situação real do roster (afastado/vacância/licença).
+ */
+export const importarTrajetoriaCamara = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        idLegislatura: z.number().int().min(50).max(100),
+        offset: z.number().int().min(0).default(0),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const legAtual = legislaturaAtualCamara();
+    const { data: legRows, error } = await supabaseAdmin
+      .from("camara_deputado_legislaturas")
+      .select("deputado_id")
+      .eq("id_legislatura", data.idLegislatura)
+      .order("deputado_id", { ascending: true });
+    if (error) throw new Error(`db: ${error.message}`);
+    const ids = [...new Set((legRows ?? []).map((r) => r.deputado_id as number))];
+
+    const LIMITE = 60; // sub-requisições por chamada, com folga sob o teto do Worker
+    const lote = ids.slice(data.offset, data.offset + LIMITE);
+    const situacaoPorId = await ingerirEventosDeputados(lote);
+
+    if (data.idLegislatura === legAtual) {
+      for (const [id, situacao] of situacaoPorId) {
+        await supabaseAdmin.from("camara_deputados_cache").update({ situacao }).eq("id", id);
+      }
+    }
+
+    const processados = Math.min(data.offset + lote.length, ids.length);
+    return {
+      legislatura: data.idLegislatura,
+      total: ids.length,
+      processados,
+      proximoOffset: processados < ids.length ? processados : null,
+    };
   });
 
 /** Importa despesas CEAP de um mês/ano para TODOS os deputados em cache. */

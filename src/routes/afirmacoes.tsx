@@ -5,21 +5,21 @@ export const Route = createFileRoute("/afirmacoes")({
   component: AfirmacoesPage,
   head: () => ({
     meta: [
-      { title: "Afirmações públicas — Auditoria Cidadã" },
+      { title: "Afirmações públicas — Mutirão de Dados" },
       {
         name: "description",
         content:
           "O que foi prometido, declarado ou afirmado publicamente sobre o funcionamento do Estado. Curadoria editorial — sem motor automático.",
       },
-      { property: "og:title", content: "Afirmações públicas — Auditoria Cidadã" },
+      { property: "og:title", content: "Afirmações públicas — Mutirão de Dados" },
       {
         property: "og:description",
         content:
           "Acompanhe declarações públicas relevantes e o que elas permitem perguntar, investigar e cobrar.",
       },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/afirmacoes" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/afirmacoes" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/afirmacoes" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/afirmacoes" }],
   }),
 });
 

@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 

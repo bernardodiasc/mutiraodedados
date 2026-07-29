@@ -9,7 +9,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  * Cobre RREO, RGF, DCA e MSC de todos os 5.598 entes federados.
  */
 const BASE = "https://apidatalake.tesouro.gov.br/ords/siconfi/tt";
-const UA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 async function siconfiGet<T = unknown>(path: string, params: Record<string, string | number>): Promise<T> {
   const qs = new URLSearchParams(

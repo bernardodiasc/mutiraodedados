@@ -10,9 +10,9 @@ export const Route = createFileRoute("/transparencia-institucional")({
   component: TransparenciaPage,
   head: () => ({
     meta: [
-      { title: "Transparência institucional — Auditoria Cidadã" },
+      { title: "Transparência institucional — Mutirão de Dados" },
       { name: "description", content: "Índice de Transparência Institucional por órgão: completude, competitividade, diversidade, volume e atualidade dos contratos publicados (Portal CGU e PNCP)." },
-      { property: "og:title", content: "Transparência institucional — Auditoria Cidadã" },
+      { property: "og:title", content: "Transparência institucional — Mutirão de Dados" },
       { property: "og:description", content: "Comparação entre órgãos federais, estaduais e municipais quanto à clareza informacional do gasto contratado." },
     ],
   }),

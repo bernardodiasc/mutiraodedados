@@ -1,6 +1,6 @@
 # Problemas Conhecidos e Lições Aprendidas
 
-Este documento consolida particularidades e limitações técnicas descobertas no desenvolvimento do projeto Auditoria Cidadã. Serve como memória técnica para evitar que os mesmos problemas sejam re-investigados.
+Este documento consolida particularidades e limitações técnicas descobertas no desenvolvimento do projeto Mutirão de Dados. Serve como memória técnica para evitar que os mesmos problemas sejam re-investigados.
 
 **Consulte este arquivo antes de depurar erros de build, rotas, banco ou testes.**
 
@@ -75,3 +75,35 @@ No TanStack Router file-based, arquivos com `_` no nome antes do `.` criam **lay
 
 **Regra**
 Ao linkar para rotas dinâmicas, use a URL real (sem o underscore de convenção). Verifique o `routeTree.gen.ts` para confirmar o caminho exato gerado.
+
+---
+
+## 5. Server function criada por factory não é separada do bundle do cliente
+
+**Sintoma**
+Ao chamar uma server function, erro em runtime `Missing Supabase environment variable(s): SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY. Connect Supabase in Lovable Cloud.` — com **os dois** vars faltando ao mesmo tempo, mesmo com o env corretamente configurado (outras fontes funcionam). Vars configurados na Lovable/Worker não resolvem.
+
+**Causa**
+Os **dois** vars faltando = `process.env` **vazio** = o código do handler está rodando no **cliente** (o browser não tem `process.env`), não no servidor. O compilador do TanStack Start só separa o handler do bundle do cliente quando enxerga **estaticamente** cada `createServerFn().handler()` no topo do módulo. Quando a server function é produzida por uma **factory** (`function fazer(){ return createServerFn()... }` chamada para gerar vários exports), a extração falha, o handler vai para o cliente e o `await import("*.server")` / `supabaseAdmin` executa no browser.
+
+```ts
+// ❌ ERRADO — factory: o compilador não extrai o handler
+function fazerSync(tipo) {
+  return createServerFn({ method: "POST" }).handler(async () => { /* usa supabaseAdmin */ });
+}
+export const sincronizarA = fazerSync("a");
+export const sincronizarB = fazerSync("b");
+```
+
+**Regra**
+Defina **cada** `createServerFn(...).handler(...)` inline, no topo do módulo (padrão de `camara/ingest.functions.ts`). Fatore só o corpo em um helper comum e chame-o de dentro de cada handler:
+```ts
+// ✅ CERTO — cada server fn é estática; o corpo compartilhado é um helper
+async function executar(tipo, userId, data) { /* usa supabaseAdmin via await import */ }
+export const sincronizarA = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context, data }) => executar("a", context.userId, data));
+```
+
+**Como verificar**
+Depois do `bun run build`, nenhum chunk em `.output/public` deve conter o handler server-only (ex.: `grep -rl "sincronizarArquivoTse" .output/public` = vazio). O corolário do problema #3 vale aqui: a extração do handler é o que mantém `client.server` fora do cliente.

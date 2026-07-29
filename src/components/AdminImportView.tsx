@@ -19,6 +19,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EntesPanel } from "@/components/AdminEntesPanel";
+import { TseImportPanelContainer as TseImportPanel } from "@/containers/TseImportPanelContainer";
 import { CoberturaMatrix, type CoberturaJob } from "@/components/CoberturaMatrix";
 import { SincronizarTudoPanel } from "@/components/SincronizarTudoPanel";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
@@ -96,6 +97,7 @@ export type AdminImportViewProps = {
   setLegHistIni: (n: number) => void;
   setLegHistFim: (n: number) => void;
   onImportarHistCamara: () => void;
+  onImportarTrajetoriaCamara: () => void;
   onImportarHistSenado: () => void;
 
   // historico
@@ -388,6 +390,7 @@ export function AdminImportView(p: AdminImportViewProps) {
           <TabsTrigger value="camara">Câmara</TabsTrigger>
           <TabsTrigger value="senado">Senado</TabsTrigger>
           <TabsTrigger value="entes">Estados/Municípios</TabsTrigger>
+          <TabsTrigger value="tse">TSE</TabsTrigger>
           <TabsTrigger value="historico">Histórico</TabsTrigger>
           <TabsTrigger value="manutencao">Manutenção</TabsTrigger>
         </TabsList>
@@ -582,7 +585,16 @@ export function AdminImportView(p: AdminImportViewProps) {
                   {p.camaraBusy === "hist" ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : null}
                   Importar histórico de deputados
                 </Button>
+                <Button variant="outline" size="sm" disabled={p.camaraBusy !== null} onClick={p.onImportarTrajetoriaCamara}>
+                  {p.camaraBusy === "trajetoria" ? <Loader2 className="size-3.5 mr-2 animate-spin" /> : null}
+                  Importar trajetória (linha do tempo)
+                </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                Trajetória: busca a linha do tempo de cada deputado (posse, licença, afastamento,
+                vacância) da faixa acima — em lotes, com progresso. Popula a situação real, os
+                afastamentos e as vacâncias. É demorado (~1 chamada por deputado); rode depois do cadastro.
+              </p>
             </div>
           </div>
 
@@ -692,6 +704,10 @@ export function AdminImportView(p: AdminImportViewProps) {
 
         <TabsContent value="entes" className="space-y-4 mt-4">
           <EntesPanel ano={p.ano} mes={p.mes} />
+        </TabsContent>
+
+        <TabsContent value="tse" className="space-y-4 mt-4">
+          <TseImportPanel />
         </TabsContent>
 
         <TabsContent value="historico" className="space-y-4 mt-4">

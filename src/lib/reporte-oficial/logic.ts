@@ -13,7 +13,7 @@ export function buildIdentificacao(anomalia: AnomaliaInput, origin: string): str
 }
 
 /** Origem padrão para fallback em SSR (sem `window`). */
-export const ORIGIN_FALLBACK = "https://auditoriacidada.ia.br";
+export const ORIGIN_FALLBACK = "https://mutiraodedados.com.br";
 
 /** Devolve o `window.location.origin` ou o fallback estável. */
 export function safeOrigin(): string {

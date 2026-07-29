@@ -6,13 +6,13 @@ export const Route = createFileRoute("/aprender")({
   component: AprenderPage,
   head: () => ({
     meta: [
-      { title: "Primeiros passos — Auditoria Cidadã" },
+      { title: "Primeiros passos — Mutirão de Dados" },
       { name: "description", content: "Guia prático: LAI, Lei da Transparência, Lei de Licitações, direitos de fiscalização e como denunciar irregularidades." },
-      { property: "og:title", content: "Primeiros passos — Auditoria Cidadã" },
+      { property: "og:title", content: "Primeiros passos — Mutirão de Dados" },
       { property: "og:description", content: "Direitos cidadãos de fiscalização, leis-chave e como interpretar dados públicos brasileiros." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/aprender" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/aprender" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/aprender" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/aprender" }],
     scripts: [
       {
         type: "application/ld+json",

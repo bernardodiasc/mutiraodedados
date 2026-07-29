@@ -10,13 +10,13 @@ export const Route = createFileRoute("/anomalias")({
   component: AnomaliasPage,
   head: () => ({
     meta: [
-      { title: "Anomalias detectadas — Auditoria Cidadã" },
+      { title: "Anomalias detectadas — Mutirão de Dados" },
       { name: "description", content: "Padrões fora do esperado em contratos e gastos federais, com critério, severidade e checklist de investigação." },
       { property: "og:title", content: "Anomalias detectadas em gastos federais" },
       { property: "og:description", content: "Sinais investigativos com critério, severidade e contexto — ponto de partida para o controle social." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/anomalias" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/anomalias" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/anomalias" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/anomalias" }],
   }),
 });
 

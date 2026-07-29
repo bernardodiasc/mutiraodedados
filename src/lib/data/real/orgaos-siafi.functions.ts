@@ -4,7 +4,6 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { portalGet, PORTAL_BASE } from "@/lib/data/real/portal-client";
 import { ensureAdmin, sleep } from "@/lib/data/real/sweep";
-import { codigosComDados } from "@/lib/data/status.functions";
 
 /**
  * Catálogo de órgãos SIAFI-driven.
@@ -120,6 +119,7 @@ export const verificarAtividadeOrgaos = createServerFn({ method: "POST" })
     // então "sem despesa no ano corrente" sozinho geraria falso-positivo de extinção.
     const anos = [anoAtual, anoAtual - 1];
 
+    const { codigosComDados } = await import("@/lib/data/status.server");
     const codigos = await codigosComDados();
     let ativos = 0;
     let inativos = 0;

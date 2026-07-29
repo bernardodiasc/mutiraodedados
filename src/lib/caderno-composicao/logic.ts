@@ -110,7 +110,7 @@ export function montarTextoComposicao(
     "",
     "---",
     "",
-    "_Material montado na Auditoria Cidadã (auditoria cidadã de dados públicos). " +
+    "_Material montado no Mutirão de Dados (mutirão de dados de dados públicos). " +
       "Os dados apontam sinais para verificar na fonte oficial — não são prova de irregularidade._",
   );
   return partes.join("\n");

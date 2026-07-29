@@ -67,3 +67,28 @@ export function linkFornecedorPortal(cnpjOuCpf: string | null | undefined): stri
     ? `https://portaldatransparencia.gov.br/busca?termo=${encodeURIComponent(d)}`
     : "https://portaldatransparencia.gov.br/busca";
 }
+
+/**
+ * Ficha do candidato no DivulgaCandContas (TSE). O id interno da eleição no
+ * Divulga foi confirmado ao vivo via /eleicao/ordinarias (2026-07-06) — ver
+ * docs/fontes/tse.ia.md. `ue` = UF nas eleições gerais, código da unidade
+ * eleitoral nas municipais (mesmo SG_UE/SG_UF dos CSVs).
+ */
+const DIVULGA_ELEICAO_ID: Record<number, number> = {
+  2014: 680,
+  2016: 2,
+  2018: 2022802018,
+  2020: 2030402020,
+  2022: 2040602022,
+  2024: 2045202024,
+};
+
+export function linkDivulgaCandidato(
+  ano: number,
+  ue: string | null | undefined,
+  sqCandidato: string,
+): string {
+  const idEleicao = DIVULGA_ELEICAO_ID[ano];
+  if (!idEleicao || !ue) return "https://divulgacandcontas.tse.jus.br/divulga/#/home";
+  return `https://divulgacandcontas.tse.jus.br/divulga/#/candidato/${ano}/${idEleicao}/${encodeURIComponent(ue)}/${encodeURIComponent(sqCandidato)}`;
+}

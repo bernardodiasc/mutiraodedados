@@ -78,7 +78,7 @@ export const Route = createFileRoute("/emendas/")({
   component: EmendasPage,
   head: () => ({
     meta: [
-      { title: "Emendas parlamentares — Auditoria Cidadã" },
+      { title: "Emendas parlamentares — Mutirão de Dados" },
       {
         name: "description",
         content:

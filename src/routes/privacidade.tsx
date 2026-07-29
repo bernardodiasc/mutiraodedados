@@ -4,9 +4,9 @@ export const Route = createFileRoute("/privacidade")({
   component: PrivacidadePage,
   head: () => ({
     meta: [
-      { title: "Política de Privacidade — Auditoria Cidadã" },
-      { name: "description", content: "Como a Auditoria Cidadã trata dados pessoais. Bases legais, direitos do titular e contato do encarregado." },
-      { property: "og:title", content: "Política de Privacidade — Auditoria Cidadã" },
+      { title: "Política de Privacidade — Mutirão de Dados" },
+      { name: "description", content: "Como o Mutirão de Dados trata dados pessoais. Bases legais, direitos do titular e contato do encarregado." },
+      { property: "og:title", content: "Política de Privacidade — Mutirão de Dados" },
       { property: "og:description", content: "Tratamento de dados pessoais conforme a LGPD." },
     ],
   }),
@@ -20,13 +20,13 @@ function PrivacidadePage() {
       <p className="mt-4 text-sm text-muted-foreground">Última atualização: maio de 2026 — versão experimental, sujeita a revisão jurídica.</p>
 
       <p className="mt-6 text-lg text-muted-foreground">
-        Esta política descreve como a Auditoria Cidadã trata dados pessoais, em conformidade
+        Esta política descreve como o Mutirão de Dados trata dados pessoais, em conformidade
         com a Lei Geral de Proteção de Dados Pessoais (Lei nº 13.709/2018 — LGPD).
       </p>
 
       <h2 className="font-display text-2xl mt-10">1. Quem somos</h2>
       <p className="mt-3 text-muted-foreground">
-        Auditoria Cidadã é uma iniciativa independente voltada à pesquisa em transparência
+        Mutirão de Dados é uma iniciativa independente voltada à pesquisa em transparência
         pública e controle social. A plataforma reorganiza e contextualiza dados públicos
         administrativos.
       </p>
@@ -81,7 +81,7 @@ function PrivacidadePage() {
           </div>
           <div>
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Canal oficial</div>
-            <a className="font-semibold text-accent block mt-1" href="mailto:contato@auditoriacidada.ia.br">contato@auditoriacidada.ia.br</a>
+            <Link className="font-semibold text-accent block mt-1" to="/contestar">Formulário de contestação</Link>
             <div className="text-xs text-muted-foreground mt-1">Prazo indicativo: 15 dias úteis. Para PII exposta: até 72h para retirada provisória.</div>
           </div>
         </div>

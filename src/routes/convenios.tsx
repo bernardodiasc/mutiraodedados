@@ -76,7 +76,7 @@ export const Route = createFileRoute("/convenios")({
   component: ConveniosPage,
   head: () => ({
     meta: [
-      { title: "Convênios e contratos de repasse — Auditoria Cidadã" },
+      { title: "Convênios e contratos de repasse — Mutirão de Dados" },
       {
         name: "description",
         content:

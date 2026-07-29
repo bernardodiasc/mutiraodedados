@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { selectAll } from "@/lib/data/select-all";
 import type { Deputado, DespesaCEAP } from "./types";
 
 /** Lista todos os deputados em cache. Público (read-only). */
@@ -40,93 +41,135 @@ export type DeputadoMembro = {
   siglaPartido: string | null;
   siglaUf: string | null;
 };
-export type DeputadosPorLegislatura = {
+/** Membro num contexto de legislatura, com a situação (só populada na atual). */
+export type DeputadoConsulta = DeputadoMembro & { legislatura: number; situacao: string | null };
+
+export type LegislaturasInfo = {
   legAtual: number;
-  atuais: DeputadoMembro[];
-  passadas: Array<{ legislatura: number; membros: DeputadoMembro[] }>;
+  /** Uma entrada por legislatura com dados, em ordem decrescente. */
+  legislaturas: Array<{ legislatura: number; total: number }>;
+  ufs: string[];
+  partidos: string[];
+  /** Situações distintas presentes no cadastro (para o filtro). */
+  situacoes: string[];
 };
 
 /**
- * Deputados separados entre a legislatura atual (em exercício, dados completos)
- * e as legislaturas passadas (da tabela de mandatos, com partido/UF de cada
- * legislatura e foto reconstruída pelo id). Público (read-only).
+ * Índice barato para o modo navegação: contagem de membros por legislatura e os
+ * domínios de UF/partido/situação para popular os filtros — sem trazer nenhum
+ * membro. Público (read-only).
  */
-export const listarDeputadosPorLegislatura = createServerFn({ method: "GET" }).handler(
-  async (): Promise<DeputadosPorLegislatura> => {
+export const listarLegislaturasCamara = createServerFn({ method: "GET" }).handler(
+  async (): Promise<LegislaturasInfo> => {
     const legAtual = legislaturaAtual();
-    const [rosterRes, legRes] = await Promise.all([
-      supabaseAdmin
-        .from("camara_deputados_cache")
-        .select("id,nome,sigla_partido,sigla_uf,url_foto,situacao")
-        .limit(10000),
-      supabaseAdmin
-        .from("camara_deputado_legislaturas")
-        .select("deputado_id,id_legislatura,sigla_partido,sigla_uf")
-        .limit(100000),
+    const [leg, roster] = await Promise.all([
+      selectAll(() =>
+        supabaseAdmin.from("camara_deputado_legislaturas").select("id_legislatura,sigla_uf,sigla_partido"),
+      ),
+      selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("situacao")),
     ]);
-    if (rosterRes.error) throw new Error(rosterRes.error.message);
-    if (legRes.error) throw new Error(legRes.error.message);
-
-    const idInfo = new Map<number, { nome: string; url_foto: string | null }>();
-    for (const r of rosterRes.data ?? []) {
-      idInfo.set(r.id as number, { nome: r.nome as string, url_foto: r.url_foto as string | null });
+    const porLeg = new Map<number, number>();
+    const ufs = new Set<string>();
+    const partidos = new Set<string>();
+    for (const r of leg) {
+      const l = r.id_legislatura as number;
+      porLeg.set(l, (porLeg.get(l) ?? 0) + 1);
+      if (r.sigla_uf) ufs.add(r.sigla_uf as string);
+      if (r.sigla_partido) partidos.add(r.sigla_partido as string);
     }
+    const situacoes = new Set<string>();
+    for (const r of roster) if (r.situacao) situacoes.add(r.situacao as string);
+    return {
+      legAtual,
+      legislaturas: [...porLeg.entries()]
+        .map(([legislatura, total]) => ({ legislatura, total }))
+        .sort((a, b) => b.legislatura - a.legislatura),
+      ufs: [...ufs].sort(),
+      partidos: [...partidos].sort(),
+      situacoes: [...situacoes].sort((a, b) => a.localeCompare(b, "pt-BR")),
+    };
+  },
+);
 
-    const atuais: DeputadoMembro[] = (rosterRes.data ?? [])
-      .filter((r) => (r.situacao as string | null) === "Exercício")
-      .map((r) => ({
-        id: r.id as number,
-        nome: r.nome as string,
-        urlFoto: fotoDeputado(r.id as number, r.url_foto as string | null),
-        siglaPartido: r.sigla_partido as string | null,
-        siglaUf: r.sigla_uf as string | null,
-      }))
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+const consultaDeputadosSchema = z.object({
+  q: z.string().trim().max(120).optional(),
+  uf: z.string().trim().max(2).optional(),
+  partido: z.string().trim().max(20).optional(),
+  situacao: z.string().trim().max(60).optional(),
+  legislatura: z.number().int().min(1).max(200).optional(),
+});
 
-    const porLeg = new Map<number, DeputadoMembro[]>();
-    for (const l of legRes.data ?? []) {
-      const leg = l.id_legislatura as number;
-      if (leg >= legAtual) continue; // a atual vai na seção própria
+/**
+ * Consulta de membros filtrada no servidor (modo resultado e carga por
+ * legislatura no modo navegação). A filtragem por nome/UF/partido/situação roda
+ * no banco/servidor, então a busca continua global mesmo com carregamento lazy;
+ * o cliente só recebe os que casam. `legislatura` escopa a uma legislatura.
+ * Situação só existe para a legislatura atual (status corrente do parlamentar).
+ * Público (read-only).
+ */
+export const consultarMembrosCamara = createServerFn({ method: "GET" })
+  .inputValidator((input) => consultaDeputadosSchema.parse(input ?? {}))
+  .handler(async ({ data }): Promise<DeputadoConsulta[]> => {
+    const legAtual = legislaturaAtual();
+    const [roster, leg] = await Promise.all([
+      selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id,nome,url_foto,situacao")),
+      selectAll(() => {
+        const base = supabaseAdmin
+          .from("camara_deputado_legislaturas")
+          .select("deputado_id,id_legislatura,sigla_partido,sigla_uf");
+        return data.legislatura != null ? base.eq("id_legislatura", data.legislatura) : base;
+      }),
+    ]);
+    const idInfo = new Map(roster.map((r) => [r.id as number, r]));
+    const term = data.q?.toLowerCase() ?? "";
+
+    const out: DeputadoConsulta[] = [];
+    for (const l of leg) {
       const info = idInfo.get(l.deputado_id as number);
       if (!info) continue;
-      if (!porLeg.has(leg)) porLeg.set(leg, []);
-      porLeg.get(leg)!.push({
+      const nome = info.nome as string;
+      if (term && !nome.toLowerCase().includes(term)) continue;
+      if (data.uf && l.sigla_uf !== data.uf) continue;
+      if (data.partido && l.sigla_partido !== data.partido) continue;
+      const legNum = l.id_legislatura as number;
+      // Situação é o status corrente do parlamentar — só faz sentido na atual.
+      const situacao = legNum === legAtual ? (info.situacao as string | null) : null;
+      if (data.situacao && situacao !== data.situacao) continue;
+      out.push({
         id: l.deputado_id as number,
-        nome: info.nome,
-        urlFoto: fotoDeputado(l.deputado_id as number, info.url_foto),
+        nome,
+        urlFoto: fotoDeputado(l.deputado_id as number, info.url_foto as string | null),
         siglaPartido: l.sigla_partido as string | null,
         siglaUf: l.sigla_uf as string | null,
+        legislatura: legNum,
+        situacao,
       });
     }
-    const passadas = [...porLeg.entries()]
-      .sort((a, b) => b[0] - a[0])
-      .map(([legislatura, membros]) => ({
-        legislatura,
-        membros: membros.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR")),
-      }));
-
-    return { legAtual, atuais, passadas };
+    return out.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   },
 );
 
 /** Ranking de gastos CEAP por deputado, em todo o período em cache. */
 export const rankingGastosDeputados = createServerFn({ method: "GET" }).handler(async () => {
-  const { data, error } = await supabaseAdmin
-    .from("camara_despesas_cache")
-    .select("deputado_id,valor_liquido")
-    .limit(100000);
-  if (error) throw new Error(error.message);
-  const totais = new Map<number, number>();
-  for (const r of data ?? []) {
-    const id = r.deputado_id as number;
-    totais.set(id, (totais.get(id) ?? 0) + Number(r.valor_liquido));
-  }
-  const { data: deps } = await supabaseAdmin
-    .from("camara_deputados_cache")
-    .select("id,nome,sigla_partido,sigla_uf,url_foto");
-  const depMap = new Map((deps ?? []).map((d) => [d.id as number, d]));
-  const rows = [...totais.entries()]
-    .map(([id, total]) => {
+  // A soma acontece no banco (view camara_gasto_por_deputado): varrer as despesas
+  // cruas no app truncaria em 1000 lançamentos e transferiria centenas de milhares
+  // de linhas. A view devolve ~1 linha por deputado — poucos milhares —, então
+  // paginamos com selectAll só para ultrapassar o teto de 1000 do PostgREST.
+  const [totais, deps] = await Promise.all([
+    selectAll(() =>
+      supabaseAdmin
+        .from("camara_gasto_por_deputado")
+        .select("deputado_id,total")
+        .order("total", { ascending: false }),
+    ),
+    selectAll(() =>
+      supabaseAdmin.from("camara_deputados_cache").select("id,nome,sigla_partido,sigla_uf,url_foto"),
+    ),
+  ]);
+  const depMap = new Map(deps.map((d) => [d.id as number, d]));
+  const rows = totais
+    .map((r) => {
+      const id = r.deputado_id as number;
       const d = depMap.get(id);
       return {
         id,
@@ -134,15 +177,58 @@ export const rankingGastosDeputados = createServerFn({ method: "GET" }).handler(
         siglaPartido: (d?.sigla_partido as string | null) ?? null,
         siglaUf: (d?.sigla_uf as string | null) ?? null,
         urlFoto: (d?.url_foto as string | null) ?? null,
-        total,
+        total: Number(r.total ?? 0),
       };
     })
     .sort((a, b) => b.total - a.total);
   return rows;
 });
 
+export type Movimentacao = {
+  deputadoId: number;
+  nome: string;
+  dataHora: string | null;
+  situacao: string | null;
+  condicaoEleitoral: string | null;
+  siglaUf: string | null;
+  descricao: string | null;
+};
+
+/**
+ * Movimentações de uma legislatura: quem saiu (renúncia, vacância, afastamento)
+ * e quem entrou por suplência (posse de suplente, reassunção). Alimenta a visão
+ * "Vacâncias e substituições" a partir dos eventos de /historico. Público.
+ */
+export const movimentacoesLegislaturaCamara = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ legislatura: z.number().int().min(1).max(200) }).parse(input))
+  .handler(async ({ data }): Promise<Movimentacao[]> => {
+    const eventos = await selectAll(() =>
+      supabaseAdmin
+        .from("camara_deputado_eventos")
+        .select("deputado_id,data_hora,situacao,condicao_eleitoral,sigla_uf,descricao")
+        .eq("id_legislatura", data.legislatura)
+        .or("descricao.ilike.%Saída%,descricao.ilike.%Posse de Suplente%,descricao.ilike.%Reassunção%"),
+    );
+    const ids = [...new Set(eventos.map((e) => e.deputado_id as number))];
+    const roster = ids.length
+      ? await selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id,nome").in("id", ids))
+      : [];
+    const nome = new Map(roster.map((r) => [r.id as number, r.nome as string]));
+    return eventos
+      .map((e) => ({
+        deputadoId: e.deputado_id as number,
+        nome: nome.get(e.deputado_id as number) ?? `Deputado ${e.deputado_id}`,
+        dataHora: e.data_hora as string | null,
+        situacao: e.situacao as string | null,
+        condicaoEleitoral: e.condicao_eleitoral as string | null,
+        siglaUf: e.sigla_uf as string | null,
+        descricao: e.descricao as string | null,
+      }))
+      .sort((a, b) => (b.dataHora ?? "").localeCompare(a.dataHora ?? ""));
+  });
+
 /** Detalhe de um deputado + agregados de suas despesas. */
-const UA_CAMARA = "AuditoriaCidada/1.0 (+https://auditoria-cidada.lovable.app)";
+const UA_CAMARA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 type DeputadoDetalheApi = {
   dados?: {
     nomeCivil?: string;
@@ -256,19 +342,36 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
       porMes.set(mkey, (porMes.get(mkey) ?? 0) + d.valorLiquido);
     }
 
-    const [perfil, mandRes] = await Promise.all([
+    const [perfil, mandRes, eventosRes] = await Promise.all([
       buscarPerfilDeputado(data.id),
       supabaseAdmin
         .from("camara_deputado_legislaturas")
         .select("id_legislatura,sigla_partido,sigla_uf,situacao")
         .eq("deputado_id", data.id)
         .order("id_legislatura", { ascending: false }),
+      supabaseAdmin
+        .from("camara_deputado_eventos")
+        .select("id_legislatura,data_hora,situacao,condicao_eleitoral,sigla_partido,sigla_uf,descricao")
+        .eq("deputado_id", data.id)
+        .order("data_hora", { ascending: false })
+        .limit(500),
     ]);
     const mandatos = (mandRes.data ?? []).map((m) => ({
       legislatura: m.id_legislatura as number,
       siglaPartido: m.sigla_partido as string | null,
       siglaUf: m.sigla_uf as string | null,
       situacao: m.situacao as string | null,
+    }));
+    // Trajetória: entradas/saídas do mandato (posse, licença, afastamento,
+    // vacância, reassunção), da mais recente para a mais antiga.
+    const eventos = (eventosRes.data ?? []).map((e) => ({
+      legislatura: e.id_legislatura as number | null,
+      dataHora: e.data_hora as string | null,
+      situacao: e.situacao as string | null,
+      condicaoEleitoral: e.condicao_eleitoral as string | null,
+      siglaPartido: e.sigla_partido as string | null,
+      siglaUf: e.sigla_uf as string | null,
+      descricao: e.descricao as string | null,
     }));
 
     return {
@@ -284,6 +387,7 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
       } satisfies Deputado,
       perfil,
       mandatos,
+      eventos,
       totalGeral,
       despesas,
       porTipo: [...porTipo.entries()].map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total),
@@ -295,16 +399,19 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
 /** Estatísticas gerais para a página de overview. */
 export const camaraOverview = createServerFn({ method: "GET" }).handler(async () => {
   const legAtual = legislaturaAtual();
-  const [{ count: nDeps }, { count: nDesps }, totalRes, exercRes, pastRes] = await Promise.all([
+  // exercício (~647) e mandatos passados (~3,8 mil) precisam de varredura completa:
+  // com o teto de 1000, `historicos` e a contagem de atuais ficavam subestimados.
+  const [{ count: nDeps }, { count: nDesps }, totalRes, exercData, pastData] = await Promise.all([
     supabaseAdmin.from("camara_deputados_cache").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("camara_despesas_cache").select("id", { count: "exact", head: true }),
-    supabaseAdmin.from("camara_despesas_cache").select("valor_liquido").limit(100000),
-    supabaseAdmin.from("camara_deputados_cache").select("id").eq("situacao", "Exercício").limit(10000),
-    supabaseAdmin.from("camara_deputado_legislaturas").select("deputado_id").lt("id_legislatura", legAtual).limit(100000),
+    // Soma no banco: `.limit(100000)` sobre as despesas cruas truncava em 1000.
+    supabaseAdmin.rpc("camara_gasto_total"),
+    selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id").eq("situacao", "Exercício")),
+    selectAll(() => supabaseAdmin.from("camara_deputado_legislaturas").select("deputado_id").lt("id_legislatura", legAtual)),
   ]);
-  const totalGasto = (totalRes.data ?? []).reduce((s, r) => s + Number(r.valor_liquido), 0);
-  const atuaisIds = new Set((exercRes.data ?? []).map((r) => r.id as number));
-  const pastIds = new Set((pastRes.data ?? []).map((r) => r.deputado_id as number));
+  const totalGasto = Number(totalRes.data ?? 0);
+  const atuaisIds = new Set(exercData.map((r) => r.id as number));
+  const pastIds = new Set(pastData.map((r) => r.deputado_id as number));
   let historicos = 0;
   for (const id of pastIds) if (!atuaisIds.has(id)) historicos++;
 

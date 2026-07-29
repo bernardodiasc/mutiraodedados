@@ -20,13 +20,13 @@ export const Route = createFileRoute("/lacunas")({
   notFoundComponent: () => <div className="p-8">Lacuna não encontrada.</div>,
   head: () => ({
     meta: [
-      { title: "Informação que falta — Auditoria Cidadã" },
+      { title: "Informação que falta — Mutirão de Dados" },
       { name: "description", content: "O que ainda não é público sobre o funcionamento do Estado: lacunas de transparência, avaliação, mensuração, documento, instituição e método." },
-      { property: "og:title", content: "Informação que falta — Auditoria Cidadã" },
+      { property: "og:title", content: "Informação que falta — Mutirão de Dados" },
       { property: "og:description", content: "A ausência de informação é, ela mesma, um achado. Mapa de lacunas do Estado brasileiro." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/lacunas" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/lacunas" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/lacunas" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/lacunas" }],
   }),
 });
 

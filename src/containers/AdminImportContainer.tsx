@@ -4,18 +4,37 @@ import { toast } from "sonner";
 import { useData } from "@/lib/data-store";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
 import type { Orgao } from "@/lib/data/types";
-import { clearImportData, listHistoricoUnificado, diagnosticarPortalPagina, listarVarredurasIncompletas, type HistoricoEntrada } from "@/lib/data/real/portal.functions";
-import { sincronizarOrgaosSIAFI, verificarAtividadeOrgaos } from "@/lib/data/real/orgaos-siafi.functions";
+import {
+  clearImportData,
+  listHistoricoUnificado,
+  diagnosticarPortalPagina,
+  listarVarredurasIncompletas,
+  type HistoricoEntrada,
+} from "@/lib/data/real/portal.functions";
+import {
+  sincronizarOrgaosSIAFI,
+  verificarAtividadeOrgaos,
+} from "@/lib/data/real/orgaos-siafi.functions";
 import { ressanitizarContratosCache } from "@/lib/sanitize-ingestao.functions";
-import { importarDeputados, importarDeputadosHistorico, importarCEAPMes } from "@/lib/data/camara/ingest.functions";
+import {
+  importarDeputados,
+  importarDeputadosHistorico,
+  importarTrajetoriaCamara,
+  importarCEAPMes,
+} from "@/lib/data/camara/ingest.functions";
 import { importarProposicoes } from "@/lib/data/camara/proposicoes.functions";
 import { importarVotacoes } from "@/lib/data/camara/votacoes.functions";
-import { importarSenadores, importarSenadoresHistorico, importarCEAPSMes } from "@/lib/data/senado/ingest.functions";
+import {
+  importarSenadores,
+  importarSenadoresHistorico,
+  importarCEAPSMes,
+} from "@/lib/data/senado/ingest.functions";
 import { importarMaterias } from "@/lib/data/senado/materias.functions";
 import { importarVotacoesSenado } from "@/lib/data/senado/votacoes.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { FONTES_LIMPEZA } from "@/lib/data/limpeza";
 import { resetCguSweepCache, abortCguSweep } from "@/lib/data/cobertura-jobs";
+import { rodarDoadorVirouFornecedorFn } from "@/lib/data/tse/sinais.functions";
 import {
   MONTHS,
   yearList,
@@ -37,6 +56,7 @@ export function AdminImportContainer() {
   const diagFn = useServerFn(diagnosticarPortalPagina);
   const varredurasFn = useServerFn(listarVarredurasIncompletas);
   const sincCatalogoFn = useServerFn(sincronizarOrgaosSIAFI);
+  const doadorFornecedorFn = useServerFn(rodarDoadorVirouFornecedorFn);
   const verifAtivFn = useServerFn(verificarAtividadeOrgaos);
   const [sincronizandoCatalogo, setSincronizandoCatalogo] = useState(false);
   const [varredurasIncompletas, setVarredurasIncompletas] = useState<
@@ -100,6 +120,7 @@ export function AdminImportContainer() {
 
   const importarDepFn = useServerFn(importarDeputados);
   const importarDepHistFn = useServerFn(importarDeputadosHistorico);
+  const importarTrajetoriaFn = useServerFn(importarTrajetoriaCamara);
   const importarCEAPFn = useServerFn(importarCEAPMes);
   const importarPropsFn = useServerFn(importarProposicoes);
   const importarVotsFn = useServerFn(importarVotacoes);
@@ -115,7 +136,8 @@ export function AdminImportContainer() {
   const [legHistIni, setLegHistIni] = useState<number>(52);
   const [legHistFim, setLegHistFim] = useState<number>(LEG_ATUAL);
   const [votIni, setVotIni] = useState<string>(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30);
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
     return d.toISOString().slice(0, 10);
   });
   const [votFim, setVotFim] = useState<string>(() => new Date().toISOString().slice(0, 10));
@@ -180,7 +202,14 @@ export function AdminImportContainer() {
   };
 
   const runBatch = async (
-    jobs: Array<{ cod: string; year: number; month: number; label: string; dataInicial?: string; dataFinal?: string }>,
+    jobs: Array<{
+      cod: string;
+      year: number;
+      month: number;
+      label: string;
+      dataInicial?: string;
+      dataFinal?: string;
+    }>,
     title: string,
     opts?: { auto?: boolean },
   ) => {
@@ -202,7 +231,11 @@ export function AdminImportContainer() {
       orgaosUnicos.map((j) => [j.cod, { dataInicial: j.dataInicial, dataFinal: j.dataFinal }]),
     );
     cancelRef.current = false;
-    try { await supabase.auth.refreshSession(); } catch { /* tolerante */ }
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      /* tolerante */
+    }
     const PER_JOB_TIMEOUT_MS = 4 * 60 * 1000;
     let importados = 0;
     let erros = 0;
@@ -221,7 +254,11 @@ export function AdminImportContainer() {
       for (let i = 0; i < codsRodada.length; i++) {
         if (cancelRef.current) break;
         if (i > 0 && i % 10 === 0) {
-          try { await supabase.auth.refreshSession(); } catch { /* tolerante */ }
+          try {
+            await supabase.auth.refreshSession();
+          } catch {
+            /* tolerante */
+          }
         }
         const cod = codsRodada[i];
         const o = ORGAOS_BASE.find((x) => x.cod === cod);
@@ -282,12 +319,33 @@ export function AdminImportContainer() {
     if (corrigidos > 0) partes.push(`${corrigidos} valores corrigidos`);
     if (completa) partes.push("varredura completa");
     toast.success(`${title}: ${partes.join(" · ")}`);
+    // Gatilho pós-importação de contratos (plano TSE, Fase 3): re-checa o
+    // cruzamento doador↔fornecedor com os contratos recém-chegados. Tolerante:
+    // sem dados do TSE ainda, o cruzamento simplesmente não gera sinais.
+    if (completa && importados > 0) {
+      try {
+        const r = await doadorFornecedorFn();
+        if (r.findingsGerados > 0) {
+          toast.info(`Sinais TSE: ${r.findingsGerados} cruzamento(s) doador↔fornecedor novos.`);
+        }
+      } catch {
+        /* tolerante — cruzamento é enriquecimento, não bloqueia o import */
+      }
+    }
     setTimeout(() => setBatch(null), 4000);
   };
 
   const importarUnico = () => {
-    const o = cobertos.find((x) => x.cod === orgao) ??
-      ({ cod: orgao, sigla: orgao, nome: orgao, funcao: "", poder: "executivo", disponivelPortal: true } as Orgao);
+    const o =
+      cobertos.find((x) => x.cod === orgao) ??
+      ({
+        cod: orgao,
+        sigla: orgao,
+        nome: orgao,
+        funcao: "",
+        poder: "executivo",
+        disponivelPortal: true,
+      } as Orgao);
     // Janela de vigência opcional: quando ambas as datas estão preenchidas, a
     // varredura filtra por início de vigência; senão varre o histórico completo.
     const temJanela = !!(vigIni && vigFim);
@@ -306,7 +364,16 @@ export function AdminImportContainer() {
     const o = ORGAOS_BASE.find((x) => x.cod === cod);
     const temJanela = !!(dataInicial && dataFinal);
     return runBatch(
-      [{ cod, year: ano, month: mes, label: `${o?.sigla ?? cod} — varredura`, dataInicial, dataFinal }],
+      [
+        {
+          cod,
+          year: ano,
+          month: mes,
+          label: `${o?.sigla ?? cod} — varredura`,
+          dataInicial,
+          dataFinal,
+        },
+      ],
       `${o?.sigla ?? cod} — continuar${temJanela ? ` vigência ${dataInicial}→${dataFinal}` : " varredura"}`,
       { auto: autoContinuar },
     );
@@ -325,7 +392,11 @@ export function AdminImportContainer() {
     // Zera o cache/abort da varredura CGU para este lote (a CGU roda rodadas
     // até completar cada órgão — ver useCoberturaJobBuilder).
     resetCguSweepCache();
-    try { await supabase.auth.refreshSession(); } catch { /* tolerante */ }
+    try {
+      await supabase.auth.refreshSession();
+    } catch {
+      /* tolerante */
+    }
     setBatch({ total: jobs.length, done: 0, current: title, importados: 0, erros: 0 });
     let importados = 0;
     let erros = 0;
@@ -337,7 +408,11 @@ export function AdminImportContainer() {
     for (let i = 0; i < jobs.length; i++) {
       if (cancelRef.current) break;
       if (i > 0 && i % 10 === 0) {
-        try { await supabase.auth.refreshSession(); } catch { /* tolerante */ }
+        try {
+          await supabase.auth.refreshSession();
+        } catch {
+          /* tolerante */
+        }
       }
       const job = jobs[i];
       const fonte = fonteDoLabel(job.label);
@@ -367,7 +442,9 @@ export function AdminImportContainer() {
           consecutivosPorFonte.set(fonte, n);
           if (n >= 3) {
             fontesEmCircuito.add(fonte);
-            toast.warning(`${fonte} fora do ar — pulando o restante desse lote (tente novamente mais tarde).`);
+            toast.warning(
+              `${fonte} fora do ar — pulando o restante desse lote (tente novamente mais tarde).`,
+            );
           }
         } else {
           erros += 1;
@@ -396,81 +473,146 @@ export function AdminImportContainer() {
     try {
       const r = await importarDepFn({ data: {} });
       toast.success(`Cadastro importado: ${r.importados} deputados.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setCamaraBusy(null); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCamaraBusy(null);
+    }
   };
   const onImportarHistCamara = async () => {
     setCamaraBusy("hist");
     try {
       const r = await importarDepHistFn({ data: { legIni: legHistIni, legFim: legHistFim } });
-      toast.success(`Histórico: ${r.importados} deputados em ${r.legislaturas.length} legislatura(s).`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setCamaraBusy(null); }
+      toast.success(
+        `Histórico: ${r.importados} deputados em ${r.legislaturas.length} legislatura(s).`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCamaraBusy(null);
+    }
+  };
+  const onImportarTrajetoriaCamara = async () => {
+    setCamaraBusy("trajetoria");
+    const tId = toast.loading("Trajetória: iniciando…");
+    try {
+      const lo = Math.min(legHistIni, legHistFim);
+      const hi = Math.max(legHistIni, legHistFim);
+      for (let leg = hi; leg >= lo; leg--) {
+        let offset = 0;
+        // Lotes: cada chamada processa ~60 deputados, evitando timeout do Worker.
+        for (;;) {
+          const r = await importarTrajetoriaFn({ data: { idLegislatura: leg, offset } });
+          toast.loading(`Trajetória ${leg}ª: ${r.processados}/${r.total} deputados…`, { id: tId });
+          if (r.proximoOffset == null) break;
+          offset = r.proximoOffset;
+        }
+      }
+      toast.success(`Trajetória importada (legislaturas ${lo}ª–${hi}ª).`, { id: tId });
+    } catch (e) {
+      toast.error((e as Error).message, { id: tId });
+    } finally {
+      setCamaraBusy(null);
+    }
   };
   const onImportarCEAPCamara = async () => {
     setCamaraBusy("ceap");
     try {
       const r = await importarCEAPFn({ data: { ano, mes } });
-      toast.success(`CEAP ${MONTHS[mes-1]}/${ano}: ${r.importados} notas de ${r.deputadosProcessados} deputados.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setCamaraBusy(null); }
+      toast.success(
+        `CEAP ${MONTHS[mes - 1]}/${ano}: ${r.importados} notas de ${r.deputadosProcessados} deputados.`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCamaraBusy(null);
+    }
   };
   const onImportarPropsCamara = async () => {
     setCamaraBusy("props");
     try {
       const r = await importarPropsFn({ data: { ano, siglaTipo: propTipo, maxPaginas: 5 } });
       toast.success(`${propTipo}/${ano}: ${r.importados} proposições, ${r.autores} autores.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setCamaraBusy(null); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCamaraBusy(null);
+    }
   };
   const onImportarVotsCamara = async () => {
     setCamaraBusy("vots");
     try {
-      const r = await importarVotsFn({ data: { dataInicio: votIni, dataFim: votFim, maxPaginas: 3 } });
+      const r = await importarVotsFn({
+        data: { dataInicio: votIni, dataFim: votFim, maxPaginas: 3 },
+      });
       toast.success(`${r.votacoes} votações, ${r.votos} votos nominais.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setCamaraBusy(null); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setCamaraBusy(null);
+    }
   };
   const onImportarSenadores = async () => {
     setSenadoBusy("sen");
     try {
       const r = await importarSenFn({ data: {} });
       toast.success(`Cadastro importado: ${r.importados} senadores.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSenadoBusy(null); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSenadoBusy(null);
+    }
   };
   const onImportarHistSenado = async () => {
     setSenadoBusy("hist");
     try {
       const r = await importarSenHistFn({ data: { legIni: legHistIni, legFim: legHistFim } });
-      toast.success(`Histórico: ${r.importados} senadores em ${r.legislaturas.length} legislatura(s).`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSenadoBusy(null); }
+      toast.success(
+        `Histórico: ${r.importados} senadores em ${r.legislaturas.length} legislatura(s).`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSenadoBusy(null);
+    }
   };
   const onImportarCEAPSSenado = async () => {
     setSenadoBusy("ceaps");
     try {
       const r = await importarCEAPSFn({ data: { ano, mes } });
-      toast.success(`CEAPS ${MONTHS[mes-1]}/${ano}: ${r.importados} notas de ${r.senadoresProcessados} senadores.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSenadoBusy(null); }
+      toast.success(
+        `CEAPS ${MONTHS[mes - 1]}/${ano}: ${r.importados} notas de ${r.senadoresProcessados} senadores.`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSenadoBusy(null);
+    }
   };
   const onImportarMatSenado = async () => {
     setSenadoBusy("mat");
     try {
       const r = await importarMatSenFn({ data: { ano, sigla: "PL" } });
       toast.success(`Matérias PL/${ano}: ${r.importados} (${r.autores} autores).`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSenadoBusy(null); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSenadoBusy(null);
+    }
   };
   const onImportarVotSenado = async () => {
     setSenadoBusy("vot");
     try {
       const r = monthRange(ano, mes);
       const res = await importarVotSenFn({ data: { dataInicio: r.ini, dataFim: r.fim } });
-      toast.success(`Votações ${MONTHS[mes-1]}/${ano}: ${res.votacoes} sessões, ${res.votos} votos.`);
-    } catch (e) { toast.error((e as Error).message); }
-    finally { setSenadoBusy(null); }
+      toast.success(
+        `Votações ${MONTHS[mes - 1]}/${ano}: ${res.votacoes} sessões, ${res.votos} votos.`,
+      );
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSenadoBusy(null);
+    }
   };
 
   const onSincronizarCatalogo = async () => {
@@ -570,6 +712,7 @@ export function AdminImportContainer() {
       setLegHistIni={setLegHistIni}
       setLegHistFim={setLegHistFim}
       onImportarHistCamara={onImportarHistCamara}
+      onImportarTrajetoriaCamara={onImportarTrajetoriaCamara}
       onImportarHistSenado={onImportarHistSenado}
       history={history}
       loadingHist={loadingHist}

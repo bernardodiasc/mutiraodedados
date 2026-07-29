@@ -1,4 +1,4 @@
-# Auditoria Cidadã
+# Mutirão de Dados
 
 > Plataforma open source para tornar gastos públicos brasileiros legíveis,
 > auditáveis e contestáveis por qualquer cidadão.
@@ -7,7 +7,7 @@
 [![TanStack Start](https://img.shields.io/badge/TanStack-Start-FF6B6B)](https://tanstack.com/start)
 [![Supabase](https://img.shields.io/badge/Supabase-Cloud-3ECF8E)](https://supabase.com)
 
-Produção: <https://auditoriacidada.ia.br>
+Produção: <https://mutiraodedados.com.br>
 
 ---
 
@@ -17,7 +17,7 @@ Produção: <https://auditoriacidada.ia.br>
 > pipeline de importação, padrões de UI, guia para adicionar nova fonte e
 > conceitos do mundo real por trás dos dados.
 
-Auditoria Cidadã é um portal de **transparência de segunda ordem**: em vez de
+Mutirão de Dados é um portal de **transparência de segunda ordem**: em vez de
 republicar dados crus, ele cruza, valida e contextualiza informações de fontes
 oficiais brasileiras — CGU (contratos), PNCP, Câmara/Senado (CEAP/CEAPS e
 votações), Transferegov (convênios e emendas), Siconfi — e expõe **anomalias,
@@ -64,8 +64,8 @@ quando confirmada, reportada ao órgão responsável com protocolo.
 
 ```bash
 # 1. Clone
-git clone https://github.com/bernardodiasc/auditoriacidada.git
-cd auditoriacidada
+git clone https://github.com/bernardodiasc/mutiraodedados.git
+cd mutiraodedados
 
 # 2. Instale dependências
 bun install
@@ -166,7 +166,7 @@ devolva nada à comunidade.
 
 ### Marca e identidade
 
-O nome **"Auditoria Cidadã"**, o logotipo e a identidade visual associada
+O nome **"Mutirão de Dados"**, o logotipo e a identidade visual associada
 **não** estão cobertos pela AGPL — são reservados ao mantenedor. Forks
 devem escolher um nome próprio.
 

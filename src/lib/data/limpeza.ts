@@ -18,6 +18,14 @@ export type FonteLimpeza = {
   /** PK da pai usada para localizar filhos. */
   parentPk?: string;
   /**
+   * Coluna NOT NULL usada como cláusula WHERE ao apagar TUDO (sem filtro de
+   * período). PostgREST exige um WHERE no DELETE e o fallback padrão é `id` —
+   * defina isto para tabelas de PK composta que não têm coluna `id`
+   * (ex.: caches do TSE `tse_candidatos_cache`, `tse_bens_candidato_cache`,
+   * `tse_resultados_cache`).
+   */
+  pk?: string;
+  /**
    * Nome da fonte na tabela `importacoes`. Quando definido, a limpeza
    * também apaga os logs de importação dessa fonte (respeitando o filtro
    * de período), zerando as células "consultado, sem dados" da matriz e
@@ -56,6 +64,11 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
   { id: "pncp", label: "PNCP — contratos", descricao: "Contratos do Portal Nacional de Contratações Públicas.", table: "pncp_contratos_cache", yearCol: "ano", tentativaFonte: "pncp" },
   { id: "siconfi", label: "SICONFI — relatórios fiscais", descricao: "RREO, RGF, DCA dos entes.", table: "siconfi_relatorios_cache", yearCol: "exercicio", tentativaFonte: "siconfi" },
   { id: "transferegov", label: "Transferegov — convênios", descricao: "Instrumentos de repasse União ↔ entes (espelho CGU).", table: "transferegov_instrumentos_cache", dateCol: "data_assinatura", tentativaFonte: "transferegov" },
+  { id: "tse_candidatos", label: "TSE — candidatos", descricao: "Catálogo eleitoral (candidaturas de 2014 em diante).", table: "tse_candidatos_cache", yearCol: "ano_eleicao", pk: "sq_candidato", tentativaFonte: "tse_candidatos" },
+  { id: "tse_bens", label: "TSE — bens de candidatos", descricao: "Bens declarados por candidatura.", table: "tse_bens_candidato_cache", yearCol: "ano_eleicao", pk: "sq_candidato", tentativaFonte: "tse_bens" },
+  { id: "tse_resultados", label: "TSE — resultados por município", descricao: "Votação nominal agregada por município.", table: "tse_resultados_cache", yearCol: "ano_eleicao", pk: "sq_candidato", tentativaFonte: "tse_resultados" },
+  { id: "tse_receitas", label: "TSE — receitas de campanha", descricao: "Doações recebidas pelos candidatos (prestação de contas).", table: "tse_receitas_campanha_cache", yearCol: "ano_eleicao", tentativaFonte: "tse_receitas" },
+  { id: "tse_despesas", label: "TSE — despesas de campanha", descricao: "Despesas contratadas pelos candidatos (prestação de contas).", table: "tse_despesas_campanha_cache", yearCol: "ano_eleicao", tentativaFonte: "tse_despesas" },
   {
     id: "importacoes_log",
     label: "Histórico de importações (sucessos e erros)",

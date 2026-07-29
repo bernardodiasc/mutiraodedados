@@ -98,6 +98,8 @@ Tudo usa `createServerFn` + `requireSupabaseAuth` quando exige sessão. Páginas
 
 ## Como lacunas nascem
 
+Na [taxonomia dos três tipos de sinal](../qualidade-dados.md), **lacuna** é a ausência detectável: algo que deveria existir segundo a regra de negócio ou a lei, mas não é encontrado na fonte. A detecção automática grava um finding `tipo='lacuna'` em `qa_findings`; a tabela `lacunas` deste módulo é a camada **curada** (editorial, com ciclo próprio) construída a partir desses findings ou manualmente.
+
 - **Automaticamente:** trigger `tg_qa_findings_lacuna` cria uma lacuna sempre que um `qa_finding` chega ao estado `severidade='critico' AND status='confirmado'`. O vínculo fica em `lacunas.origem_qa_finding_id` (1:1 — não duplica).
 - **Manualmente:** admin converte findings de severidade `aviso` ou outros estados via `/admin/lacunas` (server fn `converterFindingEmLacuna`).
 

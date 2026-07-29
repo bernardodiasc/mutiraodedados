@@ -8,6 +8,7 @@ import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 import { linkFornecedorPortal } from "@/lib/links-oficiais";
+import { DoacoesEleitoraisContainer as DoacoesEleitorais } from "@/containers/DoacoesEleitoraisContainer";
 import { GrafoFornecedor, type GrafoNo } from "@/components/GrafoFornecedor";
 import { RadarRisco, type RadarEixo } from "@/components/RadarRisco";
 import { MetodologiaPopover } from "@/components/MetodologiaPopover";
@@ -152,6 +153,10 @@ function FornecedorDetail() {
           </div>
         </div>
       )}
+
+      <div className="mt-10">
+        <DoacoesEleitorais cnpj={cnpj} />
+      </div>
 
       <div className="mt-10 grid lg:grid-cols-2 gap-6">
         <div>

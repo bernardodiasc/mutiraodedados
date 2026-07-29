@@ -21,14 +21,20 @@ Lista das tabelas principais. Esquema canônico vive em `supabase/migrations/` e
 | `senado_votacoes_cache`, `_votos_cache`| Senado        | Votações e votos                           |
 | `senado_materias_cache`                | Senado        | Matérias legislativas                      |
 | `siconfi_relatorios_cache`             | SICONFI       | RREO, RGF, DCA por ente                    |
+| `tse_candidatos_cache`                 | TSE           | Candidaturas (PK sq_candidato+ano)         |
+| `tse_bens_candidato_cache`             | TSE           | Bens declarados por candidatura            |
+| `tse_receitas_campanha_cache`          | TSE           | Doações de campanha (id: SQ_RECEITA/hash)  |
+| `tse_despesas_campanha_cache`          | TSE           | Despesas contratadas de campanha           |
+| `tse_resultados_cache`                 | TSE           | Votos por município (zonas agregadas)      |
+| `tse_parlamentar_candidato`            | TSE (derivada)| Ponte parlamentar↔candidato (CPF/nome)     |
+| `tse_varredura`                        | TSE (interna) | Retomada de importação por (tipo, ano, UF) |
 
 ## Tabelas transversais
 
 | Tabela            | Função                                                            |
 | ----------------- | ----------------------------------------------------------------- |
 | `importacoes`     | Log de cada chamada feita às APIs oficiais (auditoria)            |
-| `qa_findings`     | Inconsistências detectadas (ver `qualidade-dados.md`)             |
-| `anomalias`       | Sinais investigativos sobre dados corretos                        |
+| `qa_findings`     | Sinais detectados — coluna `tipo`: `qualidade`/`lacuna`/`investigativo` (ver `qualidade-dados.md`) |
 | `marcacoes`       | Contribuições da comunidade marcando registros                    |
 | `artigos`         | Conteúdo editorial (mapas, tutoriais, notas)                      |
 | `roadmap_items`   | Itens do roadmap público                                          |

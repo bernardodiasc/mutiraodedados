@@ -5,10 +5,12 @@ import { useState } from "react";
 import { getDeputadoDetalhe } from "@/lib/data/camara/queries.functions";
 import { proposicoesDoDeputado } from "@/lib/data/camara/proposicoes.functions";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { SituacaoBadge, Trajetoria } from "@/components/Trajetoria";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { fmtBRL } from "@/lib/fmt";
 import { ExternalLink, ChevronDown } from "lucide-react";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
+import { SecaoEleicaoContainer as SecaoEleicao } from "@/containers/SecaoEleicaoContainer";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import {
   CSV_COLUNAS_DESPESA,
@@ -24,10 +26,11 @@ function anosDaLegislatura(n: number): string {
   return `${ini}–${ini + 4}`;
 }
 
+
 export const Route = createFileRoute("/camara_/deputados/$id")({
   component: DeputadoDetalhe,
   head: ({ params }) => ({
-    meta: [{ title: `Deputado ${params.id} — Auditoria Cidadã` }],
+    meta: [{ title: `Deputado ${params.id} — Mutirão de Dados` }],
   }),
 });
 
@@ -80,10 +83,12 @@ function DeputadoDetalhe() {
           />
           <div className="flex-1 min-w-[260px]">
             <h1 className="font-display text-4xl leading-tight">{deputado.nome}</h1>
-            <div className="mt-2 text-sm text-muted-foreground">
-              {deputado.siglaPartido ?? "—"} · {deputado.siglaUf ?? "—"}
-              {deputado.idLegislatura ? ` · Legislatura ${deputado.idLegislatura}` : ""}
-              {deputado.situacao ? ` · ${deputado.situacao}` : ""}
+            <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
+              <span>
+                {deputado.siglaPartido ?? "—"} · {deputado.siglaUf ?? "—"}
+                {deputado.idLegislatura ? ` · Legislatura ${deputado.idLegislatura}` : ""}
+              </span>
+              {deputado.situacao && <SituacaoBadge situacao={deputado.situacao} />}
             </div>
             {deputado.email && (
               <a
@@ -215,6 +220,32 @@ function DeputadoDetalhe() {
               </div>
             </CollapsibleContent>
           </Collapsible>
+        </section>
+      )}
+
+      {data.eventos.length > 0 && (
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="font-display text-xl">Trajetória no mandato</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Posse, licenças, afastamentos, vacância e reassunções registrados pela Câmara —
+            da mais recente à mais antiga. É como se acompanha quem deixou o cargo (renúncia,
+            posse em outro cargo, etc.) e quando um suplente assumiu.
+          </p>
+          <Trajetoria
+            items={data.eventos.map((e) => ({
+              data: e.dataHora,
+              situacao: e.situacao,
+              meta:
+                [
+                  e.legislatura ? `${e.legislatura}ª legislatura` : null,
+                  e.siglaPartido || e.siglaUf ? `${e.siglaPartido ?? "—"}/${e.siglaUf ?? "—"}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || null,
+              detalhe: e.condicaoEleitoral,
+              descricao: e.descricao,
+            }))}
+          />
         </section>
       )}
 
@@ -426,6 +457,8 @@ function DeputadoDetalhe() {
           </section>
         </>
       )}
+
+      <SecaoEleicao tipo="deputado" id={String(numId)} />
 
       {props && props.length > 0 && (
         <section>

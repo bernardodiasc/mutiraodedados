@@ -15,12 +15,12 @@ export const Route = createFileRoute("/tutoriais/")({
   ),
   head: () => ({
     meta: [
-      { title: "Tutoriais da ferramenta — Auditoria Cidadã" },
-      { name: "description", content: "Tutoriais práticos sobre como usar as ferramentas do Auditoria Cidadã." },
-      { property: "og:title", content: "Tutoriais da ferramenta — Auditoria Cidadã" },
+      { title: "Tutoriais da ferramenta — Mutirão de Dados" },
+      { name: "description", content: "Tutoriais práticos sobre como usar as ferramentas do Mutirão de Dados." },
+      { property: "og:title", content: "Tutoriais da ferramenta — Mutirão de Dados" },
       { property: "og:description", content: "Tutoriais práticos sobre como usar as ferramentas do site." },
-      { property: "og:url", content: "https://auditoriacidada.ia.br/tutoriais" },
+      { property: "og:url", content: "https://mutiraodedados.com.br/tutoriais" },
     ],
-    links: [{ rel: "canonical", href: "https://auditoriacidada.ia.br/tutoriais" }],
+    links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/tutoriais" }],
   }),
 });

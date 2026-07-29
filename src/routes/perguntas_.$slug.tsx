@@ -21,7 +21,7 @@ export const Route = createFileRoute("/perguntas_/$slug")({
   },
   head: ({ loaderData }) => ({
     meta: [
-      { title: `${loaderData?.pergunta?.titulo ?? "Pergunta"} — Auditoria Cidadã` },
+      { title: `${loaderData?.pergunta?.titulo ?? "Pergunta"} — Mutirão de Dados` },
       { name: "description", content: loaderData?.pergunta?.descricao ?? loaderData?.pergunta?.contexto?.slice(0, 160) ?? "Investigação cidadã pública." },
       { property: "og:title", content: loaderData?.pergunta?.titulo ?? "" },
       { property: "og:description", content: loaderData?.pergunta?.descricao ?? "" },

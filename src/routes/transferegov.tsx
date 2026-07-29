@@ -9,11 +9,11 @@ export const Route = createFileRoute("/transferegov")({
   component: TransferegovPage,
   head: () => ({
     meta: [
-      { title: "Transferegov — Auditoria Cidadã" },
+      { title: "Transferegov — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "O que o Transferegov cobre na Auditoria Cidadã: convênios/contratos de repasse (SICONV) e as transferências diretas da EC 105 (emendas Pix).",
+          "O que o Transferegov cobre no Mutirão de Dados: convênios/contratos de repasse (SICONV) e as transferências diretas da EC 105 (emendas Pix).",
       },
     ],
   }),

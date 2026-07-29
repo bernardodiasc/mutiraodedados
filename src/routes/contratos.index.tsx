@@ -91,7 +91,7 @@ export const Route = createFileRoute("/contratos/")({
   component: ContratosPage,
   head: () => ({
     meta: [
-      { title: "Contratos públicos — Auditoria Cidadã" },
+      { title: "Contratos públicos — Mutirão de Dados" },
       {
         name: "description",
         content:

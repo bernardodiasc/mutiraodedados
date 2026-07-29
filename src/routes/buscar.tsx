@@ -44,9 +44,9 @@ export const Route = createFileRoute("/buscar")({
   component: BuscarPage,
   head: () => ({
     meta: [
-      { title: "Buscar — Auditoria Cidadã" },
+      { title: "Buscar — Mutirão de Dados" },
       { name: "description", content: "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União." },
-      { property: "og:title", content: "Buscar — Auditoria Cidadã" },
+      { property: "og:title", content: "Buscar — Mutirão de Dados" },
       { property: "og:description", content: "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União." },
     ],
   }),
