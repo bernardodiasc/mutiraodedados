@@ -38,6 +38,39 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
     }
   }
 
+  /**
+   * Varredura retomável: cada rodada é limitada por tempo e por subrequisições
+   * no servidor, então repetimos até `haMais` ficar falso. Antes destas fontes
+   * serem retomáveis, a UI limitava a 3 páginas por rodada — o que impedia
+   * qualquer carga em massa.
+   */
+  async function runVarredura(
+    label: string,
+    fn: () => Promise<{ importados: number; varredura: { haMais: boolean } }>,
+  ) {
+    const MAX_RODADAS = 200;
+    setLoading(label);
+    try {
+      let total = 0;
+      let completou = false;
+      for (let r = 0; r < MAX_RODADAS; r++) {
+        const res = await fn();
+        total += res.importados;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
+      toast.success(
+        `${label}: ${total} registros${completou ? "" : " (parcial — rode de novo para continuar)"}`,
+      );
+    } catch (e) {
+      toast.error(`${label}: ${(e as Error).message}`);
+    } finally {
+      setLoading(null);
+    }
+  }
+
   const busy = (k: string) => loading === k;
 
   return (
@@ -58,13 +91,12 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
       loading={loading}
       busy={busy}
       onImportPncp={() =>
-        run("PNCP", () =>
+        runVarredura("PNCP", () =>
           pncp({
             data: {
               dataInicial: ini,
               dataFinal: fim,
               uf: uf || undefined,
-              maxPaginas: 3,
             },
           }),
         )
@@ -92,13 +124,12 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
         )
       }
       onImportTransferegov={() =>
-        run("Transferegov", () =>
+        runVarredura("Transferegov", () =>
           transf({
             data: {
               dataInicial: ini,
               dataFinal: fim,
               codigoIbgeMunicipio: isMunicipio(ibge) ? ibge : undefined,
-              maxPaginas: 3,
             },
           }),
         )

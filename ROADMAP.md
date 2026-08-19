@@ -6,34 +6,25 @@ Só futuro. Trabalho entregue mora no [RELEASES.md](./RELEASES.md); processo e c
 
 Estabilizar as funcionalidades existentes para **importar todos os dados históricos possíveis** nas fontes que a plataforma já suporta, com qualidade garantida por sinais e testes. Automação periódica das importações é o horizonte final — cada release de estabilização deve manter os runners de importação chamáveis sem browser, idempotentes e com estado no banco, para que a automação seja apenas um novo gatilho sobre o mesmo código.
 
-## Release em andamento — v0.5.0: PNCP, Transferegov e proposições em modo carga
+## Release em andamento — v0.6.0: orquestrador robusto
 
-PNCP e Transferegov não são retomáveis: o laço vai até `maxPaginas` sem orçamento nem checkpoint, e um erro de banco perde a rodada inteira. A UI contorna passando `maxPaginas: 3`, o que na prática impede carga em massa. As proposições da Câmara têm o mesmo teto baixo por outro caminho.
+Com as fontes retomáveis, o gargalo passa a ser o orquestrador no navegador: um órgão que falha não é re-tentado, a sessão é renovada por contagem de jobs em vez de por expiração, e o log não registra por que uma rodada parou.
 
 **Escopo**
 
-- PNCP e Transferegov ganham orçamento e retomada pelo runner genérico, com checkpoint antes da gravação — erro de banco deixa de perder a rodada.
-- Remover a trava `maxPaginas: 3` da UI para essas fontes.
-- Elevar a cobertura de `importarProposicoes` (o default de 5 páginas não cobre um ano).
-- Revisar as janelas-alvo em `src/lib/data/janelas.ts`.
+- Re-tentativa de órgão com erro no auto-continuar, com limite e registro.
+- Renovação de sessão Supabase por expiração do JWT, não "a cada N jobs".
+- Telemetria de rodada no log `importacoes`: duração, motivo de parada (tempo, custo, fim) e custo gasto.
 
 **Critérios de aceite**
 
-- Um ano-calendário completo de cada fonte importado via auto-continuar.
-- Erro de banco simulado não perde a rodada: a seguinte retoma do mesmo ponto.
-- Cobertura registrada em `/admin/dados`.
+- Sessão de importação de mais de uma hora sem intervenção manual.
+- Falha transitória de um órgão recuperada sozinha; falha permanente visível e isolada.
+- O Histórico mostra por que cada rodada parou.
 
 ## Backlog sequenciado
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.6.0 — Orquestrador robusto
-
-- Re-tentativa de órgão com erro no auto-continuar (com limite e registro).
-- Renovação de sessão Supabase por expiração do JWT, não "a cada N jobs".
-- Telemetria de rodada consolidada no log `importacoes` (duração, motivo de parada).
-
-Aceite: sessão de importação >1h sem intervenção manual; falha transitória recuperada sozinha; falha permanente visível e isolada.
 
 ### v0.7.0 — Qualidade visível
 

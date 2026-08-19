@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasTransferegov, flagQA } from "@/lib/data/qa";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import {
+  chaveVarreduraJanela,
+  JANELA_ORCAMENTO_MS,
+  JANELA_TETO_SUBREQUISICOES,
+} from "@/lib/data/janela-varredura";
 import { parseValorPortal, portalGet } from "@/lib/data/real/portal-client";
 
 /**
@@ -101,121 +108,178 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    let total = 0;
     const erros: string[] = [];
-    for (let pagina = 1; pagina <= data.maxPaginas; pagina++) {
-      const params: Record<string, string> = {
-        dataInicial: brDate(data.dataInicial),
-        dataFinal: brDate(data.dataFinal),
-        pagina: String(pagina),
-      };
-      if (data.codigoIbgeMunicipio) params.codigoIBGE = data.codigoIbgeMunicipio;
-      if (data.codigoUF) params.codigoUFConvenente = data.codigoUF;
 
-      const json = (await portalGet("/convenios", params)) as Convenio[];
-      if (!Array.isArray(json) || json.length === 0) break;
+    // Um passo = uma página. Antes o laço ia até 2000 páginas numa chamada só,
+    // sem orçamento nem retomada, e um erro de banco derrubava a rodada
+    // inteira — o que na prática obrigava a UI a limitar a 3 páginas.
+    const rodada = await rodarComOrcamento({
+      chave: chaveVarreduraJanela("transferegov", data.dataInicial, data.dataFinal, {
+        ibge: data.codigoIbgeMunicipio,
+        uf: data.codigoUF,
+      }),
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: data.maxPaginas,
+      passo: async (pagina) => {
+        const params: Record<string, string> = {
+          dataInicial: brDate(data.dataInicial),
+          dataFinal: brDate(data.dataFinal),
+          pagina: String(pagina),
+        };
+        if (data.codigoIbgeMunicipio) params.codigoIBGE = data.codigoIbgeMunicipio;
+        if (data.codigoUF) params.codigoUFConvenente = data.codigoUF;
 
-      const rows = json
-        .map((c) => {
-          const numero = c.numero ?? c.numeroOriginal ?? c.dimConvenio?.numero ?? null;
-          const id = c.id ? String(c.id) : numero ? `num-${numero}` : null;
-          if (!id) return null;
-          const muni = c.municipioConvenente ?? c.convenente?.municipio;
-          const ibge = muni?.codigoIBGE
-            ? String(muni.codigoIBGE)
-            : c.convenente?.codigoIBGE
-              ? String(c.convenente.codigoIBGE)
-              : null;
-          // No Portal CGU não há "uf" como sigla pura; "uf.nome" traz a sigla
-          // ("RS") enquanto "uf.sigla" traz o nome longo. Pegamos a sigla curta.
-          const ufSigla =
-            (muni?.uf as { sigla?: string; nome?: string } | undefined)?.nome ??
-            (muni?.uf as { sigla?: string } | undefined)?.sigla ??
-            null;
-          // CNPJ vem formatado ("00.378.257/0001-81"); preferimos o cru.
-          const cnpjBenef =
-            c.convenente?.cnpj ?? (c.convenente?.cnpjFormatado ?? "").replace(/\D/g, "") ?? null;
-          const dataAssin =
-            isoDate(c.dataAssinatura) ??
-            isoDate(c.dataPublicacao) ??
-            (c.dataReferencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataReferencia)
-              ? c.dataReferencia.slice(0, 10)
-              : null) ??
-            (c.dataInicioVigencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataInicioVigencia)
-              ? c.dataInicioVigencia.slice(0, 10)
-              : isoDate(c.dataInicioVigencia));
+        let custo = 0;
+        let json: Convenio[];
+        try {
+          json = (await portalGet("/convenios", params)) as Convenio[];
+          custo++;
+        } catch (e) {
+          // Falha na origem: a próxima rodada refaz esta página.
           return {
-            id,
-            numero: numero ?? id,
-            codigo_siconv: c.dimConvenio?.codigo ?? null,
-            modalidade: c.modalidade ?? c.tipoInstrumento?.descricao ?? null,
-            situacao: c.situacao ?? null,
-            objeto:
-              sanitizarTextoPublico((c.objeto ?? c.dimConvenio?.objeto ?? "").slice(0, 1000)) ||
-              null,
-            orgao_concedente_nome:
-              c.unidadeGestora?.orgaoVinculado?.nome ?? c.unidadeGestora?.nome ?? null,
-            orgao_concedente_cnpj: c.unidadeGestora?.orgaoVinculado?.cnpj ?? null,
-            beneficiario_nome:
-              sanitizarTextoPublico((c.convenente?.nome ?? "").slice(0, 240)) || null,
-            beneficiario_cnpj: cnpjBenef || null,
-            esfera_beneficiario: esferaFromIbge(ibge),
-            uf_beneficiario: ufSigla,
-            municipio_ibge: ibge,
-            municipio_nome: muni?.nomeIBGE ?? null,
-            valor_global: parseValorPortal(c.valor ?? 0),
-            valor_repasse: parseValorPortal(c.valorLiberado ?? 0),
-            valor_contrapartida: parseValorPortal(c.valorContrapartida ?? 0),
-            data_inicio_vigencia:
-              isoDate(c.dataInicioVigencia) ??
+            processados: 0,
+            fim: false,
+            custo: 1,
+            interromper: true,
+            erros: [`p${pagina}: ${(e as Error).message}`],
+          };
+        }
+        if (!Array.isArray(json) || json.length === 0) return { processados: 0, fim: true, custo };
+
+        const rows = json
+          .map((c) => {
+            const numero = c.numero ?? c.numeroOriginal ?? c.dimConvenio?.numero ?? null;
+            const id = c.id ? String(c.id) : numero ? `num-${numero}` : null;
+            if (!id) return null;
+            const muni = c.municipioConvenente ?? c.convenente?.municipio;
+            const ibge = muni?.codigoIBGE
+              ? String(muni.codigoIBGE)
+              : c.convenente?.codigoIBGE
+                ? String(c.convenente.codigoIBGE)
+                : null;
+            // No Portal CGU não há "uf" como sigla pura; "uf.nome" traz a sigla
+            // ("RS") enquanto "uf.sigla" traz o nome longo. Pegamos a sigla curta.
+            const ufSigla =
+              (muni?.uf as { sigla?: string; nome?: string } | undefined)?.nome ??
+              (muni?.uf as { sigla?: string } | undefined)?.sigla ??
+              null;
+            // CNPJ vem formatado ("00.378.257/0001-81"); preferimos o cru.
+            const cnpjBenef =
+              c.convenente?.cnpj ?? (c.convenente?.cnpjFormatado ?? "").replace(/\D/g, "") ?? null;
+            const dataAssin =
+              isoDate(c.dataAssinatura) ??
+              isoDate(c.dataPublicacao) ??
+              (c.dataReferencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataReferencia)
+                ? c.dataReferencia.slice(0, 10)
+                : null) ??
               (c.dataInicioVigencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataInicioVigencia)
                 ? c.dataInicioVigencia.slice(0, 10)
-                : null),
-            data_fim_vigencia:
-              isoDate(c.dataFinalVigencia ?? c.dataFimVigencia) ??
-              ((c.dataFinalVigencia ?? c.dataFimVigencia) &&
-              /^\d{4}-\d{2}-\d{2}/.test(c.dataFinalVigencia ?? c.dataFimVigencia ?? "")
-                ? (c.dataFinalVigencia ?? c.dataFimVigencia ?? "").slice(0, 10)
-                : null),
-            data_assinatura: dataAssin,
-            url_transferegov: c.id
-              ? c.dimConvenio?.codigo
-                ? `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c.dimConvenio.codigo)}`
-                : `https://portaldatransparencia.gov.br/convenios/${c.id}`
-              : null,
-            updated_at: new Date().toISOString(),
-          };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null);
+                : isoDate(c.dataInicioVigencia));
+            return {
+              id,
+              numero: numero ?? id,
+              codigo_siconv: c.dimConvenio?.codigo ?? null,
+              modalidade: c.modalidade ?? c.tipoInstrumento?.descricao ?? null,
+              situacao: c.situacao ?? null,
+              objeto:
+                sanitizarTextoPublico((c.objeto ?? c.dimConvenio?.objeto ?? "").slice(0, 1000)) ||
+                null,
+              orgao_concedente_nome:
+                c.unidadeGestora?.orgaoVinculado?.nome ?? c.unidadeGestora?.nome ?? null,
+              orgao_concedente_cnpj: c.unidadeGestora?.orgaoVinculado?.cnpj ?? null,
+              beneficiario_nome:
+                sanitizarTextoPublico((c.convenente?.nome ?? "").slice(0, 240)) || null,
+              beneficiario_cnpj: cnpjBenef || null,
+              esfera_beneficiario: esferaFromIbge(ibge),
+              uf_beneficiario: ufSigla,
+              municipio_ibge: ibge,
+              municipio_nome: muni?.nomeIBGE ?? null,
+              valor_global: parseValorPortal(c.valor ?? 0),
+              valor_repasse: parseValorPortal(c.valorLiberado ?? 0),
+              valor_contrapartida: parseValorPortal(c.valorContrapartida ?? 0),
+              data_inicio_vigencia:
+                isoDate(c.dataInicioVigencia) ??
+                (c.dataInicioVigencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataInicioVigencia)
+                  ? c.dataInicioVigencia.slice(0, 10)
+                  : null),
+              data_fim_vigencia:
+                isoDate(c.dataFinalVigencia ?? c.dataFimVigencia) ??
+                ((c.dataFinalVigencia ?? c.dataFimVigencia) &&
+                /^\d{4}-\d{2}-\d{2}/.test(c.dataFinalVigencia ?? c.dataFimVigencia ?? "")
+                  ? (c.dataFinalVigencia ?? c.dataFimVigencia ?? "").slice(0, 10)
+                  : null),
+              data_assinatura: dataAssin,
+              url_transferegov: c.id
+                ? c.dimConvenio?.codigo
+                  ? `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c.dimConvenio.codigo)}`
+                  : `https://portaldatransparencia.gov.br/convenios/${c.id}`
+                : null,
+              updated_at: new Date().toISOString(),
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
 
-      // Valores são gravados exatamente como vieram da listagem do Portal.
-      // Não consultamos /convenios/id pra "corrigir" — discrepâncias são
-      // sinalizadas como findings de QA pra revisão manual, não auto-fix.
-      const rowsFinais = rows;
+        // Valores são gravados exatamente como vieram da listagem do Portal.
+        // Não consultamos /convenios/id pra "corrigir" — discrepâncias são
+        // sinalizadas como findings de QA pra revisão manual, não auto-fix.
+        const rowsFinais = rows;
 
-      for (let i = 0; i < rowsFinais.length; i += 200) {
-        const { error } = await supabaseAdmin
-          .from("transferegov_instrumentos_cache")
-          .upsert(rowsFinais.slice(i, i + 200));
-        if (error) throw new Error(`db: ${error.message}`);
-      }
-      total += rowsFinais.length;
-      try {
-        await flagQA(
-          regrasTransferegov(
-            rowsFinais.map((r) => ({
-              id: r.id,
-              valor_repasse: r.valor_repasse,
-              valor_global: r.valor_global,
-            })),
-          ),
-        );
-      } catch (e) {
-        // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
-        erros.push(`qa p${pagina}: ${(e as Error).message}`);
-      }
-      if (json.length < 15) break; // página padrão do Portal
-    }
+        for (let i = 0; i < rowsFinais.length; i += 200) {
+          const { error } = await supabaseAdmin
+            .from("transferegov_instrumentos_cache")
+            .upsert(rowsFinais.slice(i, i + 200));
+          custo++;
+          // Antes isto lançava e perdia a rodada inteira. Agora interrompe sem
+          // avançar o cursor: a próxima refaz esta página.
+          if (error) {
+            return {
+              processados: 0,
+              fim: false,
+              custo,
+              interromper: true,
+              erros: [`db p${pagina}: ${error.message}`],
+            };
+          }
+        }
+        const errosPasso: string[] = [];
+        try {
+          await flagQA(
+            regrasTransferegov(
+              rowsFinais.map((r) => ({
+                id: r.id,
+                valor_repasse: r.valor_repasse,
+                valor_global: r.valor_global,
+              })),
+            ),
+          );
+        } catch (e) {
+          // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
+          errosPasso.push(`qa p${pagina}: ${(e as Error).message}`);
+        }
 
-    return { importados: total, erros };
+        // Página menor que a padrão do Portal (15) = última.
+        return {
+          processados: rowsFinais.length,
+          fim: json.length < 15,
+          custo,
+          erros: errosPasso,
+        };
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    return {
+      importados: rodada.processados,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });

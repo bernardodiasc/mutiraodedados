@@ -397,13 +397,22 @@ export function useCoberturaJobBuilder(): BuildJobFn {
           if (m !== 1) return null;
           return {
             label: `Câmara proposições · ${y}`,
+            noTimeout: true,
             run: wrap(async () => {
               const tipos = ["PL", "PEC", "PLP", "MPV", "PDL", "PRC"];
+              // Cada tipo é uma varredura própria e retomável: uma proposição
+              // custa ~4 subrequisições, então uma rodada dá conta de poucas e
+              // o teto de rodadas precisa ser alto.
+              const MAX_RODADAS = 500;
               let total = 0;
               for (const siglaTipo of tipos) {
                 try {
-                  const r = await importarProps({ data: { ano: y, siglaTipo } });
-                  total += r.importados;
+                  for (let r = 0; r < MAX_RODADAS; r++) {
+                    if (cguSweepAbort) break;
+                    const res = await importarProps({ data: { ano: y, siglaTipo } });
+                    total += res.importados;
+                    if (!res.varredura.haMais) break;
+                  }
                 } catch (e) {
                   console.error(`[camara_props] ${siglaTipo}/${y} falhou`, e);
                 }
@@ -468,19 +477,56 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "pncp":
           return {
             label: `PNCP · ${tag}`,
-            run: wrap(
-              async () =>
-                (await importarPNCP({ data: { dataInicial: ini, dataFinal: fim } })).importados,
-            ),
+            noTimeout: true,
+            // Varredura retomável — roda rodadas até completar.
+            run: wrap(async () => {
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 200;
+              let total = 0;
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarPNCP({ data: { dataInicial: ini, dataFinal: fim } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.importados;
+                if (!res.varredura.haMais) break;
+              }
+              return total;
+            }),
           };
         case "transferegov":
           return {
             label: `Transferegov · ${tag}`,
-            run: wrap(
-              async () =>
-                (await importarTransf({ data: { dataInicial: ini, dataFinal: fim } })).importados ??
-                0,
-            ),
+            noTimeout: true,
+            // Varredura retomável — roda rodadas até completar.
+            run: wrap(async () => {
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 200;
+              let total = 0;
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarTransf({ data: { dataInicial: ini, dataFinal: fim } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.importados ?? 0;
+                if (!res.varredura.haMais) break;
+              }
+              return total;
+            }),
           };
         case "siconfi":
           return null;

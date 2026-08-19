@@ -654,8 +654,24 @@ export function AdminImportContainer() {
   const onImportarPropsCamara = async () => {
     setCamaraBusy("props");
     try {
-      const r = await importarPropsFn({ data: { ano, siglaTipo: propTipo, maxPaginas: 5 } });
-      toast.success(`${propTipo}/${ano}: ${r.importados} proposições, ${r.autores} autores.`);
+      // Varredura retomável: uma proposição custa ~4 subrequisições, então a
+      // rodada dá conta de poucas e repetimos até o tipo fechar.
+      const MAX_RODADAS = 500;
+      let props = 0;
+      let autores = 0;
+      let completou = false;
+      for (let r = 0; r < MAX_RODADAS; r++) {
+        const res = await importarPropsFn({ data: { ano, siglaTipo: propTipo } });
+        props += res.importados;
+        autores += res.autores;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
+      toast.success(
+        `${propTipo}/${ano}: ${props} proposições, ${autores} autores${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

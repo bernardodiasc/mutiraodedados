@@ -83,7 +83,9 @@ Implementações de `Checkpoint`: `checkpointImportacao` (`checkpoint.server.ts`
 
 O Workers também limita **subrequisições por invocação**, e tempo sozinho não protege disso: um passo pode ser rápido e caro. O passo reporta `custo` (páginas buscadas + lotes gravados) e a rodada para ao atingir `orcamentoCusto`. Como o custo só se conhece ao fim do passo, o teto é conferido depois dele — a rodada pode ultrapassar pelo custo do último passo, então deixe folga.
 
-Exemplo em uso: as despesas de gabinete (`ceap-varredura.ts`) processam **um parlamentar por passo**, com teto de 45 subrequisições e orçamento de 150s por rodada.
+Em uso hoje: despesas de gabinete (`ceap-varredura.ts`) processam **um parlamentar por passo**; PNCP e Transferegov (`janela-varredura.ts`) processam **uma página por passo**; proposições da Câmara processam **uma proposição por passo** — cada uma custa ~4 subrequisições (detalhe, autores e duas gravações), então uma página inteira da listagem estouraria o limite do Worker numa chamada só. Todas com teto de 45 subrequisições e orçamento de 150s por rodada.
+
+Chaves de varredura: `chaveVarreduraCeap` (casa, ano, mês) e `chaveVarreduraJanela` (fonte, janela de datas, filtros). A chave precisa distinguir tudo que muda o conjunto de resultados — duas importações da mesma janela com filtros diferentes são varreduras diferentes, e se compartilhassem chave a segunda retomaria do cursor da primeira e pularia páginas que nunca leu.
 
 ## Upsert
 
