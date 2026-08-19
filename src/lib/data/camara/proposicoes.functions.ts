@@ -2,6 +2,9 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -100,100 +103,150 @@ export const importarProposicoes = createServerFn({ method: "POST" })
       .object({
         ano: z.number().int().min(1990).max(2100),
         siglaTipo: z.string().min(2).max(10).default("PL"),
-        maxPaginas: z.number().int().min(1).max(50).default(5),
+        // Páginas da LISTAGEM (100 proposições cada). O teto alto só é
+        // alcançável porque a varredura é retomável — cada rodada processa
+        // algumas proposições e a próxima continua.
+        maxPaginas: z.number().int().min(1).max(200).default(200),
       })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    // 1) Lista proposições por ano + tipo
-    const listas: ProposicaoListItem[] = [];
-    let pagina = 1;
-    while (pagina <= data.maxPaginas) {
-      const json = await camaraGet<Env<ProposicaoListItem[]>>("/proposicoes", {
-        ano: String(data.ano),
-        siglaTipo: data.siglaTipo,
-        itens: "100",
-        pagina: String(pagina),
-        ordem: "ASC",
-        ordenarPor: "id",
-      });
-      const arr = json.dados ?? [];
-      if (arr.length === 0) break;
-      listas.push(...arr);
-      if (arr.length < 100) break;
-      pagina++;
-    }
-
-    if (listas.length === 0) return { importados: 0, autores: 0 };
-
     let totalAutores = 0;
-    let importados = 0;
     const erros: string[] = [];
 
-    // 2) Para cada proposição: detalhe + autores
-    for (const p of listas) {
-      try {
-        const det = await camaraGet<Env<ProposicaoDetalhe>>(`/proposicoes/${p.id}`);
-        const d = det.dados;
-        const st = d.statusProposicao ?? {};
-        const row = {
-          id: d.id,
-          sigla_tipo: d.siglaTipo,
-          numero: d.numero,
-          ano: d.ano,
-          ementa: d.ementa ?? null,
-          ementa_detalhada: d.ementaDetalhada ?? null,
-          keywords: d.keywords ?? null,
-          data_apresentacao: d.dataApresentacao ? d.dataApresentacao.slice(0, 10) : null,
-          cod_tipo: d.codTipo ?? null,
-          descricao_tipo: d.descricaoTipo ?? null,
-          url_inteiro_teor: d.urlInteiroTeor ?? null,
-          ultimo_status_data: st.dataHora ? st.dataHora.slice(0, 10) : null,
-          ultimo_status_descricao: st.descricaoTramitacao ?? null,
-          ultimo_status_despacho: st.despacho ?? null,
-          ultimo_status_situacao: st.descricaoSituacao ?? null,
-          ultimo_status_orgao_sigla: st.siglaOrgao ?? null,
-          updated_at: new Date().toISOString(),
-        };
-        const { error: e1 } = await supabaseAdmin.from("camara_proposicoes_cache").upsert(row);
-        if (e1) throw new Error(e1.message);
-        importados++;
+    // Cada proposição custa ~4 subrequisições (detalhe + autores + 2 gravações),
+    // então uma página inteira da listagem estouraria o limite do Worker numa
+    // chamada só. O cursor é a proposição, não a página: a rodada processa
+    // algumas e a próxima continua de onde parou.
+    //
+    // As páginas da listagem ficam em cache dentro da rodada — como as
+    // proposições de uma rodada são consecutivas, isso costuma render uma
+    // única busca de listagem por rodada em vez de uma por proposição.
+    const paginasCache = new Map<number, ProposicaoListItem[]>();
 
-        // autores
-        const aut = await camaraGet<Env<AutorItem[]>>(`/proposicoes/${p.id}/autores`);
-        const autores = aut.dados ?? [];
-        const autRows = autores.map((a) => {
-          // Extrai id do deputado do URI (.../deputados/123)
-          let depId: number | null = null;
-          if (a.uri) {
-            const m = a.uri.match(/\/deputados\/(\d+)/);
-            if (m) depId = Number(m[1]);
+    const rodada = await rodarComOrcamento({
+      chave: `camara_props#${data.ano}#${data.siglaTipo}`,
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: data.maxPaginas * 100,
+      passo: async (n) => {
+        const pagina = Math.ceil(n / 100);
+        const idx = (n - 1) % 100;
+        let custo = 0;
+
+        let arr = paginasCache.get(pagina);
+        if (!arr) {
+          try {
+            const json = await camaraGet<Env<ProposicaoListItem[]>>("/proposicoes", {
+              ano: String(data.ano),
+              siglaTipo: data.siglaTipo,
+              itens: "100",
+              pagina: String(pagina),
+              ordem: "ASC",
+              ordenarPor: "id",
+            });
+            custo++;
+            arr = json.dados ?? [];
+            paginasCache.set(pagina, arr);
+          } catch (e) {
+            return {
+              processados: 0,
+              fim: false,
+              custo: 1,
+              interromper: true,
+              erros: [`lista p${pagina}: ${(e as Error).message}`],
+            };
           }
-          return {
-            proposicao_id: p.id,
-            deputado_id: depId,
-            nome: (a.nome ?? "(sem nome)").slice(0, 240),
-            tipo: a.tipo ?? null,
-            ordem_assinatura: a.ordemAssinatura ?? null,
-            proponente: Boolean(a.proponente),
+        }
+
+        // Fim da listagem: página vazia ou índice além do que ela devolveu.
+        if (arr.length === 0 || idx >= arr.length) return { processados: 0, fim: true, custo };
+
+        const item = arr[idx];
+        const errosPasso: string[] = [];
+        try {
+          const det = await camaraGet<Env<ProposicaoDetalhe>>(`/proposicoes/${item.id}`);
+          custo++;
+          const d = det.dados;
+          const st = d.statusProposicao ?? {};
+          const row = {
+            id: d.id,
+            sigla_tipo: d.siglaTipo,
+            numero: d.numero,
+            ano: d.ano,
+            ementa: d.ementa ?? null,
+            ementa_detalhada: d.ementaDetalhada ?? null,
+            keywords: d.keywords ?? null,
+            data_apresentacao: d.dataApresentacao ? d.dataApresentacao.slice(0, 10) : null,
+            cod_tipo: d.codTipo ?? null,
+            descricao_tipo: d.descricaoTipo ?? null,
+            url_inteiro_teor: d.urlInteiroTeor ?? null,
+            ultimo_status_data: st.dataHora ? st.dataHora.slice(0, 10) : null,
+            ultimo_status_descricao: st.descricaoTramitacao ?? null,
+            ultimo_status_despacho: st.despacho ?? null,
+            ultimo_status_situacao: st.descricaoSituacao ?? null,
+            ultimo_status_orgao_sigla: st.siglaOrgao ?? null,
             updated_at: new Date().toISOString(),
           };
-        });
-        if (autRows.length > 0) {
-          const { error: e2 } = await supabaseAdmin
-            .from("camara_proposicoes_autores_cache")
-            .upsert(autRows);
-          if (e2) throw new Error(`autores: ${e2.message}`);
-          totalAutores += autRows.length;
-        }
-      } catch (e) {
-        erros.push(`prop ${p.id}: ${(e as Error).message}`);
-      }
-    }
+          const { error: e1 } = await supabaseAdmin.from("camara_proposicoes_cache").upsert(row);
+          custo++;
+          if (e1) throw new Error(e1.message);
 
-    return { importados, autores: totalAutores, erros };
+          const aut = await camaraGet<Env<AutorItem[]>>(`/proposicoes/${item.id}/autores`);
+          custo++;
+          const autores = aut.dados ?? [];
+          const autRows = autores.map((a) => {
+            // Extrai id do deputado do URI (.../deputados/123)
+            let depId: number | null = null;
+            if (a.uri) {
+              const m = a.uri.match(/\/deputados\/(\d+)/);
+              if (m) depId = Number(m[1]);
+            }
+            return {
+              proposicao_id: item.id,
+              deputado_id: depId,
+              nome: (a.nome ?? "(sem nome)").slice(0, 240),
+              tipo: a.tipo ?? null,
+              ordem_assinatura: a.ordemAssinatura ?? null,
+              proponente: Boolean(a.proponente),
+              updated_at: new Date().toISOString(),
+            };
+          });
+          if (autRows.length > 0) {
+            const { error: e2 } = await supabaseAdmin
+              .from("camara_proposicoes_autores_cache")
+              .upsert(autRows);
+            custo++;
+            if (e2) throw new Error(`autores: ${e2.message}`);
+            totalAutores += autRows.length;
+          }
+          return { processados: 1, fim: false, custo };
+        } catch (e) {
+          // Uma proposição com problema não interrompe a varredura — segue para
+          // a seguinte, como antes, com o erro registrado.
+          errosPasso.push(`prop ${item.id}: ${(e as Error).message}`);
+          return { processados: 0, fim: false, custo, erros: errosPasso };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    return {
+      importados: rodada.processados,
+      autores: totalAutores,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });
 
 // ============ QUERIES públicas (read-only) ============

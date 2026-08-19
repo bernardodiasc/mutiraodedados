@@ -23,6 +23,29 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.5.0 — 2026-08-19
+
+**Resumo:** põe PNCP, Transferegov e as proposições da Câmara em condição de carga em massa. Nenhuma das três era retomável, e a interface contornava isso limitando a três páginas por rodada — o que impedia importar um ano inteiro.
+
+**Entregas**
+
+- PNCP e Transferegov passam a processar **uma página por passo**, com orçamento de tempo e de subrequisições. Antes o laço ia até 2000 páginas numa chamada só, e um erro de banco lançava e perdia a rodada inteira; agora interrompe sem avançar o cursor, e a rodada seguinte refaz aquela página.
+- Proposições da Câmara: o teto de 5 páginas escondia um problema maior — depois de listar, a função buscava detalhe e autores de cada proposição, cerca de 4 subrequisições por item, ou ~2000 numa única chamada. Elevar o teto sem tornar retomável pioraria o estouro. O cursor passou a ser a proposição, com as páginas da listagem em cache dentro da rodada, o que rende uma busca de listagem por rodada em vez de uma por proposição.
+- Trava de `maxPaginas: 3` removida da interface; painel e job builder repetem as rodadas até a varredura fechar, como já faziam com a CGU.
+- `src/lib/data/janela-varredura.ts`: chave de varredura para fontes que importam por janela de datas, distinguindo fonte, janela e filtros — se duas importações da mesma janela com filtros diferentes dividissem chave, a segunda retomaria do cursor da primeira e pularia páginas que nunca leu.
+
+**Checks executados**
+
+- `bun run test` ✓ — 63 arquivos, 595 testes, todos verdes (6 novos).
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Bundle do cliente conferido: sem código server-only ✓.
+- Janelas de `src/lib/data/janelas.ts` revisadas: **nenhuma alterada**. Cada uma já tem justificativa documentada; a única candidata a ampliação (TSE, que começa em 1998 embora haja dados desde 1994) é decisão deliberada registrada em comentário, e mudá-la exigiria verificar a disponibilidade real no CDN.
+- **Pendente:** a importação real de um ano-calendário prevista nos critérios de aceite **não foi executada** — o mantenedor optou por verificar manualmente depois.
+
+**Plano:** sem plano dedicado — escopo detalhado no ROADMAP.
+
+**Roadmap cidadão:** sem item público — infraestrutura interna.
+
 ## v0.4.0 — 2026-08-19
 
 **Resumo:** resolve a fragilidade mais séria do diagnóstico. As despesas de gabinete (CEAP na Câmara, CEAPS no Senado) eram importadas percorrendo todos os parlamentares em cache dentro de uma única chamada — centenas deles, cada um com até 30 páginas, sem orçamento, sem retomada e sem teto de subrequisições. Com o histórico de várias legislaturas, era o candidato mais provável a estourar os limites de execução do Worker.

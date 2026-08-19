@@ -4,6 +4,13 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasPncp, flagQA } from "@/lib/data/qa";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import {
+  chaveVarreduraJanela,
+  JANELA_ORCAMENTO_MS,
+  JANELA_TETO_SUBREQUISICOES,
+} from "@/lib/data/janela-varredura";
 import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
 
 /**
@@ -137,93 +144,143 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
 
     const di = fmtDate(data.dataInicial);
     const df = fmtDate(data.dataFinal);
-    let total = 0;
-    let pagina = 1;
     const erros: string[] = [];
 
-    while (pagina <= data.maxPaginas) {
-      const params: Record<string, string | number> = {
-        dataInicial: di,
-        dataFinal: df,
-        pagina,
-        tamanhoPagina: 500,
-      };
-      if (data.cnpjOrgao) params.cnpjOrgao = data.cnpjOrgao;
-      // Nota: PNCP não aceita filtro de UF nesse endpoint — filtro aplicado client-side.
+    // Um passo = uma página. Antes o laço ia até 2000 páginas numa chamada só,
+    // sem orçamento nem retomada, e um erro de banco derrubava a rodada
+    // inteira — o que na prática obrigava a UI a limitar a 3 páginas.
+    const rodada = await rodarComOrcamento({
+      chave: chaveVarreduraJanela("pncp", data.dataInicial, data.dataFinal, {
+        uf: data.uf,
+        cnpj: data.cnpjOrgao,
+      }),
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: data.maxPaginas,
+      passo: async (pagina) => {
+        const params: Record<string, string | number> = {
+          dataInicial: di,
+          dataFinal: df,
+          pagina,
+          tamanhoPagina: 500,
+        };
+        if (data.cnpjOrgao) params.cnpjOrgao = data.cnpjOrgao;
+        // Nota: PNCP não aceita filtro de UF nesse endpoint — filtro aplicado client-side.
 
-      const json = await pncpGet<{
-        data?: ContratoPNCP[];
-        totalPaginas?: number;
-        totalRegistros?: number;
-      }>("/v1/contratos/publicacao", params);
-      const lista = json.data ?? [];
-      if (lista.length === 0) break;
-
-      const filtrados = data.uf
-        ? lista.filter((c) => c.unidadeOrgao?.ufSigla?.toUpperCase() === data.uf!.toUpperCase())
-        : lista;
-
-      const rows = filtrados
-        .map((c) => {
-          const ncp = c.numeroControlePNCP;
-          if (!ncp) return null;
+        let custo = 0;
+        let json: { data?: ContratoPNCP[]; totalPaginas?: number; totalRegistros?: number };
+        try {
+          json = await pncpGet<{
+            data?: ContratoPNCP[];
+            totalPaginas?: number;
+            totalRegistros?: number;
+          }>("/v1/contratos/publicacao", params);
+          custo++;
+        } catch (e) {
+          // Falha na origem: a próxima rodada refaz esta página.
           return {
-            id: ncp,
-            numero_controle_pncp: ncp,
-            ano: Number(c.anoContrato ?? new Date(data.dataInicial).getFullYear()),
-            orgao_cnpj: c.orgaoEntidade?.cnpj ?? "",
-            orgao_nome:
-              sanitizarTextoPublico((c.orgaoEntidade?.razaoSocial ?? "").slice(0, 240)) ||
-              "Sem nome",
-            esfera: esferaLabel(c.orgaoEntidade?.esferaId),
-            poder: poderLabel(c.orgaoEntidade?.poderId),
-            uf: c.unidadeOrgao?.ufSigla ?? null,
-            municipio_ibge: c.unidadeOrgao?.codigoIbge ? String(c.unidadeOrgao.codigoIbge) : null,
-            municipio_nome: c.unidadeOrgao?.municipioNome ?? null,
-            numero_contrato: c.numeroContratoEmpenho ?? null,
-            objeto: sanitizarTextoPublico((c.objetoContrato ?? "").slice(0, 1000)) || null,
-            modalidade: c.modalidadeNome ?? null,
-            situacao: c.situacaoContratoNome ?? null,
-            fornecedor_cnpj_cpf: c.niFornecedor ?? null,
-            fornecedor_nome:
-              sanitizarTextoPublico((c.nomeRazaoSocialFornecedor ?? "").slice(0, 240)) || null,
-            valor_inicial: Number(c.valorInicial ?? 0),
-            valor_global: Number(c.valorGlobal ?? 0),
-            data_assinatura: c.dataAssinatura?.slice(0, 10) || null,
-            data_vigencia_inicio: c.dataVigenciaInicio?.slice(0, 10) || null,
-            data_vigencia_fim: c.dataVigenciaFim?.slice(0, 10) || null,
-            url_pncp: `https://pncp.gov.br/app/contratos/${ncp}`,
-            updated_at: new Date().toISOString(),
+            processados: 0,
+            fim: false,
+            custo: 1,
+            interromper: true,
+            erros: [`p${pagina}: ${(e as Error).message}`],
           };
-        })
-        .filter((r): r is NonNullable<typeof r> => r !== null);
+        }
 
-      for (let i = 0; i < rows.length; i += 200) {
-        const { error } = await supabaseAdmin
-          .from("pncp_contratos_cache")
-          .upsert(rows.slice(i, i + 200));
-        if (error) throw new Error(`db: ${error.message}`);
-      }
-      total += rows.length;
-      try {
-        await flagQA(
-          regrasPncp(
-            rows.map((r) => ({
-              id: r.id,
-              valor_global: r.valor_global,
-              valor_inicial: r.valor_inicial,
-            })),
-          ),
-        );
-      } catch (e) {
-        // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
-        erros.push(`qa p${pagina}: ${(e as Error).message}`);
-      }
+        const lista = json.data ?? [];
+        if (lista.length === 0) return { processados: 0, fim: true, custo };
 
-      const totalPag = json.totalPaginas ?? 1;
-      if (pagina >= totalPag) break;
-      pagina += 1;
-    }
+        const filtrados = data.uf
+          ? lista.filter((c) => c.unidadeOrgao?.ufSigla?.toUpperCase() === data.uf!.toUpperCase())
+          : lista;
 
-    return { importados: total, paginas: pagina, erros };
+        const rows = filtrados
+          .map((c) => {
+            const ncp = c.numeroControlePNCP;
+            if (!ncp) return null;
+            return {
+              id: ncp,
+              numero_controle_pncp: ncp,
+              ano: Number(c.anoContrato ?? new Date(data.dataInicial).getFullYear()),
+              orgao_cnpj: c.orgaoEntidade?.cnpj ?? "",
+              orgao_nome:
+                sanitizarTextoPublico((c.orgaoEntidade?.razaoSocial ?? "").slice(0, 240)) ||
+                "Sem nome",
+              esfera: esferaLabel(c.orgaoEntidade?.esferaId),
+              poder: poderLabel(c.orgaoEntidade?.poderId),
+              uf: c.unidadeOrgao?.ufSigla ?? null,
+              municipio_ibge: c.unidadeOrgao?.codigoIbge ? String(c.unidadeOrgao.codigoIbge) : null,
+              municipio_nome: c.unidadeOrgao?.municipioNome ?? null,
+              numero_contrato: c.numeroContratoEmpenho ?? null,
+              objeto: sanitizarTextoPublico((c.objetoContrato ?? "").slice(0, 1000)) || null,
+              modalidade: c.modalidadeNome ?? null,
+              situacao: c.situacaoContratoNome ?? null,
+              fornecedor_cnpj_cpf: c.niFornecedor ?? null,
+              fornecedor_nome:
+                sanitizarTextoPublico((c.nomeRazaoSocialFornecedor ?? "").slice(0, 240)) || null,
+              valor_inicial: Number(c.valorInicial ?? 0),
+              valor_global: Number(c.valorGlobal ?? 0),
+              data_assinatura: c.dataAssinatura?.slice(0, 10) || null,
+              data_vigencia_inicio: c.dataVigenciaInicio?.slice(0, 10) || null,
+              data_vigencia_fim: c.dataVigenciaFim?.slice(0, 10) || null,
+              url_pncp: `https://pncp.gov.br/app/contratos/${ncp}`,
+              updated_at: new Date().toISOString(),
+            };
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
+
+        for (let i = 0; i < rows.length; i += 200) {
+          const { error } = await supabaseAdmin
+            .from("pncp_contratos_cache")
+            .upsert(rows.slice(i, i + 200));
+          custo++;
+          // Antes isto lançava e perdia a rodada inteira. Agora interrompe sem
+          // avançar o cursor: a próxima refaz esta página.
+          if (error) {
+            return {
+              processados: 0,
+              fim: false,
+              custo,
+              interromper: true,
+              erros: [`db p${pagina}: ${error.message}`],
+            };
+          }
+        }
+
+        const errosPasso: string[] = [];
+        try {
+          await flagQA(
+            regrasPncp(
+              rows.map((r) => ({
+                id: r.id,
+                valor_global: r.valor_global,
+                valor_inicial: r.valor_inicial,
+              })),
+            ),
+          );
+        } catch (e) {
+          // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
+          errosPasso.push(`qa p${pagina}: ${(e as Error).message}`);
+        }
+
+        const totalPag = json.totalPaginas ?? 1;
+        return { processados: rows.length, fim: pagina >= totalPag, custo, erros: errosPasso };
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    return {
+      importados: rodada.processados,
+      paginas: rodada.cursorFinal,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });
