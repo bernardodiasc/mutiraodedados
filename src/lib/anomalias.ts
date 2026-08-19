@@ -28,6 +28,32 @@ function median(nums: number[]): number {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
+/**
+ * Teto de dispensa de licitação para bens e serviços comuns, VIGENTE NA DATA do
+ * contrato — um registro histórico deve ser avaliado pelo limite da sua época.
+ * Valores da Lei 14.133 são atualizados por decreto anual: ao sair um novo
+ * decreto, adicione uma entrada (não altere as anteriores). Enquanto a tabela
+ * não é atualizada, vale o último teto conhecido — o efeito é conservador
+ * (dispensas entre o teto antigo e o novo deixam de ser sinalizadas; nunca
+ * geramos sinal com limite errado para a época).
+ */
+export type TetoDispensa = { vigenteDesde: string; teto: number; baseLegal: string };
+
+export const TETOS_DISPENSA: TetoDispensa[] = [
+  { vigenteDesde: "1900-01-01", teto: 8_000, baseLegal: "Lei 8.666/1993, art. 24, II" },
+  { vigenteDesde: "2018-06-19", teto: 17_600, baseLegal: "Decreto 9.412/2018 (Lei 8.666)" },
+  { vigenteDesde: "2021-04-01", teto: 50_000, baseLegal: "Lei 14.133/2021, art. 75, II" },
+  { vigenteDesde: "2022-01-01", teto: 54_020.41, baseLegal: "Decreto 10.922/2021 (Lei 14.133)" },
+];
+
+export function tetoDispensaNaData(dataIso: string): TetoDispensa {
+  let vigente = TETOS_DISPENSA[0];
+  for (const t of TETOS_DISPENSA) {
+    if (dataIso >= t.vigenteDesde) vigente = t;
+  }
+  return vigente;
+}
+
 export function detectarAnomalias(ds: Dataset): Anomalia[] {
   const out: Anomalia[] = [];
 
@@ -41,6 +67,9 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   for (const [cnpj, m] of porFornAno) {
     const anos = [...m.keys()].sort();
     for (let i = 1; i < anos.length; i++) {
+      // Só compara anos CONSECUTIVOS: com lacuna na série (ex.: 2019 → 2023),
+      // "ano anterior" seria outro exercício e o salto não é comparável.
+      if (anos[i] !== anos[i - 1] + 1) continue;
       const prev = m.get(anos[i-1])!;
       const atual = m.get(anos[i])!;
       if (prev >= 500_000 && atual / prev >= 3) {
@@ -61,10 +90,15 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     }
   }
 
-  // 2. Fracionamento: 5+ contratos de dispensa abaixo de R$ 17.600 mesmo fornecedor/órgão/ano.
+  // 2. Fracionamento: 5+ contratos de dispensa abaixo do teto legal VIGENTE NA
+  //    DATA de cada contrato (Lei 8.666/Decreto 9.412 → Lei 14.133), mesmo
+  //    fornecedor/órgão/ano.
   const fracMap = new Map<string, Contrato[]>();
   for (const c of ds.contratos) {
-    if (c.modalidade !== "dispensa" || c.valor >= 17_600) continue;
+    if (c.modalidade !== "dispensa") continue;
+    // Sem data de assinatura, usa o meio do ano do contrato como referência.
+    const dataRef = c.dataAssinatura || `${c.ano}-07-01`;
+    if (c.valor >= tetoDispensaNaData(dataRef).teto) continue;
     const k = `${c.orgaoCod}|${c.fornecedorCnpj}|${c.ano}`;
     if (!fracMap.has(k)) fracMap.set(k, []);
     fracMap.get(k)!.push(c);
@@ -74,6 +108,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
       const [orgaoCod, cnpj] = k.split("|");
       const f = ds.fornecedores.find(x => x.cnpj === cnpj);
       const o = ds.orgaos.find(x => x.cod === orgaoCod);
+      const tetoRef = tetoDispensaNaData(lista[0].dataAssinatura || `${lista[0].ano}-07-01`);
       out.push({
         id: `frac-${k}`,
         entidadeTipo: "fornecedor",
@@ -83,8 +118,13 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
         severidade: "alta",
         titulo: `${lista.length} dispensas seguidas abaixo do limite legal`,
         explicacao:
-          `${f?.nome ?? "Fornecedor"} recebeu ${lista.length} contratos por dispensa de licitação em ${lista[0].ano}, no órgão ${o?.sigla ?? orgaoCod}, todos logo abaixo de R$ 17.600 — o teto que permite contratar sem licitação. Esse padrão é compatível com fracionamento de despesa, que é vedado pela Lei nº 14.133/2021.`,
-        evidencia: { contratos: lista.length, soma: lista.reduce((s,c)=>s+c.valor,0) },
+          `${f?.nome ?? "Fornecedor"} recebeu ${lista.length} contratos por dispensa de licitação em ${lista[0].ano}, no órgão ${o?.sigla ?? orgaoCod}, todos logo abaixo de ${fmtBRL(tetoRef.teto)} — o teto que permitia contratar sem licitação na época (${tetoRef.baseLegal}). Esse padrão é compatível com fracionamento de despesa, vedado pela legislação de licitações.`,
+        evidencia: {
+          contratos: lista.length,
+          soma: lista.reduce((s,c)=>s+c.valor,0),
+          teto: tetoRef.teto,
+          base_legal: tetoRef.baseLegal,
+        },
       });
     }
   }
@@ -148,12 +188,15 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   // Aparece pela primeira vez no dataset e em < 12 meses já recebe > R$ 1M.
   const firstSeen = new Map<string, string>(); // cnpj -> data ISO mínima
   for (const c of ds.contratos) {
+    // Data vazia não pode entrar: "" é menor que qualquer ISO e viraria a
+    // "primeira aparição", gerando NaN no cálculo de dias e silenciando a regra.
+    if (!c.dataAssinatura) continue;
     const cur = firstSeen.get(c.fornecedorCnpj);
     if (!cur || c.dataAssinatura < cur) firstSeen.set(c.fornecedorCnpj, c.dataAssinatura);
   }
   const fornAlertados = new Set<string>();
   for (const c of ds.contratos) {
-    if (c.valor < 1_000_000) continue;
+    if (c.valor < 1_000_000 || !c.dataAssinatura) continue;
     const first = firstSeen.get(c.fornecedorCnpj);
     if (!first) continue;
     const diasDesdePrim = (new Date(c.dataAssinatura).getTime() - new Date(first).getTime()) / 86_400_000;
@@ -231,7 +274,9 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     });
   }
 
-  // 8. Crescimento abrupto do gasto total do órgão (>2× mediana dos 3 anos anteriores).
+  // 8. Crescimento abrupto do gasto total do órgão (≥2× a mediana dos 3 anos
+  //    anteriores COM DADOS — se a série tem lacunas, a mediana usa os três
+  //    exercícios mais recentes disponíveis, não necessariamente consecutivos).
   const orgaoAno = new Map<string, Map<number, number>>();
   for (const c of ds.contratos) {
     if (!orgaoAno.has(c.orgaoCod)) orgaoAno.set(c.orgaoCod, new Map());
@@ -255,7 +300,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
           severidade: atual / baseline >= 4 ? "alta" : "media",
           titulo: `Gasto do órgão ${(atual/baseline).toFixed(1)}× a mediana recente em ${ano}`,
           explicacao:
-            `O órgão ${o?.sigla ?? cod} contratou ${fmtBRL(atual)} em ${ano}, frente a uma mediana de ${fmtBRL(baseline)} nos três anos anteriores. Saltos dessa magnitude podem decorrer de uma política nova legítima, mas também merecem checagem da composição (quais fornecedores e modalidades responderam pelo crescimento).`,
+            `O órgão ${o?.sigla ?? cod} contratou ${fmtBRL(atual)} em ${ano}, frente a uma mediana de ${fmtBRL(baseline)} nos três anos anteriores com dados. Saltos dessa magnitude podem decorrer de uma política nova legítima, mas também merecem checagem da composição (quais fornecedores e modalidades responderam pelo crescimento).`,
           evidencia: { ano, atual: Math.round(atual), baseline: Math.round(baseline), salto: Number((atual/baseline).toFixed(2)) },
         });
       }

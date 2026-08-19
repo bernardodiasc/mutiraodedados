@@ -119,8 +119,7 @@ rodar:
 ```
 src/
 ├── routes/                # File-based routing do TanStack Router
-│   ├── _authenticated/    # Rotas que exigem login
-│   └── api/public/        # Endpoints HTTP públicos (webhooks etc.)
+│   └── _authenticated/    # Rotas que exigem login
 ├── components/            # UI compartilhada (shadcn em ui/)
 ├── lib/
 │   ├── data/              # Server functions por fonte (cgu, pncp, camara, ...)

@@ -8,7 +8,15 @@ import {
   agregadoQualidade,
   STATUS_QA,
 } from "@/lib/data/qa.functions";
-import { REGRAS_QA } from "@/lib/admin-qualidade/logic";
+import { TIPO_SINAL_LABEL, type AnomaliaTipoSinal } from "@/lib/anomalia";
+import {
+  FONTE_SINAL_LABEL,
+  FONTES_QA_CATALOGO,
+  REGRAS_PERSISTIDAS,
+  SINAIS_CATALOGO,
+} from "@/lib/sinais-catalogo";
+import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
+import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 
 export const Route = createFileRoute("/qualidade")({
   component: QualidadePage,
@@ -33,14 +41,16 @@ export const Route = createFileRoute("/qualidade")({
   }),
 });
 
-const FONTES = [
-  "cgu",
-  "pncp",
-  "camara_ceap",
-  "senado_ceaps",
-  "transferegov",
-  "siconfi",
-] as const;
+// Derivado do catálogo central — inclui todas as fontes com regras persistidas
+// (tse e tse-cruzamento ficavam de fora da lista hardcoded antiga).
+const FONTES = FONTES_QA_CATALOGO;
+
+const TIPOS_SINAL = ["qualidade", "lacuna", "investigativo"] as const;
+
+// Regras persistidas da página, na ordem do catálogo: ativas primeiro.
+const SINAIS_DA_PAGINA = [...SINAIS_CATALOGO]
+  .filter((s) => s.persistencia === "banco")
+  .sort((a, b) => Number(b.ativa) - Number(a.ativa));
 
 const SEV_COLOR: Record<string, string> = {
   critico: "bg-destructive/15 text-destructive",
@@ -72,6 +82,7 @@ const EMPTY_AGG = {
   porFonte: {} as Record<string, number>,
   porStatus: {} as Record<string, number>,
   porRegra: {} as Record<string, number>,
+  porTipo: {} as Record<string, number>,
 };
 
 function toggleSet(prev: Set<string>, v: string): Set<string> {
@@ -88,6 +99,7 @@ function QualidadePage() {
   const [fontesSel, setFontesSel] = React.useState<Set<string>>(new Set());
   const [statusSel, setStatusSel] = React.useState<Set<string>>(new Set());
   const [regrasSel, setRegrasSel] = React.useState<Set<string>>(new Set());
+  const [tiposSel, setTiposSel] = React.useState<Set<string>>(new Set());
 
   const { data: aggData = EMPTY_AGG } = useQuery({
     queryKey: ["qa-agg-pub"],
@@ -97,21 +109,34 @@ function QualidadePage() {
   const fontesArr = [...fontesSel];
   const statusArr = [...statusSel];
   const regrasArr = [...regrasSel];
+  const tiposArr = [...tiposSel] as AnomaliaTipoSinal[];
   const { data: findings = [], isLoading } = useQuery({
-    queryKey: ["qa-list-pub", fontesArr.join(","), statusArr.join(","), regrasArr.join(",")],
+    queryKey: [
+      "qa-list-pub",
+      fontesArr.join(","),
+      statusArr.join(","),
+      regrasArr.join(","),
+      tiposArr.join(","),
+    ],
     queryFn: () =>
       fetchList({
-        data: { fontes: fontesArr, statuses: statusArr, regras: regrasArr, limit: 200 },
+        data: {
+          fontes: fontesArr,
+          statuses: statusArr,
+          regras: regrasArr,
+          tipos: tiposArr,
+          limit: 200,
+        },
       }),
     staleTime: 60_000,
   });
 
-  // Regras a exibir: a lista canônica + quaisquer regras vistas no agregado
-  // (cobre regras legadas ainda presentes no banco).
+  // Regras a exibir: a lista canônica do catálogo + quaisquer regras vistas no
+  // agregado (cobre regras legadas ainda presentes no banco).
   const regrasAll = Array.from(
-    new Set<string>([...REGRAS_QA, ...Object.keys(aggData.porRegra)]),
+    new Set<string>([...REGRAS_PERSISTIDAS, ...Object.keys(aggData.porRegra)]),
   );
-  const algumFiltro = fontesSel.size + statusSel.size + regrasSel.size > 0;
+  const algumFiltro = fontesSel.size + statusSel.size + regrasSel.size + tiposSel.size > 0;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-12 space-y-10">
@@ -161,70 +186,58 @@ function QualidadePage() {
         </div>
       </header>
 
-      <details className="rounded-lg border border-border bg-card/50 text-sm">
-        <summary className="cursor-pointer list-none px-4 py-3 font-medium flex items-center gap-2 hover:text-foreground text-muted-foreground">
-          <span className="text-accent">＋</span> Como ler esta página: regras, status e o processo
-        </summary>
-        <div className="px-4 pb-5 pt-1 space-y-5 text-muted-foreground">
-          <div>
+      <BoxComoLerSinais
+        titulo="Como ler esta página: regras, status e o processo"
+        sinais={SINAIS_DA_PAGINA}
+        descricao={
+          <>
             <p>
               Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na importação
               (só com o dado em cache), passa por uma <strong>re-checagem</strong> contra a API oficial
               e, se o defeito for real e estiver na fonte, é <strong>reportada</strong> ao órgão.
+              A tabela abaixo é o catálogo completo das regras persistidas, nos três tipos de sinal.
             </p>
-          </div>
-
-          <div>
-            <h3 className="font-medium text-foreground mb-1.5">Regras de contratos (Portal CGU)</h3>
-            <p className="mb-1.5">
-              A importação cruza a <strong>listagem</strong> com o <strong>detalhe</strong>
-              (<code>/contratos/id</code>) de cada contrato. O bug de escala (÷10.000) aparece
-              em qualquer um dos dois endpoints, então gravamos sempre o valor
-              <strong> não-truncado</strong>, que bate com o documento oficial.
+            <p>
+              Nos contratos da CGU, a importação cruza a <strong>listagem</strong> com o{" "}
+              <strong>detalhe</strong> (<code>/contratos/id</code>) de cada contrato: o bug de escala
+              (÷10.000) da API aparece em qualquer um dos dois endpoints, e gravamos sempre o valor{" "}
+              <strong>não-truncado</strong>, que bate com o documento oficial.{" "}
+              <strong>Limitação conhecida:</strong> se as duas leituras vierem truncadas na mesma
+              escala ao mesmo tempo, a divergência é indetectável naquele momento — o valor é
+              corrigido numa leitura futura e o histórico fica registrado no alerta.
             </p>
-            <ul className="space-y-1.5">
-              <li><code>valor_corrigido_listagem</code> — a fonte trouxe o valor truncado por escala; foi <strong>corrigido automaticamente</strong> no site com o valor não-truncado. O alerta fica como registro do defeito da fonte.</li>
-              <li><code>fornecedor_ausente</code> — a API não informou o CNPJ/CPF do fornecedor (sigiloso ou ausente). O contrato é salvo mesmo assim, para investigação.</li>
-              <li><code>discrepancia_extrema_inicial_final</code> — valor inicial ≥ 1000× o final (ou vice-versa): provável erro de digitação/escala em um dos campos.</li>
-              <li><code>valor_muito_baixo</code> — valor oficial &lt; R$100: pode ser um contrato pequeno real <em>ou</em> um defeito persistente na própria fonte. A re-checagem desambigua.</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-medium text-foreground mb-1.5">Regras de outras fontes (PNCP, Transferegov, SICONFI, Câmara)</h3>
-            <ul className="space-y-1.5">
-              <li><code>valor_global_zerado</code> / <code>valor_global_menor_inicial</code> — valor global do contrato zerado ou menor que o inicial (PNCP).</li>
-              <li><code>repasse_maior_global</code> — repasse maior que o valor global do convênio (Transferegov).</li>
-              <li><code>pago_maior_empenhado</code> — valor pago maior que o empenhado.</li>
-              <li><code>liquido_maior_documento</code> — valor líquido maior que o do documento (cota parlamentar).</li>
-              <li><code>valor_negativo</code> / <code>valor_negativo_em_conta_positiva</code> — valor negativo onde não deveria haver (SICONFI).</li>
-              <li><code>valor_truncado_suspeito</code> — valor possivelmente truncado em outras fontes.</li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-medium text-foreground mb-1.5">Status</h3>
-            <ul className="space-y-1.5">
-              <li><strong>Aberto</strong> — detectado, ainda não analisado.</li>
-              <li><strong>Confirmado</strong> — re-checado contra a fonte oficial; a divergência é real.</li>
-              <li><strong>Reportado</strong> — encaminhado ao órgão responsável.</li>
-              <li><strong>Corrigido na origem</strong> — a fonte oficial corrigiu o dado numa reimportação posterior (a API passou a devolver o valor certo).</li>
-              <li><strong>Corrigido automaticamente</strong> — a nossa conferência por detalhe corrigiu o valor no site (a fonte ainda não corrigiu); o alerta fica como registro do defeito.</li>
-              <li><strong>Falso positivo</strong> — analisado e descartado: não havia defeito.</li>
-              <li><strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.</li>
-            </ul>
-          </div>
+          </>
+        }
+      >
+        <div>
+          <h3 className="font-medium text-foreground mb-1.5">Status</h3>
+          <ul className="space-y-1.5">
+            <li><strong>Aberto</strong> — detectado, ainda não analisado.</li>
+            <li><strong>Confirmado</strong> — re-checado contra a fonte oficial; a divergência é real.</li>
+            <li><strong>Reportado</strong> — encaminhado ao órgão responsável.</li>
+            <li><strong>Corrigido na origem</strong> — a fonte oficial corrigiu o dado numa reimportação posterior (a API passou a devolver o valor certo).</li>
+            <li><strong>Corrigido automaticamente</strong> — a nossa conferência por detalhe corrigiu o valor no site (a fonte ainda não corrigiu); o alerta fica como registro do defeito.</li>
+            <li><strong>Falso positivo</strong> — analisado e descartado: não havia defeito.</li>
+            <li><strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.</li>
+          </ul>
         </div>
-      </details>
+      </BoxComoLerSinais>
 
       <section className="space-y-3">
         <div className="rounded-xl border border-border bg-card/50 p-3 space-y-2.5">
           <FilterGroup
             titulo="Fontes"
-            itens={FONTES.map((f) => ({ valor: f, rotulo: f }))}
+            itens={FONTES.map((f) => ({ valor: f, rotulo: FONTE_SINAL_LABEL[f] ?? f }))}
             counts={aggData.porFonte}
             sel={fontesSel}
             onToggle={(v) => setFontesSel((s) => toggleSet(s, v))}
+          />
+          <FilterGroup
+            titulo="Tipos"
+            itens={TIPOS_SINAL.map((t) => ({ valor: t, rotulo: TIPO_SINAL_LABEL[t] }))}
+            counts={aggData.porTipo ?? {}}
+            sel={tiposSel}
+            onToggle={(v) => setTiposSel((s) => toggleSet(s, v))}
           />
           <FilterGroup
             titulo="Status"
@@ -249,6 +262,7 @@ function QualidadePage() {
                 setFontesSel(new Set());
                 setStatusSel(new Set());
                 setRegrasSel(new Set());
+                setTiposSel(new Set());
               }}
             >
               Limpar filtros
@@ -271,6 +285,17 @@ function QualidadePage() {
                     <span className={`px-1.5 py-0.5 rounded ${SEV_COLOR[f.severidade]}`}>
                       {f.severidade}
                     </span>
+                    {f.tipo_sinal && f.tipo_sinal !== "qualidade" && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded border ${
+                          f.tipo_sinal === "investigativo"
+                            ? "bg-destructive/10 text-destructive border-destructive/30"
+                            : "bg-accent/10 text-accent border-accent/30"
+                        }`}
+                      >
+                        {TIPO_SINAL_LABEL[f.tipo_sinal]}
+                      </span>
+                    )}
                     <span className="px-1.5 py-0.5 rounded bg-accent/15 text-accent">
                       {STATUS_LABEL[f.status] ?? f.status}
                     </span>
@@ -316,6 +341,11 @@ function QualidadePage() {
                     <div className="mt-1 text-xs text-muted-foreground font-mono">
                       {f.comparacao.armazenadoLabel ?? "armazenado"} {fmtBRL(f.comparacao.armazenado)} → {f.comparacao.esperadoLabel ?? "esperado"}{" "}
                       {fmtBRL(f.comparacao.esperado)}
+                    </div>
+                  )}
+                  {f.tipo_sinal === "investigativo" && (
+                    <div className="mt-2">
+                      <AvisoMetodologico compacto />
                     </div>
                   )}
                 </div>

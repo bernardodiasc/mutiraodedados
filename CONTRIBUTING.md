@@ -25,6 +25,15 @@ Obrigado pelo interesse em contribuir! Este guia cobre o essencial.
 4. Abra o PR contra `main`, referencie a issue (`Closes #123`).
 5. Aguarde revisão. Para mudanças visuais, anexe screenshots.
 
+## Como seu PR é lançado
+
+Depois de aprovado e mergeado, seu PR entra na próxima release do projeto —
+o escopo em andamento está sempre no [ROADMAP.md](./ROADMAP.md), e cada
+release publicada aparece no [RELEASES.md](./RELEASES.md) e nas Releases do
+GitHub, com sua autoria preservada. Você não precisa fazer nada além do PR:
+versionamento, changelog e tags são papel do mantenedor (não edite
+ROADMAP.md/RELEASES.md no seu PR).
+
 ## Estilo de código
 
 - TypeScript estrito — sem `any` sem justificativa.

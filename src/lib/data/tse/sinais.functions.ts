@@ -8,7 +8,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const anoSchema = z.object({ ano: z.number().int().min(2014).max(2100) });
+const anoSchema = z.object({ ano: z.number().int().min(1998).max(2100) });
 
 export const rodarSinaisInvestigativosTse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -42,7 +42,8 @@ export const rodarLacunasTse = createServerFn({ method: "POST" })
     } = await import("@/lib/data/tse/sinais.server");
     const resultados = [
       await rodarEleitosSemContas(data.ano),
-      await rodarCandidatosSemBens(data.ano, data.ativarCandidatoSemBens ?? false),
+      // Ativa por padrão (decisão de produto); o flag vira desligamento pontual.
+      await rodarCandidatosSemBens(data.ano, data.ativarCandidatoSemBens ?? true),
       await rodarSerieHistorica(),
       await rodarParlamentarSemMatch(),
     ];

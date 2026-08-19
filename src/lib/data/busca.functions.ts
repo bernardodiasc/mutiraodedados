@@ -173,11 +173,9 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         subtitulo: [r.orgao_nome, "→", r.convenente_nome, r.uf, r.municipio_nome].filter(Boolean).join(" "),
         valor: Number(r.valor ?? 0),
         data: r.data_inicio_vigencia,
-        // Página-tópico /convenios ainda aponta para o Transferegov (repoint na
-        // Fase 3); por ora a busca leva à consulta oficial por número.
-        href: r.numero
-          ? `https://portaldatransparencia.gov.br/convenios/consulta?nrConvenio=${encodeURIComponent(r.numero)}`
-          : "https://portaldatransparencia.gov.br/convenios",
+        // Página interna de detalhe (lê cgu_convenios_cache — mesmo cache
+        // desta busca), com link para a fonte oficial lá dentro.
+        href: `/convenios/${encodeURIComponent(r.id)}`,
       }));
 
     // --- Transferegov / Convênios ---

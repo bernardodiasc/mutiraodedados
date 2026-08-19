@@ -32,7 +32,7 @@ export const revalidarCandidatoViaApi = createServerFn({ method: "POST" })
     z
       .object({
         sq: z.string().regex(/^\d+$/),
-        ano: z.number().int().min(2014).max(2100),
+        ano: z.number().int().min(1998).max(2100),
       })
       .parse(data),
   )

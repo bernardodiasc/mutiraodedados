@@ -1,6 +1,6 @@
 # TSE — Dados Abertos Eleitorais
 
-Quem se candidatou, o que declarou de bens, quantos votos recebeu e de quem veio o dinheiro da campanha. Cobre eleições de **2014 em diante** (gerais e municipais).
+Quem se candidatou, o que declarou de bens, quantos votos recebeu e de quem veio o dinheiro da campanha. Cobre eleições de **1998 em diante** (gerais e municipais). Os pisos variam por arquivo: candidatos e votação desde 1998 (o CDN tem até 1994), bens desde 2006, contas de campanha desde 2012.
 
 - **Página da fonte no site**: `/tse` · hub de exploração em `/eleicoes`
 - **Origem da carga em massa**: [dadosabertos.tse.jus.br](https://dadosabertos.tse.jus.br) (portal CKAN; CSVs zipados por eleição, no CDN `cdn.tse.jus.br`)
@@ -40,7 +40,20 @@ Taxonomia em [qualidade-dados](../qualidade-dados.md); critérios completos na s
 - **O TSE republicou 2014–2024 no layout moderno** (colunas `SQ_`/`DS_`); só as contas de 2014/2016 seguem no layout legado. Os parsers são dirigidos pelo cabeçalho, nunca por posição.
 - **CPF de doador PF vem mascarado da origem** (`***.NNN.NNN-**`) — cruzamentos com pessoa física são impossíveis por desenho; só CNPJs cruzam.
 - **Votação agregada por município** (zonas somadas); seção/zona fora do escopo.
-- **CPF de candidato é público** (Lei de Acesso), mas pode vir como sentinela em alguns registros.
+- **CPF de candidato é público** (Lei de Acesso), mas **o TSE não o divulgou em 2024**: naquele arquivo `NR_CPF_CANDIDATO` vem `-4`/`NÃO DIVULGÁVEL` em todas as linhas e só `NR_TITULO_ELEITORAL_CANDIDATO` vem preenchido (em 2026 os dois voltam). Por isso a chave que liga candidaturas da mesma pessoa é o **título eleitoral**, com o CPF como reforço (`src/lib/data/tse/identidade.ts`). Nunca casar por nome: homônimo é comum e o erro atribuiria o patrimônio de uma pessoa a outra.
+- **2026 está em curso**: candidatos e bens já publicados e crescendo a cada dia (registro até 15/08); votação e prestação de contas ainda não. A aba TSE do admin desabilita o que não existe e explica por quê — detalhes em [tse.ia.md](tse.ia.md).
+- **`tipo_bem_cod`** guarda `CD_TIPO_BEM_CANDIDATO` (tabela Bens e Direitos, dezena = grupo) — é o que permite agrupar bens por categoria sem adivinhar em texto livre. Linhas importadas antes de 2026-08 têm `NULL` e caem no fallback por descrição.
+
+## Evolução patrimonial
+
+A ficha do candidato traz o **histórico de candidaturas** da mesma pessoa (patrimônio declarado por eleição, variação e minigráfico) e um **comparador** entre duas candidaturas (total, agregado por categoria e as duas listas de bens lado a lado).
+
+Regras que valem para quem for mexer nisso:
+
+- **Valores nominais, sempre com aviso.** Não há correção monetária; parte de qualquer crescimento é inflação do período. Correção por IPCA é fase posterior, junto com o deflator dos contratos.
+- **Não parear bens item a item entre anos.** `DS_BEM_CANDIDATO` é texto livre; o pareamento erra e o erro vira acusação falsa. A comparação para no nível de categoria.
+- **`null` ≠ `0`.** Patrimônio nulo é "não declarou, ou os bens desse ano não foram importados"; zero é declaração de patrimônio zero. A UI mostra os dois de formas visivelmente diferentes, e nenhuma camada faz `?? 0`.
+- Declarações são **autodeclaradas ao TSE** no registro da candidatura, sem obrigação de atualização — crescimento atípico pode ter explicação legítima (herança, venda de empresa, correção de declaração).
 
 ## Materiais de apoio
 

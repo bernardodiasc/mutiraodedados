@@ -20,25 +20,38 @@
 export const PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
 
 /**
- * Parser único de valor monetário do Portal. Number passa direto;
- * string é normalizada como pt-BR ("1.234,56", "60.000") ou decimal
- * americano ("106226.64"). Nada de regras de escala.
+ * Parser de valor monetário do Portal com diagnóstico de ambiguidade.
+ * Number passa direto; string é normalizada como pt-BR ("1.234,56",
+ * "60.000") ou decimal americano ("106226.64"). Nada de regras de escala.
+ *
+ * `milharAmbiguo`: uma string com UM único grupo ".ddd" ("576.000") é
+ * indecidível sem contexto — pode ser milhar pt-BR (576000, caso real
+ * documentado da CGU: "60.000") ou decimal americano de 3 casas (576.0).
+ * Mantemos a leitura pt-BR, mas sinalizamos para os consumidores anexarem a
+ * ambiguidade aos findings. Com ≥ 2 grupos ("1.234.567") a leitura de milhar
+ * é inequívoca.
  */
-export function parseValorPortal(v: unknown): number {
-  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  if (typeof v !== "string") return 0;
+export function parseValorPortalDetalhado(v: unknown): { valor: number; milharAmbiguo: boolean } {
+  if (typeof v === "number") return { valor: Number.isFinite(v) ? v : 0, milharAmbiguo: false };
+  if (typeof v !== "string") return { valor: 0, milharAmbiguo: false };
   const s = v.trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
-  if (!s) return 0;
+  if (!s) return { valor: 0, milharAmbiguo: false };
   // pt-BR com vírgula decimal: "1.234.567,89" → "1234567.89".
   // pt-BR sem centavos: "60.000" → "60000" (sem isso, Number("60.000")=60).
   const pareceMilharPtBr = /^\d{1,3}(\.\d{3})+$/.test(s);
+  const milharAmbiguo = !s.includes(",") && /^\d{1,3}\.\d{3}$/.test(s);
   const normalizado = s.includes(",")
     ? s.replace(/\./g, "").replace(",", ".")
     : pareceMilharPtBr
       ? s.replace(/\./g, "")
     : s;
   const n = Number(normalizado);
-  return Number.isFinite(n) ? n : 0;
+  return { valor: Number.isFinite(n) ? n : 0, milharAmbiguo };
+}
+
+/** Atalho: só o número (ver `parseValorPortalDetalhado`). */
+export function parseValorPortal(v: unknown): number {
+  return parseValorPortalDetalhado(v).valor;
 }
 
 /**

@@ -24,7 +24,7 @@ export const Route = createFileRoute("/eleicoes/candidatos/")({
       {
         property: "og:description",
         content:
-          "Candidaturas de 2014 em diante com bens, votos e situação — dados oficiais do TSE.",
+          "Candidaturas de 1998 em diante com bens, votos e situação — dados oficiais do TSE.",
       },
       { property: "og:url", content: "https://mutiraodedados.com.br/eleicoes/candidatos" },
     ],

@@ -60,6 +60,36 @@ export type CguContratoLike = {
  * abrimos um alerta `fornecedor_ausente` para investigação. */
 export const CNPJ_FORNECEDOR_AUSENTE = "SIGILOSO";
 
+/** Escala de ponto-fixo detectada entre duas leituras (÷100/1000/10000). */
+export type EscalaTruncamento = 100 | 1000 | 10000;
+
+/**
+ * Identifica se a razão entre dois valores positivos é ≈ uma potência de 10
+ * conhecida do bug de escala da CGU (100/1000/10000), com tolerância de 2%.
+ * Serve de evidência ("qual escala truncou") — a decisão de valor continua
+ * sendo da razão ≥ 100× em `valorAutoritativoCgu`.
+ */
+export function razaoEscala(a: number, b: number): EscalaTruncamento | null {
+  if (!(a > 0) || !(b > 0)) return null;
+  const razao = Math.max(a, b) / Math.min(a, b);
+  for (const esc of [100, 1000, 10000] as const) {
+    if (Math.abs(razao - esc) <= esc * 0.02) return esc;
+  }
+  return null;
+}
+
+/** Uma leitura crua de valor feita num endpoint da CGU (auditoria do bug de
+ * escala). Anexada em `detalhes.evidencia_bruta` dos findings de valor. */
+export type LeituraValorCgu = {
+  origem: "listagem" | "detalhe";
+  valorFinal: number;
+  valorInicial: number;
+  /** ISO timestamp da leitura. */
+  em: string;
+  /** Trecho do JSON cru da resposta (≤ ~600 chars), quando disponível. */
+  rawSnippet?: string;
+};
+
 /**
  * Valor autoritativo do contrato a partir das duas leituras (listagem e
  * detalhe). O bug de escala (÷100/1000/10000) trunca o valor em QUALQUER um dos
@@ -69,22 +99,25 @@ export const CNPJ_FORNECEDOR_AUSENTE = "SIGILOSO";
  * (razão ≥ 100×), o correto — o que bate com o documento oficial — é o
  * NÃO-truncado (o maior). Senão, confia no detalhe (referência). Garante nunca
  * gravar o valor truncado, independentemente de qual endpoint veio defeituoso.
- * Usado tanto no ingest (varredura) quanto na re-checagem manual, para que a
- * manual nunca re-introduza um valor que a automática corrigiu.
+ * Usado no ingest (varredura) e nas re-checagens (unitária e em lote), para que
+ * nenhum caminho re-introduza um valor que outro corrigiu.
+ * Limitação documentada: se as DUAS leituras vierem truncadas na mesma escala
+ * (razão ≈ 1), não há como detectar só com elas — o valor gravado é o que a
+ * API devolver (ver docs/qualidade-dados.md).
  */
 export function valorAutoritativoCgu(
   valorListagem: number,
   valorDetalhe: number,
-): { valor: number; truncado: number | null } {
+): { valor: number; truncado: number | null; razao: EscalaTruncamento | null } {
   const l = valorListagem > 0 ? valorListagem : 0;
   const d = valorDetalhe > 0 ? valorDetalhe : 0;
   if (l > 0 && d > 0) {
     const maior = Math.max(l, d);
     const menor = Math.min(l, d);
-    if (maior / menor >= 100) return { valor: maior, truncado: menor };
-    return { valor: d, truncado: null };
+    if (maior / menor >= 100) return { valor: maior, truncado: menor, razao: razaoEscala(l, d) };
+    return { valor: d, truncado: null, razao: null };
   }
-  return { valor: d > 0 ? d : l, truncado: null };
+  return { valor: d > 0 ? d : l, truncado: null, razao: null };
 }
 
 /**
@@ -93,7 +126,10 @@ export function valorAutoritativoCgu(
  * trunca o valor em QUALQUER um dos dois endpoints; gravamos sempre o valor
  * NÃO-truncado (o que bate com o documento oficial). Quando há essa correção,
  * este alerta fica como registro do defeito — já nasce resolvido
- * (`corrigido_automaticamente`). É criado no ingest, NÃO em `regrasCgu`.
+ * (`corrigido_automaticamente`) e com severidade `info`: o dado gravado está
+ * correto; o finding é evidência histórica da falha intermitente da API
+ * (`detalhes.evidencia_bruta` guarda as leituras cruas com timestamps).
+ * É criado no ingest, NÃO em `regrasCgu`.
  */
 export function findingValorCorrigidoListagem(args: {
   id: string;
@@ -106,13 +142,18 @@ export function findingValorCorrigidoListagem(args: {
   valor_listagem?: number | null;
   valor_detalhe?: number | null;
   pagina_varredura?: number | null;
+  /** Escala de ponto-fixo detectada (100/1000/10000), quando identificável. */
+  razao?: EscalaTruncamento | null;
+  /** Leituras cruas com timestamp — prova da intermitência da API. */
+  evidencia_bruta?: LeituraValorCgu[];
 }): QaFinding {
   return {
     fonte: "cgu",
     entidade_tipo: "contrato",
     entidade_id: args.id,
     regra: "valor_corrigido_listagem",
-    severidade: "critico",
+    tipo: "qualidade",
+    severidade: "info",
     // valor_armazenado = valor DEFEITUOSO (truncado); valor_esperado = valor
     // correto, já gravado no cache.
     valor_armazenado: args.valor_truncado,
@@ -125,6 +166,8 @@ export function findingValorCorrigidoListagem(args: {
       valor_correto: args.valor_correto,
       valor_listagem: args.valor_listagem ?? null,
       valor_detalhe: args.valor_detalhe ?? null,
+      razao_escala: args.razao ?? null,
+      evidencia_bruta: args.evidencia_bruta ?? [],
       campos_suspeitos: ["valorFinalCompra"],
       motivo:
         "a fonte (listagem ou detalhe) trouxe o valor truncado por escala; gravamos o valor não-truncado, que bate com o documento oficial",
@@ -145,6 +188,7 @@ export function findingFornecedorAusente(args: {
     entidade_tipo: "contrato",
     entidade_id: args.id,
     regra: "fornecedor_ausente",
+    tipo: "qualidade",
     severidade: "aviso",
     status: "aberto",
     detalhes: {
@@ -186,6 +230,7 @@ export function regrasCgu(
         entidade_tipo: "contrato",
         entidade_id: r.id,
         regra: "discrepancia_extrema_inicial_final",
+        tipo: "qualidade",
         severidade: finalMaior ? "critico" : "aviso",
         valor_armazenado: finalMaior ? final : inicial,
         valor_esperado: finalMaior ? inicial : final,
@@ -209,6 +254,7 @@ export function regrasCgu(
         entidade_tipo: "contrato",
         entidade_id: r.id,
         regra: "valor_muito_baixo",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: final,
         detalhes: {
@@ -248,13 +294,17 @@ export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
     const ano = Number(r.ano ?? 0);
 
     // Licitação revogada/anulada/fracassada/deserta — sinal de certame
-    // abandonado (gasto planejado que não se concretizou).
+    // abandonado (gasto planejado que não se concretizou). O dado está correto
+    // e completo; o que se aponta é um padrão que merece atenção humana —
+    // por isso é sinal INVESTIGATIVO (taxonomia em docs/qualidade-dados.md),
+    // não defeito de qualidade. Nasce sempre 'aviso'.
     if (r.situacao && RX_LICITACAO_SEM_DESFECHO.test(r.situacao)) {
       out.push({
         fonte: "cgu_licitacoes",
         entidade_tipo: "licitacao",
         entidade_id: r.id,
         regra: "licitacao_sem_desfecho",
+        tipo: "investigativo",
         severidade: "aviso",
         detalhes: { situacao: r.situacao, orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["situacaoCompra"] },
       });
@@ -267,6 +317,7 @@ export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
         entidade_tipo: "licitacao",
         entidade_id: r.id,
         regra: "data_abertura_ausente",
+        tipo: "qualidade",
         severidade: "aviso",
         detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["dataAbertura"] },
       });
@@ -277,6 +328,7 @@ export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
         entidade_tipo: "licitacao",
         entidade_id: r.id,
         regra: "ano_invalido",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: ano,
         detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["dataAbertura"] },
@@ -290,9 +342,27 @@ export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
         entidade_tipo: "licitacao",
         entidade_id: r.id,
         regra: "valor_negativo",
+        tipo: "qualidade",
         severidade: "critico",
         valor_armazenado: valor,
         detalhes: { orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["valor"] },
+      });
+    }
+
+    // Valor ínfimo (> 0 e < R$ 100): licitações não têm endpoint de detalhe
+    // por item para conferência cruzada, então o mesmo bug de escala da CGU
+    // (÷100/1000/10000) fica visível apenas por este padrão — espelho do
+    // `valor_truncado_suspeito` do Transferegov.
+    if (valor > 0 && valor < 100) {
+      out.push({
+        fonte: "cgu_licitacoes",
+        entidade_tipo: "licitacao",
+        entidade_id: r.id,
+        regra: "valor_truncado_suspeito",
+        tipo: "qualidade",
+        severidade: "aviso",
+        valor_armazenado: valor,
+        detalhes: { limite: 100, orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["valor"] },
       });
     }
   }
@@ -326,6 +396,7 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         entidade_tipo: "emenda",
         entidade_id: r.id,
         regra: "pago_maior_empenhado",
+        tipo: "qualidade",
         severidade: "critico",
         valor_armazenado: pago,
         valor_esperado: emp,
@@ -339,6 +410,7 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         entidade_tipo: "emenda",
         entidade_id: r.id,
         regra: "liquidado_maior_empenhado",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: liq,
         valor_esperado: emp,
@@ -352,8 +424,23 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         entidade_tipo: "emenda",
         entidade_id: r.id,
         regra: "valor_negativo",
+        tipo: "qualidade",
         severidade: "critico",
         detalhes: { valor_empenhado: emp, valor_liquidado: liq, valor_pago: pago },
+      });
+    }
+    // Empenho ínfimo (> 0 e < R$ 100): sem endpoint de detalhe por emenda,
+    // o bug de escala da CGU só fica visível por este padrão.
+    if (emp > 0 && emp < 100) {
+      out.push({
+        fonte: "cgu_emendas",
+        entidade_tipo: "emenda",
+        entidade_id: r.id,
+        regra: "valor_truncado_suspeito",
+        tipo: "qualidade",
+        severidade: "aviso",
+        valor_armazenado: emp,
+        detalhes: { limite: 100, valor_liquidado: liq, valor_pago: pago, campos_suspeitos: ["valorEmpenhado"] },
       });
     }
   }
@@ -383,6 +470,7 @@ export function regrasCguConvenios(rows: CguConvenioLike[]): QaFinding[] {
         entidade_tipo: "convenio",
         entidade_id: r.id,
         regra: "liberado_maior_global",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: liberado,
         valor_esperado: valor,
@@ -395,8 +483,23 @@ export function regrasCguConvenios(rows: CguConvenioLike[]): QaFinding[] {
         entidade_tipo: "convenio",
         entidade_id: r.id,
         regra: "valor_negativo",
+        tipo: "qualidade",
         severidade: "critico",
         detalhes: { valor_global: valor, valor_liberado: liberado },
+      });
+    }
+    // Valor global ínfimo (> 0 e < R$ 100): sem endpoint de detalhe por
+    // convênio, o bug de escala da CGU só fica visível por este padrão.
+    if (valor > 0 && valor < 100) {
+      out.push({
+        fonte: "cgu_convenios",
+        entidade_tipo: "convenio",
+        entidade_id: r.id,
+        regra: "valor_truncado_suspeito",
+        tipo: "qualidade",
+        severidade: "aviso",
+        valor_armazenado: valor,
+        detalhes: { limite: 100, valor_liberado: liberado, campos_suspeitos: ["valor"] },
       });
     }
   }
@@ -420,6 +523,7 @@ export function regrasPncp(rows: PncpContratoLike[]): QaFinding[] {
         entidade_tipo: "contrato",
         entidade_id: r.id,
         regra: "valor_global_menor_inicial",
+        tipo: "qualidade",
         severidade: "critico",
         valor_armazenado: global,
         detalhes: { valor_inicial: inicial },
@@ -432,6 +536,7 @@ export function regrasPncp(rows: PncpContratoLike[]): QaFinding[] {
         entidade_tipo: "contrato",
         entidade_id: r.id,
         regra: "valor_global_zerado",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: global,
         detalhes: { valor_inicial: inicial },
@@ -459,6 +564,7 @@ export function regrasCamaraCeap(rows: CamaraDespesaLike[]): QaFinding[] {
         entidade_tipo: "despesa",
         entidade_id: r.id,
         regra: "liquido_maior_documento",
+        tipo: "qualidade",
         severidade: "critico",
         valor_armazenado: liq,
         valor_esperado: doc,
@@ -485,6 +591,7 @@ export function regrasSenadoCeaps(rows: SenadoDespesaLike[]): QaFinding[] {
         entidade_tipo: "despesa",
         entidade_id: r.id,
         regra: "valor_negativo",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: v,
         detalhes: { senador_id: r.senador_id },
@@ -511,6 +618,7 @@ export function regrasTransferegov(rows: TransferegovLike[]): QaFinding[] {
         entidade_tipo: "instrumento",
         entidade_id: r.id,
         regra: "repasse_maior_global",
+        tipo: "qualidade",
         severidade: "critico",
         valor_armazenado: rep,
         valor_esperado: glob,
@@ -526,6 +634,7 @@ export function regrasTransferegov(rows: TransferegovLike[]): QaFinding[] {
         entidade_tipo: "instrumento",
         entidade_id: r.id,
         regra: "valor_truncado_suspeito",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: glob,
         detalhes: { limite: 100, valor_repasse: rep },
@@ -554,6 +663,7 @@ export function regrasSiconfi(rows: SiconfiLike[]): QaFinding[] {
         entidade_tipo: "linha_relatorio",
         entidade_id: r.id,
         regra: "valor_negativo_em_conta_positiva",
+        tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: v,
         detalhes: { conta: r.conta, tipo_relatorio: r.tipo_relatorio },
@@ -570,11 +680,24 @@ export function regrasSiconfi(rows: SiconfiLike[]): QaFinding[] {
 export async function flagQA(findings: QaFinding[]): Promise<number> {
   if (findings.length === 0) return 0;
 
+  // Dedup intra-lote pela chave de idempotência (fonte, entidade_id, regra):
+  // duas ocorrências da mesma chave no mesmo array violariam a constraint
+  // única e derrubariam o INSERT do lote inteiro. Vale o primeiro finding.
+  const vistos = new Set<string>();
+  const unicos: QaFinding[] = [];
+  for (const f of findings) {
+    const k = `${f.fonte}|${f.entidade_id}|${f.regra}`;
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    unicos.push(f);
+  }
+
   // Quando o filtro fica gigante, processamos em lotes.
   const LOTE = 50;
   let inseridos = 0;
-  for (let i = 0; i < findings.length; i += LOTE) {
-    const slice = findings.slice(i, i + LOTE);
+  const errosEscrita: string[] = [];
+  for (let i = 0; i < unicos.length; i += LOTE) {
+    const slice = unicos.slice(i, i + LOTE);
     const filtroLote = slice
       .map(
         (k) =>
@@ -603,56 +726,101 @@ export async function flagQA(findings: QaFinding[]): Promise<number> {
         x.existente?.status === "aberto",
       );
     if (novos.length > 0) {
-      const { error } = await supabaseAdmin.from("qa_findings").insert(
-        novos.map((f) => ({
-          fonte: f.fonte,
-          entidade_tipo: f.entidade_tipo,
-          entidade_id: f.entidade_id,
-          regra: f.regra,
-          tipo: f.tipo ?? "qualidade",
-          severidade: f.severidade,
-          origem: f.origem ?? "heuristica",
-          valor_armazenado: f.valor_armazenado ?? null,
-          valor_esperado: f.valor_esperado ?? null,
-          detalhes: (f.detalhes ?? {}) as never,
-          status: f.status ?? "aberto",
-          // Findings que já nascem resolvidos carregam a data de resolução.
-          // `corrigido_origem` = a API corrigiu numa reimportação;
-          // `corrigido_automaticamente` = a conferência por detalhe corrigiu o
-          // valor no site (ex.: alerta `valor_corrigido_listagem`).
-          resolvido_em:
-            f.status === "corrigido_origem" || f.status === "corrigido_automaticamente"
-              ? new Date().toISOString()
-              : null,
-        })),
-      );
-      if (!error) inseridos += novos.length;
+      const payload = novos.map((f) => ({
+        fonte: f.fonte,
+        entidade_tipo: f.entidade_tipo,
+        entidade_id: f.entidade_id,
+        regra: f.regra,
+        tipo: f.tipo ?? "qualidade",
+        severidade: f.severidade,
+        origem: f.origem ?? "heuristica",
+        valor_armazenado: f.valor_armazenado ?? null,
+        valor_esperado: f.valor_esperado ?? null,
+        detalhes: (f.detalhes ?? {}) as never,
+        status: f.status ?? "aberto",
+        // Findings que já nascem resolvidos carregam a data de resolução.
+        // `corrigido_origem` = a API corrigiu numa reimportação;
+        // `corrigido_automaticamente` = a conferência por detalhe corrigiu o
+        // valor no site (ex.: alerta `valor_corrigido_listagem`).
+        resolvido_em:
+          f.status === "corrigido_origem" || f.status === "corrigido_automaticamente"
+            ? new Date().toISOString()
+            : null,
+      }));
+      const { error } = await supabaseAdmin.from("qa_findings").insert(payload);
+      if (!error) {
+        inseridos += novos.length;
+      } else {
+        // O INSERT em lote falhou (ex.: corrida com outra importação que
+        // inseriu a mesma chave entre o check e o insert). Recupera linha a
+        // linha: duplicata (23505) é a corrida esperada e é tolerada; outros
+        // erros são acumulados e propagados ao final.
+        for (const linha of payload) {
+          const { error: e1 } = await supabaseAdmin.from("qa_findings").insert(linha);
+          if (!e1) inseridos++;
+          else if (e1.code !== "23505")
+            errosEscrita.push(`${linha.fonte}|${linha.entidade_id}|${linha.regra}: ${e1.message}`);
+        }
+      }
     }
     for (const { finding, existente } of existentesAbertos) {
-      await supabaseAdmin
+      const { error: e2 } = await supabaseAdmin
         .from("qa_findings")
         .update({
+          // Regras híbridas (ex.: eleito_sem_prestacao_contas) mudam de
+          // veredito entre execuções — o tipo acompanha a detecção atual.
+          tipo: finding.tipo ?? "qualidade",
           severidade: finding.severidade,
           valor_armazenado: finding.valor_armazenado ?? null,
           valor_esperado: finding.valor_esperado ?? null,
           detalhes: (finding.detalhes ?? {}) as never,
         })
         .eq("id", existente.id);
+      if (e2)
+        errosEscrita.push(
+          `${finding.fonte}|${finding.entidade_id}|${finding.regra}: ${e2.message}`,
+        );
     }
+  }
+  if (errosEscrita.length > 0) {
+    const amostra = errosEscrita.slice(0, 3).join("; ");
+    throw new Error(
+      `flagQA: ${errosEscrita.length} erro(s) de escrita em qa_findings (${amostra}${errosEscrita.length > 3 ? "; …" : ""})`,
+    );
   }
   return inseridos;
 }
 
-function cguAindaSuspeito(regra: string, final: number, inicial: number): boolean {
+/**
+ * Verifica se uma regra CGU de contrato ainda se aplica aos valores atuais do
+ * cache. Fonte única para a reconciliação do ingest (`sincronizarQaCgu`) e
+ * para as re-checagens manuais (unitária e em lote) em qa.functions.ts.
+ */
+export function cguAindaSuspeito(
+  regra: string,
+  final: number,
+  inicial: number,
+  opts?: {
+    /**
+     * O que fazer com regra desconhecida/aposentada (ex.: possivel_ponto_fixo,
+     * valor_precisao_suspeita, que podem existir abertas no banco):
+     * - `true` (default) — conservador: segue "suspeita", não fecha
+     *   automaticamente. Usado pela reconciliação do ingest.
+     * - `false` — a re-checagem manual contra a API decide: se o valor oficial
+     *   coincide com o cache vira falso positivo; se difere, corrige.
+     */
+    regraDesconhecidaContaComoSuspeita?: boolean;
+  },
+): boolean {
   if (regra === "discrepancia_extrema_inicial_final") return inicial > 0 && final > 0 && (inicial >= final * 1000 || final >= inicial * 1000);
   if (regra === "valor_muito_baixo") return final > 0 && final < 100;
+  // Aposentada, mas pode existir aberta no banco — mantém a semântica original.
+  if (regra === "valor_final_truncado_suspeito") return final > 0 && final < 100 && inicial > 1000;
   // `valor_corrigido_listagem` é um registro histórico já resolvido — a
   // reconciliação só roda sobre findings 'aberto', então nunca chega aqui;
-  // por segurança, nunca o reabrimos. Regras legadas/desconhecidas
-  // (valor_precisao_suspeita, valor_final_truncado_suspeito) caem no default
-  // conservador e não são fechadas automaticamente.
+  // por segurança, nunca o reabrimos.
   if (regra === "valor_corrigido_listagem") return false;
-  return true; // regra desconhecida: conservador, não fecha automaticamente
+  return opts?.regraDesconhecidaContaComoSuspeita ?? true;
 }
 
 /**

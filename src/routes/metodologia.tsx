@@ -107,7 +107,7 @@ const SECOES: Secao[] = [
         hipotese:
           "Sucessão de dispensas de licitação logo abaixo do teto legal sugere segmentação intencional para evitar procedimento competitivo — vedado pela Lei 14.133/2021.",
         parametros:
-          "≥ 5 contratos por dispensa, mesmo órgão + mesmo fornecedor + mesmo ano, todos abaixo do teto vigente (R$ 17.600 para bens e serviços comuns).",
+          "≥ 5 contratos por dispensa, mesmo órgão + mesmo fornecedor + mesmo ano, todos abaixo do teto de dispensa VIGENTE NA DATA de cada contrato (Lei 8.666: R$ 8.000; Decreto 9.412/2018: R$ 17.600; Lei 14.133/2021: R$ 50.000, atualizado por decreto anual — registro histórico é avaliado pelo limite da sua época).",
         limites:
           "Não acessa o termo de referência. Não diferencia objeto distinto contratado em sequência (compras avulsas legítimas) de fracionamento real.",
         falsosPositivos:
@@ -193,7 +193,7 @@ const SECOES: Secao[] = [
         hipotese:
           "A API da CGU tem um defeito conhecido de escala (÷100/1000/10000) que trunca valores tanto na listagem quanto no detalhe. Conferimos cada contrato contra o endpoint de detalhe e gravamos sempre o valor não-truncado.",
         parametros:
-          "Razão ≥ 100× entre as duas leituras do mesmo contrato → grava o maior (que bate com o documento oficial) e registra o alerta já resolvido.",
+          "Razão ≥ 100× entre as duas leituras do mesmo contrato → grava o maior (que bate com o documento oficial) e registra o alerta já resolvido, com severidade info e as leituras cruas (evidência da intermitência da API) nos detalhes.",
         limites:
           "Depende de as duas leituras estarem disponíveis; contratos antigos podem não ter detalhe.",
         falsosPositivos:
@@ -206,13 +206,15 @@ const SECOES: Secao[] = [
     icon: <Vote className="size-5" />,
     titulo: "Eleições (TSE)",
     resumo:
-      "Candidatos, bens, votação e contas de campanha de 2014 em diante — com os três tipos de sinal: qualidade, lacunas e cruzamentos investigativos.",
+      "Candidatos, bens, votação e contas de campanha de 1998 em diante — com os três tipos de sinal: qualidade, lacunas e cruzamentos investigativos.",
     notas: (
       <div className="text-sm text-muted-foreground space-y-2">
         <p>
-          <strong className="text-foreground">Janela temporal:</strong> eleições de 2014 em diante
-          (formatos anteriores a 2014 são muito diferentes e ficaram fora do escopo). Contas de
-          2014/2016 vêm em layout legado da própria origem.
+          <strong className="text-foreground">Janela temporal:</strong> eleições de 1998 em diante.
+          O piso muda conforme o arquivo, porque o TSE começou a publicar cada um em um momento:
+          candidaturas e votação existem desde 1998 (no site do TSE há até 1994), bens declarados a
+          partir de 2006 e contas de campanha a partir de 2012. Contas de 2012 a 2016 vêm em layout
+          legado da própria origem.
         </p>
         <p>
           <strong className="text-foreground">Agregação de resultados:</strong> a votação é agregada
@@ -315,9 +317,8 @@ const SECOES: Secao[] = [
         hipotese:
           "A declaração de bens é obrigatória no registro de candidatura — mesmo 'sem bens' deveria gerar registro; ausência total é lacuna.",
         parametros:
-          "Candidato apto sem nenhuma linha de bens no ano. Regra desativada por padrão até confirmarmos, ano a ano, se 'sem bens' gera registro no CSV.",
-        limites:
-          "O comportamento da origem varia por ano — por isso a ativação é manual e auditada.",
+          "Candidato apto sem nenhuma linha de bens no ano. Roda por padrão; pode ser desligada pontualmente num ano em que 'sem bens' comprovadamente não gere registro no CSV.",
+        limites: "O comportamento da origem varia por ano — o desligamento pontual é auditado.",
         falsosPositivos: "Anos em que declaração vazia legitimamente não gera linha no CSV.",
       },
       {

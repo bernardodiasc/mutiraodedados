@@ -2,8 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { parseValorPortal } from "@/lib/data/real/portal-client";
+import { parseValorPortal, portalGet } from "@/lib/data/real/portal-client";
 import {
+  regrasCguLicitacoes,
+  regrasCguEmendas,
+  regrasCguConvenios,
   regrasPncp,
   regrasCamaraCeap,
   regrasSenadoCeaps,
@@ -12,6 +15,7 @@ import {
   sincronizarQaCgu,
   flagQA,
   valorAutoritativoCgu,
+  cguAindaSuspeito,
   type QaFonte,
 } from "./qa";
 import type {
@@ -141,6 +145,7 @@ type FindingRow = {
   regra: string;
   severidade: string;
   origem: string;
+  tipo?: string | null;
   valor_armazenado: number | null;
   valor_esperado: number | null;
   status: string;
@@ -280,6 +285,7 @@ function rowToAnomalia(r: FindingRow): AnomaliaInput {
     fonte: r.fonte,
     severidade: (r.severidade as AnomaliaSeveridade) ?? "aviso",
     status: (r.status as AnomaliaStatus) ?? "aberto",
+    tipo_sinal: (r.tipo as AnomaliaInput["tipo_sinal"]) ?? "qualidade",
     regra: r.regra,
     resumo: r.regra,
     entidade: {
@@ -319,6 +325,8 @@ export const listarQualidadePublico = createServerFn({ method: "POST" })
         fontes: z.array(z.string().min(1).max(40)).max(20).optional(),
         statuses: z.array(z.string().min(1).max(40)).max(20).optional(),
         regras: z.array(z.string().min(1).max(120)).max(40).optional(),
+        // Filtro pelos 3 tipos de sinal (qualidade | lacuna | investigativo).
+        tipos: z.array(z.enum(["qualidade", "lacuna", "investigativo"])).max(3).optional(),
         limit: z.number().int().min(1).max(500).default(200),
       })
       .parse(input ?? {}),
@@ -329,7 +337,7 @@ export const listarQualidadePublico = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("qa_findings")
       .select(
-        "id,fonte,entidade_tipo,entidade_id,regra,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em",
+        "id,fonte,entidade_tipo,entidade_id,regra,tipo,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em",
       )
       .not(
         "origem",
@@ -339,6 +347,7 @@ export const listarQualidadePublico = createServerFn({ method: "POST" })
     if (data.fontes && data.fontes.length > 0) q = q.in("fonte", data.fontes);
     if (data.statuses && data.statuses.length > 0) q = q.in("status", data.statuses);
     if (data.regras && data.regras.length > 0) q = q.in("regra", data.regras);
+    if (data.tipos && data.tipos.length > 0) q = q.in("tipo", data.tipos);
     // Busca um teto generoso por recência e ordena por severidade no servidor de
     // app, para não cortar críticos antigos antes de ordenar.
     const { data: rows, error } = await q
@@ -446,7 +455,7 @@ export const agregadoQualidade = createServerFn({ method: "GET" }).handler(
     // Recalcula em JS pra poder excluir as origens não-qualidade.
     const { data, error } = await supabaseAdmin
       .from("qa_findings")
-      .select("fonte, status, severidade, origem, regra")
+      .select("fonte, status, severidade, origem, regra, tipo")
       .not(
         "origem",
         "in",
@@ -465,6 +474,7 @@ export const agregadoQualidade = createServerFn({ method: "GET" }).handler(
     const porFonte: Record<string, number> = {};
     const porStatus: Record<string, number> = {};
     const porRegra: Record<string, number> = {};
+    const porTipo: Record<string, number> = {};
     for (const r of data ?? []) {
       const f = (r.fonte as string) || "—";
       const cur =
@@ -479,6 +489,8 @@ export const agregadoQualidade = createServerFn({ method: "GET" }).handler(
       porFonte[f] = (porFonte[f] ?? 0) + 1;
       porStatus[s] = (porStatus[s] ?? 0) + 1;
       if (rg) porRegra[rg] = (porRegra[rg] ?? 0) + 1;
+      const t = ((r as { tipo?: string | null }).tipo as string) || "qualidade";
+      porTipo[t] = (porTipo[t] ?? 0) + 1;
     }
     return {
       fontes: Array.from(agg.values()),
@@ -486,6 +498,7 @@ export const agregadoQualidade = createServerFn({ method: "GET" }).handler(
       porFonte,
       porStatus,
       porRegra,
+      porTipo,
     };
   },
 );
@@ -506,7 +519,7 @@ export const findingsPorEntidade = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("qa_findings")
       .select(
-        "id,fonte,entidade_tipo,entidade_id,regra,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em",
+        "id,fonte,entidade_tipo,entidade_id,regra,tipo,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em",
       )
       .eq("fonte", data.fonte)
       .eq("entidade_tipo", data.entidade_tipo)
@@ -533,6 +546,7 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
         fonte: z.string().optional(),
         status: z.string().optional(),
         regra: z.string().optional(),
+        tipo: z.enum(["qualidade", "lacuna", "investigativo"]).optional(),
         limit: z.number().int().min(1).max(500).default(200),
       })
       .parse(input ?? {}),
@@ -542,7 +556,7 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
     let q = supabaseAdmin
       .from("qa_findings")
       .select(
-        "id,fonte,entidade_tipo,entidade_id,regra,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em,notas_admin,detalhes",
+        "id,fonte,entidade_tipo,entidade_id,regra,tipo,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em,notas_admin,detalhes",
       )
       .not(
         "origem",
@@ -555,6 +569,7 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
     if (data.fonte) q = q.eq("fonte", data.fonte);
     if (data.status) q = q.eq("status", data.status);
     if (data.regra) q = q.eq("regra", data.regra);
+    if (data.tipo) q = q.eq("tipo", data.tipo);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
     const lista = rows ?? [];
@@ -916,6 +931,9 @@ export const aplicarHeuristicasFonte = createServerFn({ method: "POST" })
       .object({
         fonte: z.enum([
           "cgu",
+          "cgu_licitacoes",
+          "cgu_emendas",
+          "cgu_convenios",
           "pncp",
           "camara_ceap",
           "senado_ceaps",
@@ -938,6 +956,24 @@ export const aplicarHeuristicasFonte = createServerFn({ method: "POST" })
       totalAnalisado = rows?.length ?? 0;
       const qa = await sincronizarQaCgu((rows ?? []).map((r) => String(r.id)));
       inseridos = qa.inseridos;
+    } else if (fonte === "cgu_licitacoes") {
+      const { data: rows } = await supabaseAdmin
+        .from("cgu_licitacoes_cache")
+        .select("id, valor, situacao, data_abertura, ano, orgao_cod");
+      totalAnalisado = rows?.length ?? 0;
+      inseridos = await flagQA(regrasCguLicitacoes(rows ?? []));
+    } else if (fonte === "cgu_emendas") {
+      const { data: rows } = await supabaseAdmin
+        .from("cgu_transferegov_emendas_cache")
+        .select("id, valor_empenhado, valor_liquidado, valor_pago, ano");
+      totalAnalisado = rows?.length ?? 0;
+      inseridos = await flagQA(regrasCguEmendas(rows ?? []));
+    } else if (fonte === "cgu_convenios") {
+      const { data: rows } = await supabaseAdmin
+        .from("cgu_convenios_cache")
+        .select("id, valor, valor_liberado, situacao");
+      totalAnalisado = rows?.length ?? 0;
+      inseridos = await flagQA(regrasCguConvenios(rows ?? []));
     } else if (fonte === "pncp") {
       const { data: rows } = await supabaseAdmin
         .from("pncp_contratos_cache")
@@ -1023,16 +1059,11 @@ function detalhesRevalidacao(
   } as never;
 }
 
+// Via portal-client: UA de browser, accept-language e retry em transientes —
+// os mesmos headers do ingest. O fetch cru daqui era mais suscetível à
+// degradação de escala da CGU (÷10000) do que a própria varredura.
 async function portalGetDetalhe(id: string): Promise<PortalContratoDetalhe> {
-  const key = process.env.PORTAL_TRANSPARENCIA_API_KEY;
-  if (!key) throw new Error("PORTAL_TRANSPARENCIA_API_KEY não configurada.");
-  const url = `https://api.portaldatransparencia.gov.br/api-de-dados/contratos/id?id=${encodeURIComponent(id)}`;
-  const res = await fetch(url, {
-    headers: { "chave-api-dados": key, accept: "application/json" },
-  });
-  if (!res.ok) throw new Error(`Portal detalhe ${res.status}`);
-  const text = await res.text();
-  return JSON.parse(text) as PortalContratoDetalhe;
+  return portalGet<PortalContratoDetalhe>("/contratos/id", { id });
 }
 
 /**
@@ -1055,16 +1086,10 @@ async function portalAcharNaLista(
   pagina: number | null,
 ): Promise<{ item: PortalContratoListaItem; pagina: number } | null> {
   if (!pagina || pagina < 1) return null;
-  const key = process.env.PORTAL_TRANSPARENCIA_API_KEY;
-  if (!key) throw new Error("PORTAL_TRANSPARENCIA_API_KEY não configurada.");
-  const url =
-    `https://api.portaldatransparencia.gov.br/api-de-dados/contratos?` +
-    `codigoOrgao=${encodeURIComponent(codigoOrgao)}&pagina=${pagina}`;
-  const res = await fetch(url, {
-    headers: { "chave-api-dados": key, accept: "application/json" },
+  const arr = await portalGet<PortalContratoListaItem[]>("/contratos", {
+    codigoOrgao,
+    pagina: String(pagina),
   });
-  if (!res.ok) throw new Error(`Portal lista ${res.status} (p${pagina})`);
-  const arr = (await res.json()) as PortalContratoListaItem[];
   if (!Array.isArray(arr)) return null;
   const achado = arr.find((it) => String(it.id ?? "") === alvoId);
   return achado ? { item: achado, pagina } : null;
@@ -1079,28 +1104,6 @@ function fmtBRL(n: number | null | undefined): string {
   });
 }
 
-function regraCguAindaSuspeita(
-  regra: string,
-  valorInicial: number | null | undefined,
-  valorFinal: number | null | undefined,
-): boolean {
-  const inicial = Number(valorInicial ?? 0);
-  const final = Number(valorFinal ?? 0);
-  if (regra === "discrepancia_extrema_inicial_final") {
-    return inicial > 0 && final > 0 && (inicial >= final * 1000 || final >= inicial * 1000);
-  }
-  if (regra === "valor_final_truncado_suspeito") {
-    return final > 0 && final < 100 && inicial > 1000;
-  }
-  if (regra === "valor_muito_baixo") {
-    return final > 0 && final < 100;
-  }
-  // Regras legadas/aposentadas (possivel_ponto_fixo, valor_precisao_suspeita):
-  // caem aqui e retornam false → se o detalhe diferir do cache, o cache é
-  // corrigido; se coincidir, vira falso positivo. Comportamento adequado.
-  return false;
-}
-
 function montarNotaRecheck(args: {
   regra: string;
   valorCacheAtual: number | null;
@@ -1108,7 +1111,7 @@ function montarNotaRecheck(args: {
   valorInicialDetalhe: number;
   valorFinalDetalhe: number;
   lista: { achado: boolean; pagina: number | null; valor_inicial: number | null; valor_final: number | null };
-  resultado: "confirmado" | "falso_positivo" | "corrigido_origem";
+  resultado: "confirmado" | "falso_positivo" | "corrigido_origem" | "inconclusivo";
   cacheAtualizado?: { valor_final: number | null; valor_inicial: number | null } | null;
 }): string {
   const listaFinal = args.lista.achado ? args.lista.valor_final : null;
@@ -1143,9 +1146,196 @@ function montarNotaRecheck(args: {
       ? `• Conclusão: a suspeita (${args.regra}) se confirma no valor oficial do detalhe.${reconciliacaoLista} Segue para revisão/reporte.`
       : args.resultado === "corrigido_origem"
         ? `• Conclusão: o valor oficial (detalhe) difere do cache — cache corrigido com o valor oficial e suspeita resolvida.${reconciliacaoLista}`
-        : `• Conclusão: detalhe não sustenta a suspeita — marcado como falso positivo.${reconciliacaoLista}`,
+        : args.resultado === "inconclusivo"
+          ? `• Conclusão: só o detalhe pôde ser lido (listagem não conferida) e ele diverge do cache — sem confirmação cruzada, nada foi alterado (a leitura única pode ser a resposta degradada da API). Suspeita permanece aberta; repita a re-checagem.`
+          : `• Conclusão: detalhe não sustenta a suspeita — marcado como falso positivo.${reconciliacaoLista}`,
   ];
   return linhas.join("\n");
+}
+
+type FindingCguRow = {
+  id: string;
+  entidade_id: string;
+  regra: string;
+  valor_armazenado: number | null;
+  detalhes: unknown;
+  notas_admin?: string | null;
+};
+
+type ResultadoRecheckCgu = "confirmado" | "corrigido_origem" | "falso_positivo" | "inconclusivo";
+
+/**
+ * Re-checa UM finding CGU contra a API oficial. Lógica ÚNICA usada pela
+ * re-checagem unitária (`revalidarFindingCgu`) e pela em lote
+ * (`revalidarFindingsCgu`) — antes cada caminho decidia o valor de um jeito.
+ *
+ * Decisão de valor idêntica à do ingest (`valorAutoritativoCgu`): o correto é
+ * o NÃO-truncado entre listagem e detalhe. O cache só é corrigido com
+ * confirmação CRUZADA (as duas leituras) — uma leitura única divergente pode
+ * ser justamente a resposta degradada (÷10000) da API, então nesse caso o
+ * resultado é `inconclusivo`: nada é alterado e a suspeita segue aberta.
+ */
+async function revalidarUmFindingCgu(p: FindingCguRow): Promise<{
+  resultado: ResultadoRecheckCgu;
+  valor_armazenado: number;
+  valor_detalhe: number;
+  lista: { achado: boolean; pagina: number | null; valor_inicial: number | null; valor_final: number | null };
+  cache_atualizado: boolean;
+}> {
+  // 1) Detalhe (valor esperado / "verdade" do contrato no Portal), via
+  // portal-client (UA/headers/retry do ingest).
+  const det = await portalGetDetalhe(p.entidade_id);
+  const valorInicialDetalhe = parseValorPortal(det.valorInicialCompra);
+  const valorFinalDetalhe = parseValorPortal(det.valorFinalCompra);
+
+  // 2) Lista paginada — localiza o item pela PÁGINA da varredura (gravada no
+  // finding), já que a CGU não é filtrável por data de assinatura. O delay
+  // entre as duas chamadas segue o racional do ingest (evita a degradação
+  // por rate-limit que produz o ÷10000).
+  const { data: cacheRow } = await supabaseAdmin
+    .from("contratos_cache")
+    .select("id, orgao_cod, data_assinatura, valor, valor_inicial")
+    .eq("id", p.entidade_id)
+    .maybeSingle();
+  const paginaVarredura =
+    (p.detalhes as { pagina_varredura?: number | null } | null | undefined)?.pagina_varredura ??
+    null;
+  let listaInfo = {
+    achado: false,
+    pagina: null as number | null,
+    valor_inicial: null as number | null,
+    valor_final: null as number | null,
+  };
+  const valorCacheAtual = cacheRow?.valor ?? null;
+  const valorInicialCache = cacheRow?.valor_inicial ?? null;
+  if (cacheRow?.orgao_cod && paginaVarredura) {
+    await new Promise((r) => setTimeout(r, 800));
+    try {
+      const achado = await portalAcharNaLista(
+        p.entidade_id,
+        cacheRow.orgao_cod,
+        paginaVarredura,
+      );
+      if (achado) {
+        const vIni = parseValorPortal(achado.item.valorInicialCompra);
+        const vFin = parseValorPortal(achado.item.valorFinalCompra);
+        listaInfo = {
+          achado: true,
+          pagina: achado.pagina,
+          valor_inicial: vIni || null,
+          valor_final: vFin || null,
+        };
+      }
+    } catch {
+      // Falha no endpoint de lista não bloqueia a re-checagem do detalhe —
+      // mas sem a lista não há confirmação cruzada (ver decisão abaixo).
+    }
+  }
+
+  // Valor autoritativo = o NÃO-truncado entre listagem e detalhe (o bug ÷10000
+  // pode estar em qualquer um dos dois). MESMA lógica do ingest.
+  const listFinal = listaInfo.achado ? listaInfo.valor_final ?? 0 : 0;
+  const listInicial = listaInfo.achado ? listaInfo.valor_inicial ?? 0 : 0;
+  const finalAut = valorAutoritativoCgu(listFinal, valorFinalDetalhe);
+  const inicialAut = valorAutoritativoCgu(listInicial, valorInicialDetalhe);
+  const aindaSuspeito = cguAindaSuspeito(p.regra, finalAut.valor, inicialAut.valor, {
+    // Regras aposentadas ainda abertas no banco: a re-checagem decide pela API.
+    regraDesconhecidaContaComoSuspeita: false,
+  });
+  const valorFinalCorreto = finalAut.valor > 0 ? finalAut.valor : inicialAut.valor;
+  const valorInicialCorreto = inicialAut.valor > 0 ? inicialAut.valor : null;
+  // Confirmação cruzada: as DUAS leituras (listagem + detalhe) existem.
+  const leituraCruzada = listaInfo.achado && valorFinalDetalhe > 0;
+
+  // Decisão:
+  // - valor autoritativo ainda suspeito → erro real na origem (confirmado).
+  // - limpo e igual ao cache → suspeita não se sustenta (falso positivo).
+  // - limpo, diferente do cache e COM confirmação cruzada → o cache guardou
+  //   valor errado; corrige com o não-truncado (corrigido_origem).
+  // - limpo, diferente do cache e SEM confirmação cruzada → inconclusivo:
+  //   nada é alterado, a suspeita permanece aberta.
+  let resultado: ResultadoRecheckCgu;
+  let cacheAtualizadoInfo: { valor_final: number | null; valor_inicial: number | null } | null = null;
+  if (aindaSuspeito) {
+    resultado = "confirmado";
+  } else {
+    const difere =
+      valorFinalCorreto > 0 &&
+      (valorCacheAtual == null ||
+        Math.abs(Number(valorCacheAtual) - valorFinalCorreto) >
+          Math.max(1, valorFinalCorreto * 0.001));
+    if (!difere) {
+      resultado = "falso_positivo";
+    } else if (leituraCruzada) {
+      await supabaseAdmin
+        .from("contratos_cache")
+        .update({
+          valor: valorFinalCorreto,
+          valor_inicial: valorInicialCorreto,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", p.entidade_id);
+      cacheAtualizadoInfo = { valor_final: valorFinalCorreto, valor_inicial: valorInicialCorreto };
+      resultado = "corrigido_origem";
+    } else {
+      resultado = "inconclusivo";
+    }
+  }
+
+  // valor_armazenado preserva o valor errado detectado; valor_esperado é o
+  // oficial do detalhe.
+  const valorDetectado =
+    p.valor_armazenado ?? (valorCacheAtual == null ? null : Number(valorCacheAtual)) ?? null;
+  const notaAuto = montarNotaRecheck({
+    regra: p.regra,
+    valorCacheAtual: valorCacheAtual == null ? null : Number(valorCacheAtual),
+    valorInicialCache: valorInicialCache == null ? null : Number(valorInicialCache),
+    valorInicialDetalhe,
+    valorFinalDetalhe,
+    lista: listaInfo,
+    resultado,
+    cacheAtualizado: cacheAtualizadoInfo,
+  });
+  const notasAtual = p.notas_admin ?? "";
+  const notasNovas = notasAtual ? `${notasAtual}\n\n${notaAuto}` : notaAuto;
+
+  const detalhesComuns = detalhesRevalidacao(
+    p.detalhes as Record<string, unknown> | null,
+    valorDetectado ?? 0,
+    valorInicialDetalhe,
+    valorFinalDetalhe,
+    listaInfo,
+    {
+      valor_atual: valorCacheAtual == null ? null : Number(valorCacheAtual),
+      valor_inicial_atual: valorInicialCache == null ? null : Number(valorInicialCache),
+    },
+  );
+
+  await supabaseAdmin
+    .from("qa_findings")
+    .update({
+      // `inconclusivo` não é um status persistido: o finding segue aberto.
+      status: resultado === "inconclusivo" ? "aberto" : resultado,
+      severidade: resultado === "confirmado" ? "critico" : undefined,
+      valor_armazenado: valorDetectado,
+      valor_esperado: valorFinalDetalhe || null,
+      revalidado_em: new Date().toISOString(),
+      resolvido_em:
+        resultado === "corrigido_origem" || resultado === "falso_positivo"
+          ? new Date().toISOString()
+          : null,
+      notas_admin: notasNovas,
+      detalhes: detalhesComuns,
+    })
+    .eq("id", p.id);
+
+  return {
+    resultado,
+    valor_armazenado: valorDetectado ?? 0,
+    valor_detalhe: valorFinalDetalhe,
+    lista: listaInfo,
+    cache_atualizado: cacheAtualizadoInfo != null,
+  };
 }
 
 export const revalidarFindingsCgu = createServerFn({ method: "POST" })
@@ -1160,7 +1350,7 @@ export const revalidarFindingsCgu = createServerFn({ method: "POST" })
 
     const { data: pendentes } = await supabaseAdmin
       .from("qa_findings")
-        .select("id, entidade_id, regra, valor_armazenado, detalhes")
+      .select("id, entidade_id, regra, valor_armazenado, detalhes, notas_admin")
       .eq("fonte", "cgu")
       .eq("status", "aberto")
       // fornecedor_ausente não tem valor a re-checar contra a fonte.
@@ -1170,64 +1360,19 @@ export const revalidarFindingsCgu = createServerFn({ method: "POST" })
     const lista = pendentes ?? [];
     let confirmados = 0;
     let falsos = 0;
+    let corrigidos = 0;
+    let inconclusivos = 0;
     const erros: string[] = [];
 
     for (let i = 0; i < lista.length; i++) {
       const p = lista[i];
       if (i > 0) await new Promise((r) => setTimeout(r, 2000)); // rate limit
       try {
-        const det = await portalGetDetalhe(p.entidade_id);
-        const valorInicialDetalhe = parseValorPortal(det.valorInicialCompra);
-        const valorFinalDetalhe = parseValorPortal(det.valorFinalCompra);
-        const { data: cacheRow } = await supabaseAdmin
-          .from("contratos_cache")
-          .select("valor, valor_inicial")
-          .eq("id", p.entidade_id)
-          .maybeSingle();
-        const valorCacheAtual = cacheRow?.valor == null ? null : Number(cacheRow.valor);
-        const valorInicialCache = cacheRow?.valor_inicial == null ? null : Number(cacheRow.valor_inicial);
-        const detalheAindaSuspeito = regraCguAindaSuspeita(
-          p.regra,
-          valorInicialDetalhe,
-          valorFinalDetalhe,
-        );
-        const valorAtualDoAchado =
-          p.regra === "discrepancia_extrema_inicial_final"
-            ? (valorInicialCache ?? valorInicialDetalhe)
-            : (valorCacheAtual ?? valorFinalDetalhe);
-
-        if (detalheAindaSuspeito) {
-          confirmados++;
-          await supabaseAdmin
-            .from("qa_findings")
-            .update({
-              status: "confirmado",
-              severidade: "critico",
-              valor_armazenado: valorAtualDoAchado,
-              valor_esperado: valorFinalDetalhe || null,
-              revalidado_em: new Date().toISOString(),
-              resolvido_em: null,
-              detalhes: detalhesRevalidacao(
-                p.detalhes as Record<string, unknown> | null,
-                valorAtualDoAchado ?? 0,
-                valorInicialDetalhe,
-                valorFinalDetalhe,
-              ),
-            })
-            .eq("id", p.id);
-        } else {
-          falsos++;
-          await supabaseAdmin
-            .from("qa_findings")
-            .update({
-              status: "falso_positivo",
-              revalidado_em: new Date().toISOString(),
-              resolvido_em: new Date().toISOString(),
-              valor_armazenado: valorAtualDoAchado,
-              valor_esperado: valorFinalDetalhe || null,
-            })
-            .eq("id", p.id);
-        }
+        const r = await revalidarUmFindingCgu(p as FindingCguRow);
+        if (r.resultado === "confirmado") confirmados++;
+        else if (r.resultado === "falso_positivo") falsos++;
+        else if (r.resultado === "corrigido_origem") corrigidos++;
+        else inconclusivos++;
       } catch (e) {
         erros.push(`${p.entidade_id}: ${(e as Error).message}`);
       }
@@ -1237,6 +1382,8 @@ export const revalidarFindingsCgu = createServerFn({ method: "POST" })
       processados: lista.length,
       confirmados,
       falsos_positivos: falsos,
+      corrigidos_origem: corrigidos,
+      inconclusivos,
       erros,
     };
   });
@@ -1267,148 +1414,6 @@ export const revalidarFindingCgu = createServerFn({ method: "POST" })
     if (p.regra === "fornecedor_ausente")
       throw new Error("Alerta de fornecedor ausente: não há valor a re-checar contra a fonte.");
 
-    // 1) Detalhe (valor esperado / "verdade" do contrato no Portal).
-    const det = await portalGetDetalhe(p.entidade_id);
-    const valorInicialDetalhe = parseValorPortal(det.valorInicialCompra);
-    const valorFinalDetalhe = parseValorPortal(det.valorFinalCompra);
-    // valor_armazenado é apenas o snapshot do momento da detecção; a verdade
-    // do "valor atual" vem do cache (lido logo abaixo).
-
-    // 2) Lista paginada — localiza o item pela PÁGINA da varredura (gravada no
-    // finding), já que a CGU não é filtrável por data de assinatura. Serve para
-    // a nota evidenciar a divergência listagem×detalhe (a listagem da CGU às
-    // vezes devolve o valor ÷10000). A decisão usa o detalhe por id.
-    const { data: cacheRow } = await supabaseAdmin
-      .from("contratos_cache")
-      .select("id, orgao_cod, data_assinatura, valor, valor_inicial")
-      .eq("id", p.entidade_id)
-      .maybeSingle();
-    const paginaVarredura =
-      (p.detalhes as { pagina_varredura?: number | null } | null | undefined)?.pagina_varredura ??
-      null;
-    let listaInfo = {
-      achado: false,
-      pagina: null as number | null,
-      valor_inicial: null as number | null,
-      valor_final: null as number | null,
-    };
-    const valorCacheAtual = cacheRow?.valor ?? null;
-    const valorInicialCache = cacheRow?.valor_inicial ?? null;
-    if (cacheRow?.orgao_cod && paginaVarredura) {
-      try {
-        const achado = await portalAcharNaLista(
-          p.entidade_id,
-          cacheRow.orgao_cod,
-          paginaVarredura,
-        );
-        if (achado) {
-          const vIni = parseValorPortal(achado.item.valorInicialCompra);
-          const vFin = parseValorPortal(achado.item.valorFinalCompra);
-          listaInfo = {
-            achado: true,
-            pagina: achado.pagina,
-            valor_inicial: vIni || null,
-            valor_final: vFin || null,
-          };
-        }
-      } catch {
-        // Falha no endpoint de lista não bloqueia a re-checagem do detalhe.
-      }
-    }
-
-    // Valor autoritativo = o NÃO-truncado entre listagem e detalhe (o bug ÷10000
-    // pode estar em qualquer um dos dois). MESMA lógica do ingest, para a
-    // re-checagem manual nunca re-introduzir um valor que a automática corrigiu.
-    const listFinal = listaInfo.achado ? listaInfo.valor_final ?? 0 : 0;
-    const listInicial = listaInfo.achado ? listaInfo.valor_inicial ?? 0 : 0;
-    const finalAut = valorAutoritativoCgu(listFinal, valorFinalDetalhe);
-    const inicialAut = valorAutoritativoCgu(listInicial, valorInicialDetalhe);
-    const aindaSuspeito = regraCguAindaSuspeita(
-      p.regra,
-      inicialAut.valor,
-      finalAut.valor,
-    );
-    const valorFinalCorreto = finalAut.valor > 0 ? finalAut.valor : inicialAut.valor;
-    const valorInicialCorreto = inicialAut.valor > 0 ? inicialAut.valor : null;
-
-    // Decisão:
-    // - valor autoritativo ainda suspeito → o valor oficial é o próprio anômalo:
-    //   erro real na origem (confirmado, segue para reporte); não há o que corrigir.
-    // - valor autoritativo limpo e diferente do cache → o cache guardou um valor
-    //   errado (truncamento por escala). Corrige o cache com o valor não-truncado
-    //   e resolve a suspeita (corrigido_origem).
-    // - limpo e igual ao cache → suspeita não se sustenta (falso positivo).
-    let resultado: "confirmado" | "corrigido_origem" | "falso_positivo";
-    let cacheAtualizadoInfo: { valor_final: number | null; valor_inicial: number | null } | null = null;
-    if (aindaSuspeito) {
-      resultado = "confirmado";
-    } else {
-      const difere =
-        valorFinalCorreto > 0 &&
-        (valorCacheAtual == null ||
-          Math.abs(Number(valorCacheAtual) - valorFinalCorreto) >
-            Math.max(1, valorFinalCorreto * 0.001));
-      if (difere) {
-        await supabaseAdmin
-          .from("contratos_cache")
-          .update({
-            valor: valorFinalCorreto,
-            valor_inicial: valorInicialCorreto,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", p.entidade_id);
-        cacheAtualizadoInfo = { valor_final: valorFinalCorreto, valor_inicial: valorInicialCorreto };
-        resultado = "corrigido_origem";
-      } else {
-        resultado = "falso_positivo";
-      }
-    }
-
-    // valor_armazenado preserva o valor errado detectado; valor_esperado é o
-    // oficial do detalhe.
-    const valorDetectado =
-      (p as { valor_armazenado?: number | null }).valor_armazenado ?? valorCacheAtual ?? null;
-    const notaAuto = montarNotaRecheck({
-      regra: p.regra,
-      valorCacheAtual,
-      valorInicialCache,
-      valorInicialDetalhe,
-      valorFinalDetalhe,
-      lista: listaInfo,
-      resultado,
-      cacheAtualizado: cacheAtualizadoInfo,
-    });
-    const notasAtual = (p as { notas_admin?: string | null }).notas_admin ?? "";
-    const notasNovas = notasAtual ? `${notasAtual}\n\n${notaAuto}` : notaAuto;
-
-    const detalhesComuns = detalhesRevalidacao(
-      p.detalhes as Record<string, unknown> | null,
-      valorDetectado ?? 0,
-      valorInicialDetalhe,
-      valorFinalDetalhe,
-      listaInfo,
-      { valor_atual: valorCacheAtual, valor_inicial_atual: valorInicialCache },
-    );
-
-    await supabaseAdmin
-      .from("qa_findings")
-      .update({
-        status: resultado,
-        severidade: resultado === "confirmado" ? "critico" : undefined,
-        valor_armazenado: valorDetectado,
-        valor_esperado: valorFinalDetalhe || null,
-        revalidado_em: new Date().toISOString(),
-        resolvido_em: resultado === "confirmado" ? null : new Date().toISOString(),
-        notas_admin: notasNovas,
-        detalhes: detalhesComuns,
-      })
-      .eq("id", p.id);
-
-    return {
-      resultado,
-      valor_armazenado: valorDetectado ?? 0,
-      valor_detalhe: valorFinalDetalhe,
-      lista: listaInfo,
-      cache_atualizado: cacheAtualizadoInfo != null,
-    };
+    // Lógica única compartilhada com a re-checagem em lote.
+    return revalidarUmFindingCgu(p as FindingCguRow);
   });

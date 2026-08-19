@@ -10,7 +10,7 @@ Descrever **onde cada tipo de sinal aparece** — nas páginas públicas e no ad
 |---|---|---|
 | Alerta de qualidade | `/qualidade` (lista), `/qualidade/$id` (detalhe), banner `QualidadeBanner` nas fichas afetadas | `/admin/qualidade` (triagem, falso positivo, reporte oficial) |
 | Lacuna | `/lacunas` (lacunas curadas) e badge nas fichas quando a ausência afeta aquele registro | `/admin/qualidade` (findings `tipo='lacuna'`) → promoção via `converterFindingEmLacuna` |
-| Sinal investigativo | `/anomalias` (sinais derivados de contratos) e cards nas fichas de entidade (candidato, parlamentar, fornecedor) — sempre com `AvisoMetodologico` | `/admin/sinais` (triagem e priorização) |
+| Sinal investigativo | `/anomalias` (sinais derivados de contratos, em memória) e cards nas fichas de entidade (candidato, parlamentar, fornecedor) — sempre com `AvisoMetodologico`. Os investigativos **persistidos** (cruzamentos TSE, `licitacao_sem_desfecho`) aparecem em `/qualidade` com selo de tipo + `AvisoMetodologico` | `/admin/sinais` mostra APENAS os sinais em memória de contratos; os persistidos são triados em `/admin/qualidade` com o filtro por tipo `investigativo` |
 
 Páginas públicas que expõem sinais por fonte: `/tse` (contagens dos três tipos + link de reprodução), fichas `/eleicoes/candidatos/$sq` (banners de qualidade e de cruzamentos da candidatura), seção "Eleições" das fichas de parlamentar e seção "Doações eleitorais" em `/fornecedores/$cnpj`. Os critérios de todas as regras ficam em `/metodologia` (hub por fonte).
 
@@ -37,8 +37,12 @@ Princípio: **sinal não é coisa de admin.** Todo sinal público mostra a evid�
 
 ## Admin
 
-- `/admin/sinais` — gestão e priorização de sinais. Permite marcar como `falso_positivo`, `confirmado`, `investigado`.
-- `/admin/qualidade` — triagem de findings dos três tipos (filtro por tipo, fonte, severidade e regra).
+- `/admin/sinais` — gestão e priorização dos sinais **em memória** de contratos (`src/lib/anomalias.ts`). Permite marcar como `falso_positivo`, `confirmado`, `investigado`.
+- `/admin/qualidade` — triagem dos findings **persistidos** dos três tipos (filtros por tipo, fonte, status e regra), incluindo os investigativos TSE e de licitações.
+
+## Catálogo público das regras
+
+O catálogo central `src/lib/sinais-catalogo.ts` é a fonte única das descrições públicas (label, o que detecta, limiares, severidade, onde roda) — alimenta os boxes "Como ler esta página" de `/qualidade`, `/lacunas` e `/anomalias`, os filtros dessas páginas e do admin. Toda regra nova precisa de uma entrada (o teste `sinais-catalogo.test.ts` cobra).
 
 ## Lógica
 

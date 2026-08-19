@@ -74,7 +74,7 @@ let catalogoEleicoes: DivulgaEleicao[] | null = null;
 export async function listarEleicoesOrdinarias(): Promise<DivulgaEleicao[]> {
   if (catalogoEleicoes) return catalogoEleicoes;
   const lista = await divulgaGet<DivulgaEleicao[]>("/eleicao/ordinarias");
-  catalogoEleicoes = lista.filter((e) => e.ano >= 2014);
+  catalogoEleicoes = lista.filter((e) => e.ano >= 1998);
   return catalogoEleicoes;
 }
 

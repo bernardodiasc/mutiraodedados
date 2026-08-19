@@ -72,7 +72,7 @@ export const promover = createServerFn({ method: "POST" })
 
 ## 4. Webhook / endpoint público
 
-`src/routes/api/public/<nome>.ts` com `createFileRoute` + verificação de assinatura.
+Ainda não existe nenhum no projeto (não há `src/routes/api/`). Quando for necessário, o padrão é uma server route file-based em `src/routes/api/<nome>.ts` com verificação de assinatura/segredo no handler — nunca um endpoint aberto.
 
 ## Anti-exemplos
 

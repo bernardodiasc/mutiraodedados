@@ -131,6 +131,7 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
     const df = fmtDate(data.dataFinal);
     let total = 0;
     let pagina = 1;
+    const erros: string[] = [];
 
     while (pagina <= data.maxPaginas) {
       const params: Record<string, string | number> = {
@@ -202,8 +203,9 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
             })),
           ),
         );
-      } catch {
-        // não interromper a ingestão por erro de QA
+      } catch (e) {
+        // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
+        erros.push(`qa p${pagina}: ${(e as Error).message}`);
       }
 
       const totalPag = json.totalPaginas ?? 1;
@@ -211,5 +213,5 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
       pagina += 1;
     }
 
-    return { importados: total, paginas: pagina };
+    return { importados: total, paginas: pagina, erros };
   });

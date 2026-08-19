@@ -6,6 +6,7 @@ import {
   monthRange,
   monthLabel,
   buildLimpezaPayload,
+  resumirLimpeza,
 } from "./logic";
 
 describe("MONTHS", () => {
@@ -59,7 +60,13 @@ describe("monthLabel", () => {
 });
 
 describe("buildLimpezaPayload", () => {
-  const base = { confirm: "APAGAR", fontes: ["cgu"], usarPeriodo: false, anoIni: 2024, anoFim: 2026 };
+  const base = {
+    confirm: "APAGAR",
+    fontes: ["cgu"],
+    usarPeriodo: false,
+    anoIni: 2024,
+    anoFim: 2026,
+  };
   it("monta payload mínimo", () => {
     expect(buildLimpezaPayload(base)).toEqual({ confirm: "APAGAR", fontes: ["cgu"] });
   });
@@ -82,5 +89,41 @@ describe("buildLimpezaPayload", () => {
   it("aceita Set como fontes", () => {
     const p = buildLimpezaPayload({ ...base, fontes: new Set(["cgu", "senado_vot"]) });
     expect(p.fontes.sort()).toEqual(["cgu", "senado_vot"]);
+  });
+});
+
+describe("resumirLimpeza", () => {
+  it("tudo certo: lista o que saiu e omite os zeros", () => {
+    const r = resumirLimpeza({
+      removed: { tse_candidatos_cache: 492899, tse_bens_candidato_cache: 0 },
+    });
+    expect(r.ok).toBe(true);
+    expect(r.detalhe).toContain("tse_candidatos_cache: 492899");
+    expect(r.detalhe).not.toContain("tse_bens_candidato_cache");
+  });
+
+  it("nada a apagar não vira mensagem vazia", () => {
+    expect(resumirLimpeza({ removed: {} }).detalhe).toBe("nada a apagar");
+    expect(resumirLimpeza({ removed: { a: 0 } }).detalhe).toBe("nada a apagar");
+  });
+
+  it("uma falha não esconde o que foi apagado de verdade", () => {
+    const r = resumirLimpeza({
+      removed: { tse_bens_candidato_cache: 120 },
+      falhas: { "TSE — candidatos": "canceling statement due to statement timeout" },
+    });
+    expect(r.ok).toBe(false);
+    expect(r.titulo).toMatch(/^1 fonte falhou/);
+    expect(r.detalhe).toContain("TSE — candidatos: canceling statement");
+    expect(r.detalhe).toContain("tse_bens_candidato_cache: 120");
+  });
+
+  it("pluraliza e nomeia todas as fontes que falharam", () => {
+    const r = resumirLimpeza({
+      removed: {},
+      falhas: { "TSE — candidatos": "timeout", "TSE — receitas de campanha": "timeout" },
+    });
+    expect(r.titulo).toMatch(/^2 fontes falharam/);
+    expect(r.detalhe).toContain("TSE — receitas de campanha");
   });
 });

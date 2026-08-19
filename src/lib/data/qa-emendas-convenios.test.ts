@@ -23,6 +23,18 @@ describe("regrasCguEmendas", () => {
     ]);
     expect(f.some((x) => x.regra === "liquidado_maior_empenhado")).toBe(true);
   });
+
+  it("sinaliza empenho ínfimo (>0 e <R$100) como suspeita de truncamento por escala", () => {
+    const f = regrasCguEmendas([
+      { id: "e4", valor_empenhado: 12.34, valor_liquidado: 0, valor_pago: 0 },
+    ]);
+    expect(f).toMatchObject([
+      { regra: "valor_truncado_suspeito", severidade: "aviso", valor_armazenado: 12.34 },
+    ]);
+    expect(
+      regrasCguEmendas([{ id: "e5", valor_empenhado: 100, valor_liquidado: 0, valor_pago: 0 }]),
+    ).toEqual([]);
+  });
 });
 
 describe("regrasCguConvenios", () => {
@@ -40,5 +52,13 @@ describe("regrasCguConvenios", () => {
   it("sinaliza valor negativo como crítico", () => {
     const f = regrasCguConvenios([{ id: "c3", valor: -1, valor_liberado: 0 }]);
     expect(f.some((x) => x.regra === "valor_negativo" && x.severidade === "critico")).toBe(true);
+  });
+
+  it("sinaliza valor global ínfimo (>0 e <R$100) como suspeita de truncamento por escala", () => {
+    const f = regrasCguConvenios([{ id: "c4", valor: 57.6, valor_liberado: 0 }]);
+    expect(f).toMatchObject([
+      { regra: "valor_truncado_suspeito", severidade: "aviso", valor_armazenado: 57.6 },
+    ]);
+    expect(regrasCguConvenios([{ id: "c5", valor: 100, valor_liberado: 0 }])).toEqual([]);
   });
 });

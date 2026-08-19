@@ -10,7 +10,7 @@ export const Route = createFileRoute("/eleicoes/")({
       {
         name: "description",
         content:
-          "Candidatos, bens declarados, votação e contas de campanha das eleições brasileiras de 2014 em diante, com dados oficiais do TSE.",
+          "Candidatos, bens declarados, votação e contas de campanha das eleições brasileiras de 1998 em diante, com dados oficiais do TSE.",
       },
       { property: "og:title", content: "Eleições — candidatos, bens e contas de campanha" },
       {
@@ -37,7 +37,7 @@ function EleicoesPage() {
           <h1 className="font-display text-4xl">Eleições</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
             Quem se candidatou, o que declarou de bens, quantos votos recebeu — e, nas fichas, de
-            quem veio o dinheiro da campanha. Dados oficiais do TSE, de 2014 em diante. Comece por
+            quem veio o dinheiro da campanha. Dados oficiais do TSE, de 1998 em diante. Comece por
             uma eleição ou vá direto à{" "}
             <Link to="/eleicoes/candidatos" className="text-accent underline">
               busca de candidatos

@@ -5,6 +5,8 @@ import { EmptyState } from "@/components/EmptyState";
 import { AlertTriangle, Info } from "lucide-react";
 import { ChecklistInvestigacao } from "@/components/ChecklistInvestigacao";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
+import { SINAIS_CATALOGO, sinaisPorTipo } from "@/lib/sinais-catalogo";
 
 export const Route = createFileRoute("/anomalias")({
   component: AnomaliasPage,
@@ -26,16 +28,14 @@ const SEV_STYLES: Record<string, string> = {
   baixa: "bg-muted text-muted-foreground border-border",
 };
 
-const REGRAS: Record<string, { label: string; criterio: string }> = {
-  crescimento_abrupto:    { label: "Crescimento abrupto",       criterio: "Fornecedor: receita > 3× ano anterior (base ≥ R$ 500k)." },
-  fracionamento:          { label: "Fracionamento de despesa",  criterio: "≥5 dispensas no mesmo órgão+fornecedor+ano abaixo do teto de R$ 17.600." },
-  concentracao:           { label: "Concentração de fornecedor",criterio: "Fornecedor concentra > 60% do contratado por um órgão num ano (> R$ 2M)." },
-  outlier_valor:          { label: "Outlier de valor",          criterio: "Contrato com valor ≥ 3 desvios-padrão acima da média." },
-  fornecedor_recente_alto:{ label: "Fornecedor recém-chegado",  criterio: "Primeira aparição há < 1 ano e já recebeu contrato ≥ R$ 1M." },
-  descricao_generica:     { label: "Descrição genérica",        criterio: "Objeto contratual muito curto ou vago para um valor ≥ R$ 200k." },
-  dispensa_recorrente:    { label: "Dispensa recorrente",       criterio: "≥3 dispensas/ano com o mesmo fornecedor em ≥2 anos consecutivos." },
-  crescimento_orgao:      { label: "Crescimento do órgão",      criterio: "Gasto anual do órgão ≥ 2× mediana dos 3 anos anteriores (baseline ≥ R$ 1M)." },
-};
+// Derivado do catálogo central (src/lib/sinais-catalogo) — inclui as 9 regras
+// em memória (a `transparencia_baixa` ficava de fora do mapa hardcoded antigo).
+const REGRAS: Record<string, { label: string; criterio: string }> = Object.fromEntries(
+  SINAIS_CATALOGO.filter((s) => s.persistencia === "memoria").map((s) => [
+    s.slug,
+    { label: s.label, criterio: s.limiares },
+  ]),
+);
 
 function AnomaliasPage() {
   const ds = useDataSource();
@@ -65,6 +65,30 @@ function AnomaliasPage() {
       </div>
 
       <div className="mt-6"><AvisoMetodologico /></div>
+
+      <div className="mt-6">
+        <BoxComoLerSinais
+          titulo="Como ler esta página: todas as regras de sinal investigativo"
+          sinais={sinaisPorTipo("investigativo")}
+          descricao={
+            <p>
+              A tabela reúne <strong>todos</strong> os sinais investigativos da plataforma. Os
+              marcados como <em>"em memória na página"</em> são calculados sobre os contratos
+              carregados e aparecem na lista abaixo. Os demais (cruzamentos eleitorais do TSE e
+              certames sem desfecho) são persistidos e aparecem em{" "}
+              <Link to="/qualidade" className="text-accent underline">
+                /qualidade
+              </Link>{" "}
+              com o selo <strong>Sinal investigativo</strong>. Detalhes de hipótese, limites e
+              falsos-positivos de cada regra estão na{" "}
+              <Link to="/metodologia" className="text-accent underline">
+                metodologia
+              </Link>
+              .
+            </p>
+          }
+        />
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         <span className="text-[11px] uppercase tracking-widest text-muted-foreground self-center mr-1">Severidade</span>

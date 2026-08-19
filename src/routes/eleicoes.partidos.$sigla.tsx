@@ -14,7 +14,7 @@ export const Route = createFileRoute("/eleicoes/partidos/$sigla")({
       { title: `${params.sigla.toUpperCase()} nas urnas — Eleições — Mutirão de Dados` },
       {
         name: "description",
-        content: `Panorama eleitoral do ${params.sigla.toUpperCase()}: candidaturas, eleitos e bens médios por eleição e cargo (dados oficiais do TSE, 2014 em diante).`,
+        content: `Panorama eleitoral do ${params.sigla.toUpperCase()}: candidaturas, eleitos e bens médios por eleição e cargo (dados oficiais do TSE, 1998 em diante).`,
       },
       { property: "og:title", content: `${params.sigla.toUpperCase()} nas urnas` },
       {

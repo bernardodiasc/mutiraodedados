@@ -1,14 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CandidatoFichaContainer } from "@/containers/CandidatoFichaContainer";
-import { QualidadeBanner } from "@/components/QualidadeBanner";
-
-const ANO_MAIS_RECENTE = 2024;
 
 export const Route = createFileRoute("/eleicoes/candidatos/$sq")({
   component: CandidatoPage,
-  validateSearch: (search: Record<string, unknown>): { ano: number } => ({
-    ano: typeof search.ano === "number" ? search.ano : ANO_MAIS_RECENTE,
-  }),
+  // `ano` é opcional de propósito. Antes havia um default fixo (2024), o que
+  // fazia a URL canônica desta rota — que não carrega o ano — abrir em
+  // "candidatura não encontrada" para qualquer ficha de outro ano. O sq já
+  // identifica a candidatura; quem não informa o ano recebe o do registro.
+  validateSearch: (search: Record<string, unknown>): { ano?: number } =>
+    typeof search.ano === "number" ? { ano: search.ano } : {},
   head: ({ params }) => ({
     meta: [
       { title: `Candidato ${params.sq} — Eleições — Mutirão de Dados` },
@@ -64,16 +64,9 @@ function CandidatoPage() {
           Candidatos
         </Link>
       </nav>
-      <div className="grid gap-3 mb-6">
-        {/* Sinais desta candidatura: alertas/lacunas (fonte tse) e cruzamentos
-            investigativos (tse-cruzamento) — visíveis ao público, não só no admin. */}
-        <QualidadeBanner fonte="tse" entidadeTipo="candidato" entidadeId={`${sq}-${ano}`} />
-        <QualidadeBanner
-          fonte="tse-cruzamento"
-          entidadeTipo="candidato"
-          entidadeId={`${sq}-${ano}`}
-        />
-      </div>
+      {/* Os banners de sinais vivem no Container: o `entidade_id` deles é
+          "<sq>-<ano>", e só depois de carregar a ficha se sabe qual é o ano
+          quando a URL não o informa. */}
       <CandidatoFichaContainer sq={sq} ano={ano} />
     </div>
   );

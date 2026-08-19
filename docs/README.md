@@ -50,6 +50,10 @@ Cada arquivo agrupa páginas públicas + telas do admin do mesmo assunto.
 
 Por que esses dados existem, o que significam na prática, qual a lei por trás. Veja [`conceitos/README.md`](./conceitos/README.md).
 
+### Planos de release
+
+- [`planos/`](./planos/) — planos de release de engenharia (`vMAJOR.MINOR.0-<slug>.md`), criados conforme o [WORKFLOW.md](../WORKFLOW.md). Não seguem a convenção `X.md`/`X.ia.md` desta pasta.
+
 ## Como navegar
 
 - **Quero entender o que o site faz** → comece pelos [domínios](./dominios/).

@@ -9,6 +9,10 @@ Toda modificação relevante no projeto — incluindo a inclusão de uma nova fo
 
 Ao concluir e gerar qualquer alteração no código, você deve **obrigatoriamente** emitir no final da sua resposta um bloco JSON estruturado para o desenvolvedor copiar e colar manualmente na interface de administração `/admin/roadmap`.
 
+## Relação com RELEASES.md
+
+Este bloco alimenta o **roadmap público cidadão** (tabela `roadmap_itens`, páginas `/roadmap` e `/admin/roadmap`). Ele convive com o versionamento de **engenharia** do repositório: a release correspondente é registrada em `RELEASES.md` conforme o processo do `WORKFLOW.md` (na raiz do repo). Os dois não se substituem — o bloco JSON fala com o cidadão; ROADMAP.md/RELEASES.md falam com quem desenvolve.
+
 ---
 
 ## Formato do Bloco de Roadmap

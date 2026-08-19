@@ -63,7 +63,15 @@ Em [`/admin/qualidade`](./admin.md) o admin pode:
 
 ## Valores suspeitos do Portal CGU
 
-O ingest **não corrige** valores — grava o que a API devolve e sinaliza o que é anômalo. Quando a listagem traz valor < R$ 100 ou um valor inicial ≥ 1000× o final (indício de erro de escala/ponto-fixo no JSON da origem), gera um finding `possivel_ponto_fixo` (severidade `critico`) para revisão humana, reconciliado por `sincronizarQaCgu` contra o cache pós-upsert.
+A API da CGU tem um defeito **intermitente** de escala (÷100/1000/10000) que trunca valores tanto na listagem quanto no detalhe (aparece sob rate-limit; ao re-consultar mais tarde, a API costuma devolver o valor certo — por isso o defeito "não reproduz" na checagem manual).
+
+A defesa da varredura de contratos: cada contrato da listagem é conferido contra o endpoint de detalhe (`/contratos/id`). Quando as duas leituras divergem em ≥ 100×, gravamos o valor **não-truncado** (que bate com o documento oficial) e registramos o alerta `valor_corrigido_listagem` — severidade `info`, já nascido resolvido (`corrigido_automaticamente`), com as leituras cruas e timestamps em `detalhes.evidencia_bruta` (prova pública da intermitência da API). `critico` fica reservado a divergências confirmadas não corrigíveis.
+
+A re-checagem manual (unitária e em lote) usa a **mesma** lógica de decisão (`valorAutoritativoCgu` + `cguAindaSuspeito` em `src/lib/data/qa.ts`) e o mesmo cliente HTTP do ingest; quando só uma leitura está disponível e ela diverge do cache, o resultado é **inconclusivo** — nada é alterado e a suspeita permanece aberta (uma leitura única pode ser justamente a resposta degradada).
+
+**Limitação documentada:** se listagem E detalhe vierem truncados na mesma escala ao mesmo tempo (razão ≈ 1), a divergência é indetectável naquele momento; o valor é corrigido numa leitura futura. Licitações, convênios e emendas não têm endpoint de detalhe por item — nessas entidades o mesmo defeito fica visível pela regra `valor_truncado_suspeito` (valor > 0 e < R$ 100).
+
+As heurísticas antigas sobre a listagem (`possivel_ponto_fixo`, `valor_precisao_suspeita`, `valor_final_truncado_suspeito`) foram **aposentadas** — substituídas pela conferência por detalhe. Findings antigos dessas regras podem existir no banco e são resolvidos pela re-checagem.
 
 ## Relacionado
 

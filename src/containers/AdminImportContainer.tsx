@@ -8,9 +8,13 @@ import {
   clearImportData,
   listHistoricoUnificado,
   diagnosticarPortalPagina,
+  diagnosticarPortalEndpoint,
   listarVarredurasIncompletas,
   type HistoricoEntrada,
 } from "@/lib/data/real/portal.functions";
+import { importLicitacoes } from "@/lib/data/real/licitacoes.functions";
+import { importEmendas } from "@/lib/data/real/emendas.functions";
+import { importConvenios } from "@/lib/data/real/convenios.functions";
 import {
   sincronizarOrgaosSIAFI,
   verificarAtividadeOrgaos,
@@ -41,6 +45,7 @@ import {
   defaultMonth,
   monthRange,
   buildLimpezaPayload,
+  resumirLimpeza,
 } from "@/lib/admin-import/logic";
 import { AdminImportView, type BatchProgress } from "@/components/AdminImportView";
 import type { CoberturaJob } from "@/components/CoberturaMatrix";
@@ -54,6 +59,10 @@ export function AdminImportContainer() {
   const clearFn = useServerFn(clearImportData);
   const sanitizeFn = useServerFn(ressanitizarContratosCache);
   const diagFn = useServerFn(diagnosticarPortalPagina);
+  const diagEndpointFn = useServerFn(diagnosticarPortalEndpoint);
+  const importLicFn = useServerFn(importLicitacoes);
+  const importEmeFn = useServerFn(importEmendas);
+  const importConvFn = useServerFn(importConvenios);
   const varredurasFn = useServerFn(listarVarredurasIncompletas);
   const sincCatalogoFn = useServerFn(sincronizarOrgaosSIAFI);
   const doadorFornecedorFn = useServerFn(rodarDoadorVirouFornecedorFn);
@@ -62,9 +71,15 @@ export function AdminImportContainer() {
   const [varredurasIncompletas, setVarredurasIncompletas] = useState<
     Array<{ orgaoCod: string; ultimaPagina: number; dataInicial?: string; dataFinal?: string }>
   >([]);
+  // Migração `cgu_varredura` pendente: varreduras rodam sem retomada.
+  const [varreduraTabelaAusente, setVarreduraTabelaAusente] = useState(false);
   const refreshVarreduras = async () => {
     try {
-      setVarredurasIncompletas(await varredurasFn());
+      const r = await varredurasFn();
+      setVarreduraTabelaAusente(r.tabelaAusente);
+      // O banner da aba de contratos usa só a entidade "contratos"; as demais
+      // entidades ficam disponíveis em r.varreduras para abas futuras.
+      setVarredurasIncompletas(r.varreduras.filter((v) => v.entidade === "contratos"));
     } catch {
       /* tolerante — banner some se a consulta falhar */
     }
@@ -189,7 +204,11 @@ export function AdminImportContainer() {
         anoFim: limpAnoFim,
       });
       const res = await clearFn({ data: payload as never });
-      toast.success(`Apagado: ${JSON.stringify(res.removed)}`);
+      const resumo = resumirLimpeza(res);
+      // Uma fonte pode falhar sem derrubar as outras — o aviso precisa dizer
+      // o que ficou para trás, não só o que saiu.
+      if (resumo.ok) toast.success(resumo.titulo, { description: resumo.detalhe });
+      else toast.warning(resumo.titulo, { description: resumo.detalhe, duration: 12000 });
       setLimpConfirm("");
       await refreshHistory();
       await refreshFromDB();
@@ -333,6 +352,96 @@ export function AdminImportContainer() {
       }
     }
     setTimeout(() => setBatch(null), 4000);
+  };
+
+  // ---------------------------------------------------------------------
+  // Outras entidades do Portal CGU (licitações, convênios, emendas): rodam no
+  // motor retomável `varrerPaginado`. Cada chamada é UMA rodada (~3min de
+  // orçamento); aqui repetimos rodadas até a varredura completar (ou cancelar).
+  // ---------------------------------------------------------------------
+  const [entidadeBusy, setEntidadeBusy] = useState<null | "licitacoes" | "convenios" | "emendas">(
+    null,
+  );
+  const MAX_RODADAS_ENTIDADE = 40;
+  const rodarEntidadeCgu = async (
+    entidade: "licitacoes" | "convenios" | "emendas",
+    rotulo: string,
+    rodada: () => Promise<{
+      meta: {
+        importados: number;
+        erros: string[];
+        varredura?: { haMais: boolean; ultimaPagina: number };
+      };
+    }>,
+  ) => {
+    if (entidadeBusy || batch) {
+      toast.error("Já existe uma importação em execução.");
+      return;
+    }
+    setEntidadeBusy(entidade);
+    cancelRef.current = false;
+    let importados = 0;
+    let erros = 0;
+    let rodadas = 0;
+    let haMais = true;
+    let ultimaPagina = 0;
+    try {
+      while (haMais && !cancelRef.current && rodadas < MAX_RODADAS_ENTIDADE) {
+        rodadas++;
+        const r = await rodada();
+        importados += r.meta.importados;
+        erros += r.meta.erros.length;
+        haMais = r.meta.varredura?.haMais ?? false;
+        ultimaPagina = r.meta.varredura?.ultimaPagina ?? ultimaPagina;
+        if (haMais) {
+          toast.message(
+            `${rotulo}: rodada ${rodadas} — ${importados} registros até a pág. ${ultimaPagina}; continuando…`,
+          );
+        }
+      }
+      if (haMais) {
+        toast.warning(
+          `${rotulo}: varredura parcial (pág. ${ultimaPagina}) — rode novamente para continuar de onde parou.`,
+        );
+      } else {
+        toast.success(`${rotulo}: concluído — ${importados} registros, ${erros} erro(s).`);
+      }
+      await refreshHistory();
+      await refreshVarreduras();
+    } catch (e) {
+      toast.error(`${rotulo}: ${(e as Error).message}`);
+    } finally {
+      setEntidadeBusy(null);
+    }
+  };
+
+  const onImportarLicitacoes = () => {
+    if (!vigIni || !vigFim) {
+      toast.error(
+        "Licitações exigem o período (as datas “de/até” acima) — a API filtra por data de abertura.",
+      );
+      return;
+    }
+    const sigla = cobertos.find((x) => x.cod === orgao)?.sigla ?? orgao;
+    return rodarEntidadeCgu("licitacoes", `Licitações ${sigla} ${vigIni}→${vigFim}`, () =>
+      importLicFn({ data: { codigoOrgao: orgao, dataInicial: vigIni, dataFinal: vigFim } }),
+    );
+  };
+
+  const onImportarConvenios = () => {
+    if (!vigIni || !vigFim) {
+      toast.error(
+        "Convênios exigem o período (as datas “de/até” acima) — a API filtra por data de referência.",
+      );
+      return;
+    }
+    return rodarEntidadeCgu("convenios", `Convênios ${vigIni}→${vigFim}`, () =>
+      importConvFn({ data: { dataInicial: vigIni, dataFinal: vigFim } }),
+    );
+  };
+
+  const onImportarEmendas = () => {
+    return rodarEntidadeCgu("emendas", `Emendas ${ano}`, () => importEmeFn({ data: { ano } }));
   };
 
   const importarUnico = () => {
@@ -683,7 +792,13 @@ export function AdminImportContainer() {
       onSincronizarCatalogo={onSincronizarCatalogo}
       sincronizandoCatalogo={sincronizandoCatalogo}
       onDiagnosticarPortal={(params) => diagFn({ data: params })}
+      onDiagnosticarEndpoint={(params) => diagEndpointFn({ data: params })}
       varredurasIncompletas={varredurasIncompletas}
+      varreduraTabelaAusente={varreduraTabelaAusente}
+      entidadeBusy={entidadeBusy}
+      onImportarLicitacoes={onImportarLicitacoes}
+      onImportarConvenios={onImportarConvenios}
+      onImportarEmendas={onImportarEmendas}
       continuarVarredura={continuarVarredura}
       autoContinuar={autoContinuar}
       setAutoContinuar={setAutoContinuar}

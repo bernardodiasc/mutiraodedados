@@ -11,10 +11,13 @@ import { flagQA, type QaFinding } from "@/lib/data/qa";
  * upsert em lote → QA → log de requisição → persistência da varredura.
  *
  * Este módulo extrai dessa mecânica o que é genérico (independente de qual
- * entidade). O ingest de contratos (`real/portal.functions.ts`) — que tem a
- * conferência-por-detalhe específica de contratos — reaproveita estes helpers;
- * as entidades novas reaproveitam o motor genérico (chega na Fase 1, junto do
- * primeiro consumidor, licitações).
+ * entidade). Licitações, convênios e emendas usam o motor `varrerPaginado`
+ * abaixo. O ingest de contratos (`real/portal.functions.ts`) segue com loop
+ * próprio por causa da conferência-por-detalhe (listagem × `/contratos/id`)
+ * específica de contratos — a unificação foi avaliada e adiada de propósito
+ * (o caminho mais crítico do site não muda de estrutura sem necessidade);
+ * contratos reaproveitam daqui apenas os helpers (chave de varredura,
+ * persistência, logs).
  */
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

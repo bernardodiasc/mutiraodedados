@@ -5,7 +5,8 @@ import { ORGAOS_BASE } from "../catalog";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { FONTES_LIMPEZA, FONTE_IDS } from "@/lib/data/limpeza";
+import { FONTES_LIMPEZA, FONTE_IDS, type FonteLimpeza } from "@/lib/data/limpeza";
+import { funcaoRpcAusente } from "@/lib/data/erros-banco";
 import type { Database } from "@/integrations/supabase/types";
 
 // Nomes de TABELA (sem views) — o catálogo de limpeza só aponta para tabelas;
@@ -73,7 +74,6 @@ export function normalizarValoresCguListagem(rawInicial: unknown, rawFinal: unkn
   };
 }
 
-
 function normalizeModalidade(s: string | undefined): Contrato["modalidade"] {
   const x = (s ?? "").toLowerCase();
   if (x.includes("dispensa")) return "dispensa";
@@ -109,8 +109,7 @@ function fornecedorDeRaw(raw: PortalContrato): Fornecedor | null {
     f?.numeroDeInscricao,
   );
   if (!doc) return null;
-  const nome =
-    primeiraNaoVazia(f?.nome, f?.razaoSocialReceita, f?.razaoSocial) || doc;
+  const nome = primeiraNaoVazia(f?.nome, f?.razaoSocialReceita, f?.razaoSocial) || doc;
   return { cnpj: doc, nome };
 }
 
@@ -128,7 +127,9 @@ function construirContratoCgu(
   // Sem dataAssinatura, dataInicioVigencia serve de referência temporal.
   const dataReferencia = dataAssinatura || dataInicioVigencia;
   const ano = dataReferencia ? Number(dataReferencia.slice(0, 4)) : anoFallback;
-  const id = String(raw.id ?? `${codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`);
+  const id = String(
+    raw.id ?? `${codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`,
+  );
   const valor = valorFinal > 0 ? valorFinal : valorInicial;
   return {
     id,
@@ -164,14 +165,30 @@ async function upsertOrgaoCache(base: Orgao): Promise<void> {
   };
   await supabaseAdmin
     .from("orgaos_cache")
-    .upsert(row, nomeConhecido ? { onConflict: "cod" } : { onConflict: "cod", ignoreDuplicates: true });
+    .upsert(
+      row,
+      nomeConhecido ? { onConflict: "cod" } : { onConflict: "cod", ignoreDuplicates: true },
+    );
 }
 
 async function upsertFornecedoresCache(map: Map<string, Fornecedor>): Promise<void> {
   if (map.size === 0) return;
-  await supabaseAdmin.from("fornecedores_cache").upsert(
-    [...map.values()].map((f) => ({ cnpj: f.cnpj, nome: f.nome, updated_at: new Date().toISOString() })),
-  );
+  // Mesma regra do `upsertOrgaoCache`: quando o nome é só o documento cru
+  // (placeholder de PF mascarada/sigilosa), NÃO sobrescreve uma linha que já
+  // tenha o nome real — `ignoreDuplicates` só insere se ainda não houver linha.
+  const agora = new Date().toISOString();
+  const comNome: Array<{ cnpj: string; nome: string; updated_at: string }> = [];
+  const placeholders: typeof comNome = [];
+  for (const f of map.values()) {
+    const row = { cnpj: f.cnpj, nome: f.nome, updated_at: agora };
+    if (f.nome && f.nome !== f.cnpj) comNome.push(row);
+    else placeholders.push(row);
+  }
+  if (comNome.length > 0) await supabaseAdmin.from("fornecedores_cache").upsert(comNome);
+  if (placeholders.length > 0)
+    await supabaseAdmin
+      .from("fornecedores_cache")
+      .upsert(placeholders, { onConflict: "cnpj", ignoreDuplicates: true });
 }
 
 async function upsertContratosCache(
@@ -215,15 +232,21 @@ const FORNECEDOR_AUSENTE: Fornecedor = {
   nome: "Fornecedor sigiloso ou ausente",
 };
 
-/** Detalhe autoritativo de um contrato (`/contratos/id`). */
-async function fetchDetalheContrato(id: string): Promise<{ valorInicial: number; valorFinal: number }> {
-  const det = await portalGet<{ valorInicialCompra?: unknown; valorFinalCompra?: unknown }>(
-    "/contratos/id",
-    { id },
-  );
+/** Detalhe autoritativo de um contrato (`/contratos/id`). Devolve também o
+ * trecho cru do JSON + timestamp para a evidência bruta dos findings de valor
+ * (prova da intermitência do bug de escala da API). */
+async function fetchDetalheContrato(
+  id: string,
+): Promise<{ valorInicial: number; valorFinal: number; em: string; rawSnippet: string }> {
+  const { data: det, rawText } = await portalGetComTexto<{
+    valorInicialCompra?: unknown;
+    valorFinalCompra?: unknown;
+  }>("/contratos/id", { id });
   return {
     valorInicial: parseValorPortal(det.valorInicialCompra),
     valorFinal: parseValorPortal(det.valorFinalCompra),
+    em: new Date().toISOString(),
+    rawSnippet: rawText.slice(0, 600),
   };
 }
 
@@ -236,8 +259,14 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
         // Datas ISO (YYYY-MM-DD). OPCIONAIS: na API da CGU, dataInicial/
         // dataFinal filtram por VIGÊNCIA, não por assinatura. A ingestão roda em
         // modo VARREDURA (sem janela), puxando o histórico completo do órgão.
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dataInicial: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        dataFinal: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
         // Teto de páginas por rodada (rede de segurança). A varredura é
         // primariamente limitada por TEMPO (orcamentoMs), não por páginas.
         maxPaginas: z.number().int().min(1).max(5000).default(5000),
@@ -349,8 +378,10 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
         }
         const urlPagina = `${PORTAL_BASE}/contratos?${new URLSearchParams(params).toString()}`;
         let list: PortalContrato[];
+        let paginaLidaEm = new Date().toISOString();
         try {
           list = await portalGet<PortalContrato[]>("/contratos", params);
+          paginaLidaEm = new Date().toISOString();
         } catch (e) {
           const msg = (e as Error).message;
           erros.push(`p${pagina}: ${msg}`);
@@ -403,7 +434,10 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
           const semFornecedor = !fornReal;
           const forn = fornReal ?? FORNECEDOR_AUSENTE;
 
-          const listValores = normalizarValoresCguListagem(raw.valorInicialCompra, raw.valorFinalCompra);
+          const listValores = normalizarValoresCguListagem(
+            raw.valorInicialCompra,
+            raw.valorFinalCompra,
+          );
           let valorFinal = listValores.valorFinal;
           let valorInicial = listValores.valorInicial;
           let truncadoFinal: number | null = null;
@@ -432,7 +466,9 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
                 total_bruto: 1,
                 importados: 1,
                 erros: corrigido
-                  ? [`info: valor_corrigido_listagem id=${idStr} truncado=${truncadoFinal} correto=${valorFinal} (listagem=${listValores.valorFinal} detalhe=${det.valorFinal})`]
+                  ? [
+                      `info: valor_corrigido_listagem id=${idStr} truncado=${truncadoFinal} correto=${valorFinal} (listagem=${listValores.valorFinal} detalhe=${det.valorFinal})`,
+                    ]
                   : [],
                 consultado_em: new Date().toISOString(),
                 user_id: context.userId,
@@ -448,6 +484,22 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
                     valor_listagem: listValores.valorFinal || null,
                     valor_detalhe: det.valorFinal || null,
                     pagina_varredura: pagina,
+                    razao: finalAut.razao,
+                    evidencia_bruta: [
+                      {
+                        origem: "listagem",
+                        valorFinal: listValores.valorFinal,
+                        valorInicial: listValores.valorInicial,
+                        em: paginaLidaEm,
+                      },
+                      {
+                        origem: "detalhe",
+                        valorFinal: det.valorFinal,
+                        valorInicial: det.valorInicial,
+                        em: det.em,
+                        rawSnippet: det.rawSnippet,
+                      },
+                    ],
                   }),
                 );
               }
@@ -499,7 +551,13 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
 
         // ---- PERSISTÊNCIA INCREMENTAL (sobrevive a kill do servidor) ----
         await upsertFornecedoresCache(fornecedoresPagina);
-        erros.push(...(await upsertContratosCache(contratosPagina, valorInicialPorIdPagina, numeroPorIdPagina)));
+        erros.push(
+          ...(await upsertContratosCache(
+            contratosPagina,
+            valorInicialPorIdPagina,
+            numeroPorIdPagina,
+          )),
+        );
         try {
           // regrasCgu lê o cache pós-upsert (agora com o valor não-truncado).
           await sincronizarQaCgu(
@@ -527,7 +585,12 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
         totalAcumulado += contratosPagina.length;
         // Avança o ponteiro ANTES de ir para a próxima página, para retomar
         // exatamente daqui se o servidor for morto no meio.
-        const pv = await persistirVarredura(varreduraKey, ultimaPaginaVarrida, false, totalAcumulado);
+        const pv = await persistirVarredura(
+          varreduraKey,
+          ultimaPaginaVarrida,
+          false,
+          totalAcumulado,
+        );
         varreduraPersistida = pv.persistida;
         if (pv.erro) erros.push(pv.erro);
 
@@ -542,7 +605,12 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
 
       // Estado final da varredura (marca completa quando chegou ao fim).
       {
-        const pv = await persistirVarredura(varreduraKey, ultimaPaginaVarrida, varreduraCompleta, totalAcumulado);
+        const pv = await persistirVarredura(
+          varreduraKey,
+          ultimaPaginaVarrida,
+          varreduraCompleta,
+          totalAcumulado,
+        );
         varreduraPersistida = pv.persistida;
         if (pv.erro) erros.push(pv.erro);
       }
@@ -571,7 +639,9 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
         orgao_cod: data.codigoOrgao,
         escopo: base.sigla,
         data_inicial: temJanela ? data.dataInicial! : (datasAssinatura[0] ?? null),
-        data_final: temJanela ? data.dataFinal! : (datasAssinatura[datasAssinatura.length - 1] ?? null),
+        data_final: temJanela
+          ? data.dataFinal!
+          : (datasAssinatura[datasAssinatura.length - 1] ?? null),
         total_bruto: contratosRodada.length,
         importados: contratosRodada.length,
         erros: [...erros, ...avisos],
@@ -633,33 +703,37 @@ export type VarreduraIncompleta = {
 
 export const listarVarredurasIncompletas = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<VarreduraIncompleta[]> => {
-    await ensureAdmin(context.userId);
-    const { data, error } = await supabaseAdmin
-      .from("cgu_varredura")
-      .select("orgao_cod, ultima_pagina")
-      .eq("completa", false)
-      .gt("ultima_pagina", 0);
-    if (error) {
-      if (tabelaVarreduraAusente(error)) return [];
-      throw new Error(error.message);
-    }
-    // A chave compõe entidade + órgão + janela opcional (ver `parseVarreduraKey`
-    // em `sweep.ts`). Esta lista alimenta o aviso de "continuar varredura" da aba
-    // de contratos, então filtramos só a entidade contratos; as demais entidades
-    // expõem seus próprios avisos.
-    return (data ?? [])
-      .map((r): VarreduraIncompleta => {
-        const { entidade, orgaoCod, dataInicial, dataFinal } = parseVarreduraKey(String(r.orgao_cod));
+  .handler(
+    async ({ context }): Promise<{ varreduras: VarreduraIncompleta[]; tabelaAusente: boolean }> => {
+      await ensureAdmin(context.userId);
+      const { data, error } = await supabaseAdmin
+        .from("cgu_varredura")
+        .select("orgao_cod, ultima_pagina")
+        .eq("completa", false)
+        .gt("ultima_pagina", 0);
+      if (error) {
+        // Migração `cgu_varredura` ainda não aplicada: as varreduras RODAM mas
+        // não retomam de onde pararam. Sinalizamos para o admin ver o aviso em
+        // vez de falhar silenciosamente.
+        if (tabelaVarreduraAusente(error)) return { varreduras: [], tabelaAusente: true };
+        throw new Error(error.message);
+      }
+      // A chave compõe entidade + órgão + janela opcional (ver `parseVarreduraKey`
+      // em `sweep.ts`). Devolvemos TODAS as entidades; cada aba filtra a sua.
+      const varreduras = (data ?? []).map((r): VarreduraIncompleta => {
+        const { entidade, orgaoCod, dataInicial, dataFinal } = parseVarreduraKey(
+          String(r.orgao_cod),
+        );
         return {
           entidade,
           orgaoCod,
           ultimaPagina: r.ultima_pagina,
           ...(dataInicial && dataFinal ? { dataInicial, dataFinal } : {}),
         };
-      })
-      .filter((v) => v.entidade === "contratos");
-  });
+      });
+      return { varreduras, tabelaAusente: false };
+    },
+  );
 
 /**
  * Histórico unificado de importações. Após a unificação do esquema, todas
@@ -669,14 +743,14 @@ export const listarVarredurasIncompletas = createServerFn({ method: "GET" })
  */
 export type HistoricoEntrada = {
   id: string;
-  fonte: string;          // ex. "CGU", "PNCP", "Câmara CEAP"
-  escopo: string;         // ex. sigla do órgão, ou "—"
-  periodo: string;        // ex. "01/2024 → 01/2024" ou "Mar/2024"
-  bruto: number | null;   // total bruto retornado pela API (quando disponível)
+  fonte: string; // ex. "CGU", "PNCP", "Câmara CEAP"
+  escopo: string; // ex. sigla do órgão, ou "—"
+  periodo: string; // ex. "01/2024 → 01/2024" ou "Mar/2024"
+  bruto: number | null; // total bruto retornado pela API (quando disponível)
   importados: number;
-  erros: string[];        // falhas reais (timeouts, db, qa errors)
-  avisos: string[];       // notas informativas (ex.: correção automática)
-  quando: string;         // ISO
+  erros: string[]; // falhas reais (timeouts, db, qa errors)
+  avisos: string[]; // notas informativas (ex.: correção automática)
+  quando: string; // ISO
   endpoint: string | null; // URL/endpoint efetivamente consultado
 };
 
@@ -694,7 +768,20 @@ const FONTE_LABEL: Record<string, string> = {
   cgu_convenios: "Portal CGU — Convênios",
 };
 
-const MESES_CURTO = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MESES_CURTO = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 export const listHistoricoUnificado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -713,7 +800,9 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
     const to = data.offset + data.limit - 1;
     const { data: rows, error } = await supabaseAdmin
       .from("importacoes")
-      .select("id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint")
+      .select(
+        "id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint",
+      )
       // Exclui as linhas de REQUISIÇÃO da varredura por detalhe (uma por GET) —
       // elas inundariam o Histórico. Mantém as linhas de rodada (log_kind NULL).
       .or("log_kind.is.null,log_kind.neq.requisicao")
@@ -809,6 +898,77 @@ export const clearImportData = createServerFn({ method: "POST" })
         siconfi: "siconfi",
         transferegov: "transferegov",
       };
+      /** Caches que a fonte TSE alimenta — usados para decidir se ela zerou. */
+      const TABELAS_CACHE_TSE = [
+        "tse_candidatos_cache",
+        "tse_bens_candidato_cache",
+        "tse_resultados_cache",
+        "tse_receitas_campanha_cache",
+        "tse_despesas_campanha_cache",
+        "tse_parlamentar_candidato",
+      ] as const satisfies readonly TabelaLimpeza[];
+
+      const tabelaVazia = async (t: TabelaLimpeza): Promise<boolean> => {
+        // head+count: não traz linha nenhuma e não depende de existir coluna
+        // `id` — as tabelas do TSE têm PK composta.
+        const { count, error } = await supabaseAdmin
+          .from(t)
+          .select("*", { count: "exact", head: true });
+        if (error) throw new Error(`${t} contagem: ${error.message}`);
+        return (count ?? 0) === 0;
+      };
+
+      const apagarFindingsDaFonte = async (qaFonte: string): Promise<number> => {
+        const { data: qaIds, error: qaErr } = await supabaseAdmin
+          .from("qa_findings")
+          .select("id")
+          .eq("fonte", qaFonte)
+          .limit(100000);
+        if (qaErr) throw new Error(`qa_findings ids(${qaFonte}): ${qaErr.message}`);
+        const ids = (qaIds ?? []).map((r) => r.id);
+        // Lacunas antes dos findings: a FK origem_qa_finding_id ficaria órfã.
+        for (let i = 0; i < ids.length; i += 500) {
+          const lr = await supabaseAdmin
+            .from("lacunas")
+            .delete({ count: "exact" })
+            .in("origem_qa_finding_id", ids.slice(i, i + 500));
+          if (lr.error) throw new Error(`lacunas(${qaFonte}): ${lr.error.message}`);
+        }
+        const r = await supabaseAdmin
+          .from("qa_findings")
+          .delete({ count: "exact" })
+          .eq("fonte", qaFonte);
+        if (r.error) throw new Error(`qa_findings(${qaFonte}): ${r.error.message}`);
+        return r.count ?? 0;
+      };
+
+      /**
+       * Sinais do TSE — não dá para usar o prune genérico.
+       *
+       * O genérico casa `qa_findings.entidade_id` com a coluna `id` da tabela.
+       * No TSE não existe coluna `id` (PK composta) e o `entidade_id` é
+       * derivado: "<sq>-<ano>" para candidatura, "<tipo>-<id>" para a ponte
+       * parlamentar — que nem sequer vive num cache de candidato.
+       *
+       * Então a regra aqui é de tudo-ou-nada, e deliberadamente conservadora:
+       * só apaga os sinais quando TODOS os caches da fonte estão vazios. Cinco
+       * fontes de limpeza (candidatos, bens, resultados, receitas, despesas)
+       * compartilham a mesma `fonte='tse'`; apagar os sinais ao limpar só uma
+       * delas derrubaria alertas sobre dados que continuam lá.
+       */
+      const podarSinaisTse = async () => {
+        for (const t of TABELAS_CACHE_TSE) {
+          if (!(await tabelaVazia(t))) {
+            removed["qa_findings:tse"] =
+              `mantidos — ${t} ainda tem dados (sinais do TSE só são apagados quando todos os caches da fonte estão vazios)`;
+            return;
+          }
+        }
+        for (const qaFonte of ["tse", "tse-cruzamento"]) {
+          removed[`qa_findings:${qaFonte}`] = await apagarFindingsDaFonte(qaFonte);
+        }
+      };
+
       const pruneQaFindings = async (qaFonte: string, table: TabelaLimpeza) => {
         // Coleta ids ainda presentes na tabela-fonte e remove qualquer
         // qa_findings cujo entidade_id não exista mais (alerta órfão).
@@ -817,7 +977,9 @@ export const clearImportData = createServerFn({ method: "POST" })
           .select("id")
           .limit(100000);
         if (remErr) throw new Error(`${table} qa-prune select: ${remErr.message}`);
-        const remSet = new Set((rem ?? []).map((r) => String((r as unknown as { id: unknown }).id)));
+        const remSet = new Set(
+          (rem ?? []).map((r) => String((r as unknown as { id: unknown }).id)),
+        );
         if (remSet.size === 0) {
           // Apaga lacunas geradas por findings dessa fonte antes dos findings
           // (a FK origem_qa_finding_id ficaria órfã).
@@ -880,136 +1042,246 @@ export const clearImportData = createServerFn({ method: "POST" })
         }
         removed[`qa_findings:${qaFonte}`] = cnt;
       };
+      /**
+       * Apaga a tabela principal da fonte.
+       *
+       * Caminho preferido: as RPCs de manutenção, que rodam com orçamento de
+       * tempo próprio — `truncar_cache` nem percorre linhas. Um DELETE único
+       * pelo PostgREST estourava o statement_timeout em tabelas grandes
+       * (492 mil candidaturas do TSE já batiam no limite).
+       *
+       * Fica no caminho antigo quem a RPC não cobre: `importacoes` (filtros de
+       * sub-modo), fontes com `extraEq` e recortes por data. São tabelas
+       * pequenas ou seletivas, onde o DELETE cabe no tempo.
+       *
+       * Devolver `null` significa "use o DELETE" — inclusive quando a RPC ainda
+       * não existe no banco. A migration entra em produção depois do código, e
+       * tornar a RPC obrigatória quebraria a limpeza inteira nesse intervalo:
+       * preferência, não dependência.
+       */
+      // Só quando a RPC existe mas o banco ainda não a tem — não vale para os
+      // casos que a RPC nunca cobriu.
+      let rpcAusente = false;
+      const apagarPrincipal = async (fonte: FonteLimpeza): Promise<number | null> => {
+        if (fonte.logKind || fonte.extraEq) return null;
+        if (periodoAtivo && fonte.dateCol) return null;
+        if (periodoAtivo && !fonte.yearCol) return null;
+
+        if (periodoAtivo && fonte.yearCol) {
+          const { data: n, error } = await supabaseAdmin.rpc("limpar_cache_por_ano", {
+            _tabela: fonte.table,
+            _ano_col: fonte.yearCol,
+            _ano_ini: anoIni!,
+            _ano_fim: anoFim!,
+          });
+          if (funcaoRpcAusente(error)) {
+            rpcAusente = true;
+            return null;
+          }
+          if (error) throw new Error(`${fonte.table}: ${error.message}`);
+          return Number(n ?? 0);
+        }
+        const { data: n, error } = await supabaseAdmin.rpc("truncar_cache", {
+          _tabela: fonte.table,
+        });
+        if (funcaoRpcAusente(error)) {
+          rpcAusente = true;
+          return null;
+        }
+        if (error) throw new Error(`${fonte.table}: ${error.message}`);
+        return Number(n ?? 0);
+      };
+
+      /**
+       * Uma fonte que falha não pode levar as outras junto.
+       *
+       * Antes, o primeiro `throw` saía da função inteira: as fontes seguintes
+       * da seleção nunca rodavam e o usuário via um toast citando uma tabela,
+       * sem saber que as outras tinham sido puladas — enquanto as anteriores já
+       * estavam commitadas (cada DELETE do PostgREST é uma transação própria).
+       * Agora cada fonte reporta o que apagou ou por que falhou.
+       */
+      const falhas: Record<string, string> = {};
+
       for (const fid of data.fontes) {
         if (!FONTE_IDS.includes(fid)) continue;
         const fonte = FONTES_LIMPEZA.find((f) => f.id === fid)!;
         const tName = fonte.table as TabelaLimpeza;
 
-        // Resolver filtro por período
-        let parentIdsForChild: Array<string | number> | null = null;
-        const buildQuery = () => {
-          let q = supabaseAdmin.from(tName).delete({ count: "exact" });
-          if (periodoAtivo && fonte.yearCol) {
-            q = q.gte(fonte.yearCol, anoIni!).lte(fonte.yearCol, anoFim!);
-          } else if (periodoAtivo && fonte.dateCol) {
-            q = q
-              .gte(fonte.dateCol, `${anoIni}-01-01`)
-              .lte(fonte.dateCol, `${anoFim}-12-31`);
-          } else {
-            // Sem filtro: precisa de uma cláusula WHERE (PostgREST exige).
-            // Quando há logKind (caso da tabela `importacoes`), os filtros
-            // adicionais abaixo já satisfazem essa exigência. Caso contrário
-            // usamos a PK declarada (ou heurística por nome de tabela), pois
-            // nem toda tabela tem coluna `id` — `fornecedores_cache` usa
-            // `cnpj` e `orgaos_cache` usa `cod`.
-            if (!fonte.logKind) {
-              const anyPk =
-                fonte.parentPk ??
-                fonte.pk ??
-                (fonte.table === "fornecedores_cache"
-                  ? "cnpj"
-                  : fonte.table === "orgaos_cache"
-                    ? "cod"
-                    : "id");
-              q = q.not(anyPk, "is", null);
+        try {
+          // Resolver filtro por período
+          let parentIdsForChild: Array<string | number> | null = null;
+          const buildQuery = () => {
+            let q = supabaseAdmin.from(tName).delete({ count: "exact" });
+            if (periodoAtivo && fonte.yearCol) {
+              q = q.gte(fonte.yearCol, anoIni!).lte(fonte.yearCol, anoFim!);
+            } else if (periodoAtivo && fonte.dateCol) {
+              q = q.gte(fonte.dateCol, `${anoIni}-01-01`).lte(fonte.dateCol, `${anoFim}-12-31`);
+            } else {
+              // Sem filtro: precisa de uma cláusula WHERE (PostgREST exige).
+              // Quando há logKind (caso da tabela `importacoes`), os filtros
+              // adicionais abaixo já satisfazem essa exigência. Caso contrário
+              // usamos a PK declarada (ou heurística por nome de tabela), pois
+              // nem toda tabela tem coluna `id` — `fornecedores_cache` usa
+              // `cnpj` e `orgaos_cache` usa `cod`.
+              if (!fonte.logKind) {
+                const anyPk =
+                  fonte.parentPk ??
+                  fonte.pk ??
+                  (fonte.table === "fornecedores_cache"
+                    ? "cnpj"
+                    : fonte.table === "orgaos_cache"
+                      ? "cod"
+                      : "id");
+                q = q.not(anyPk, "is", null);
+              }
+            }
+            if (fonte.extraEq) q = q.eq(fonte.extraEq.col, fonte.extraEq.value);
+            // Sub-modo para a tabela `importacoes`: separa o que conta como
+            // "histórico visível" dos marcadores de "consultado, vazio".
+            if (fonte.logKind === "ativos") {
+              // importados > 0 OU erros não vazio
+              q = q.or("importados.gt.0,erros.neq.[]");
+            } else if (fonte.logKind === "vazios") {
+              q = q.filter("importados", "eq", 0).filter("erros", "eq", "[]");
+            }
+            return q;
+          };
+
+          // Cascata: precisa coletar PKs antes de apagar a pai
+          if (fonte.childTable && fonte.childRef && fonte.parentPk) {
+            let psel = supabaseAdmin.from(tName).select(fonte.parentPk);
+            if (periodoAtivo && fonte.yearCol) {
+              psel = psel.gte(fonte.yearCol, anoIni!).lte(fonte.yearCol, anoFim!);
+            } else if (periodoAtivo && fonte.dateCol) {
+              psel = psel
+                .gte(fonte.dateCol, `${anoIni}-01-01`)
+                .lte(fonte.dateCol, `${anoFim}-12-31`);
+            }
+            if (fonte.extraEq) psel = psel.eq(fonte.extraEq.col, fonte.extraEq.value);
+            const { data: pRows, error: pErr } = await psel.limit(50000);
+            if (pErr) throw new Error(`${fonte.table} select: ${pErr.message}`);
+            parentIdsForChild = (pRows ?? [])
+              .map((r) => (r as unknown as Record<string, string | number>)[fonte.parentPk!])
+              .filter((v) => v != null);
+            if (parentIdsForChild.length > 0) {
+              const cName = fonte.childTable as TabelaLimpeza;
+              // chunk de 500 ids
+              let childCount = 0;
+              for (let i = 0; i < parentIdsForChild.length; i += 500) {
+                const slice = parentIdsForChild.slice(i, i + 500);
+                const r = await supabaseAdmin
+                  .from(cName)
+                  .delete({ count: "exact" })
+                  .in(fonte.childRef!, slice);
+                if (r.error) throw new Error(`${fonte.childTable}: ${r.error.message}`);
+                childCount += r.count ?? 0;
+              }
+              removed[fonte.childTable!] = childCount;
+            } else {
+              removed[fonte.childTable!] = 0;
             }
           }
-          if (fonte.extraEq) q = q.eq(fonte.extraEq.col, fonte.extraEq.value);
-          // Sub-modo para a tabela `importacoes`: separa o que conta como
-          // "histórico visível" dos marcadores de "consultado, vazio".
-          if (fonte.logKind === "ativos") {
-            // importados > 0 OU erros não vazio
-            q = q.or("importados.gt.0,erros.neq.[]");
-          } else if (fonte.logKind === "vazios") {
-            q = q.filter("importados", "eq", 0).filter("erros", "eq", "[]");
-          }
-          return q;
-        };
 
-        // Cascata: precisa coletar PKs antes de apagar a pai
-        if (fonte.childTable && fonte.childRef && fonte.parentPk) {
-          let psel = supabaseAdmin.from(tName).select(fonte.parentPk);
-          if (periodoAtivo && fonte.yearCol) {
-            psel = psel.gte(fonte.yearCol, anoIni!).lte(fonte.yearCol, anoFim!);
-          } else if (periodoAtivo && fonte.dateCol) {
-            psel = psel
-              .gte(fonte.dateCol, `${anoIni}-01-01`)
-              .lte(fonte.dateCol, `${anoFim}-12-31`);
-          }
-          if (fonte.extraEq) psel = psel.eq(fonte.extraEq.col, fonte.extraEq.value);
-          const { data: pRows, error: pErr } = await psel.limit(50000);
-          if (pErr) throw new Error(`${fonte.table} select: ${pErr.message}`);
-          parentIdsForChild = (pRows ?? []).map((r) => (r as unknown as Record<string, string | number>)[fonte.parentPk!]).filter((v) => v != null);
-          if (parentIdsForChild.length > 0) {
-            const cName = fonte.childTable as TabelaLimpeza;
-            // chunk de 500 ids
-            let childCount = 0;
-            for (let i = 0; i < parentIdsForChild.length; i += 500) {
-              const slice = parentIdsForChild.slice(i, i + 500);
-              const r = await supabaseAdmin.from(cName).delete({ count: "exact" }).in(fonte.childRef!, slice);
-              if (r.error) throw new Error(`${fonte.childTable}: ${r.error.message}`);
-              childCount += r.count ?? 0;
-            }
-            removed[fonte.childTable!] = childCount;
+          const viaRpc = await apagarPrincipal(fonte);
+          if (viaRpc !== null) {
+            removed[fonte.table] = viaRpc;
           } else {
-            removed[fonte.childTable!] = 0;
+            const r = await buildQuery();
+            if (r.error) throw new Error(`${fonte.table}: ${r.error.message}`);
+            removed[fonte.table] = r.count ?? 0;
           }
-        }
 
-        const r = await buildQuery();
-        if (r.error) throw new Error(`${fonte.table}: ${r.error.message}`);
-        removed[fonte.table] = r.count ?? 0;
-
-        // Limpa também os logs de importação dessa fonte — assim a matriz
-        // de cobertura volta a mostrar os meses como "nunca consultados"
-        // e o usuário pode reimportar do zero. Após a unificação, todos
-        // os logs (CGU e demais fontes) ficam em `importacoes`.
-        if (fonte.tentativaFonte) {
-          let tq = supabaseAdmin
-            .from("importacoes")
-            .delete({ count: "exact" })
-            .eq("fonte", fonte.tentativaFonte);
-          if (periodoAtivo) tq = tq.gte("ano", anoIni!).lte("ano", anoFim!);
-          const tr = await tq;
-          if (tr.error) throw new Error(`importacoes(${fonte.tentativaFonte}): ${tr.error.message}`);
-          removed[`importacoes:${fonte.tentativaFonte}`] = tr.count ?? 0;
-        }
-
-        // Remove suspeitas de qualidade órfãs dessa fonte.
-        const qaFonte = QA_FONTE_MAP[fid];
-        if (qaFonte) {
-          await pruneQaFindings(qaFonte, tName);
-        }
-
-        // TSE: zera o estado retomável (tse_varredura) da entidade limpa,
-        // senão a reimportação pularia linhas de um cache que não existe mais.
-        if (fid.startsWith("tse_")) {
-          const tipoTse = fid.slice(4); // tse_candidatos → candidatos
-          const vr = await supabaseAdmin
-            .from("tse_varredura")
-            .delete({ count: "exact" })
-            .like("chave", `${tipoTse}#%`);
-          if (vr.error && !tabelaVarreduraAusente(vr.error)) {
-            throw new Error(`tse_varredura: ${vr.error.message}`);
+          // Limpa também os logs de importação dessa fonte — assim a matriz
+          // de cobertura volta a mostrar os meses como "nunca consultados"
+          // e o usuário pode reimportar do zero. Após a unificação, todos
+          // os logs (CGU e demais fontes) ficam em `importacoes`.
+          if (fonte.tentativaFonte) {
+            let tq = supabaseAdmin
+              .from("importacoes")
+              .delete({ count: "exact" })
+              .eq("fonte", fonte.tentativaFonte);
+            if (periodoAtivo) tq = tq.gte("ano", anoIni!).lte("ano", anoFim!);
+            const tr = await tq;
+            if (tr.error)
+              throw new Error(`importacoes(${fonte.tentativaFonte}): ${tr.error.message}`);
+            removed[`importacoes:${fonte.tentativaFonte}`] = tr.count ?? 0;
           }
-          removed[`tse_varredura:${tipoTse}`] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
-        }
 
-        // CGU: zera o estado da varredura retomável, senão uma reimportação
-        // continuaria de uma página obsoleta em vez de varrer do início.
-        // Tolerante à migração ainda não aplicada (tabela ausente = nada a zerar).
-        if (fid === "cgu") {
-          const vr = await supabaseAdmin
-            .from("cgu_varredura")
-            .delete({ count: "exact" })
-            .not("orgao_cod", "is", null);
-          if (vr.error && !tabelaVarreduraAusente(vr.error)) {
-            throw new Error(`cgu_varredura: ${vr.error.message}`);
+          // Remove suspeitas de qualidade órfãs dessa fonte.
+          const qaFonte = QA_FONTE_MAP[fid];
+          if (qaFonte) {
+            await pruneQaFindings(qaFonte, tName);
           }
-          removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
+
+          // A ponte parlamentar↔candidato é DERIVADA do catálogo de candidatos:
+          // sem candidatos, cada vínculo aponta para um sq_candidato que não
+          // existe mais. Some junto, como a varredura — não é uma fonte que o
+          // admin escolhe limpar, é um subproduto.
+          if (fid === "tse_candidatos" && !periodoAtivo) {
+            const pr = await supabaseAdmin
+              .from("tse_parlamentar_candidato")
+              .delete({ count: "exact" })
+              .not("sq_candidato", "is", null);
+            if (pr.error) throw new Error(`tse_parlamentar_candidato: ${pr.error.message}`);
+            removed["tse_parlamentar_candidato"] = pr.count ?? 0;
+          }
+
+          // TSE: zera o estado retomável (tse_varredura) da entidade limpa,
+          // senão a reimportação pularia linhas de um cache que não existe mais.
+          if (fid.startsWith("tse_")) {
+            const tipoTse = fid.slice(4); // tse_candidatos → candidatos
+            const vr = await supabaseAdmin
+              .from("tse_varredura")
+              .delete({ count: "exact" })
+              .like("chave", `${tipoTse}#%`);
+            if (vr.error && !tabelaVarreduraAusente(vr.error)) {
+              throw new Error(`tse_varredura: ${vr.error.message}`);
+            }
+            removed[`tse_varredura:${tipoTse}`] = vr.error
+              ? "ausente (migração pendente)"
+              : (vr.count ?? 0);
+          }
+
+          // CGU: zera o estado da varredura retomável, senão uma reimportação
+          // continuaria de uma página obsoleta em vez de varrer do início.
+          // Tolerante à migração ainda não aplicada (tabela ausente = nada a zerar).
+          if (fid === "cgu") {
+            const vr = await supabaseAdmin
+              .from("cgu_varredura")
+              .delete({ count: "exact" })
+              .not("orgao_cod", "is", null);
+            if (vr.error && !tabelaVarreduraAusente(vr.error)) {
+              throw new Error(`cgu_varredura: ${vr.error.message}`);
+            }
+            removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
+          }
+        } catch (e) {
+          falhas[fonte.label] = e instanceof Error ? e.message : String(e);
         }
       }
-      return { ok: true, removed };
+
+      // Uma vez só, depois de todas as fontes: os sinais do TSE dependem do
+      // estado final de vários caches, não do de uma fonte isolada.
+      if (data.fontes.some((f) => f.startsWith("tse_"))) {
+        try {
+          await podarSinaisTse();
+        } catch (e) {
+          falhas["Sinais do TSE"] = e instanceof Error ? e.message : String(e);
+        }
+      }
+      if (rpcAusente) {
+        // Funcionou, mas pelo caminho lento — que é justamente o que estoura o
+        // tempo em tabela grande. Dizer isso agora evita o diagnóstico errado
+        // ("a limpeza é instável") quando o timeout voltar.
+        removed["migrations pendentes"] =
+          "limpeza usou DELETE (as funções truncar_cache/limpar_cache_por_ano ainda não existem no banco — rode supabase db push)";
+      }
+      return {
+        ok: Object.keys(falhas).length === 0,
+        removed,
+        falhas: Object.keys(falhas).length > 0 ? falhas : undefined,
+      };
     }
 
     // ============ MODO LEGADO ============
@@ -1030,14 +1302,32 @@ export const clearImportData = createServerFn({ method: "POST" })
       removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
     }
     if (data.cache) {
-      const f = await supabaseAdmin.from("fornecedores_cache").delete({ count: "exact" }).not("cnpj", "is", null);
+      const f = await supabaseAdmin
+        .from("fornecedores_cache")
+        .delete({ count: "exact" })
+        .not("cnpj", "is", null);
       if (f.error) throw new Error(`fornecedores_cache: ${f.error.message}`);
       removed.fornecedores = f.count ?? "ok";
-      const o = await supabaseAdmin.from("orgaos_cache").delete({ count: "exact" }).not("cod", "is", null);
+      const o = await supabaseAdmin
+        .from("orgaos_cache")
+        .delete({ count: "exact" })
+        .not("cod", "is", null);
       if (o.error) throw new Error(`orgaos_cache: ${o.error.message}`);
       removed.orgaos = o.count ?? "ok";
       // Demais caches consultados pela matriz de cobertura
-      const extras: Array<{ table: "camara_despesas_cache" | "camara_votacoes_cache" | "camara_votos_cache" | "senado_despesas_cache" | "senado_votacoes_cache" | "senado_votos_cache" | "pncp_contratos_cache" | "siconfi_relatorios_cache" | "transferegov_instrumentos_cache"; key: string }> = [
+      const extras: Array<{
+        table:
+          | "camara_despesas_cache"
+          | "camara_votacoes_cache"
+          | "camara_votos_cache"
+          | "senado_despesas_cache"
+          | "senado_votacoes_cache"
+          | "senado_votos_cache"
+          | "pncp_contratos_cache"
+          | "siconfi_relatorios_cache"
+          | "transferegov_instrumentos_cache";
+        key: string;
+      }> = [
         { table: "camara_despesas_cache", key: "id" },
         { table: "camara_votacoes_cache", key: "id" },
         { table: "camara_votos_cache", key: "votacao_id" },
@@ -1087,8 +1377,14 @@ export const diagnosticarPortalPagina = createServerFn({ method: "POST" })
         codigoOrgao: z.string().regex(/^\d{4,6}$/),
         // Datas opcionais: a varredura da CGU não usa janela (filtra vigência).
         // O diagnóstico inspeciona a página exatamente como o import a recebe.
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        dataInicial: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        dataFinal: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
         pagina: z.number().int().min(1).max(2000).default(1),
         filtrarId: z.string().optional(),
       })
@@ -1110,9 +1406,8 @@ export const diagnosticarPortalPagina = createServerFn({ method: "POST" })
     const contratos = Array.isArray(list) ? list : [];
     const zerosMatches = rawText.match(/\b\d+\.\d{4,}\b/g);
     const numerosComDecimaisNoJson = zerosMatches ? [...new Set(zerosMatches)] : [];
-    const resultado = (data.filtrarId
-      ? contratos.filter((c) => String(c.id) === data.filtrarId)
-      : contratos
+    const resultado = (
+      data.filtrarId ? contratos.filter((c) => String(c.id) === data.filtrarId) : contratos
     ).map((c) => {
       const { valorInicial, valorFinal } = normalizarValoresCguListagem(
         c.valorInicialCompra,
@@ -1157,9 +1452,18 @@ export const diagnosticarPortalEndpoint = createServerFn({ method: "POST" })
       .object({
         // Caminho do endpoint sob /api-de-dados (ex.: "/licitacoes").
         endpoint: z.string().regex(/^\/[a-z0-9/-]{2,60}$/i),
-        codigoOrgao: z.string().regex(/^\d{4,6}$/).optional(),
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        codigoOrgao: z
+          .string()
+          .regex(/^\d{4,6}$/)
+          .optional(),
+        dataInicial: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
+        dataFinal: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .optional(),
         // Como passar a janela à API: a maioria dos endpoints da CGU filtra em
         // BR (DD/MM/YYYY); alguns aceitam ISO. Default BR.
         datasBR: z.boolean().default(true),
@@ -1247,7 +1551,11 @@ export const getContratoPorId = createServerFn({ method: "GET" })
       dataInicioVigencia: row.data_inicio_vigencia ?? "",
     };
     const [{ data: forn }, { data: org }] = await Promise.all([
-      supabaseAdmin.from("fornecedores_cache").select("cnpj,nome").eq("cnpj", contrato.fornecedorCnpj).maybeSingle(),
+      supabaseAdmin
+        .from("fornecedores_cache")
+        .select("cnpj,nome")
+        .eq("cnpj", contrato.fornecedorCnpj)
+        .maybeSingle(),
       supabaseAdmin.from("orgaos_cache").select("*").eq("cod", contrato.orgaoCod).maybeSingle(),
     ]);
     const fornecedor: Fornecedor | null = forn ? { cnpj: forn.cnpj, nome: forn.nome } : null;
@@ -1282,7 +1590,10 @@ export const loadStoredDataset = createServerFn({ method: "GET" }).handler(async
     nota: o.nota ?? undefined,
     ativo: o.ativo,
   }));
-  const fornecedores: Fornecedor[] = (fornRes.data ?? []).map((f) => ({ cnpj: f.cnpj, nome: f.nome }));
+  const fornecedores: Fornecedor[] = (fornRes.data ?? []).map((f) => ({
+    cnpj: f.cnpj,
+    nome: f.nome,
+  }));
   const contratos: Contrato[] = (contRes.data ?? []).map((c) => ({
     id: c.id,
     orgaoCod: c.orgao_cod,

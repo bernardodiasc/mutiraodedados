@@ -119,7 +119,7 @@ function ConstrucaoHero() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Uma iniciativa <strong className="text-foreground">individual, independente e ainda em
+          Uma iniciativa <strong className="text-foreground">independente e ainda em
           construção</strong> para reunir, cruzar e tornar compreensível o gasto público do Brasil.
           Os dados são <strong className="text-foreground">reais, de fontes oficiais</strong> — mas
           sabidamente <strong className="text-foreground">incompletos</strong>. A cobertura cresce

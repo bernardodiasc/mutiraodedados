@@ -50,6 +50,18 @@ describe("primitivos", () => {
     expect(parseValorTse("#NULO#")).toBeNull();
   });
 
+  it("parseValorTse: decimal americano não é multiplicado por 100/1000", () => {
+    // Antes: "3000.00" virava 300000 (todos os pontos eram removidos).
+    expect(parseValorTse("3000.00")).toBe(3000);
+    expect(parseValorTse("1234.56")).toBe(1234.56);
+    // Milhar pt-BR inequívoco continua lido como milhar.
+    expect(parseValorTse("1.234.567")).toBe(1234567);
+    // Grupo único ".ddd" segue a convenção pt-BR do CSV do TSE.
+    expect(parseValorTse("1.500")).toBe(1500);
+    // Negativo (aparece em retificações).
+    expect(parseValorTse("-1.500,00")).toBe(-1500);
+  });
+
   it("parseDataTse: BR normal e o formato colado de 2014", () => {
     expect(parseDataTse("05/10/2014")).toBe("2014-10-05");
     expect(parseDataTse("10/10/201400:00:00")).toBe("2014-10-10");
@@ -113,9 +125,21 @@ describe("bens — variações de cabeçalho 2016 × demais", () => {
         expect(r!.ano_eleicao).toBe(ano);
         expect(r!.valor).toBeGreaterThan(0);
         expect(r!.ordem_bem).toBeGreaterThan(0);
+        // CD_TIPO_BEM_CANDIDATO existe nos dois layouts (2016 com aspas, 2022 sem).
+        expect(r!.tipo_bem_cod).toMatch(/^\d{1,2}$/);
       }
     });
   }
+
+  it("guarda o código do tipo de bem junto da descrição", async () => {
+    const linhas = await linhasDe("bem_candidato_2022_AC.csv");
+    const idx = new IndiceCabecalho(linhas[0]);
+    const rows = linhas.slice(1).map((c) => mapearBem(idx, c)!);
+    const casa = rows.find((r) => r.tipo_bem === "Casa");
+    expect(casa?.tipo_bem_cod).toBe("12");
+    const veiculo = rows.find((r) => r.tipo_bem?.startsWith("Veículo automotor terrestre"));
+    expect(veiculo?.tipo_bem_cod).toBe("21");
+  });
 });
 
 describe("resultados por município/zona", () => {

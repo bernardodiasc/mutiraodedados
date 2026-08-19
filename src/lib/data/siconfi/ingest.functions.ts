@@ -144,6 +144,7 @@ async function ingerirRelatorioSiconfi(params: {
     if (error) throw new Error(`db: ${error.message}`);
   }
 
+  let erroQa: string | null = null;
   if (rows.length > 0) {
     try {
       const { regrasSiconfi, flagQA } = await import("@/lib/data/qa");
@@ -157,8 +158,9 @@ async function ingerirRelatorioSiconfi(params: {
           })),
         ),
       );
-    } catch {
-      // ignora erros de QA
+    } catch (e) {
+      // Não interrompe a ingestão; o erro de QA vai para o log da importação.
+      erroQa = (e as Error).message;
     }
   }
 
@@ -171,7 +173,7 @@ async function ingerirRelatorioSiconfi(params: {
       mes: periodo ?? 1,
       total_bruto: rows.length,
       importados: rows.length,
-      erros: [],
+      erros: erroQa ? [`qa: ${erroQa}`] : [],
       user_id: userId,
       endpoint,
     });

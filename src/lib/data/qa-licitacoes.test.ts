@@ -15,11 +15,14 @@ describe("regrasCguLicitacoes", () => {
     expect(regrasCguLicitacoes([base])).toEqual([]);
   });
 
-  it("sinaliza certame abandonado (revogada/anulada/fracassada/deserta)", () => {
+  it("sinaliza certame abandonado como sinal INVESTIGATIVO nascendo aviso", () => {
     const findings = regrasCguLicitacoes([
       { ...base, situacao: "Evento de Revogação Publicado" },
     ]);
-    expect(findings.some((f) => f.regra === "licitacao_sem_desfecho")).toBe(true);
+    const f = findings.find((x) => x.regra === "licitacao_sem_desfecho");
+    expect(f).toBeDefined();
+    expect(f?.tipo).toBe("investigativo");
+    expect(f?.severidade).toBe("aviso");
   });
 
   it("sinaliza data de abertura ausente", () => {
@@ -37,5 +40,15 @@ describe("regrasCguLicitacoes", () => {
   it("sinaliza valor negativo como crítico", () => {
     const findings = regrasCguLicitacoes([{ ...base, valor: -1 }]);
     expect(findings).toMatchObject([{ regra: "valor_negativo", severidade: "critico" }]);
+  });
+
+  it("sinaliza valor ínfimo (>0 e <R$100) como suspeita de truncamento por escala", () => {
+    const findings = regrasCguLicitacoes([{ ...base, valor: 57.6 }]);
+    expect(findings).toMatchObject([
+      { regra: "valor_truncado_suspeito", tipo: "qualidade", severidade: "aviso", valor_armazenado: 57.6 },
+    ]);
+    // Limite exato e zero não disparam.
+    expect(regrasCguLicitacoes([{ ...base, valor: 100 }])).toEqual([]);
+    expect(regrasCguLicitacoes([{ ...base, valor: 0 }])).toEqual([]);
   });
 });

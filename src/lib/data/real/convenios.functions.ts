@@ -122,7 +122,7 @@ export const importConvenios = createServerFn({ method: "POST" })
         dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         maxPaginas: z.number().int().min(1).max(5000).default(5000),
-        delayMs: z.number().int().min(0).max(10000).default(500),
+        delayMs: z.number().int().min(0).max(10000).default(800),
         orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
       })
       .parse(input),

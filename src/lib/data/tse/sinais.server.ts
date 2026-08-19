@@ -208,16 +208,15 @@ export async function rodarEleitosSemContas(
   };
 }
 
-/** candidato_sem_bens fica atrás de flag até confirmar o comportamento do ano. */
+/** candidato_sem_bens roda por padrão; o flag permite desligar pontualmente
+ * (ex.: ano em que declaração 'sem bens' não gera registro no CSV). */
 export async function rodarCandidatosSemBens(ano: number, ativar: boolean): Promise<SinaisRodada> {
   if (!ativar) {
     return {
       regra: "candidato_sem_bens",
       candidatosAvaliados: 0,
       findingsGerados: 0,
-      avisos: [
-        "regra desativada por padrão — confirme antes se, neste ano, declaração 'sem bens' gera registro no CSV",
-      ],
+      avisos: ["regra desligada nesta execução (ativarCandidatoSemBens=false)"],
     };
   }
   const { data, error } = await supabaseAdmin.rpc("tse_candidatos_sem_bens", { _ano: ano });
