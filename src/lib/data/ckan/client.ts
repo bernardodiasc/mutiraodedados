@@ -11,6 +11,8 @@
  * DecompressionStream("deflate-raw").
  */
 
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
+
 // ---------------------------------------------------------------------------
 // API CKAN (descoberta)
 // ---------------------------------------------------------------------------
@@ -21,35 +23,25 @@ export type CkanResource = {
   format: string;
 };
 
-const RETRY_DELAYS_MS = [500, 1500, 4500];
-
-async function fetchComRetry(url: string, init?: RequestInit): Promise<Response> {
-  let lastErr: Error | null = null;
-  for (let tentativa = 0; tentativa <= RETRY_DELAYS_MS.length; tentativa++) {
-    try {
-      const res = await fetch(url, init);
-      if (res.ok) return res;
-      if (res.status === 429 || res.status >= 500) {
-        lastErr = new Error(`TRANSIENT: HTTP ${res.status} em ${url}`);
-      } else {
-        throw new Error(`HTTP ${res.status} em ${url}`);
-      }
-    } catch (e) {
-      const msg = (e as Error).message;
-      if (!msg.startsWith("TRANSIENT:") && !msg.includes("fetch")) throw e;
-      lastErr = e as Error;
-    }
-    if (tentativa < RETRY_DELAYS_MS.length) {
-      await new Promise((r) => setTimeout(r, RETRY_DELAYS_MS[tentativa]));
-    }
-  }
-  throw lastErr ?? new Error(`Falha ao buscar ${url}`);
+/**
+ * GET com a política de retry do projeto. Esta fonte é a origem do padrão
+ * (4 tentativas, 500ms → 1,5s → 4,5s), hoje em `http-retry.ts`; aqui só
+ * fica a mensagem de erro do CKAN.
+ */
+async function ckanFetch(url: string, init?: RequestInit): Promise<Response> {
+  const res = await fetchComRetry(url, init);
+  if (res.ok) return res;
+  throw new Error(
+    ehStatusTransitorio(res.status)
+      ? `TRANSIENT: HTTP ${res.status} em ${url}`
+      : `HTTP ${res.status} em ${url}`,
+  );
 }
 
 /** `package_show` do CKAN: devolve os resources (arquivos) de um dataset. */
 export async function ckanPackageShow(baseUrl: string, packageId: string): Promise<CkanResource[]> {
   const url = `${baseUrl.replace(/\/$/, "")}/api/3/action/package_show?id=${encodeURIComponent(packageId)}`;
-  const res = await fetchComRetry(url, { headers: { accept: "application/json" } });
+  const res = await ckanFetch(url, { headers: { accept: "application/json" } });
   const body = (await res.json()) as {
     success: boolean;
     result?: { resources?: Array<{ name?: string; url?: string; format?: string }> };
@@ -75,7 +67,7 @@ export type ZipEntrada = {
 };
 
 async function fetchRange(url: string, inicio: number, fim: number): Promise<Uint8Array> {
-  const res = await fetchComRetry(url, {
+  const res = await ckanFetch(url, {
     headers: { Range: `bytes=${inicio}-${fim}` },
   });
   if (res.status !== 206 && res.status !== 200) {
@@ -85,7 +77,7 @@ async function fetchRange(url: string, inicio: number, fim: number): Promise<Uin
 }
 
 async function tamanhoRemoto(url: string): Promise<number> {
-  const res = await fetchComRetry(url, { method: "HEAD" });
+  const res = await ckanFetch(url, { method: "HEAD" });
   const len = Number(res.headers.get("content-length") ?? 0);
   if (!len) throw new Error(`Sem Content-Length em ${url} — não dá para ler o zip por Range.`);
   return len;
@@ -169,7 +161,7 @@ export async function abrirEntradaZip(
   const nlen = u16(lh, 26);
   const elen = u16(lh, 28);
   const dataIni = entrada.offsetLocal + 30 + nlen + elen;
-  const res = await fetchComRetry(url, {
+  const res = await ckanFetch(url, {
     headers: { Range: `bytes=${dataIni}-${dataIni + entrada.tamanhoComprimido - 1}` },
   });
   if (!res.body) throw new Error(`Resposta sem corpo para ${entrada.nome}`);

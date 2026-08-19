@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
 
 /**
  * SICONFI — Tesouro Nacional
@@ -16,14 +17,24 @@ async function siconfiGet<T = unknown>(
   params: Record<string, string | number>,
 ): Promise<T> {
   const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
-  const res = await fetch(`${BASE}${path}?${qs}`, {
-    headers: { accept: "application/json", "user-agent": UA },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => "");
-    throw new Error(`SICONFI API ${res.status}: ${body.slice(0, 200)}`);
+  // Até a v0.3.0 esta era a única fonte sem retry nenhum: qualquer 503 do
+  // Tesouro derrubava a rodada inteira.
+  let res: Response;
+  try {
+    res = await fetchComRetry(`${BASE}${path}?${qs}`, {
+      headers: { accept: "application/json", "user-agent": UA },
+    });
+  } catch (e) {
+    throw new Error(`TRANSIENT: SICONFI indisponível (rede): ${(e as Error).message}`);
   }
-  return (await res.json()) as T;
+  if (res.ok) return (await res.json()) as T;
+  const body = await res.text().catch(() => "");
+  const snippet = body.slice(0, 200);
+  throw new Error(
+    ehStatusTransitorio(res.status)
+      ? `TRANSIENT: SICONFI ${res.status} (serviço indisponível — ${snippet})`
+      : `SICONFI API ${res.status}: ${snippet}`,
+  );
 }
 
 async function ensureAdmin(userId: string) {

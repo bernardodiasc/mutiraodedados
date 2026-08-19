@@ -20,7 +20,7 @@ Sempre o admin, pela tela [`/admin/dados`](./admin.md). Nenhum usuário comum di
 ## Quem é cliente HTTP
 
 - **Portal CGU e Transferegov** usam o cliente compartilhado em `src/lib/data/real/portal-client.ts` (mesma autenticação e parser de valores).
-- **Câmara, Senado, PNCP, SICONFI** têm clientes próprios em `src/lib/data/<fonte>/ingest.functions.ts`, com retry/backoff equivalentes.
+- **Câmara, Senado, PNCP, SICONFI** têm clientes próprios em `src/lib/data/<fonte>/ingest.functions.ts`. PNCP e SICONFI usam a mesma política de retry das demais fontes; Câmara e Senado têm laço próprio equivalente.
 
 ## Throttling
 

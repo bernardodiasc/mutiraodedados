@@ -16,7 +16,7 @@ Checklist humano antes de mexer em código. O passo-a-passo técnico está em [`
 
 - Crie a pasta `src/lib/data/<fonte>/`.
 - Server function de ingestão sempre usa `requireSupabaseAuth` + `ensureAdmin`.
-- Use o cliente compartilhado `portal-client.ts` apenas se a API for compatível (mesma autenticação CGU). Caso contrário, crie cliente próprio com mesmo padrão de retry.
+- Use o cliente compartilhado `portal-client.ts` apenas se a API for compatível (mesma autenticação CGU). Caso contrário, crie cliente próprio — mas apoiado no `fetchComRetry`, que já carrega a política de retry do projeto, em vez de escrever outra.
 - Adicione a fonte em `src/lib/data/janelas.ts` com o ano de início.
 - **Os três tipos de sinal** (ver [qualidade-dados](./qualidade-dados.md)): planeje regras de **qualidade** (defeitos do dado), **lacunas** (ausências detectáveis) e, quando houver cruzamento possível, **sinais investigativos** — em `src/lib/data/<fonte>/qualidade.ts`, `lacunas.ts` e `investigativos.ts`. Fonte sem nenhum sinal planejado é sinal de escopo mal definido.
 - Adicione um arquivo em `docs/fontes/<nova-fonte>.md` seguindo o padrão das fontes existentes.

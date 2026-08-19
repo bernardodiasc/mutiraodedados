@@ -17,6 +17,8 @@
  * nunca "auto-corrigidas".
  */
 
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
+
 export const PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dados";
 
 /**
@@ -60,7 +62,8 @@ export function parseValorPortal(v: unknown): number {
 /**
  * GET no Portal, com:
  * - chave-api-dados a partir de PORTAL_TRANSPARENCIA_API_KEY
- * - retry 2× em 5xx/429/rede (mensagem prefixada "TRANSIENT: ...")
+ * - retry pela política única do projeto (`http-retry.ts`), com as mensagens
+ *   de falha passageira prefixadas "TRANSIENT: ..." como o painel admin espera
  */
 async function portalFetch<T = unknown>(
   path: string,
@@ -77,46 +80,42 @@ async function portalFetch<T = unknown>(
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
     "accept-language": "pt-BR,pt;q=0.9,en;q=0.8",
   };
-  let lastErr: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch(url, { headers });
-    } catch (e) {
-      lastErr = new Error(`TRANSIENT: Portal indisponível (rede): ${(e as Error).message}`);
-      if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
-      continue;
-    }
-    const ct = res.headers.get("content-type") ?? "";
-    if (res.ok) {
-      const rawText = await res.text();
-      if (!ct.includes("application/json")) {
-        throw new Error(`Portal respondeu não-JSON (${ct.slice(0, 40)}): ${rawText.slice(0, 160)}`);
-      }
-      try {
-        return { data: JSON.parse(rawText) as T, rawText };
-      } catch {
-        throw new Error(`Portal retornou JSON inválido: ${rawText.slice(0, 160)}`);
-      }
-    }
-    if (res.status === 401 || res.status === 403) {
-      throw new Error("Chave do Portal inválida ou sem permissão.");
-    }
-    const transient = res.status >= 500 || res.status === 429;
-    const body = await res.text().catch(() => "");
-    const snippet = body
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120);
-    const msg = transient
-      ? `TRANSIENT: Portal ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
-      : `Portal API ${res.status}: ${snippet}`;
-    lastErr = new Error(msg);
-    if (!transient) throw lastErr;
-    if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+  let res: Response;
+  try {
+    res = await fetchComRetry(url, { headers });
+  } catch (e) {
+    throw new Error(`TRANSIENT: Portal indisponível (rede): ${(e as Error).message}`);
   }
-  throw lastErr ?? new Error("TRANSIENT: Portal indisponível");
+
+  const ct = res.headers.get("content-type") ?? "";
+  if (res.ok) {
+    const rawText = await res.text();
+    if (!ct.includes("application/json")) {
+      throw new Error(`Portal respondeu não-JSON (${ct.slice(0, 40)}): ${rawText.slice(0, 160)}`);
+    }
+    try {
+      return { data: JSON.parse(rawText) as T, rawText };
+    } catch {
+      throw new Error(`Portal retornou JSON inválido: ${rawText.slice(0, 160)}`);
+    }
+  }
+
+  if (res.status === 401 || res.status === 403) {
+    throw new Error("Chave do Portal inválida ou sem permissão.");
+  }
+
+  const body = await res.text().catch(() => "");
+  const snippet = body
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  // Chegou aqui com status transitório = as tentativas se esgotaram.
+  throw new Error(
+    ehStatusTransitorio(res.status)
+      ? `TRANSIENT: Portal ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
+      : `Portal API ${res.status}: ${snippet}`,
+  );
 }
 
 export async function portalGet<T = unknown>(

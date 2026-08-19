@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { portalGet, PORTAL_BASE } from "@/lib/data/real/portal-client";
 import { flagQA, type QaFinding } from "@/lib/data/qa";
+import { AVISO_SEM_RETOMADA, rodarComOrcamento, type Checkpoint } from "@/lib/data/runner";
 
 /**
  * Maquinaria compartilhada de varredura do Portal da Transparência (CGU).
@@ -116,6 +117,33 @@ export async function persistirVarredura(
   }
   return { persistida: true, erro: null };
 }
+
+/**
+ * `cgu_varredura` no formato que o runner genérico entende
+ * ({@link Checkpoint}). É o que permite a varredura da CGU e a do TSE
+ * compartilharem a mesma mecânica de orçamento e retomada, cada uma sobre a
+ * sua tabela.
+ */
+export const checkpointCguVarredura: Checkpoint = {
+  ler: async (chave) => {
+    const { data } = await supabaseAdmin
+      .from("cgu_varredura")
+      .select("ultima_pagina, completa, total_importado")
+      .eq("orgao_cod", chave)
+      .maybeSingle();
+    if (!data) return null;
+    return {
+      cursor: data.ultima_pagina ?? 0,
+      total: data.total_importado ?? 0,
+      completa: Boolean(data.completa),
+    };
+  },
+  salvar: async (chave, estado) =>
+    persistirVarredura(chave, estado.cursor, estado.completa, estado.total).then((r) => ({
+      persistido: r.persistida,
+      erro: r.erro,
+    })),
+};
 
 // ---------------------------------------------------------------------------
 // Chave de varredura (multi-entidade)
@@ -247,143 +275,109 @@ export async function varrerPaginado<TRaw, TRow>(
     rowDateIso,
   } = opts;
 
-  // Retoma de onde parou (cgu_varredura). Sem estado, ou já completa → do zero.
-  let paginaInicial = 1;
-  let totalAcumulado = 0;
-  {
-    const { data: est } = await supabaseAdmin
-      .from("cgu_varredura")
-      .select("ultima_pagina, completa, total_importado")
-      .eq("orgao_cod", varreduraKey)
-      .maybeSingle();
-    if (est && !est.completa && (est.ultima_pagina ?? 0) > 0) {
-      paginaInicial = (est.ultima_pagina ?? 0) + 1;
-      totalAcumulado = est.total_importado ?? 0;
-    }
-  }
-
-  const inicio = Date.now();
-  const erros: string[] = [];
+  // Orçamento, checkpoint e retomada são do runner genérico; aqui fica só o
+  // que é do Portal — buscar a página, mapear, gravar e registrar.
   const datasRodada: string[] = [];
-  let ultimaPaginaVarrida = paginaInicial - 1;
-  let acumuladoRodada = 0;
-  let completa = false;
-  let persistida = true;
-  let orcamentoEsgotado = false;
+  let ultimaPaginaComDados = 0;
 
-  for (let n = 0; n < maxPaginas; n++) {
-    if (Date.now() - inicio > orcamentoMs) {
-      orcamentoEsgotado = true;
-      break;
-    }
-    const pagina = paginaInicial + n;
-    const params = montarParams(pagina);
-    const urlPagina = `${PORTAL_BASE}${endpoint}?${new URLSearchParams(params).toString()}`;
-    let list: TRaw[];
-    try {
-      list = await portalGet<TRaw[]>(endpoint, params);
-    } catch (e) {
-      const msg = (e as Error).message;
-      erros.push(`p${pagina}: ${msg}`);
-      // JSON inválido/não-JSON é transitório no Portal — pula a página e segue.
-      if (msg.includes("JSON inválido") || msg.includes("não-JSON")) {
-        if (delayMs > 0) await sleep(delayMs);
-        continue;
-      }
-      break;
-    }
-    if (delayMs > 0) await sleep(delayMs);
-    if (!Array.isArray(list) || list.length === 0) {
-      completa = true;
-      break;
-    }
+  const rodada = await rodarComOrcamento({
+    chave: varreduraKey,
+    checkpoint: checkpointCguVarredura,
+    orcamentoMs,
+    maxPassos: maxPaginas,
+    passo: async (pagina) => {
+      const params = montarParams(pagina);
+      const urlPagina = `${PORTAL_BASE}${endpoint}?${new URLSearchParams(params).toString()}`;
 
-    const reqLogs: LogRequisicao[] = [
-      {
-        fonte,
-        orgao_cod: orgaoCodLog,
-        escopo,
-        log_kind: "requisicao",
-        endpoint: `GET ${urlPagina}`,
-        total_bruto: list.length,
-        importados: list.length,
-        erros: [],
-        consultado_em: new Date().toISOString(),
-        user_id: userId,
-      },
-    ];
-    const findings: QaFinding[] = [];
-    const push: SweepPush = { log: (l) => reqLogs.push(l), finding: (f) => findings.push(f) };
-
-    let rows: TRow[];
-    try {
-      rows = await mapPagina(list, pagina, push);
-    } catch (e) {
-      erros.push(`map p${pagina}: ${(e as Error).message}`);
-      rows = [];
-    }
-
-    erros.push(...(await upsertBatch(rows)));
-    if (qaSync) {
+      let list: TRaw[];
       try {
-        await qaSync(rows);
+        list = await portalGet<TRaw[]>(endpoint, params);
       } catch (e) {
-        erros.push(`qa: ${(e as Error).message}`);
+        const msg = (e as Error).message;
+        // JSON inválido/não-JSON é transitório no Portal: pula a página (o
+        // cursor avança) e segue. Qualquer outro erro interrompe a rodada sem
+        // avançar, para a próxima refazer esta página.
+        const pular = msg.includes("JSON inválido") || msg.includes("não-JSON");
+        if (pular && delayMs > 0) await sleep(delayMs);
+        return {
+          processados: 0,
+          fim: false,
+          interromper: !pular,
+          erros: [`p${pagina}: ${msg}`],
+        };
       }
-    }
-    if (findings.length > 0) {
+      if (delayMs > 0) await sleep(delayMs);
+      if (!Array.isArray(list) || list.length === 0) return { processados: 0, fim: true };
+
+      const errosPagina: string[] = [];
+      const reqLogs: LogRequisicao[] = [
+        {
+          fonte,
+          orgao_cod: orgaoCodLog,
+          escopo,
+          log_kind: "requisicao",
+          endpoint: `GET ${urlPagina}`,
+          total_bruto: list.length,
+          importados: list.length,
+          erros: [],
+          consultado_em: new Date().toISOString(),
+          user_id: userId,
+        },
+      ];
+      const findings: QaFinding[] = [];
+      const push: SweepPush = { log: (l) => reqLogs.push(l), finding: (f) => findings.push(f) };
+
+      let rows: TRow[];
       try {
-        await flagQA(findings);
+        rows = await mapPagina(list, pagina, push);
       } catch (e) {
-        erros.push(`qa_alertas: ${(e as Error).message}`);
+        errosPagina.push(`map p${pagina}: ${(e as Error).message}`);
+        rows = [];
       }
-    }
-    try {
-      await inserirLogsRequisicao(reqLogs);
-    } catch (e) {
-      erros.push(`log: ${(e as Error).message}`);
-    }
 
-    ultimaPaginaVarrida = pagina;
-    acumuladoRodada += rows.length;
-    totalAcumulado += rows.length;
-    if (rowDateIso) {
-      for (const r of rows) {
-        const d = rowDateIso(r);
-        if (d) datasRodada.push(d);
+      errosPagina.push(...(await upsertBatch(rows)));
+      if (qaSync) {
+        try {
+          await qaSync(rows);
+        } catch (e) {
+          errosPagina.push(`qa: ${(e as Error).message}`);
+        }
       }
-    }
+      if (findings.length > 0) {
+        try {
+          await flagQA(findings);
+        } catch (e) {
+          errosPagina.push(`qa_alertas: ${(e as Error).message}`);
+        }
+      }
+      try {
+        await inserirLogsRequisicao(reqLogs);
+      } catch (e) {
+        errosPagina.push(`log: ${(e as Error).message}`);
+      }
 
-    // Avança o ponteiro ANTES da próxima página (sobrevive a kill do servidor).
-    const pv = await persistirVarredura(varreduraKey, ultimaPaginaVarrida, false, totalAcumulado);
-    persistida = pv.persistida;
-    if (pv.erro) erros.push(pv.erro);
+      ultimaPaginaComDados = pagina;
+      if (rowDateIso) {
+        for (const r of rows) {
+          const d = rowDateIso(r);
+          if (d) datasRodada.push(d);
+        }
+      }
 
-    if (list.length < tamPagina) {
-      completa = true;
-      break;
-    }
-  }
+      // Página menor que o tamanho fixo do endpoint = última.
+      return { processados: rows.length, fim: list.length < tamPagina, erros: errosPagina };
+    },
+  });
 
-  // Estado final.
-  {
-    const pv = await persistirVarredura(
-      varreduraKey,
-      ultimaPaginaVarrida,
-      completa,
-      totalAcumulado,
-    );
-    persistida = pv.persistida;
-    if (pv.erro) erros.push(pv.erro);
-  }
-
-  const haMais = !completa;
+  // O runner já avisa quando o checkpoint falhou; aqui a mensagem vira a do
+  // Portal, com a página alcançada. Não duplicamos as duas.
+  const erros = rodada.erros.filter((e) => e !== AVISO_SEM_RETOMADA);
   const avisos: string[] = [];
-  if (haMais) {
+  if (!rodada.concluido) {
     avisos.push(
-      persistida
-        ? `info: varredura parcial (até pág. ${ultimaPaginaVarrida}${orcamentoEsgotado ? ", tempo da rodada esgotado" : ""}) — há mais ${entidade}; continue para baixar o restante.`
-        : `info: varredura parcial (até pág. ${ultimaPaginaVarrida}) — a tabela cgu_varredura não existe (migração pendente), então NÃO retoma. Aplique a migração.`,
+      rodada.semRetomada
+        ? `info: varredura parcial (até pág. ${ultimaPaginaComDados}) — a tabela cgu_varredura não existe (migração pendente), então NÃO retoma. Aplique a migração.`
+        : `info: varredura parcial (até pág. ${ultimaPaginaComDados}${rodada.orcamentoEsgotado ? ", tempo da rodada esgotado" : ""}) — há mais ${entidade}; continue para baixar o restante.`,
     );
   }
 
@@ -395,20 +389,20 @@ export async function varrerPaginado<TRaw, TRow>(
     escopo,
     data_inicial: datasRodada[0] ?? null,
     data_final: datasRodada[datasRodada.length - 1] ?? null,
-    total_bruto: acumuladoRodada,
-    importados: acumuladoRodada,
+    total_bruto: rodada.processados,
+    importados: rodada.processados,
     erros: [...erros, ...avisos],
     consultado_em: new Date().toISOString(),
-    endpoint: `GET ${PORTAL_BASE}${endpoint} (varredura ${entidade}, pág. ${paginaInicial}–${ultimaPaginaVarrida}${completa ? " — completa" : " — parcial"})`,
+    endpoint: `GET ${PORTAL_BASE}${endpoint} (varredura ${entidade}, pág. ${rodada.cursorInicial}–${ultimaPaginaComDados}${rodada.concluido ? " — completa" : " — parcial"})`,
     user_id: userId,
   });
 
   return {
-    totalAcumulado,
-    ultimaPagina: ultimaPaginaVarrida,
-    completa,
-    haMais,
-    orcamentoEsgotado,
+    totalAcumulado: rodada.totalAcumulado,
+    ultimaPagina: ultimaPaginaComDados,
+    completa: rodada.concluido,
+    haMais: !rodada.concluido,
+    orcamentoEsgotado: rodada.orcamentoEsgotado,
     erros,
     avisos,
   };
