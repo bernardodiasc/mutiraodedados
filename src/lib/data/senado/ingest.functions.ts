@@ -4,6 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import {
+  CEAP_ORCAMENTO_MS,
+  CEAP_TETO_SUBREQUISICOES,
+  chaveVarreduraCeap,
+  parlamentarNoCursor,
+} from "@/lib/data/ceap-varredura";
 import { parseValorSenado } from "@/lib/data/senado/parsers";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
@@ -499,11 +507,16 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
+    // A ordem precisa ser a MESMA a cada rodada, senão a retomada pula ou
+    // repete senador — daí o `order("id")`.
     let senadorIds: number[] = [];
     if (data.senadorId) {
       senadorIds = [data.senadorId];
     } else {
-      const { data: sens, error } = await supabaseAdmin.from("senado_senadores_cache").select("id");
+      const { data: sens, error } = await supabaseAdmin
+        .from("senado_senadores_cache")
+        .select("id")
+        .order("id");
       if (error) throw new Error(`db: ${error.message}`);
       senadorIds = (sens ?? []).map((s) => s.id as number);
     }
@@ -511,70 +524,120 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
       throw new Error("Nenhum senador em cache. Importe o cadastro primeiro.");
     }
 
-    let totalImportados = 0;
     const erros: string[] = [];
+    let senadoresProcessados = 0;
 
-    for (const senId of senadorIds) {
-      try {
-        const json = await senadoGet<{
-          DespesasParlamentares?: {
-            Senador?: {
-              Despesas?: { Despesa?: DespesaRaw | DespesaRaw[] };
-            };
-          };
-        }>(`/senador/${senId}/despesas/${data.ano}`);
+    // Um passo = um senador. Rodada limitada por tempo E por subrequisições;
+    // o painel admin repete até `haMais` ficar falso.
+    const rodada = await rodarComOrcamento({
+      chave: chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId),
+      checkpoint: checkpointImportacao,
+      orcamentoMs: CEAP_ORCAMENTO_MS,
+      orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
+      maxPassos: senadorIds.length,
+      passo: async (cursor) => {
+        const { id: senId, fim } = parlamentarNoCursor(senadorIds, cursor);
+        if (fim || senId == null) return { processados: 0, fim: true };
 
-        const lista = asArray(json.DespesasParlamentares?.Senador?.Despesas?.Despesa);
-        const doMes = lista.filter((d) => Number(d.Mes) === data.mes);
-        if (doMes.length === 0) continue;
-
-        const rows = doMes.map((d, idx) => {
-          const cod = d.CodigoDocumento ?? d.Documento ?? `${idx}`;
-          return {
-            id: `${senId}-${data.ano}-${data.mes}-${cod}`,
-            senador_id: senId,
-            ano: Number(d.Ano ?? data.ano),
-            mes: Number(d.Mes ?? data.mes),
-            tipo_despesa:
-              sanitizarTextoPublico((d.TipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
-            fornecedor_nome: sanitizarTextoPublico((d.Fornecedor ?? "").slice(0, 240)) || null,
-            fornecedor_cnpj: d.CnpjCpfFornecedor ?? null,
-            data_documento:
-              d.DataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.DataDocumento)
-                ? d.DataDocumento.slice(0, 10)
-                : null,
-            num_documento: d.Documento ?? null,
-            valor_reembolsado: parseValorSenado(d.ValorReembolsado),
-            detalhamento: sanitizarTextoPublico((d.Detalhamento ?? "").slice(0, 500)) || null,
-            updated_at: new Date().toISOString(),
-          };
-        });
-
-        for (let i = 0; i < rows.length; i += 200) {
-          const { error } = await supabaseAdmin
-            .from("senado_despesas_cache")
-            .upsert(rows.slice(i, i + 200));
-          if (error) throw new Error(error.message);
-        }
-        totalImportados += rows.length;
+        let custo = 0;
         try {
-          await flagQA(
-            regrasSenadoCeaps(
-              rows.map((r) => ({
-                id: r.id,
-                valor_reembolsado: r.valor_reembolsado,
-                senador_id: r.senador_id,
-              })),
-            ),
-          );
-        } catch (e) {
-          // Não interrompe a ingestão, mas o erro de QA fica visível.
-          erros.push(`qa sen ${senId}: ${(e as Error).message}`);
-        }
-      } catch (e) {
-        erros.push(`sen ${senId}: ${(e as Error).message}`);
-      }
-    }
+          const json = await senadoGet<{
+            DespesasParlamentares?: {
+              Senador?: {
+                Despesas?: { Despesa?: DespesaRaw | DespesaRaw[] };
+              };
+            };
+          }>(`/senador/${senId}/despesas/${data.ano}`);
+          custo++;
+          senadoresProcessados++;
 
-    return { importados: totalImportados, senadoresProcessados: senadorIds.length, erros };
+          const lista = asArray(json.DespesasParlamentares?.Senador?.Despesas?.Despesa);
+          const doMes = lista.filter((d) => Number(d.Mes) === data.mes);
+          if (doMes.length === 0) return { processados: 0, fim: false, custo };
+
+          const rows = doMes.map((d, idx) => {
+            const cod = d.CodigoDocumento ?? d.Documento ?? `${idx}`;
+            return {
+              id: `${senId}-${data.ano}-${data.mes}-${cod}`,
+              senador_id: senId,
+              ano: Number(d.Ano ?? data.ano),
+              mes: Number(d.Mes ?? data.mes),
+              tipo_despesa:
+                sanitizarTextoPublico((d.TipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+              fornecedor_nome: sanitizarTextoPublico((d.Fornecedor ?? "").slice(0, 240)) || null,
+              fornecedor_cnpj: d.CnpjCpfFornecedor ?? null,
+              data_documento:
+                d.DataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.DataDocumento)
+                  ? d.DataDocumento.slice(0, 10)
+                  : null,
+              num_documento: d.Documento ?? null,
+              valor_reembolsado: parseValorSenado(d.ValorReembolsado),
+              detalhamento: sanitizarTextoPublico((d.Detalhamento ?? "").slice(0, 500)) || null,
+              updated_at: new Date().toISOString(),
+            };
+          });
+
+          for (let i = 0; i < rows.length; i += 200) {
+            const { error } = await supabaseAdmin
+              .from("senado_despesas_cache")
+              .upsert(rows.slice(i, i + 200));
+            custo++;
+            // Erro de banco interrompe a rodada sem avançar o cursor: a
+            // próxima refaz este senador em vez de dá-lo por importado.
+            if (error) {
+              return {
+                processados: 0,
+                fim: false,
+                custo,
+                interromper: true,
+                erros: [`sen ${senId}: ${error.message}`],
+              };
+            }
+          }
+
+          const errosPasso: string[] = [];
+          try {
+            await flagQA(
+              regrasSenadoCeaps(
+                rows.map((r) => ({
+                  id: r.id,
+                  valor_reembolsado: r.valor_reembolsado,
+                  senador_id: r.senador_id,
+                })),
+              ),
+            );
+          } catch (e) {
+            // Não interrompe a ingestão, mas o erro de QA fica visível.
+            errosPasso.push(`qa sen ${senId}: ${(e as Error).message}`);
+          }
+
+          return { processados: rows.length, fim: false, custo, erros: errosPasso };
+        } catch (e) {
+          // Falha de rede na origem: a próxima rodada refaz este senador.
+          return {
+            processados: 0,
+            fim: false,
+            custo,
+            interromper: true,
+            erros: [`sen ${senId}: ${(e as Error).message}`],
+          };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    return {
+      importados: rodada.processados,
+      senadoresProcessados,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalSenadores: senadorIds.length,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });

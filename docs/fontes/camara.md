@@ -9,6 +9,7 @@
 
 - **Deputados** (cadastro da legislatura atual).
 - **Despesas CEAP** (Cota para Exercício da Atividade Parlamentar) — mensal, por deputado.
+  - Importação **retomável**: cada rodada processa um deputado por vez, limitada por tempo e por subrequisições, e retoma de onde parou (`importacao_varredura`). O painel repete as rodadas até o mês fechar.
 - **Votações nominais** e **votos individuais** por período.
 - **Proposições** (PLs, PECs, MPs).
 

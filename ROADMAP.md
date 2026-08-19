@@ -6,32 +6,26 @@ Só futuro. Trabalho entregue mora no [RELEASES.md](./RELEASES.md); processo e c
 
 Estabilizar as funcionalidades existentes para **importar todos os dados históricos possíveis** nas fontes que a plataforma já suporta, com qualidade garantida por sinais e testes. Automação periódica das importações é o horizonte final — cada release de estabilização deve manter os runners de importação chamáveis sem browser, idempotentes e com estado no banco, para que a automação seja apenas um novo gatilho sobre o mesmo código.
 
-## Release em andamento — v0.4.0: CEAP/CEAPS retomáveis
+## Release em andamento — v0.5.0: PNCP, Transferegov e proposições em modo carga
 
-Fragilidade nº 1 do diagnóstico: `importarCEAPMes` e `importarCEAPSMes` percorrem **todos** os parlamentares em cache dentro de uma única server function, cada um com até 30 páginas — sem orçamento de tempo, sem retomada e sem limite de subrequisições. Com o histórico de várias legislaturas importado, é o candidato mais provável a estourar os limites do Worker.
+PNCP e Transferegov não são retomáveis: o laço vai até `maxPaginas` sem orçamento nem checkpoint, e um erro de banco perde a rodada inteira. A UI contorna passando `maxPaginas: 3`, o que na prática impede carga em massa. As proposições da Câmara têm o mesmo teto baixo por outro caminho.
 
 **Escopo**
 
-- Migrar `importarCEAPMes` (`src/lib/data/camara/ingest.functions.ts`) e `importarCEAPSMes` (`src/lib/data/senado/ingest.functions.ts`) para o runner genérico: checkpoint por parlamentar dentro do mês, orçamento de tempo, retomada pelo auto-continuar do admin.
-- Migration da tabela de varredura correspondente (GRANT + RLS).
+- PNCP e Transferegov ganham orçamento e retomada pelo runner genérico, com checkpoint antes da gravação — erro de banco deixa de perder a rodada.
+- Remover a trava `maxPaginas: 3` da UI para essas fontes.
+- Elevar a cobertura de `importarProposicoes` (o default de 5 páginas não cobre um ano).
+- Revisar as janelas-alvo em `src/lib/data/janelas.ts`.
 
 **Critérios de aceite**
 
-- Teste unitário da lógica de particionamento por parlamentar.
-- 1 mês histórico completo de CEAP e CEAPS importado via retomada múltipla, sem timeout, com contagem conferida contra a fonte.
-- Migration aplicada com RLS conferida.
+- Um ano-calendário completo de cada fonte importado via auto-continuar.
+- Erro de banco simulado não perde a rodada: a seguinte retoma do mesmo ponto.
+- Cobertura registrada em `/admin/dados`.
 
 ## Backlog sequenciado
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.5.0 — PNCP, Transferegov e proposições em modo carga
-
-- PNCP e Transferegov ganham orçamento + varredura/retomada (checkpoint antes do upsert — erro de banco deixa de perder a rodada); remover a trava `maxPaginas: 3` da UI.
-- Elevar a cobertura de `importarProposicoes` (default atual de 5 páginas não cobre um ano).
-- Revisar janelas-alvo em `src/lib/data/janelas.ts`.
-
-Aceite: um ano-calendário completo de cada fonte via auto-continuar; zero rodadas perdidas em erro simulado de banco.
 
 ### v0.6.0 — Orquestrador robusto
 
