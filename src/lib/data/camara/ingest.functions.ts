@@ -4,6 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasCamaraCeap, flagQA } from "@/lib/data/qa";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import {
+  CEAP_ORCAMENTO_MS,
+  CEAP_TETO_SUBREQUISICOES,
+  chaveVarreduraCeap,
+  parlamentarNoCursor,
+} from "@/lib/data/ceap-varredura";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -401,12 +409,16 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
       urlDocumento?: string;
     };
 
-    // Decide quais deputados processar
+    // A ordem precisa ser a MESMA a cada rodada, senão a retomada pula ou
+    // repete deputado — daí o `order("id")`.
     let deputadoIds: number[] = [];
     if (data.deputadoId) {
       deputadoIds = [data.deputadoId];
     } else {
-      const { data: deps, error } = await supabaseAdmin.from("camara_deputados_cache").select("id");
+      const { data: deps, error } = await supabaseAdmin
+        .from("camara_deputados_cache")
+        .select("id")
+        .order("id");
       if (error) throw new Error(`db: ${error.message}`);
       deputadoIds = (deps ?? []).map((d) => d.id as number);
     }
@@ -415,86 +427,137 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
       throw new Error("Nenhum deputado em cache. Importe o cadastro primeiro.");
     }
 
-    let totalImportados = 0;
     const erros: string[] = [];
+    let deputadosProcessados = 0;
 
-    for (const depId of deputadoIds) {
-      try {
-        const lista: DespesaRaw[] = [];
-        let pagina = 1;
-        while (pagina < 30) {
-          const json = await camaraGet<CamaraEnvelope<DespesaRaw[]>>(
-            `/deputados/${depId}/despesas`,
-            {
-              ano: String(data.ano),
-              mes: String(data.mes),
-              itens: "100",
-              pagina: String(pagina),
-              ordem: "ASC",
-              ordenarPor: "dataDocumento",
-            },
-          );
-          const arr = json.dados ?? [];
-          if (arr.length === 0) break;
-          lista.push(...arr);
-          if (arr.length < 100) break;
-          pagina++;
-        }
-        if (lista.length === 0) continue;
+    // Um passo = um deputado. Rodada limitada por tempo E por subrequisições;
+    // o painel admin repete até `haMais` ficar falso.
+    const rodada = await rodarComOrcamento({
+      chave: chaveVarreduraCeap("camara_ceap", data.ano, data.mes, data.deputadoId),
+      checkpoint: checkpointImportacao,
+      orcamentoMs: CEAP_ORCAMENTO_MS,
+      orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
+      maxPassos: deputadoIds.length,
+      passo: async (cursor) => {
+        const { id: depId, fim } = parlamentarNoCursor(deputadoIds, cursor);
+        if (fim || depId == null) return { processados: 0, fim: true };
 
-        const rows = lista.map((d, idx) => {
-          const cod = d.codDocumento ?? null;
-          const id = cod ? `${depId}-${cod}` : `${depId}-${data.ano}-${data.mes}-${idx}`;
-          return {
-            id,
-            deputado_id: depId,
-            ano: d.ano ?? data.ano,
-            mes: d.mes ?? data.mes,
-            tipo_despesa:
-              sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
-            cod_documento: cod,
-            tipo_documento: d.tipoDocumento ?? null,
-            num_documento: d.numDocumento ?? null,
-            data_documento:
-              d.dataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.dataDocumento)
-                ? d.dataDocumento.slice(0, 10)
-                : null,
-            valor_documento: Number(d.valorDocumento ?? 0),
-            valor_liquido: Number(d.valorLiquido ?? 0),
-            valor_glosa: Number(d.valorGlosa ?? 0),
-            fornecedor_nome: sanitizarTextoPublico((d.nomeFornecedor ?? "").slice(0, 240)) || null,
-            fornecedor_cnpj: d.cnpjCpfFornecedor ?? null,
-            url_documento: d.urlDocumento ?? null,
-            updated_at: new Date().toISOString(),
-          };
-        });
-
-        for (let i = 0; i < rows.length; i += 200) {
-          const { error } = await supabaseAdmin
-            .from("camara_despesas_cache")
-            .upsert(rows.slice(i, i + 200));
-          if (error) throw new Error(error.message);
-        }
-        totalImportados += rows.length;
+        let custo = 0;
         try {
-          await flagQA(
-            regrasCamaraCeap(
-              rows.map((r) => ({
-                id: r.id,
-                valor_liquido: r.valor_liquido,
-                valor_documento: r.valor_documento,
-                deputado_id: r.deputado_id,
-              })),
-            ),
-          );
-        } catch (e) {
-          // Não interrompe a ingestão, mas o erro de QA fica visível.
-          erros.push(`qa dep ${depId}: ${(e as Error).message}`);
-        }
-      } catch (e) {
-        erros.push(`dep ${depId}: ${(e as Error).message}`);
-      }
-    }
+          const lista: DespesaRaw[] = [];
+          let pagina = 1;
+          while (pagina < 30) {
+            const json = await camaraGet<CamaraEnvelope<DespesaRaw[]>>(
+              `/deputados/${depId}/despesas`,
+              {
+                ano: String(data.ano),
+                mes: String(data.mes),
+                itens: "100",
+                pagina: String(pagina),
+                ordem: "ASC",
+                ordenarPor: "dataDocumento",
+              },
+            );
+            custo++;
+            const arr = json.dados ?? [];
+            if (arr.length === 0) break;
+            lista.push(...arr);
+            if (arr.length < 100) break;
+            pagina++;
+          }
+          deputadosProcessados++;
+          if (lista.length === 0) return { processados: 0, fim: false, custo };
 
-    return { importados: totalImportados, deputadosProcessados: deputadoIds.length, erros };
+          const rows = lista.map((d, idx) => {
+            const cod = d.codDocumento ?? null;
+            const id = cod ? `${depId}-${cod}` : `${depId}-${data.ano}-${data.mes}-${idx}`;
+            return {
+              id,
+              deputado_id: depId,
+              ano: d.ano ?? data.ano,
+              mes: d.mes ?? data.mes,
+              tipo_despesa:
+                sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+              cod_documento: cod,
+              tipo_documento: d.tipoDocumento ?? null,
+              num_documento: d.numDocumento ?? null,
+              data_documento:
+                d.dataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.dataDocumento)
+                  ? d.dataDocumento.slice(0, 10)
+                  : null,
+              valor_documento: Number(d.valorDocumento ?? 0),
+              valor_liquido: Number(d.valorLiquido ?? 0),
+              valor_glosa: Number(d.valorGlosa ?? 0),
+              fornecedor_nome:
+                sanitizarTextoPublico((d.nomeFornecedor ?? "").slice(0, 240)) || null,
+              fornecedor_cnpj: d.cnpjCpfFornecedor ?? null,
+              url_documento: d.urlDocumento ?? null,
+              updated_at: new Date().toISOString(),
+            };
+          });
+
+          for (let i = 0; i < rows.length; i += 200) {
+            const { error } = await supabaseAdmin
+              .from("camara_despesas_cache")
+              .upsert(rows.slice(i, i + 200));
+            custo++;
+            // Erro de banco interrompe a rodada sem avançar o cursor: a
+            // próxima refaz este deputado em vez de dá-lo por importado.
+            if (error) {
+              return {
+                processados: 0,
+                fim: false,
+                custo,
+                interromper: true,
+                erros: [`dep ${depId}: ${error.message}`],
+              };
+            }
+          }
+
+          const errosPasso: string[] = [];
+          try {
+            await flagQA(
+              regrasCamaraCeap(
+                rows.map((r) => ({
+                  id: r.id,
+                  valor_liquido: r.valor_liquido,
+                  valor_documento: r.valor_documento,
+                  deputado_id: r.deputado_id,
+                })),
+              ),
+            );
+          } catch (e) {
+            // Não interrompe a ingestão, mas o erro de QA fica visível.
+            errosPasso.push(`qa dep ${depId}: ${(e as Error).message}`);
+          }
+
+          return { processados: rows.length, fim: false, custo, erros: errosPasso };
+        } catch (e) {
+          // Falha de rede na origem: a próxima rodada refaz este deputado.
+          return {
+            processados: 0,
+            fim: false,
+            custo,
+            interromper: true,
+            erros: [`dep ${depId}: ${(e as Error).message}`],
+          };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    return {
+      importados: rodada.processados,
+      deputadosProcessados,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalDeputados: deputadoIds.length,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });

@@ -254,3 +254,54 @@ describe("runner/checkpoint indisponível", () => {
     expect(r.erros).toContain("cgu_varredura: timeout");
   });
 });
+
+describe("runner/orçamento de custo", () => {
+  it("para ao atingir o teto de subrequisições", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      orcamentoCusto: 10,
+      maxPassos: 100,
+      passo: async () => ({ processados: 1, fim: false, custo: 4 }),
+      agora: () => 0,
+    });
+    // 4 + 4 + 4 = 12 ≥ 10 no terceiro passo
+    expect(r.custoEsgotado).toBe(true);
+    expect(r.custoGasto).toBe(12);
+    expect(r.processados).toBe(3);
+    expect(r.concluido).toBe(false);
+    expect(r.proximoCursor).toBe(4);
+  });
+
+  it("sem orcamentoCusto, o custo é só contabilizado", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 3,
+      passo: async () => ({ processados: 1, fim: false, custo: 50 }),
+      agora: () => 0,
+    });
+    expect(r.custoEsgotado).toBe(false);
+    expect(r.custoGasto).toBe(150);
+    expect(r.processados).toBe(3);
+  });
+
+  it("o teto de custo não impede concluir quando a origem acaba antes", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      orcamentoCusto: 10,
+      maxPassos: 100,
+      passo: async (cursor) => ({ processados: 1, fim: cursor === 2, custo: 4 }),
+      agora: () => 0,
+    });
+    expect(r.concluido).toBe(true);
+    expect(r.custoEsgotado).toBe(false);
+  });
+});

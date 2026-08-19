@@ -857,6 +857,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      importacao_varredura: {
+        Row: {
+          atualizado_em: string;
+          chave: string;
+          completa: boolean;
+          cursor: number;
+          total: number;
+        };
+        Insert: {
+          atualizado_em?: string;
+          chave: string;
+          completa?: boolean;
+          cursor?: number;
+          total?: number;
+        };
+        Update: {
+          atualizado_em?: string;
+          chave?: string;
+          completa?: boolean;
+          cursor?: number;
+          total?: number;
+        };
+        Relationships: [];
+      };
       importacoes: {
         Row: {
           ano: number | null;

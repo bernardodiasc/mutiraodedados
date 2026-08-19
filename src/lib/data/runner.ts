@@ -53,6 +53,12 @@ export type Checkpoint = {
 
 export type ResultadoPasso = {
   processados: number;
+  /**
+   * Quanto o passo consumiu do orçamento de custo — na prática, quantas
+   * subrequisições fez. O Workers limita subrequisições por invocação, e só
+   * tempo não protege disso: um passo pode ser rápido e caro.
+   */
+  custo?: number;
   /** `true` quando a origem acabou — não há próxima página. */
   fim: boolean;
   erros?: string[];
@@ -76,6 +82,10 @@ export type ResultadoRodada = {
   cursorInicial: number;
   cursorFinal: number;
   orcamentoEsgotado: boolean;
+  /** Parou por ter atingido o teto de custo (subrequisições). */
+  custoEsgotado: boolean;
+  /** Custo acumulado nesta rodada. */
+  custoGasto: number;
   /** Checkpoint indisponível (migração pendente) — sem retomada. */
   semRetomada: boolean;
   erros: string[];
@@ -86,6 +96,12 @@ export type OpcoesRodada = {
   checkpoint: Checkpoint;
   /** Teto de tempo da rodada. Confira-o ANTES de cada passo, nunca no meio. */
   orcamentoMs: number;
+  /**
+   * Teto de custo acumulado (subrequisições). Conferido DEPOIS de cada passo,
+   * porque o custo só se conhece ao fim dele — a rodada pode ultrapassar pelo
+   * custo do último passo, então deixe folga.
+   */
+  orcamentoCusto?: number;
   /** Teto de passos, como trava contra laço infinito se a origem nunca acabar. */
   maxPassos: number;
   /** Executa um passo. O cursor é 1-based: a primeira chamada recebe 1. */
@@ -101,7 +117,7 @@ export type OpcoesRodada = {
  * Worker for morto no meio, o trabalho já feito não se perde.
  */
 export async function rodarComOrcamento(opts: OpcoesRodada): Promise<ResultadoRodada> {
-  const { chave, checkpoint, orcamentoMs, maxPassos, passo } = opts;
+  const { chave, checkpoint, orcamentoMs, orcamentoCusto, maxPassos, passo } = opts;
   const agora = opts.agora ?? Date.now;
 
   const erros: string[] = [];
@@ -122,6 +138,8 @@ export async function rodarComOrcamento(opts: OpcoesRodada): Promise<ResultadoRo
   let processados = 0;
   let completa = false;
   let orcamentoEsgotado = false;
+  let custoEsgotado = false;
+  let custoGasto = 0;
 
   for (let n = 0; n < maxPassos; n++) {
     if (agora() - inicio > orcamentoMs) {
@@ -152,6 +170,12 @@ export async function rodarComOrcamento(opts: OpcoesRodada): Promise<ResultadoRo
       completa = true;
       break;
     }
+
+    custoGasto += r.custo ?? 0;
+    if (orcamentoCusto != null && custoGasto >= orcamentoCusto) {
+      custoEsgotado = true;
+      break;
+    }
   }
 
   const gravacaoFinal = await checkpoint.salvar(chave, {
@@ -172,6 +196,8 @@ export async function rodarComOrcamento(opts: OpcoesRodada): Promise<ResultadoRo
     cursorInicial,
     cursorFinal: cursor,
     orcamentoEsgotado,
+    custoEsgotado,
+    custoGasto,
     semRetomada,
     erros,
   };

@@ -627,9 +627,23 @@ export function AdminImportContainer() {
   const onImportarCEAPCamara = async () => {
     setCamaraBusy("ceap");
     try {
-      const r = await importarCEAPFn({ data: { ano, mes } });
+      // Varredura retomável por deputado: cada rodada é limitada por tempo e
+      // por subrequisições no servidor, então repetimos até completar.
+      const MAX_RODADAS = 120;
+      let notas = 0;
+      let deputados = 0;
+      let completou = false;
+      for (let r = 0; r < MAX_RODADAS; r++) {
+        const res = await importarCEAPFn({ data: { ano, mes } });
+        notas += res.importados;
+        deputados += res.deputadosProcessados;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
       toast.success(
-        `CEAP ${MONTHS[mes - 1]}/${ano}: ${r.importados} notas de ${r.deputadosProcessados} deputados.`,
+        `CEAP ${MONTHS[mes - 1]}/${ano}: ${notas} notas de ${deputados} deputados${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
       );
     } catch (e) {
       toast.error((e as Error).message);
@@ -688,9 +702,22 @@ export function AdminImportContainer() {
   const onImportarCEAPSSenado = async () => {
     setSenadoBusy("ceaps");
     try {
-      const r = await importarCEAPSFn({ data: { ano, mes } });
+      // Varredura retomável por senador — mesma mecânica da CEAP da Câmara.
+      const MAX_RODADAS = 40;
+      let notas = 0;
+      let senadores = 0;
+      let completou = false;
+      for (let r = 0; r < MAX_RODADAS; r++) {
+        const res = await importarCEAPSFn({ data: { ano, mes } });
+        notas += res.importados;
+        senadores += res.senadoresProcessados;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
       toast.success(
-        `CEAPS ${MONTHS[mes - 1]}/${ano}: ${r.importados} notas de ${r.senadoresProcessados} senadores.`,
+        `CEAPS ${MONTHS[mes - 1]}/${ano}: ${notas} notas de ${senadores} senadores${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
       );
     } catch (e) {
       toast.error((e as Error).message);

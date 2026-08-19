@@ -23,6 +23,30 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.4.0 — 2026-08-19
+
+**Resumo:** resolve a fragilidade mais séria do diagnóstico. As despesas de gabinete (CEAP na Câmara, CEAPS no Senado) eram importadas percorrendo todos os parlamentares em cache dentro de uma única chamada — centenas deles, cada um com até 30 páginas, sem orçamento, sem retomada e sem teto de subrequisições. Com o histórico de várias legislaturas, era o candidato mais provável a estourar os limites de execução do Worker.
+
+**Entregas**
+
+- Cada passo passa a processar **um parlamentar**, com checkpoint por (casa, ano, mês). Erro de banco ou de rede interrompe a rodada sem avançar o cursor, então a seguinte refaz aquele parlamentar em vez de dá-lo por importado; a lista vem ordenada por id para a retomada não pular nem repetir ninguém.
+- O runner ganhou **orçamento de subrequisições**: tempo sozinho não protege do limite por invocação do Workers, porque um passo pode ser rápido e caro. O passo reporta seu custo e a rodada para ao atingir o teto (45 na CEAP, com orçamento de 150s).
+- Tabela `importacao_varredura`: o formato de checkpoint do runner genérico, para fonte nova não precisar de tabela própria. RLS ligada, só admin lê, escrita pelo servidor via `service_role` — mesma política das varreduras existentes.
+- `src/lib/data/ceap-varredura.ts`: módulo puro com a chave de varredura e o mapeamento cursor→parlamentar, coberto por teste porque o erro que ele evita (pular um parlamentar por um off-by-one) é silencioso.
+- O job builder e os botões do painel repetem as rodadas até o mês fechar, como já faziam com as varreduras da CGU.
+
+**Checks executados**
+
+- `bun run test` ✓ — 62 arquivos, 589 testes, todos verdes (13 novos).
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Migration aplicada; RLS conferida contra o banco (política única de SELECT para admin, sem política de escrita) ✓.
+- Round-trip do checkpoint testado contra o banco real, incluindo a segunda gravação sobre a mesma chave, e a linha de teste removida em seguida ✓.
+- **Pendente:** a importação real de um mês de CEAP e CEAPS prevista nos critérios de aceite **não foi executada** — o mantenedor optou por verificar manualmente depois.
+
+**Plano:** sem plano dedicado — escopo detalhado no ROADMAP.
+
+**Roadmap cidadão:** sem item público — infraestrutura interna.
+
 ## v0.3.0 — 2026-08-19
 
 **Resumo:** dá às importações a base de resiliência de que a carga histórica depende. Unifica a política de retry, que variava por fonte (e no SICONFI simplesmente não existia), e extrai a mecânica de orçamento, checkpoint e retomada num runner sem nenhuma fonte dentro — a mesma peça que a automação periódica vai consumir mais adiante.

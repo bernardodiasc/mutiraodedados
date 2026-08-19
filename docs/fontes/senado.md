@@ -9,6 +9,7 @@
 
 - **Senadores** em exercício.
 - **Despesas CEAPS** (Cota para Exercício da Atividade Parlamentar dos Senadores).
+  - Importação **retomável**: cada rodada processa um senador por vez, limitada por tempo e por subrequisições, e retoma de onde parou (`importacao_varredura`). O painel repete as rodadas até o mês fechar.
 - **Votações** plenárias e votos individuais.
 - **Matérias legislativas**.
 

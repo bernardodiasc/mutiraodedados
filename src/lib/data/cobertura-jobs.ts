@@ -349,7 +349,29 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "camara_ceap":
           return {
             label: `Câmara CEAP · ${tag}`,
-            run: wrap(async () => (await importarCEAP({ data: { ano: y, mes: m } })).importados),
+            noTimeout: true,
+            // Varredura retomável por parlamentar — roda rodadas até completar.
+            run: wrap(async () => {
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 120;
+              let total = 0;
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarCEAP({ data: { ano: y, mes: m } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.importados;
+                if (!res.varredura.haMais) break;
+              }
+              return total;
+            }),
           };
         case "camara_vot":
           return {
@@ -392,7 +414,29 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "senado_ceaps":
           return {
             label: `Senado CEAPS · ${tag}`,
-            run: wrap(async () => (await importarCEAPS({ data: { ano: y, mes: m } })).importados),
+            noTimeout: true,
+            // Varredura retomável por parlamentar — roda rodadas até completar.
+            run: wrap(async () => {
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 40;
+              let total = 0;
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarCEAPS({ data: { ano: y, mes: m } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.importados;
+                if (!res.varredura.haMais) break;
+              }
+              return total;
+            }),
           };
         case "senado_vot":
           return {

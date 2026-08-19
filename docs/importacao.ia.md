@@ -77,7 +77,13 @@ Varredura já marcada completa **recomeça do zero** — é o que permite reimpo
 
 **Chamável sem browser.** Hoje quem repete as rodadas até `concluido` é o painel admin. O contrato de saída (`concluido` + `proximoCursor`) foi desenhado para um agendador do lado do servidor repetir igual, sem mudança no runner: todo o estado vive no banco, nada em memória entre rodadas.
 
-Implementações de `Checkpoint`: `checkpointCguVarredura` (`real/sweep.ts`, sobre `cgu_varredura`). O TSE ainda tem laço próprio sobre `tse_varredura`.
+Implementações de `Checkpoint`: `checkpointImportacao` (`checkpoint.server.ts`, sobre a tabela genérica `importacao_varredura` — use esta em fonte nova) e `checkpointCguVarredura` (`real/sweep.ts`, sobre `cgu_varredura`). O TSE ainda tem laço próprio sobre `tse_varredura`.
+
+### Orçamento de custo
+
+O Workers também limita **subrequisições por invocação**, e tempo sozinho não protege disso: um passo pode ser rápido e caro. O passo reporta `custo` (páginas buscadas + lotes gravados) e a rodada para ao atingir `orcamentoCusto`. Como o custo só se conhece ao fim do passo, o teto é conferido depois dele — a rodada pode ultrapassar pelo custo do último passo, então deixe folga.
+
+Exemplo em uso: as despesas de gabinete (`ceap-varredura.ts`) processam **um parlamentar por passo**, com teto de 45 subrequisições e orçamento de 150s por rodada.
 
 ## Upsert
 
