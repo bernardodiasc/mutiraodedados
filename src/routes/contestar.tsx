@@ -15,9 +15,16 @@ export const Route = createFileRoute("/contestar")({
   head: () => ({
     meta: [
       { title: "Contestar uma análise — Mutirão de Dados" },
-      { name: "description", content: "Canal de contestação, correção ou remoção de análises publicadas. Procedimento aberto a órgãos, empresas e cidadãos." },
+      {
+        name: "description",
+        content:
+          "Canal de contestação, correção ou remoção de análises publicadas. Procedimento aberto a órgãos, empresas e cidadãos.",
+      },
       { property: "og:title", content: "Contestar uma análise — Mutirão de Dados" },
-      { property: "og:description", content: "Procedimento de contestação e correção de análises." },
+      {
+        property: "og:description",
+        content: "Procedimento de contestação e correção de análises.",
+      },
     ],
   }),
 });
@@ -40,7 +47,13 @@ const SOLICITANTES = [
 
 const schema = z.object({
   url_pagina: z.string().trim().min(1).max(500),
-  tipo: z.enum(["correcao_factual", "dado_desatualizado", "pii_exposicao", "classificacao_inadequada", "outro"]),
+  tipo: z.enum([
+    "correcao_factual",
+    "dado_desatualizado",
+    "pii_exposicao",
+    "classificacao_inadequada",
+    "outro",
+  ]),
   solicitante_tipo: z.enum(["cidadao", "empresa", "orgao", "representante", "anonimo"]),
   descricao: z.string().trim().min(10, "Descreva com pelo menos 10 caracteres.").max(4000),
   fundamento: z.string().trim().max(4000).optional().or(z.literal("")),
@@ -93,27 +106,40 @@ function ContestarPage() {
 
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 prose-civic">
-      <span className="inline-block text-xs font-semibold tracking-widest text-accent uppercase">Governança</span>
+      <span className="inline-block text-xs font-semibold tracking-widest text-accent uppercase">
+        Governança
+      </span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Contestar uma análise</h1>
       <p className="mt-6 text-lg text-muted-foreground">
-        Qualquer pessoa — cidadã, jurídica ou pública — pode solicitar a correção, a
-        anonimização ou a retirada de uma análise específica publicada na plataforma.
-        O procedimento é gratuito e aberto.
+        Qualquer pessoa — cidadã, jurídica ou pública — pode solicitar a correção, a anonimização ou
+        a retirada de uma análise específica publicada na plataforma. O procedimento é gratuito e
+        aberto.
       </p>
 
       <h2 className="font-display text-2xl mt-10">Quando contestar</h2>
       <ul className="mt-3 space-y-2 text-muted-foreground">
-        <li><strong className="text-foreground">Dado desatualizado ou incompleto</strong> em relação ao portal oficial de origem.</li>
-        <li><strong className="text-foreground">Classificação automatizada inadequada</strong> — quando uma anomalia tem explicação documentada que a plataforma não capturou.</li>
-        <li><strong className="text-foreground">Exposição involuntária de dado pessoal</strong> (CPF, telefone, endereço) em campo livre não mascarado.</li>
-        <li><strong className="text-foreground">Erro factual</strong> na descrição editorial.</li>
+        <li>
+          <strong className="text-foreground">Dado desatualizado ou incompleto</strong> em relação
+          ao portal oficial de origem.
+        </li>
+        <li>
+          <strong className="text-foreground">Classificação automatizada inadequada</strong> —
+          quando uma anomalia tem explicação documentada que a plataforma não capturou.
+        </li>
+        <li>
+          <strong className="text-foreground">Exposição involuntária de dado pessoal</strong> (CPF,
+          telefone, endereço) em campo livre não mascarado.
+        </li>
+        <li>
+          <strong className="text-foreground">Erro factual</strong> na descrição editorial.
+        </li>
       </ul>
 
       <h2 className="font-display text-2xl mt-10">Formulário</h2>
       <p className="mt-3 text-muted-foreground">
         Preencha o formulário abaixo. Sua contestação é registrada com identificador único e
-        encaminhada ao encarregado de dados. Pedidos anônimos são aceitos — o contato é
-        opcional, mas amplia a celeridade da resposta.
+        encaminhada ao encarregado de dados. Pedidos anônimos são aceitos — o contato é opcional,
+        mas amplia a celeridade da resposta.
       </p>
 
       {enviado ? (
@@ -123,8 +149,9 @@ function ContestarPage() {
             <div>
               <div className="font-semibold text-emerald-300">Contestação registrada</div>
               <p className="text-sm text-muted-foreground mt-1">
-                Protocolo: <span className="font-mono text-foreground">{enviado.slice(0, 8)}</span>. Prazo
-                indicativo de resposta: 15 dias úteis. Se você informou contato, retornaremos por lá.
+                Protocolo: <span className="font-mono text-foreground">{enviado.slice(0, 8)}</span>.
+                Prazo indicativo de resposta: 15 dias úteis. Se você informou contato, retornaremos
+                por lá.
               </p>
               <button
                 onClick={() => setEnviado(null)}
@@ -136,40 +163,86 @@ function ContestarPage() {
           </div>
         </div>
       ) : (
-        <form onSubmit={onSubmit} className="mt-6 space-y-5 border border-border rounded-xl bg-card p-6">
+        <form
+          onSubmit={onSubmit}
+          className="mt-6 space-y-5 border border-border rounded-xl bg-card p-6"
+        >
           <div className="grid gap-1.5">
             <Label htmlFor="url_pagina">URL da página em questão *</Label>
-            <Input id="url_pagina" name="url_pagina" required placeholder="https://mutiraodedados.com.br/orgaos/..." />
+            <Input
+              id="url_pagina"
+              name="url_pagina"
+              required
+              placeholder="https://mutiraodedados.com.br/orgaos/..."
+            />
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="grid gap-1.5">
               <Label htmlFor="tipo">Tipo de contestação *</Label>
-              <select id="tipo" name="tipo" required className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-                {TIPOS.map(t => <option key={t.v} value={t.v}>{t.l}</option>)}
+              <select
+                id="tipo"
+                name="tipo"
+                required
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {TIPOS.map((t) => (
+                  <option key={t.v} value={t.v}>
+                    {t.l}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="solicitante_tipo">Quem está contestando *</Label>
-              <select id="solicitante_tipo" name="solicitante_tipo" required className="h-10 rounded-md border border-input bg-background px-3 text-sm">
-                {SOLICITANTES.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+              <select
+                id="solicitante_tipo"
+                name="solicitante_tipo"
+                required
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                {SOLICITANTES.map((s) => (
+                  <option key={s.v} value={s.v}>
+                    {s.l}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="descricao">O que precisa ser corrigido ou removido *</Label>
-            <Textarea id="descricao" name="descricao" required rows={4} maxLength={4000} placeholder="Descreva objetivamente o ponto a ser revisto." />
+            <Textarea
+              id="descricao"
+              name="descricao"
+              required
+              rows={4}
+              maxLength={4000}
+              placeholder="Descreva objetivamente o ponto a ser revisto."
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="fundamento">Fundamento (opcional)</Label>
-            <Textarea id="fundamento" name="fundamento" rows={3} maxLength={4000} placeholder="Documento de apoio, ofício, dispositivo legal, link para fonte oficial." />
+            <Textarea
+              id="fundamento"
+              name="fundamento"
+              rows={3}
+              maxLength={4000}
+              placeholder="Documento de apoio, ofício, dispositivo legal, link para fonte oficial."
+            />
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="contato">Contato para resposta (opcional)</Label>
-            <Input id="contato" name="contato" maxLength={255} placeholder="e-mail, telefone ou endereço institucional" />
+            <Input
+              id="contato"
+              name="contato"
+              maxLength={255}
+              placeholder="e-mail, telefone ou endereço institucional"
+            />
           </div>
           <div className="flex items-center justify-between gap-3 pt-2">
             <p className="text-xs text-muted-foreground">
-              {user ? "Registrado em sua conta para acompanhamento." : "Você não está logado — envio anônimo."}
+              {user
+                ? "Registrado em sua conta para acompanhamento."
+                : "Você não está logado — envio anônimo."}
             </p>
             <Button type="submit" disabled={loading}>
               <Send className="size-4 mr-2" /> {loading ? "Enviando…" : "Enviar contestação"}
@@ -180,17 +253,24 @@ function ContestarPage() {
 
       <h2 className="font-display text-2xl mt-10">Prazo</h2>
       <p className="mt-3 text-muted-foreground">
-        Prazo indicativo de resposta: <strong className="text-foreground">15 dias úteis</strong>.
-        Em casos de exposição de dado pessoal, a retirada provisória pode ocorrer em até
-        72 horas, enquanto a análise prossegue.
+        Prazo indicativo de resposta: <strong className="text-foreground">15 dias úteis</strong>. Em
+        casos de exposição de dado pessoal, a retirada provisória pode ocorrer em até 72 horas,
+        enquanto a análise prossegue.
       </p>
 
       <h2 className="font-display text-2xl mt-10">O que não fazemos</h2>
       <p className="mt-3 text-muted-foreground">
-        Não removemos análises legítimas por desconforto reputacional. A contestação é
-        meio de correção factual e proteção de dados pessoais, não instrumento de
-        supressão de transparência. Veja os <Link to="/termos" className="text-accent underline">Termos de Uso</Link> e
-        a <Link to="/metodologia" className="text-accent underline">Metodologia</Link>.
+        Não removemos análises legítimas por desconforto reputacional. A contestação é meio de
+        correção factual e proteção de dados pessoais, não instrumento de supressão de
+        transparência. Veja os{" "}
+        <Link to="/termos" className="text-accent underline">
+          Termos de Uso
+        </Link>{" "}
+        e a{" "}
+        <Link to="/metodologia" className="text-accent underline">
+          Metodologia
+        </Link>
+        .
       </p>
     </article>
   );

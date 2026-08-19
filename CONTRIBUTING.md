@@ -38,6 +38,9 @@ ROADMAP.md/RELEASES.md no seu PR).
 
 - TypeScript estrito — sem `any` sem justificativa.
 - Prettier + ESLint são fonte da verdade: `bun run format && bun run lint`.
+- O histórico tem um commit de formatação em massa. Configure o `git blame`
+  para ignorá-lo (uma vez por clone):
+  `git config blame.ignoreRevsFile .git-blame-ignore-revs`
 - Componentes pequenos e focados. Lógica de dados em `src/lib/data/`.
 - Tokens semânticos do design system (`src/styles.css`) — evite cores
   hardcoded em componentes.

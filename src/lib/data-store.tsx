@@ -1,12 +1,7 @@
 import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import type { DataSource } from "./data/types";
-import {
-  emptyDataset,
-  makeDataSource,
-  mergeDatasets,
-  type Dataset,
-} from "./data/source";
+import { emptyDataset, makeDataSource, mergeDatasets, type Dataset } from "./data/source";
 import { fetchPortalOrgao, loadStoredDataset } from "./data/real/portal.functions";
 
 export type RealLoadMeta = {
@@ -121,8 +116,26 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = React.useMemo<Ctx>(
-    () => ({ dataset, hydrated, loadRealOrgao, refreshFromDB, clearData, realLoading, realError, lastRealLoad }),
-    [dataset, hydrated, loadRealOrgao, refreshFromDB, clearData, realLoading, realError, lastRealLoad],
+    () => ({
+      dataset,
+      hydrated,
+      loadRealOrgao,
+      refreshFromDB,
+      clearData,
+      realLoading,
+      realError,
+      lastRealLoad,
+    }),
+    [
+      dataset,
+      hydrated,
+      loadRealOrgao,
+      refreshFromDB,
+      clearData,
+      realLoading,
+      realError,
+      lastRealLoad,
+    ],
   );
 
   return <DataCtx.Provider value={value}>{children}</DataCtx.Provider>;

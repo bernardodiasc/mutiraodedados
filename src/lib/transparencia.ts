@@ -18,20 +18,26 @@ import type { Contrato } from "./data/types";
  */
 
 const TERMOS_GENERICOS = [
-  "serviços diversos", "servicos diversos",
-  "aquisição de bens", "aquisicao de bens",
-  "apoio operacional", "apoio administrativo",
-  "prestação de serviços", "prestacao de servicos",
+  "serviços diversos",
+  "servicos diversos",
+  "aquisição de bens",
+  "aquisicao de bens",
+  "apoio operacional",
+  "apoio administrativo",
+  "prestação de serviços",
+  "prestacao de servicos",
   "fornecimento de materiais",
-  "serviços gerais", "servicos gerais",
-  "outros serviços", "outros servicos",
+  "serviços gerais",
+  "servicos gerais",
+  "outros serviços",
+  "outros servicos",
 ];
 
 export type ComponenteITI = {
   chave: "completude" | "competitividade" | "diversidade" | "volume" | "atualidade";
   label: string;
   valor: number; // 0..1
-  peso: number;  // 0..1
+  peso: number; // 0..1
   detalhe: string;
 };
 
@@ -45,7 +51,7 @@ export type NotaTransparencia = {
 function objetoEspecifico(c: Contrato): boolean {
   const obj = (c.objeto || "").toLowerCase().trim();
   if (obj.length < 30) return false;
-  if (TERMOS_GENERICOS.some(t => obj.includes(t))) return false;
+  if (TERMOS_GENERICOS.some((t) => obj.includes(t))) return false;
   return true;
 }
 
@@ -67,7 +73,7 @@ function faixaDe(nota: number, amostra: number): NotaTransparencia["faixa"] {
 }
 
 export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTransparencia {
-  const contratos = ds.contratos.filter(c => c.orgaoCod === orgaoCod);
+  const contratos = ds.contratos.filter((c) => c.orgaoCod === orgaoCod);
   const amostra = contratos.length;
 
   if (amostra === 0) {
@@ -84,7 +90,9 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
   const completude = esp / amostra;
 
   // 2. Competitividade
-  const competitivos = contratos.filter(c => c.modalidade === "pregao" || c.modalidade === "concorrencia").length;
+  const competitivos = contratos.filter(
+    (c) => c.modalidade === "pregao" || c.modalidade === "concorrencia",
+  ).length;
   const competitividade = competitivos / amostra;
 
   // 3. Diversidade — 1 - HHI
@@ -105,11 +113,7 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
     return Number.isFinite(t) && t > max ? t : max;
   }, 0);
   const diasDesdeUltimo = ultimoMs > 0 ? (Date.now() - ultimoMs) / 86_400_000 : 9999;
-  const atualidade = diasDesdeUltimo <= 365
-    ? 1
-    : diasDesdeUltimo <= 730
-      ? 0.5
-      : 0.1;
+  const atualidade = diasDesdeUltimo <= 365 ? 1 : diasDesdeUltimo <= 730 ? 0.5 : 0.1;
 
   const componentes: ComponenteITI[] = [
     {
@@ -130,7 +134,7 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
       chave: "diversidade",
       label: "Diversidade de fornecedores",
       valor: diversidade,
-      peso: 0.20,
+      peso: 0.2,
       detalhe: `${porForn.size} fornecedores únicos. Quanto mais distribuído o gasto, maior este eixo.`,
     },
     {
@@ -145,15 +149,14 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
       label: "Atualidade da publicação",
       valor: atualidade,
       peso: 0.15,
-      detalhe: diasDesdeUltimo > 9000
-        ? "Sem data de assinatura válida nos contratos carregados."
-        : `Último contrato firmado há ${Math.round(diasDesdeUltimo)} dias.`,
+      detalhe:
+        diasDesdeUltimo > 9000
+          ? "Sem data de assinatura válida nos contratos carregados."
+          : `Último contrato firmado há ${Math.round(diasDesdeUltimo)} dias.`,
     },
   ];
 
-  const nota = Math.round(
-    componentes.reduce((s, c) => s + c.valor * c.peso, 0) * 100,
-  );
+  const nota = Math.round(componentes.reduce((s, c) => s + c.valor * c.peso, 0) * 100);
 
   return { nota, faixa: faixaDe(nota, amostra), componentes, amostra };
 }
@@ -161,18 +164,26 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
 /** Faixa de cor (token semântico) para a nota. */
 export function corDaFaixa(faixa: NotaTransparencia["faixa"]): string {
   switch (faixa) {
-    case "alta": return "text-emerald-400";
-    case "media": return "text-amber-400";
-    case "baixa": return "text-rose-400";
-    default: return "text-muted-foreground";
+    case "alta":
+      return "text-emerald-400";
+    case "media":
+      return "text-amber-400";
+    case "baixa":
+      return "text-rose-400";
+    default:
+      return "text-muted-foreground";
   }
 }
 
 export function rotuloDaFaixa(faixa: NotaTransparencia["faixa"]): string {
   switch (faixa) {
-    case "alta": return "Transparência alta";
-    case "media": return "Transparência média";
-    case "baixa": return "Transparência baixa";
-    default: return "Amostra insuficiente";
+    case "alta":
+      return "Transparência alta";
+    case "media":
+      return "Transparência média";
+    case "baixa":
+      return "Transparência baixa";
+    default:
+      return "Amostra insuficiente";
   }
 }

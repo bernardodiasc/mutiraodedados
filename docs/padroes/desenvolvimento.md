@@ -39,6 +39,7 @@ Este documento descreve os padrões gerais do projeto para roteamento, estiliza�
 ## 3. Vocabulário Cidadão (pt-BR)
 
 Para manter a plataforma compreensível para o cidadão comum, evite jargões técnicos em labels visíveis:
+
 - Use "Salvar no caderno" em vez de "Bookmark item"
 - Use "Informação que falta" em vez de "Data gap"
 - Use "O que comprova esta página" em vez de "Data lineage"
@@ -56,6 +57,7 @@ Para manter a plataforma compreensível para o cidadão comum, evite jargões t�
 ## 5. Checklist de Entrega de Feature
 
 Antes de marcar uma tarefa como pronta:
+
 1. `Container.tsx`, `View.tsx`, `logic.ts`, `logic.test.ts` e `mocks.ts` devem estar criados.
 2. Registrar a feature em `src/lib/style-guide/registry.ts` (ordem alfabética).
 3. Testes unitários devem estar passando (`bunx vitest run src/lib/<feature>`).

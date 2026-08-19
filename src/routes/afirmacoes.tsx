@@ -49,8 +49,7 @@ const AFIRMACOES: Afirmacao[] = [
   },
   {
     id: "emendas-rastreaveis",
-    texto:
-      "Toda emenda parlamentar passará a ter identificador único e rastreável até a execução.",
+    texto: "Toda emenda parlamentar passará a ter identificador único e rastreável até a execução.",
     fonte: "Acórdão TCU 1.247/2023",
     url: "https://portal.tcu.gov.br",
     data: "2023",
@@ -62,8 +61,7 @@ const AFIRMACOES: Afirmacao[] = [
   },
   {
     id: "pncp-unificacao",
-    texto:
-      "O PNCP unificará todas as contratações públicas do país em uma única base consultável.",
+    texto: "O PNCP unificará todas as contratações públicas do país em uma única base consultável.",
     fonte: "Lei 14.133/2021",
     url: "https://pncp.gov.br",
     data: "2021",
@@ -86,17 +84,15 @@ function AfirmacoesPage() {
           Afirmações públicas viram pontos de partida para investigar.
         </h1>
         <p className="text-muted-foreground mt-4 text-lg">
-          Esta página é uma curadoria editorial — não um motor automático. Cada afirmação
-          aponta para a fonte e propõe perguntas que ajudam a verificar seu cumprimento.
+          Esta página é uma curadoria editorial — não um motor automático. Cada afirmação aponta
+          para a fonte e propõe perguntas que ajudam a verificar seu cumprimento.
         </p>
       </header>
 
       <ul className="mt-10 space-y-5">
         {AFIRMACOES.map((a) => (
           <li key={a.id} className="border border-border rounded-xl p-6 bg-card">
-            <blockquote className="font-display text-xl leading-snug">
-              “{a.texto}”
-            </blockquote>
+            <blockquote className="font-display text-xl leading-snug">“{a.texto}”</blockquote>
             <div className="text-xs text-muted-foreground mt-3 flex flex-wrap gap-x-3 gap-y-1">
               <span>{a.autor}</span>
               <span>·</span>

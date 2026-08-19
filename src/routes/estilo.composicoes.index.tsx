@@ -7,8 +7,8 @@ export const Route = createFileRoute("/estilo/composicoes/")({
       <header>
         <h1 className="font-display text-3xl">Composições</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Cada composição é renderizada em iframe para isolar modais, portais e
-          estado global. Selecione uma para ver todas as variantes.
+          Cada composição é renderizada em iframe para isolar modais, portais e estado global.
+          Selecione uma para ver todas as variantes.
         </p>
       </header>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

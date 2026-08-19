@@ -1,10 +1,6 @@
 import { describe, it, expect } from "vitest";
-import {
-  buildCurlsMarcacao,
-  severidadeFromVotos,
-  hrefEntidade,
-  contestacaoDirty,
-} from "./logic";
+import { buildCurlsMarcacao, severidadeFromVotos, hrefEntidade, contestacaoDirty } from "./logic";
+import type { Contestacao } from "./logic";
 
 describe("admin-marcacoes/logic", () => {
   it("buildCurlsMarcacao só para contrato", () => {
@@ -29,7 +25,7 @@ describe("admin-marcacoes/logic", () => {
   });
 
   it("contestacaoDirty", () => {
-    const it = { status: "aberta", resposta: null } as any;
+    const it = { status: "aberta", resposta: null } as unknown as Contestacao;
     expect(contestacaoDirty(it, "aberta", "")).toBe(false);
     expect(contestacaoDirty(it, "respondida", "")).toBe(true);
     expect(contestacaoDirty(it, "aberta", "oi")).toBe(true);

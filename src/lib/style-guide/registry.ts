@@ -82,6 +82,7 @@ export type ComposicaoEntry<P = unknown> = {
 
 // Lista populada conforme cada onda da refatoração adiciona Views puras.
 // Manter ordenado alfabeticamente por `name`.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- registro heterogêneo: cada entrada tem seu próprio tipo de props
 export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
   {
     name: "AnomaliaInvestigacao",

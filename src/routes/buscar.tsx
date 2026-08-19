@@ -45,9 +45,17 @@ export const Route = createFileRoute("/buscar")({
   head: () => ({
     meta: [
       { title: "Buscar — Mutirão de Dados" },
-      { name: "description", content: "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União." },
+      {
+        name: "description",
+        content:
+          "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União.",
+      },
       { property: "og:title", content: "Buscar — Mutirão de Dados" },
-      { property: "og:description", content: "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União." },
+      {
+        property: "og:description",
+        content:
+          "Busca unificada por CNPJ, órgão, fornecedor ou objeto em contratos públicos e transferências da União.",
+      },
     ],
   }),
 });
@@ -78,12 +86,14 @@ function BuscarPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 space-y-6">
       <header>
-        <div className="text-xs text-muted-foreground uppercase tracking-wider">Busca unificada</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wider">
+          Busca unificada
+        </div>
         <h1 className="font-display text-4xl mt-1">Buscar</h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-          Pesquise um CNPJ (14 dígitos), nome de órgão/fornecedor ou trecho do objeto.
-          A busca atravessa contratos do PNCP e transferências/convênios da União que já
-          estão em cache na plataforma.
+          Pesquise um CNPJ (14 dígitos), nome de órgão/fornecedor ou trecho do objeto. A busca
+          atravessa contratos do PNCP e transferências/convênios da União que já estão em cache na
+          plataforma.
         </p>
       </header>
 
@@ -117,7 +127,10 @@ function BuscarPage() {
         <>
           <div className="text-xs text-muted-foreground">
             {data.cnpjDetectado ? (
-              <>CNPJ detectado: <span className="font-mono text-foreground">{data.cnpjDetectado}</span> · </>
+              <>
+                CNPJ detectado:{" "}
+                <span className="font-mono text-foreground">{data.cnpjDetectado}</span> ·{" "}
+              </>
             ) : null}
             {totalResultados} resultado(s).
           </div>
@@ -177,7 +190,8 @@ function BuscarPage() {
           {data.transferencias.length > 0 && (
             <section>
               <h2 className="font-display text-lg flex items-center gap-2 mb-3">
-                <ArrowRightLeft className="size-4" /> Transferências/Convênios — {data.transferencias.length}
+                <ArrowRightLeft className="size-4" /> Transferências/Convênios —{" "}
+                {data.transferencias.length}
               </h2>
               <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
                 {data.transferencias.map((r) => (

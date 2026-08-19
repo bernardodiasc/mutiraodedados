@@ -1,11 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { Building2, Compass } from "lucide-react";
-import {
-  computeDisplayName,
-  computeInitial,
-  isGroupActive,
-  isLinkActive,
-} from "./logic";
+import { computeDisplayName, computeInitial, isGroupActive, isLinkActive } from "./logic";
 import type { NavGroup } from "@/lib/nav-groups";
 
 describe("computeDisplayName", () => {

@@ -27,11 +27,13 @@ function CamaraHome() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <header>
-        <div className="text-xs text-muted-foreground uppercase tracking-wider">Poder Legislativo</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wider">
+          Poder Legislativo
+        </div>
         <h1 className="font-display text-4xl mt-1">Câmara dos Deputados</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
-          513 deputados federais, eleitos por estado, formam a Casa do povo no Congresso
-          Nacional. Esta área reorganiza os dados abertos publicados pela Câmara em{" "}
+          513 deputados federais, eleitos por estado, formam a Casa do povo no Congresso Nacional.
+          Esta área reorganiza os dados abertos publicados pela Câmara em{" "}
           <a
             href="https://dadosabertos.camara.leg.br/"
             target="_blank"
@@ -97,16 +99,15 @@ function CamaraHome() {
       <section className="rounded-xl border border-border bg-card p-6">
         <h2 className="font-display text-xl">O que é CEAP?</h2>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-          A <strong>Cota para Exercício da Atividade Parlamentar</strong> é um limite mensal
-          de despesas que cada deputado pode <em>reembolsar</em> contra gastos do mandato —
-          passagens, combustível, aluguel de escritório, telefone, divulgação. O valor varia
-          por UF (a Câmara cobre o deslocamento). <strong>CEAP não é salário</strong>: é
-          dinheiro público que paga fornecedores mediante apresentação de nota fiscal. É
-          justamente por ser ressarcimento que os dados são tão ricos — cada despesa tem
-          fornecedor, valor e, frequentemente, link direto para o documento fiscal.
+          A <strong>Cota para Exercício da Atividade Parlamentar</strong> é um limite mensal de
+          despesas que cada deputado pode <em>reembolsar</em> contra gastos do mandato — passagens,
+          combustível, aluguel de escritório, telefone, divulgação. O valor varia por UF (a Câmara
+          cobre o deslocamento). <strong>CEAP não é salário</strong>: é dinheiro público que paga
+          fornecedores mediante apresentação de nota fiscal. É justamente por ser ressarcimento que
+          os dados são tão ricos — cada despesa tem fornecedor, valor e, frequentemente, link direto
+          para o documento fiscal.
         </p>
       </section>
-
     </div>
   );
 }

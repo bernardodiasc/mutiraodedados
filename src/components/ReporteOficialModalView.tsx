@@ -78,7 +78,11 @@ export function ReporteOficialModalView({
 
           <div>
             <Label className="text-xs">Assunto</Label>
-            <Input value={assunto} onChange={(e) => onAssuntoChange(e.target.value)} maxLength={200} />
+            <Input
+              value={assunto}
+              onChange={(e) => onAssuntoChange(e.target.value)}
+              maxLength={200}
+            />
           </div>
 
           <div>
@@ -92,10 +96,20 @@ export function ReporteOficialModalView({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => onCopiar(`${assunto}\n\n${corpo}`, "Texto")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onCopiar(`${assunto}\n\n${corpo}`, "Texto")}
+            >
               <Copy className="size-3.5 mr-1.5" /> Copiar texto
             </Button>
-            <Button type="button" variant="outline" size="sm" onClick={() => onCopiar(identificacao, "Identificação")}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => onCopiar(identificacao, "Identificação")}
+            >
               <Copy className="size-3.5 mr-1.5" /> Copiar identificação
             </Button>
             <Button type="button" variant="outline" size="sm" asChild>
@@ -105,7 +119,9 @@ export function ReporteOficialModalView({
             </Button>
             {canal.emailSecundario && (
               <Button type="button" variant="ghost" size="sm" asChild>
-                <a href={`mailto:${canal.emailSecundario}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`}>
+                <a
+                  href={`mailto:${canal.emailSecundario}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`}
+                >
                   Email: {canal.emailSecundario}
                 </a>
               </Button>

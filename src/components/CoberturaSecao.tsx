@@ -1,18 +1,26 @@
 import { Link } from "@tanstack/react-router";
 import type { FonteCobertura } from "@/lib/data/cobertura-publica.functions";
-import {
-  fmtRelativo,
-  fmtAnoMes,
-  freshness,
-  corFresh,
-} from "@/lib/cobertura-secao/logic";
+import { fmtRelativo, fmtAnoMes, freshness, corFresh } from "@/lib/cobertura-secao/logic";
 
 export { fmtRelativo, freshness } from "@/lib/cobertura-secao/logic";
 
 type Cobertura = { anoCorrente: number; fontes: FonteCobertura[]; geradoEm: string };
 
 const MESES = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
-const MESES_LONG = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+const MESES_LONG = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
 
 /**
  * Variant compact: heatmap apenas do ano corrente.
@@ -20,7 +28,9 @@ const MESES_LONG = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set
  */
 export function CoberturaResumo({ cobertura }: { cobertura: Cobertura }) {
   const fontesComDados = cobertura.fontes.filter((f) => f.totalRegistros > 0);
-  const atualizadas30d = fontesComDados.filter((f) => freshness(f.ultimaAtualizacao) === "fresh").length;
+  const atualizadas30d = fontesComDados.filter(
+    (f) => freshness(f.ultimaAtualizacao) === "fresh",
+  ).length;
   const totalRegistros = cobertura.fontes.reduce((s, f) => s + f.totalRegistros, 0);
   const maisRecente = fontesComDados.reduce<FonteCobertura | null>(
     (acc, f) => (!acc || (f.ultimaAtualizacao ?? "") > (acc.ultimaAtualizacao ?? "") ? f : acc),
@@ -29,19 +39,25 @@ export function CoberturaResumo({ cobertura }: { cobertura: Cobertura }) {
   return (
     <div className="grid sm:grid-cols-3 gap-3">
       <div className="border border-border rounded-lg p-3 bg-background/40">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Fontes com dados</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Fontes com dados
+        </div>
         <div className="font-display text-xl mt-1">
           {fontesComDados.length} / {cobertura.fontes.length}
         </div>
       </div>
       <div className="border border-border rounded-lg p-3 bg-background/40">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Atualizadas em 30 dias</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Atualizadas em 30 dias
+        </div>
         <div className="font-display text-xl mt-1">
           {atualizadas30d} / {fontesComDados.length}
         </div>
       </div>
       <div className="border border-border rounded-lg p-3 bg-background/40">
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Total de registros</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+          Total de registros
+        </div>
         <div className="font-display text-xl mt-1">{totalRegistros.toLocaleString("pt-BR")}</div>
         {maisRecente && (
           <div className="text-[11px] text-muted-foreground mt-0.5">
@@ -163,7 +179,10 @@ export function FonteCard({
 
 function HeatmapAnoMes({ fonte }: { fonte: FonteCobertura }) {
   const cols = fonte.granularidade === "periodo" ? 6 : 12;
-  const labels = fonte.granularidade === "periodo" ? Array.from({ length: 6 }, (_, i) => `P${i + 1}`) : MESES_LONG;
+  const labels =
+    fonte.granularidade === "periodo"
+      ? Array.from({ length: 6 }, (_, i) => `P${i + 1}`)
+      : MESES_LONG;
   const porChave = new Map<string, number>();
   for (const r of fonte.porAnoMes) porChave.set(`${r.ano}|${r.mes}`, r.qtd);
   const anos = Array.from(new Set(fonte.porAnoMes.map((r) => r.ano))).sort((a, b) => b - a);
@@ -172,7 +191,8 @@ function HeatmapAnoMes({ fonte }: { fonte: FonteCobertura }) {
   return (
     <div className="mt-3">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">
-        Cobertura {fonte.granularidade === "periodo" ? "ano × período" : "ano × mês"} (intensidade = volume)
+        Cobertura {fonte.granularidade === "periodo" ? "ano × período" : "ano × mês"} (intensidade =
+        volume)
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-[10px] border-separate border-spacing-0.5">
@@ -201,7 +221,9 @@ function HeatmapAnoMes({ fonte }: { fonte: FonteCobertura }) {
                       <div
                         title={`${ano}-${String(m).padStart(2, "0")}: ${qtd.toLocaleString("pt-BR")} registros`}
                         className={`h-5 w-full rounded ${
-                          qtd === 0 ? "border border-dashed border-border/50" : "border border-transparent"
+                          qtd === 0
+                            ? "border border-dashed border-border/50"
+                            : "border border-transparent"
                         }`}
                         style={
                           qtd > 0

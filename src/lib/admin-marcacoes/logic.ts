@@ -1,11 +1,6 @@
 import type { listarContestacoesAdmin } from "@/lib/data/marcacoes.functions";
 
-export const STATUS_CONTESTACAO = [
-  "aberta",
-  "em_analise",
-  "respondida",
-  "arquivada",
-] as const;
+export const STATUS_CONTESTACAO = ["aberta", "em_analise", "respondida", "arquivada"] as const;
 export type StatusContestacao = (typeof STATUS_CONTESTACAO)[number];
 
 export const TIPO_CONTESTACAO_LABEL: Record<string, string> = {
@@ -16,17 +11,12 @@ export const TIPO_CONTESTACAO_LABEL: Record<string, string> = {
   outro: "Outro",
 };
 
-export type Contestacao = Awaited<
-  ReturnType<typeof listarContestacoesAdmin>
->[number];
+export type Contestacao = Awaited<ReturnType<typeof listarContestacoesAdmin>>[number];
 
 export type EntidadeTipo = "orgao" | "fornecedor" | "contrato";
 export type Aba = "contestacoes" | "marcacoes";
 
-export function buildCurlsMarcacao(
-  entidadeTipo: string,
-  entidadeId: string,
-) {
+export function buildCurlsMarcacao(entidadeTipo: string, entidadeId: string) {
   if (entidadeTipo !== "contrato") return undefined;
   return [
     {
@@ -37,9 +27,7 @@ export function buildCurlsMarcacao(
   ];
 }
 
-export function severidadeFromVotos(
-  votos_score: number,
-): "critico" | "aviso" | "info" {
+export function severidadeFromVotos(votos_score: number): "critico" | "aviso" | "info" {
   if (votos_score >= 5) return "critico";
   if (votos_score >= 1) return "aviso";
   return "info";

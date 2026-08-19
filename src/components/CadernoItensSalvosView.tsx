@@ -1,4 +1,12 @@
-import { AlertTriangle, Camera, ExternalLink, Loader2, Lock, RefreshCw, Trash2 } from "lucide-react";
+import {
+  AlertTriangle,
+  Camera,
+  ExternalLink,
+  Loader2,
+  Lock,
+  RefreshCw,
+  Trash2,
+} from "lucide-react";
 import type { ItemSalvo } from "@/lib/itens-salvos.functions";
 import { tipoVerificavel } from "@/lib/itens-salvos/logic";
 import { formatarDataPt } from "@/lib/caderno-itens/logic";
@@ -71,10 +79,7 @@ export function CadernoItensSalvosView({
                 </div>
                 <h3 className="font-display text-lg leading-snug mt-1">
                   {item.url ? (
-                    <a
-                      href={item.url}
-                      className="hover:underline inline-flex items-center gap-1"
-                    >
+                    <a href={item.url} className="hover:underline inline-flex items-center gap-1">
                       {item.titulo}
                       <ExternalLink className="size-3.5 opacity-60" />
                     </a>
@@ -104,7 +109,10 @@ export function CadernoItensSalvosView({
                 <Lock className="size-3" /> Privado
               </span>
               {item.snapshot_em && (
-                <span className="inline-flex items-center gap-1" title="Cópia dos dados no momento em que você salvou — valor de prova.">
+                <span
+                  className="inline-flex items-center gap-1"
+                  title="Cópia dos dados no momento em que você salvou — valor de prova."
+                >
                   <Camera className="size-3" /> Snapshot de {formatarDataPt(item.snapshot_em)}
                 </span>
               )}

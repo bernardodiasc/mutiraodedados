@@ -43,9 +43,9 @@ async function fetchAllPaginated<T>(
   for (let page = 0; page < maxPages; page++) {
     const from = page * pageSize;
     const to = from + pageSize - 1;
-    const { data, error } = await (supabaseAdmin.from as (t: string) => any)(table)
-      .select(columns)
-      .range(from, to);
+    const { data, error } =
+      await // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `from` é tipado com os nomes literais de tabela do Database gerado; nome dinâmico exige escape
+      (supabaseAdmin.from as (t: string) => any)(table).select(columns).range(from, to);
     if (error) throw new Error(error.message);
     const rows = (data ?? []) as T[];
     all.push(...rows);
@@ -129,7 +129,22 @@ export const rankingITI = createServerFn({ method: "GET" }).handler(
     }
 
     // ===== PNCP: contratos União/Estados/Municípios =====
-    const pncpByOrgao = new Map<string, { meta: Omit<PncpRow, "id" | "objeto" | "modalidade" | "fornecedor_cnpj_cpf" | "valor_global" | "ano" | "data_assinatura">; contratos: Contrato[] }>();
+    const pncpByOrgao = new Map<
+      string,
+      {
+        meta: Omit<
+          PncpRow,
+          | "id"
+          | "objeto"
+          | "modalidade"
+          | "fornecedor_cnpj_cpf"
+          | "valor_global"
+          | "ano"
+          | "data_assinatura"
+        >;
+        contratos: Contrato[];
+      }
+    >();
     for (const r of pncpRows) {
       const cod = r.orgao_cnpj;
       const c: Contrato = {
@@ -147,7 +162,13 @@ export const rankingITI = createServerFn({ method: "GET" }).handler(
         cur.contratos.push(c);
       } else {
         pncpByOrgao.set(cod, {
-          meta: { orgao_cnpj: r.orgao_cnpj, orgao_nome: r.orgao_nome, esfera: r.esfera, poder: r.poder, uf: r.uf },
+          meta: {
+            orgao_cnpj: r.orgao_cnpj,
+            orgao_nome: r.orgao_nome,
+            esfera: r.esfera,
+            poder: r.poder,
+            uf: r.uf,
+          },
           contratos: [c],
         });
       }

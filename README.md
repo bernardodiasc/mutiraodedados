@@ -92,25 +92,25 @@ conta, e você terá acesso a `/admin`.
 Veja [`.env.example`](./.env.example) para a lista completa. As mínimas para
 rodar:
 
-| Variável | Descrição |
-|---|---|
-| `VITE_SUPABASE_URL` / `SUPABASE_URL` | URL do projeto Supabase |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEY` | Anon key (pública, ok no client) |
-| `SUPABASE_SERVICE_ROLE_KEY` | **Server-only**. Necessária para server functions admin |
-| `PORTAL_TRANSPARENCIA_API_KEY` | Para ingerir dados da CGU/Transferegov |
-| `LOVABLE_API_KEY` | Opcional — só se for usar o gateway de IA da Lovable |
+| Variável                                                     | Descrição                                               |
+| ------------------------------------------------------------ | ------------------------------------------------------- |
+| `VITE_SUPABASE_URL` / `SUPABASE_URL`                         | URL do projeto Supabase                                 |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_PUBLISHABLE_KEY` | Anon key (pública, ok no client)                        |
+| `SUPABASE_SERVICE_ROLE_KEY`                                  | **Server-only**. Necessária para server functions admin |
+| `PORTAL_TRANSPARENCIA_API_KEY`                               | Para ingerir dados da CGU/Transferegov                  |
+| `LOVABLE_API_KEY`                                            | Opcional — só se for usar o gateway de IA da Lovable    |
 
 ---
 
 ## Scripts
 
-| Comando | Descrição |
-|---|---|
-| `bun run dev` | Servidor de desenvolvimento (HMR) |
-| `bun run build` | Build de produção |
-| `bun run preview` | Preview do build |
-| `bun run lint` | ESLint |
-| `bun run format` | Prettier |
+| Comando           | Descrição                         |
+| ----------------- | --------------------------------- |
+| `bun run dev`     | Servidor de desenvolvimento (HMR) |
+| `bun run build`   | Build de produção                 |
+| `bun run preview` | Preview do build                  |
+| `bun run lint`    | ESLint                            |
+| `bun run format`  | Prettier                          |
 
 ---
 

@@ -22,8 +22,7 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     fonteLabel: "Portal da Transparência (CGU)",
     orgao: "Controladoria-Geral da União (CGU)",
     canalPrimario: "Fala.BR",
-    urlReporte:
-      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    urlReporte: "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
     tipoManifestacao: "Comunicação",
     emailSecundario: "portaldatransparencia@cgu.gov.br",
     instrucoes:
@@ -34,8 +33,7 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     fonteLabel: "Portal da Transparência (CGU) — Licitações",
     orgao: "Controladoria-Geral da União (CGU)",
     canalPrimario: "Fala.BR",
-    urlReporte:
-      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    urlReporte: "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
     tipoManifestacao: "Comunicação",
     emailSecundario: "portaldatransparencia@cgu.gov.br",
     instrucoes:
@@ -46,8 +44,7 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     fonteLabel: "Portal da Transparência (CGU) — Emendas",
     orgao: "Controladoria-Geral da União (CGU)",
     canalPrimario: "Fala.BR",
-    urlReporte:
-      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    urlReporte: "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
     tipoManifestacao: "Comunicação",
     emailSecundario: "portaldatransparencia@cgu.gov.br",
     instrucoes:
@@ -58,8 +55,7 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     fonteLabel: "Portal da Transparência (CGU) — Convênios",
     orgao: "Controladoria-Geral da União (CGU)",
     canalPrimario: "Fala.BR",
-    urlReporte:
-      "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
+    urlReporte: "https://falabr.cgu.gov.br/publico/Manifestacao/SelecionarTipoManifestacao.aspx",
     tipoManifestacao: "Comunicação",
     emailSecundario: "portaldatransparencia@cgu.gov.br",
     instrucoes:

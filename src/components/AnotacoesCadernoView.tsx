@@ -87,8 +87,8 @@ export function AnotacoesCadernoView({
       {anotacoes.length === 0 && !editandoNova ? (
         <div className="border border-dashed border-border rounded-xl p-6 bg-card mt-4">
           <p className="text-sm text-muted-foreground">
-            Nenhuma anotação ainda. Use o caderno para escrever em texto livre o que você
-            está pensando enquanto investiga — privado por padrão.
+            Nenhuma anotação ainda. Use o caderno para escrever em texto livre o que você está
+            pensando enquanto investiga — privado por padrão.
           </p>
         </div>
       ) : (

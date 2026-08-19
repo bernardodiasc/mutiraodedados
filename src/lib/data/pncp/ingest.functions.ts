@@ -13,10 +13,11 @@ import { regrasPncp, flagQA } from "@/lib/data/qa";
 const BASE = "https://pncp.gov.br/api/consulta";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
-async function pncpGet<T = unknown>(path: string, params: Record<string, string | number>): Promise<T> {
-  const qs = new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)]),
-  ).toString();
+async function pncpGet<T = unknown>(
+  path: string,
+  params: Record<string, string | number>,
+): Promise<T> {
+  const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
   const url = `${BASE}${path}?${qs}`;
   // Retry uma vez em 5xx / 429 — PNCP frequentemente devolve 503 transitório.
   let lastErr: Error | null = null;
@@ -32,7 +33,11 @@ async function pncpGet<T = unknown>(path: string, params: Record<string, string 
     if (res.ok) return (await res.json()) as T;
     const transient = res.status >= 500 || res.status === 429;
     const body = await res.text().catch(() => "");
-    const snippet = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    const snippet = body
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
     const msg = transient
       ? `TRANSIENT: PNCP ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
       : `PNCP API ${res.status}: ${snippet}`;
@@ -90,19 +95,28 @@ type ContratoPNCP = {
 
 function esferaLabel(id?: string): string | null {
   switch (id) {
-    case "F": return "federal";
-    case "E": return "estadual";
-    case "M": return "municipal";
-    case "D": return "distrital";
-    default: return null;
+    case "F":
+      return "federal";
+    case "E":
+      return "estadual";
+    case "M":
+      return "municipal";
+    case "D":
+      return "distrital";
+    default:
+      return null;
   }
 }
 function poderLabel(id?: string): string | null {
   switch (id) {
-    case "E": return "executivo";
-    case "L": return "legislativo";
-    case "J": return "judiciario";
-    default: return null;
+    case "E":
+      return "executivo";
+    case "L":
+      return "legislativo";
+    case "J":
+      return "judiciario";
+    default:
+      return null;
   }
 }
 
@@ -143,10 +157,11 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
       if (data.cnpjOrgao) params.cnpjOrgao = data.cnpjOrgao;
       // Nota: PNCP não aceita filtro de UF nesse endpoint — filtro aplicado client-side.
 
-      const json = await pncpGet<{ data?: ContratoPNCP[]; totalPaginas?: number; totalRegistros?: number }>(
-        "/v1/contratos/publicacao",
-        params,
-      );
+      const json = await pncpGet<{
+        data?: ContratoPNCP[];
+        totalPaginas?: number;
+        totalRegistros?: number;
+      }>("/v1/contratos/publicacao", params);
       const lista = json.data ?? [];
       if (lista.length === 0) break;
 
@@ -163,7 +178,9 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
             numero_controle_pncp: ncp,
             ano: Number(c.anoContrato ?? new Date(data.dataInicial).getFullYear()),
             orgao_cnpj: c.orgaoEntidade?.cnpj ?? "",
-            orgao_nome: sanitizarTextoPublico((c.orgaoEntidade?.razaoSocial ?? "").slice(0, 240)) || "Sem nome",
+            orgao_nome:
+              sanitizarTextoPublico((c.orgaoEntidade?.razaoSocial ?? "").slice(0, 240)) ||
+              "Sem nome",
             esfera: esferaLabel(c.orgaoEntidade?.esferaId),
             poder: poderLabel(c.orgaoEntidade?.poderId),
             uf: c.unidadeOrgao?.ufSigla ?? null,
@@ -174,7 +191,8 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
             modalidade: c.modalidadeNome ?? null,
             situacao: c.situacaoContratoNome ?? null,
             fornecedor_cnpj_cpf: c.niFornecedor ?? null,
-            fornecedor_nome: sanitizarTextoPublico((c.nomeRazaoSocialFornecedor ?? "").slice(0, 240)) || null,
+            fornecedor_nome:
+              sanitizarTextoPublico((c.nomeRazaoSocialFornecedor ?? "").slice(0, 240)) || null,
             valor_inicial: Number(c.valorInicial ?? 0),
             valor_global: Number(c.valorGlobal ?? 0),
             data_assinatura: c.dataAssinatura?.slice(0, 10) || null,

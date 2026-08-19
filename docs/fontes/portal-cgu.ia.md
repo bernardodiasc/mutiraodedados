@@ -22,14 +22,14 @@ Cada rodada tem um orçamento de tempo (`orcamentoMs`, padrão 3 min). Quando es
 
 ### Parâmetros de `fetchPortalOrgao`
 
-| Parâmetro | Tipo | Default | Descrição |
-|-----------|------|---------|-----------|
-| `codigoOrgao` | string | — | Código SIAFI do órgão (4–6 dígitos) |
-| `dataInicial` | string? | — | ISO YYYY-MM-DD, filtra por vigência (opcional) |
-| `dataFinal` | string? | — | ISO YYYY-MM-DD, filtra por vigência (opcional) |
-| `maxPaginas` | number | 5000 | Teto de páginas por rodada (rede de segurança) |
-| `delayMs` | number | 800 | Pausa entre requisições (páginas e detalhes) |
-| `orcamentoMs` | number | 180000 | Orçamento de tempo por rodada (~3 min) |
+| Parâmetro     | Tipo    | Default | Descrição                                      |
+| ------------- | ------- | ------- | ---------------------------------------------- |
+| `codigoOrgao` | string  | —       | Código SIAFI do órgão (4–6 dígitos)            |
+| `dataInicial` | string? | —       | ISO YYYY-MM-DD, filtra por vigência (opcional) |
+| `dataFinal`   | string? | —       | ISO YYYY-MM-DD, filtra por vigência (opcional) |
+| `maxPaginas`  | number  | 5000    | Teto de páginas por rodada (rede de segurança) |
+| `delayMs`     | number  | 800     | Pausa entre requisições (páginas e detalhes)   |
+| `orcamentoMs` | number  | 180000  | Orçamento de tempo por rodada (~3 min)         |
 
 ## Vigência vs. Assinatura
 
@@ -39,12 +39,12 @@ Cada rodada tem um orçamento de tempo (`orcamentoMs`, padrão 3 min). Quando es
 
 ## Tipos de QA Finding gerados
 
-| Finding | Severidade | Quando |
-|---------|------------|--------|
-| `valor_corrigido_listagem` | `info` (nasce resolvido) | Listagem diverge do detalhe ≥ 100× (truncamento ÷100/1000/10000); o valor não-truncado é gravado e as leituras cruas ficam em `detalhes.evidencia_bruta` |
-| `fornecedor_ausente` | `aviso` | CNPJ/CPF do fornecedor está nulo — contrato salvo com placeholder `CNPJ_FORNECEDOR_AUSENTE` |
-| `discrepancia_extrema_inicial_final` | `critico`/`aviso` | inicial ≥ 1000× o final (aviso) ou final ≥ 1000× o inicial (crítico), sobre o cache pós-upsert |
-| `valor_muito_baixo` | `aviso` | 0 < valor final < R$ 100 no cache pós-upsert |
+| Finding                              | Severidade               | Quando                                                                                                                                                   |
+| ------------------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `valor_corrigido_listagem`           | `info` (nasce resolvido) | Listagem diverge do detalhe ≥ 100× (truncamento ÷100/1000/10000); o valor não-truncado é gravado e as leituras cruas ficam em `detalhes.evidencia_bruta` |
+| `fornecedor_ausente`                 | `aviso`                  | CNPJ/CPF do fornecedor está nulo — contrato salvo com placeholder `CNPJ_FORNECEDOR_AUSENTE`                                                              |
+| `discrepancia_extrema_inicial_final` | `critico`/`aviso`        | inicial ≥ 1000× o final (aviso) ou final ≥ 1000× o inicial (crítico), sobre o cache pós-upsert                                                           |
+| `valor_muito_baixo`                  | `aviso`                  | 0 < valor final < R$ 100 no cache pós-upsert                                                                                                             |
 
 - Findings são reconciliados por `sincronizarQaCgu` após o upsert de cada página: se o cache já tem valor correto (upsert posterior), o finding é fechado como `corrigido_automaticamente`.
 - `flagQA` é idempotente — não reabre findings já resolvidos.

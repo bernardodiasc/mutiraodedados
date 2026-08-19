@@ -14,13 +14,7 @@ export const LACUNA_TIPOS = [
 ] as const;
 export type LacunaTipo = (typeof LACUNA_TIPOS)[number];
 
-export const LACUNA_CICLOS = [
-  "nasce",
-  "qualificada",
-  "evolui",
-  "conecta",
-  "encerra",
-] as const;
+export const LACUNA_CICLOS = ["nasce", "qualificada", "evolui", "conecta", "encerra"] as const;
 export type LacunaCiclo = (typeof LACUNA_CICLOS)[number];
 
 export type Lacuna = {
@@ -43,11 +37,9 @@ const COLS =
   "id, titulo, descricao, tipo, ciclo, entidade_tipo, entidade_id, origem_qa_finding_id, tags, publicada, resolvida_em, created_at, updated_at";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 const listarSchema = z

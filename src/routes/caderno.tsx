@@ -10,9 +10,17 @@ export const Route = createFileRoute("/caderno")({
   head: () => ({
     meta: [
       { title: "Meu caderno — Mutirão de Dados" },
-      { name: "description", content: "Caderno pessoal de investigação cidadã: perguntas e itens salvos, privados por padrão." },
+      {
+        name: "description",
+        content:
+          "Caderno pessoal de investigação cidadã: perguntas e itens salvos, privados por padrão.",
+      },
       { property: "og:title", content: "Meu caderno — Mutirão de Dados" },
-      { property: "og:description", content: "Salve perguntas, contratos, anomalias e órgãos. Privado por padrão. Você decide quando compartilhar." },
+      {
+        property: "og:description",
+        content:
+          "Salve perguntas, contratos, anomalias e órgãos. Privado por padrão. Você decide quando compartilhar.",
+      },
     ],
     links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/caderno" }],
   }),
@@ -27,12 +35,10 @@ function CadernoPage() {
         <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-accent">
           <Bookmark className="size-4" /> Modo investigar
         </div>
-        <h1 className="font-display text-4xl sm:text-5xl mt-3 leading-tight">
-          Meu caderno.
-        </h1>
+        <h1 className="font-display text-4xl sm:text-5xl mt-3 leading-tight">Meu caderno.</h1>
         <p className="text-muted-foreground mt-4 text-lg">
-          Suas pastas de investigação. Cada pergunta nasce privada e pode reunir contratos,
-          órgãos, sinais, lacunas, links e anotações. Você decide se e quando publicar.
+          Suas pastas de investigação. Cada pergunta nasce privada e pode reunir contratos, órgãos,
+          sinais, lacunas, links e anotações. Você decide se e quando publicar.
         </p>
         {user && (
           <div className="mt-5">
@@ -75,14 +81,21 @@ function NaoAutenticado() {
       <Lock className="size-8 text-muted-foreground mx-auto" />
       <h2 className="font-display text-xl mt-3">Entre para abrir seu caderno.</h2>
       <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-        O caderno é seu — privado por padrão. Crie uma conta gratuita para salvar perguntas,
-        órgãos e sinais ao longo da sua investigação.
+        O caderno é seu — privado por padrão. Crie uma conta gratuita para salvar perguntas, órgãos
+        e sinais ao longo da sua investigação.
       </p>
       <div className="mt-5 flex flex-wrap gap-2 justify-center">
-        <Link to="/login" search={{ redirect: "/caderno" }} className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md bg-foreground text-background hover:opacity-90">
+        <Link
+          to="/login"
+          search={{ redirect: "/caderno" }}
+          className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md bg-foreground text-background hover:opacity-90"
+        >
           Entrar ou criar conta
         </Link>
-        <Link to="/perguntas" className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md border border-border hover:bg-muted">
+        <Link
+          to="/perguntas"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1.5 rounded-md border border-border hover:bg-muted"
+        >
           <HelpCircle className="size-3.5" /> Ver perguntas
         </Link>
       </div>

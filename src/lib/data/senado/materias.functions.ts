@@ -16,7 +16,9 @@ async function senadoGet<T = unknown>(path: string, tentativas = 4): Promise<T> 
     if (tent > 0) await sleep(500 * 3 ** (tent - 1));
     let res: Response;
     try {
-      res = await fetch(`${BASE}${path}`, { headers: { accept: "application/json", "user-agent": UA } });
+      res = await fetch(`${BASE}${path}`, {
+        headers: { accept: "application/json", "user-agent": UA },
+      });
     } catch (e) {
       ultimoErro = (e as Error).message;
       continue;
@@ -39,8 +41,11 @@ function asArray<T>(v: T | T[] | null | undefined): T[] {
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
-    .from("user_roles").select("role")
-    .eq("user_id", userId).eq("role", "admin").maybeSingle();
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error("Falha ao verificar permissão.");
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
@@ -57,17 +62,21 @@ type MateriaListItem = {
   DataApresentacao?: string;
   Autoria?: { Autor?: { NomeAutor?: string } | Array<{ NomeAutor?: string }> };
   AutoresPrincipais?: { AutorPrincipal?: { NomeAutor?: string } | Array<{ NomeAutor?: string }> };
-  SituacaoAtual?: { Autuacoes?: { Autuacao?: { Situacao?: { DescricaoSituacao?: string; DataSituacao?: string } } } };
+  SituacaoAtual?: {
+    Autuacoes?: { Autuacao?: { Situacao?: { DescricaoSituacao?: string; DataSituacao?: string } } };
+  };
 };
 
 /** Importa matérias do Senado por ano + sigla (PL, PEC, MPV, PLP...). */
 export const importarMaterias = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({
-      ano: z.number().int().min(1990).max(2100),
-      sigla: z.string().min(2).max(10).default("PL"),
-    }).parse(input),
+    z
+      .object({
+        ano: z.number().int().min(1990).max(2100),
+        sigla: z.string().min(2).max(10).default("PL"),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
@@ -87,8 +96,7 @@ export const importarMaterias = createServerFn({ method: "POST" })
 
     for (const m of arr) {
       try {
-        const idMat =
-          Number(m.IdentificacaoMateria?.CodigoMateria ?? m.Codigo);
+        const idMat = Number(m.IdentificacaoMateria?.CodigoMateria ?? m.Codigo);
         if (!Number.isFinite(idMat) || idMat <= 0) continue;
 
         // Descartar itens vazios da API (sem número de matéria) — viravam "PL 0/ano".
@@ -167,17 +175,21 @@ export const importarMaterias = createServerFn({ method: "POST" })
 
 export const listarMaterias = createServerFn({ method: "GET" })
   .inputValidator((input) =>
-    z.object({
-      ano: z.number().int().optional(),
-      sigla: z.string().optional(),
-      termo: z.string().max(120).optional(),
-      limit: z.number().int().min(1).max(500).default(200),
-    }).parse(input ?? {}),
+    z
+      .object({
+        ano: z.number().int().optional(),
+        sigla: z.string().optional(),
+        termo: z.string().max(120).optional(),
+        limit: z.number().int().min(1).max(500).default(200),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("senado_materias_cache")
-      .select("id,sigla_subtipo,numero,ano,ementa,data_apresentacao,autor_principal,ultima_situacao")
+      .select(
+        "id,sigla_subtipo,numero,ano,ementa,data_apresentacao,autor_principal,ultima_situacao",
+      )
       .order("data_apresentacao", { ascending: false, nullsFirst: false })
       .limit(data.limit);
     if (data.ano) q = q.eq("ano", data.ano);
@@ -201,7 +213,10 @@ export const getMateriaDetalhe = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ id: z.number().int().positive() }).parse(input))
   .handler(async ({ data }) => {
     const { data: m, error } = await supabaseAdmin
-      .from("senado_materias_cache").select("*").eq("id", data.id).maybeSingle();
+      .from("senado_materias_cache")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     if (!m) return null;
     const { data: aut } = await supabaseAdmin
@@ -233,9 +248,12 @@ export const getMateriaDetalhe = createServerFn({ method: "GET" })
 
 export const senadoMateriasOverview = createServerFn({ method: "GET" }).handler(async () => {
   const { count } = await supabaseAdmin
-    .from("senado_materias_cache").select("id", { count: "exact", head: true });
+    .from("senado_materias_cache")
+    .select("id", { count: "exact", head: true });
   const { data: porTipo } = await supabaseAdmin
-    .from("senado_materias_cache").select("sigla_subtipo").limit(10000);
+    .from("senado_materias_cache")
+    .select("sigla_subtipo")
+    .limit(10000);
   const tipos = new Map<string, number>();
   for (const r of porTipo ?? []) {
     const k = (r.sigla_subtipo as string) ?? "?";

@@ -17,20 +17,29 @@ export function AvisoMetodologico({ compacto = false }: { compacto?: boolean }) 
       <div className="text-muted-foreground leading-relaxed">
         {compacto ? (
           <>
-            Sinais investigativos são padrões estatísticos. Não constituem acusação nem
-            comprovam irregularidade. <Link to="/metodologia" className="text-accent underline">Metodologia</Link>.
+            Sinais investigativos são padrões estatísticos. Não constituem acusação nem comprovam
+            irregularidade.{" "}
+            <Link to="/metodologia" className="text-accent underline">
+              Metodologia
+            </Link>
+            .
           </>
         ) : (
           <>
-            <strong className="text-foreground">Sinais investigativos, não acusações.</strong>{" "}
-            Os indicadores apresentados são padrões estatísticos extraídos automaticamente de
-            dados públicos. Não constituem indício jurídico, parecer técnico ou conclusão sobre
-            conduta. Servem como ponto de partida para checagem cidadã, jornalística ou
-            institucional. Anomalias podem ter explicação legítima — uma demanda nova, uma
-            emergência real, uma particularidade do mercado.{" "}
-            <Link to="/metodologia" className="text-accent underline">Leia a metodologia</Link>{" "}
+            <strong className="text-foreground">Sinais investigativos, não acusações.</strong> Os
+            indicadores apresentados são padrões estatísticos extraídos automaticamente de dados
+            públicos. Não constituem indício jurídico, parecer técnico ou conclusão sobre conduta.
+            Servem como ponto de partida para checagem cidadã, jornalística ou institucional.
+            Anomalias podem ter explicação legítima — uma demanda nova, uma emergência real, uma
+            particularidade do mercado.{" "}
+            <Link to="/metodologia" className="text-accent underline">
+              Leia a metodologia
+            </Link>{" "}
             ou{" "}
-            <Link to="/contestar" className="text-accent underline">conteste uma análise</Link>.
+            <Link to="/contestar" className="text-accent underline">
+              conteste uma análise
+            </Link>
+            .
           </>
         )}
       </div>

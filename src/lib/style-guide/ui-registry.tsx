@@ -1,5 +1,12 @@
 import type { ReactNode } from "react";
-import { ExternalLink, ShieldAlert, AlertTriangle, Building2, FileText, UserCircle2 } from "lucide-react";
+import {
+  ExternalLink,
+  ShieldAlert,
+  AlertTriangle,
+  Building2,
+  FileText,
+  UserCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,7 +17,13 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
@@ -24,7 +37,12 @@ import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { SEVERIDADE_BADGE } from "@/lib/style-guide/tokens";
-import { qaFindingMocks, contratoMocks, convenioMocks, deputadoMocks } from "@/lib/style-guide/mocks";
+import {
+  qaFindingMocks,
+  contratoMocks,
+  convenioMocks,
+  deputadoMocks,
+} from "@/lib/style-guide/mocks";
 
 export type UIVariant = { label: string; render: () => ReactNode };
 export type UIEntry = {
@@ -51,7 +69,14 @@ export const uiRegistry: UIEntry[] = [
       { label: "size sm", render: () => <Button size="sm">sm</Button> },
       { label: "size default", render: () => <Button>default</Button> },
       { label: "size lg", render: () => <Button size="lg">lg</Button> },
-      { label: "size icon", render: () => <Button size="icon"><ExternalLink /></Button> },
+      {
+        label: "size icon",
+        render: () => (
+          <Button size="icon">
+            <ExternalLink />
+          </Button>
+        ),
+      },
       { label: "disabled", render: () => <Button disabled>disabled</Button> },
     ],
   },
@@ -65,15 +90,31 @@ export const uiRegistry: UIEntry[] = [
       { label: "outline", render: () => <Badge variant="outline">outline</Badge> },
       { label: "destructive", render: () => <Badge variant="destructive">destructive</Badge> },
       { label: "projeto · crítico", render: () => <Badge variant="destructive">crítico</Badge> },
-      { label: "projeto · aviso", render: () => <Badge className="bg-accent text-accent-foreground border-transparent">aviso</Badge> },
+      {
+        label: "projeto · aviso",
+        render: () => (
+          <Badge className="bg-accent text-accent-foreground border-transparent">aviso</Badge>
+        ),
+      },
       { label: "projeto · info", render: () => <Badge variant="secondary">info</Badge> },
       { label: "projeto · PII", render: () => <Badge variant="outline">PII detectada</Badge> },
-      { label: "projeto · anomalia", render: () => <Badge className="bg-accent/20 text-accent border border-accent/40">anomalia</Badge> },
+      {
+        label: "projeto · anomalia",
+        render: () => (
+          <Badge className="bg-accent/20 text-accent border border-accent/40">anomalia</Badge>
+        ),
+      },
       ...(Object.keys(SEVERIDADE_BADGE) as Array<keyof typeof SEVERIDADE_BADGE>).map((k) => ({
         label: `severidade · ${k}`,
         render: () => {
           const s = SEVERIDADE_BADGE[k];
-          return <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
+          return (
+            <span
+              className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${s.cls}`}
+            >
+              {s.label}
+            </span>
+          );
         },
       })),
     ],
@@ -133,7 +174,9 @@ export const uiRegistry: UIEntry[] = [
                 <CardTitle>Card clicável</CardTitle>
                 <CardDescription>Envolvido em &lt;a&gt; — ganha sombra e lift.</CardDescription>
               </CardHeader>
-              <CardContent className="text-sm text-muted-foreground">Hover para ver elevação.</CardContent>
+              <CardContent className="text-sm text-muted-foreground">
+                Hover para ver elevação.
+              </CardContent>
             </Card>
           </a>
         ),
@@ -194,8 +237,14 @@ export const uiRegistry: UIEntry[] = [
         label: "RadioGroup",
         render: () => (
           <RadioGroup defaultValue="a" className="space-y-2">
-            <div className="flex items-center gap-2"><RadioGroupItem value="a" id="r-a" /><Label htmlFor="r-a">Opção A</Label></div>
-            <div className="flex items-center gap-2"><RadioGroupItem value="b" id="r-b" /><Label htmlFor="r-b">Opção B</Label></div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="a" id="r-a" />
+              <Label htmlFor="r-a">Opção A</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="b" id="r-b" />
+              <Label htmlFor="r-b">Opção B</Label>
+            </div>
           </RadioGroup>
         ),
       },
@@ -203,7 +252,9 @@ export const uiRegistry: UIEntry[] = [
         label: "Select",
         render: () => (
           <Select>
-            <SelectTrigger className="w-56"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <SelectTrigger className="w-56">
+              <SelectValue placeholder="Selecione" />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value="1">Opção 1</SelectItem>
               <SelectItem value="2">Opção 2</SelectItem>
@@ -228,9 +279,15 @@ export const uiRegistry: UIEntry[] = [
               <TabsTrigger value="t2">Tab 2</TabsTrigger>
               <TabsTrigger value="t3">Tab 3</TabsTrigger>
             </TabsList>
-            <TabsContent value="t1" className="pt-3 text-sm">Conteúdo da tab 1.</TabsContent>
-            <TabsContent value="t2" className="pt-3 text-sm">Conteúdo da tab 2.</TabsContent>
-            <TabsContent value="t3" className="pt-3 text-sm">Conteúdo da tab 3.</TabsContent>
+            <TabsContent value="t1" className="pt-3 text-sm">
+              Conteúdo da tab 1.
+            </TabsContent>
+            <TabsContent value="t2" className="pt-3 text-sm">
+              Conteúdo da tab 2.
+            </TabsContent>
+            <TabsContent value="t3" className="pt-3 text-sm">
+              Conteúdo da tab 3.
+            </TabsContent>
           </Tabs>
         ),
       },
@@ -269,7 +326,14 @@ export const uiRegistry: UIEntry[] = [
     name: "Avatar",
     group: "Primitivos",
     variants: [
-      { label: "fallback iniciais", render: () => <Avatar><AvatarFallback>AC</AvatarFallback></Avatar> },
+      {
+        label: "fallback iniciais",
+        render: () => (
+          <Avatar>
+            <AvatarFallback>AC</AvatarFallback>
+          </Avatar>
+        ),
+      },
     ],
   },
   {
@@ -348,7 +412,14 @@ export const uiRegistry: UIEntry[] = [
     name: "Banners globais",
     group: "Feedback",
     variants: [
-      { label: "ConstrucaoBanner", render: () => <div className="relative"><ConstrucaoBanner /></div> },
+      {
+        label: "ConstrucaoBanner",
+        render: () => (
+          <div className="relative">
+            <ConstrucaoBanner />
+          </div>
+        ),
+      },
       { label: "AvisoMetodologico (completo)", render: () => <AvisoMetodologico /> },
       { label: "AvisoMetodologico (compacto)", render: () => <AvisoMetodologico compacto /> },
     ],
@@ -382,12 +453,18 @@ export const uiRegistry: UIEntry[] = [
           return (
             <article className="rounded-xl border border-border bg-card p-4 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${sev.cls}`}>{sev.label}</span>
+                <span
+                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${sev.cls}`}
+                >
+                  {sev.label}
+                </span>
                 {f.pii_detectada && <Badge variant="outline">PII mascarada</Badge>}
                 <span className="text-xs text-muted-foreground font-mono ml-auto">{f.fonte}</span>
               </div>
               <h3 className="font-medium text-sm">{f.descricao}</h3>
-              <div className="text-xs text-muted-foreground">Regra <code>{f.regra}</code> · detectado em {f.detectado_em}</div>
+              <div className="text-xs text-muted-foreground">
+                Regra <code>{f.regra}</code> · detectado em {f.detectado_em}
+              </div>
             </article>
           );
         },
@@ -399,7 +476,11 @@ export const uiRegistry: UIEntry[] = [
           return (
             <article className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${sev.cls}`}>{sev.label}</span>
+                <span
+                  className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold ${sev.cls}`}
+                >
+                  {sev.label}
+                </span>
                 <Badge variant="outline">status: {f.status}</Badge>
                 {f.pii_detectada && <Badge variant="outline">PII</Badge>}
                 <span className="text-xs text-muted-foreground font-mono ml-auto">#{f.id}</span>
@@ -409,9 +490,15 @@ export const uiRegistry: UIEntry[] = [
                 <code>{f.regra}</code> · {f.entidade_tipo}/{f.entidade_id} · {f.fonte}
               </div>
               <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
-                <Button size="sm" variant="outline">Reportar ao órgão</Button>
-                <Button size="sm" variant="ghost">Marcar resolvido</Button>
-                <Button size="sm" variant="ghost">Falso positivo</Button>
+                <Button size="sm" variant="outline">
+                  Reportar ao órgão
+                </Button>
+                <Button size="sm" variant="ghost">
+                  Marcar resolvido
+                </Button>
+                <Button size="sm" variant="ghost">
+                  Falso positivo
+                </Button>
               </div>
             </article>
           );
@@ -432,15 +519,21 @@ export const uiRegistry: UIEntry[] = [
             <div className="flex items-center gap-2">
               <FileText className="size-4 text-accent" />
               <span className="font-mono text-sm">{c.numero}</span>
-              <Badge variant="outline" className="ml-auto text-[10px]">{c.fonte}</Badge>
+              <Badge variant="outline" className="ml-auto text-[10px]">
+                {c.fonte}
+              </Badge>
             </div>
             <h3 className="font-medium leading-tight">{c.fornecedor}</h3>
             <div className="text-xs text-muted-foreground space-y-0.5">
               <div>{c.orgao}</div>
               <div>CNPJ {c.cnpj}</div>
-              <div>Vigência {c.vigencia_inicio} → {c.vigencia_fim}</div>
+              <div>
+                Vigência {c.vigencia_inicio} → {c.vigencia_fim}
+              </div>
             </div>
-            <div className="font-display text-xl">{c.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+            <div className="font-display text-xl">
+              {c.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </div>
           </article>
         ),
       })),
@@ -451,12 +544,18 @@ export const uiRegistry: UIEntry[] = [
             <div className="flex items-center gap-2">
               <Building2 className="size-4 text-accent" />
               <span className="font-mono text-sm">{c.numero}</span>
-              <Badge variant="outline" className="ml-auto text-[10px]">{c.uf}</Badge>
+              <Badge variant="outline" className="ml-auto text-[10px]">
+                {c.uf}
+              </Badge>
             </div>
             <h3 className="font-medium leading-tight">{c.proponente}</h3>
             <div className="text-xs text-muted-foreground">{c.concedente}</div>
-            <Badge variant="secondary" className="text-[10px]">{c.situacao}</Badge>
-            <div className="font-display text-xl">{c.valor_global.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</div>
+            <Badge variant="secondary" className="text-[10px]">
+              {c.situacao}
+            </Badge>
+            <div className="font-display text-xl">
+              {c.valor_global.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+            </div>
           </article>
         ),
       })),
@@ -469,7 +568,9 @@ export const uiRegistry: UIEntry[] = [
             </div>
             <div className="space-y-1 min-w-0">
               <h3 className="font-medium leading-tight">{d.nome}</h3>
-              <div className="text-xs text-muted-foreground">{d.partido}/{d.uf} · {d.legislatura}ª legislatura</div>
+              <div className="text-xs text-muted-foreground">
+                {d.partido}/{d.uf} · {d.legislatura}ª legislatura
+              </div>
             </div>
           </article>
         ),

@@ -8,8 +8,8 @@ export function SiteFooter() {
         <div>
           <div className="font-display text-xl">Mutirão de Dados</div>
           <p className="text-muted-foreground mt-2 leading-relaxed">
-            Observatório cívico de interpretação pública do Estado. Reorganiza dados
-            administrativos para fortalecer o controle social responsável.
+            Observatório cívico de interpretação pública do Estado. Reorganiza dados administrativos
+            para fortalecer o controle social responsável.
           </p>
         </div>
         {NAV_GROUPS.map((g) => {
@@ -32,7 +32,8 @@ export function SiteFooter() {
                 {g.label}
               </div>
               <ul className="space-y-1 text-muted-foreground">
-                {g.featured && renderItem({ to: g.featured.to, label: g.featured.label, icon: g.featured.icon })}
+                {g.featured &&
+                  renderItem({ to: g.featured.to, label: g.featured.label, icon: g.featured.icon })}
                 {g.subgroups?.map((sg) => (
                   <li key={sg.label} className="pt-2">
                     <div className="text-[11px] uppercase tracking-wider text-muted-foreground/70 mb-1">
@@ -49,10 +50,9 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto max-w-7xl px-4 py-5 text-xs text-muted-foreground leading-relaxed">
-          Plataforma experimental em evolução. Os indicadores publicados são sinais
-          estatísticos baseados em dados públicos e não constituem prova jurídica, parecer
-          técnico ou conclusão sobre conduta de pessoas físicas ou jurídicas. Anomalia ≠
-          irregularidade.
+          Plataforma experimental em evolução. Os indicadores publicados são sinais estatísticos
+          baseados em dados públicos e não constituem prova jurídica, parecer técnico ou conclusão
+          sobre conduta de pessoas físicas ou jurídicas. Anomalia ≠ irregularidade.
         </div>
       </div>
     </footer>

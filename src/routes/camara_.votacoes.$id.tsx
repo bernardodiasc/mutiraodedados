@@ -27,11 +27,13 @@ function VotacaoDetalhe() {
 
   const votosFiltrados = useMemo(() => {
     if (!data) return [];
-    return data.votos.filter((v) => {
-      if (filtroTipo && v.tipoVoto !== filtroTipo) return false;
-      if (filtroPart && (v.siglaPartido ?? "") !== filtroPart) return false;
-      return true;
-    }).sort((a, b) => a.nome.localeCompare(b.nome));
+    return data.votos
+      .filter((v) => {
+        if (filtroTipo && v.tipoVoto !== filtroTipo) return false;
+        if (filtroPart && (v.siglaPartido ?? "") !== filtroPart) return false;
+        return true;
+      })
+      .sort((a, b) => a.nome.localeCompare(b.nome));
   }, [data, filtroTipo, filtroPart]);
 
   const tipos = useMemo(
@@ -44,7 +46,12 @@ function VotacaoDetalhe() {
   );
 
   if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { votacao: v, disciplina, porUf } = data;
@@ -53,12 +60,20 @@ function VotacaoDetalhe() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/camara" className="hover:text-accent">Câmara</Link> ·{" "}
-          <Link to="/camara/votacoes" className="hover:text-accent">Votações</Link>
+          <Link to="/camara" className="hover:text-accent">
+            Câmara
+          </Link>{" "}
+          ·{" "}
+          <Link to="/camara/votacoes" className="hover:text-accent">
+            Votações
+          </Link>
         </div>
-        <h1 className="font-display text-3xl mt-1 leading-tight">{v.descricao ?? "(sem descrição)"}</h1>
+        <h1 className="font-display text-3xl mt-1 leading-tight">
+          {v.descricao ?? "(sem descrição)"}
+        </h1>
         <div className="text-sm text-muted-foreground mt-2">
-          {v.data ?? "—"}{v.siglaOrgao ? ` · ${v.siglaOrgao}` : ""}
+          {v.data ?? "—"}
+          {v.siglaOrgao ? ` · ${v.siglaOrgao}` : ""}
         </div>
         {v.proposicaoId && (
           <div className="mt-3 text-sm">
@@ -94,7 +109,13 @@ function VotacaoDetalhe() {
         <Card label="Outros" value={String(v.votosOutros)} tone="muted" />
         <Card
           label="Resultado"
-          value={v.aprovacao === 1 ? "Aprovado" : v.aprovacao === 0 ? "Rejeitado" : (v.descricaoResultado ?? "—")}
+          value={
+            v.aprovacao === 1
+              ? "Aprovado"
+              : v.aprovacao === 0
+                ? "Rejeitado"
+                : (v.descricaoResultado ?? "—")
+          }
           tone={v.aprovacao === 1 ? "emerald" : v.aprovacao === 0 ? "rose" : "muted"}
         />
       </section>
@@ -102,9 +123,9 @@ function VotacaoDetalhe() {
       <section>
         <h2 className="font-display text-2xl">Disciplina partidária</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-          Para cada partido, mostramos o voto majoritário e que fração da bancada o seguiu.
-          Um índice próximo a 100% indica que a bancada votou unida; valores baixos indicam
-          divergência interna ou liberação.
+          Para cada partido, mostramos o voto majoritário e que fração da bancada o seguiu. Um
+          índice próximo a 100% indica que a bancada votou unida; valores baixos indicam divergência
+          interna ou liberação.
         </p>
         <div className="mt-4 overflow-x-auto rounded-xl border border-border bg-card">
           <table className="w-full text-sm">
@@ -123,9 +144,7 @@ function VotacaoDetalhe() {
                   <td className="px-4 py-2 font-medium">{d.partido}</td>
                   <td className="px-4 py-2 text-right text-muted-foreground">{d.total}</td>
                   <td className="px-4 py-2">{d.majTipo}</td>
-                  <td className="px-4 py-2 text-right font-mono">
-                    {(d.indice * 100).toFixed(0)}%
-                  </td>
+                  <td className="px-4 py-2 text-right font-mono">{(d.indice * 100).toFixed(0)}%</td>
                   <td className="px-4 py-2 text-xs text-muted-foreground hidden md:table-cell">
                     {d.detalhe.map(([t, n]) => `${t}: ${n}`).join(" · ")}
                   </td>
@@ -171,7 +190,11 @@ function VotacaoDetalhe() {
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os tipos de voto</option>
-            {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+            {tipos.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
           </select>
           <select
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -179,7 +202,11 @@ function VotacaoDetalhe() {
             onChange={(e) => setFiltroPart(e.target.value)}
           >
             <option value="">Todos os partidos</option>
-            {partidos.map((p) => <option key={p} value={p}>{p}</option>)}
+            {partidos.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
           <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
             <span className="self-center">
@@ -246,7 +273,15 @@ function VotacaoDetalhe() {
   );
 }
 
-function Card({ label, value, tone }: { label: string; value: string; tone: "emerald" | "rose" | "muted" }) {
+function Card({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "emerald" | "rose" | "muted";
+}) {
   const color =
     tone === "emerald" ? "text-emerald-500" : tone === "rose" ? "text-rose-500" : "text-foreground";
   return (

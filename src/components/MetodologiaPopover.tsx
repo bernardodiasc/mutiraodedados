@@ -12,7 +12,10 @@ export function MetodologiaPopover({
 }) {
   return (
     <Popover>
-      <PopoverTrigger data-flat className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent">
+      <PopoverTrigger
+        data-flat
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-accent"
+      >
         <HelpCircle className="size-3.5" /> {label}
       </PopoverTrigger>
       <PopoverContent className="w-80 text-sm" align="start">

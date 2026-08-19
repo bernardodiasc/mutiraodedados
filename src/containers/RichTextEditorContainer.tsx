@@ -7,10 +7,7 @@ import { Markdown } from "tiptap-markdown";
 import { GaleriaImagensDialog } from "@/components/GaleriaImagensDialog";
 import { RichTextEditorView } from "@/components/RichTextEditorView";
 import type { ImagemGaleria } from "@/lib/data/artigos-imagens.functions";
-import {
-  buildFluxoSnippet,
-  interpretarPromptLink,
-} from "@/lib/rich-text-editor/logic";
+import { buildFluxoSnippet, interpretarPromptLink } from "@/lib/rich-text-editor/logic";
 
 export type RichTextEditorContainerProps = {
   value: string;
@@ -31,9 +28,19 @@ export function RichTextEditorContainer({
 
   const editor = useEditor({
     extensions: [
-      StarterKit.configure({ codeBlock: { HTMLAttributes: { class: "rounded bg-muted p-2 text-xs" } } }),
-      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { rel: "noopener noreferrer" } }),
-      Image.configure({ inline: false, allowBase64: false, HTMLAttributes: { class: "rounded-lg my-3 max-w-full h-auto" } }),
+      StarterKit.configure({
+        codeBlock: { HTMLAttributes: { class: "rounded bg-muted p-2 text-xs" } },
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { rel: "noopener noreferrer" },
+      }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+        HTMLAttributes: { class: "rounded-lg my-3 max-w-full h-auto" },
+      }),
       Markdown.configure({ html: false, breaks: true, linkify: true, transformPastedText: true }),
     ],
     content: value || "",
@@ -59,7 +66,6 @@ export function RichTextEditorContainer({
     if (value !== atual) {
       editor.commands.setContent(value || "", { emitUpdate: false });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editor, value]);
 
   React.useEffect(() => {
@@ -84,7 +90,11 @@ export function RichTextEditorContainer({
     editor
       .chain()
       .focus()
-      .setImage({ src: img.url, alt: img.legenda ?? img.nome_original, title: img.legenda ?? undefined })
+      .setImage({
+        src: img.url,
+        alt: img.legenda ?? img.nome_original,
+        title: img.legenda ?? undefined,
+      })
       .run();
   };
 

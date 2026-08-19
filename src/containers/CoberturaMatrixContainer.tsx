@@ -1,7 +1,12 @@
 import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { statusCobertura, type CoberturaResult, type Fonte, type Linha } from "@/lib/data/cobertura.functions";
+import {
+  statusCobertura,
+  type CoberturaResult,
+  type Fonte,
+  type Linha,
+} from "@/lib/data/cobertura.functions";
 import { useData } from "@/lib/data-store";
 import { useCoberturaJobBuilder, type CoberturaJob } from "@/lib/data/cobertura-jobs";
 import {
@@ -44,24 +49,29 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
     }
   }, [fetchCobertura]);
 
-  React.useEffect(() => { void refresh(); }, [refresh]);
+  React.useEffect(() => {
+    void refresh();
+  }, [refresh]);
 
   const fonteIds = React.useMemo(() => (data?.fontes ?? []).map((f) => f.fonte), [data]);
   React.useEffect(() => {
     setSelecionadas((prev) => intersectarSelecionadas(prev, fonteIds));
   }, [fonteIds.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const construirJobsLacunas = React.useCallback((fonte: Fonte): CoberturaJob[] => {
-    if (fonte.fonte === "siconfi") return [];
-    const jobs: CoberturaJob[] = [];
-    for (const linha of fonte.linhas.length > 0 ? fonte.linhas : faltantesParaFonte(fonte)) {
-      for (const m of lacunasMesesDaLinha(linha, ano)) {
-        const j = buildJob(fonte.fonte, linha.id, ano, m);
-        if (j) jobs.push(j);
+  const construirJobsLacunas = React.useCallback(
+    (fonte: Fonte): CoberturaJob[] => {
+      if (fonte.fonte === "siconfi") return [];
+      const jobs: CoberturaJob[] = [];
+      for (const linha of fonte.linhas.length > 0 ? fonte.linhas : faltantesParaFonte(fonte)) {
+        for (const m of lacunasMesesDaLinha(linha, ano)) {
+          const j = buildJob(fonte.fonte, linha.id, ano, m);
+          if (j) jobs.push(j);
+        }
       }
-    }
-    return jobs;
-  }, [ano, buildJob]);
+      return jobs;
+    },
+    [ano, buildJob],
+  );
 
   const preencherLacunas = async (fonte: Fonte) => {
     if (fonte.fonte === "siconfi") {

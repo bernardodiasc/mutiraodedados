@@ -84,7 +84,10 @@ export const Route = createFileRoute("/contratos/")({
     q: typeof s.q === "string" && s.q ? s.q : undefined,
     uf: typeof s.uf === "string" && s.uf ? s.uf : undefined,
     esfera:
-      s.esfera === "federal" || s.esfera === "estadual" || s.esfera === "municipal" || s.esfera === "distrital"
+      s.esfera === "federal" ||
+      s.esfera === "estadual" ||
+      s.esfera === "municipal" ||
+      s.esfera === "distrital"
         ? s.esfera
         : undefined,
   }),
@@ -106,7 +109,10 @@ function ContratosPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const fonte: Fonte = fonteSearch ?? "cgu";
   const setFonte = (f: Fonte) =>
-    navigate({ search: (prev: ContratosSearch) => ({ ...prev, fonte: f === "pncp" ? "pncp" : undefined }), replace: true });
+    navigate({
+      search: (prev: ContratosSearch) => ({ ...prev, fonte: f === "pncp" ? "pncp" : undefined }),
+      replace: true,
+    });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-6">
@@ -270,7 +276,9 @@ function ContratosCGU() {
           </select>
           <select
             value={sort}
-            onChange={(e) => setFiltro({ sort: e.target.value === "valor_desc" ? "valor_desc" : undefined })}
+            onChange={(e) =>
+              setFiltro({ sort: e.target.value === "valor_desc" ? "valor_desc" : undefined })
+            }
             className="rounded-md border bg-background px-3 py-2 text-sm"
           >
             {ORDENS.map((o) => (
@@ -395,7 +403,9 @@ function ContratosPNCP() {
           </select>
           <select
             value={esfera}
-            onChange={(e) => setFiltro({ esfera: (e.target.value || undefined) as Esfera | undefined })}
+            onChange={(e) =>
+              setFiltro({ esfera: (e.target.value || undefined) as Esfera | undefined })
+            }
             className="rounded-md border bg-background px-3 py-2 text-sm"
           >
             <option value="">Todas as esferas</option>

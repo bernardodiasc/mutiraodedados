@@ -1,11 +1,31 @@
 import { FileText, ScrollText, Handshake, Wallet, Eye } from "lucide-react";
 
 const ETAPAS = [
-  { icon: ScrollText, titulo: "Edital", desc: "Órgão publica edital no PNCP com objeto, modalidade e estimativa." },
-  { icon: FileText, titulo: "Proposta", desc: "Fornecedores enviam propostas; sessão pública registra lances." },
-  { icon: Handshake, titulo: "Contrato", desc: "Empenho e assinatura geram número de controle PNCP rastreável." },
-  { icon: Wallet, titulo: "Execução", desc: "Pagamentos aparecem no Portal da Transparência por empenho." },
-  { icon: Eye, titulo: "Fiscalização", desc: "Cidadão cruza valor, fornecedor e histórico para detectar anomalias." },
+  {
+    icon: ScrollText,
+    titulo: "Edital",
+    desc: "Órgão publica edital no PNCP com objeto, modalidade e estimativa.",
+  },
+  {
+    icon: FileText,
+    titulo: "Proposta",
+    desc: "Fornecedores enviam propostas; sessão pública registra lances.",
+  },
+  {
+    icon: Handshake,
+    titulo: "Contrato",
+    desc: "Empenho e assinatura geram número de controle PNCP rastreável.",
+  },
+  {
+    icon: Wallet,
+    titulo: "Execução",
+    desc: "Pagamentos aparecem no Portal da Transparência por empenho.",
+  },
+  {
+    icon: Eye,
+    titulo: "Fiscalização",
+    desc: "Cidadão cruza valor, fornecedor e histórico para detectar anomalias.",
+  },
 ];
 
 export function FluxoContratoPNCP() {

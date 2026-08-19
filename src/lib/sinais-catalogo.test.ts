@@ -109,7 +109,14 @@ describe("SINAIS_CATALOGO — invariantes", () => {
   });
 
   it("FONTES_QA_CATALOGO cobre todas as fontes persistidas, incluindo TSE", () => {
-    for (const f of ["cgu", "cgu_licitacoes", "cgu_emendas", "cgu_convenios", "tse", "tse-cruzamento"]) {
+    for (const f of [
+      "cgu",
+      "cgu_licitacoes",
+      "cgu_emendas",
+      "cgu_convenios",
+      "tse",
+      "tse-cruzamento",
+    ]) {
       expect(FONTES_QA_CATALOGO).toContain(f);
     }
     // Regras em memória não entram no filtro de fontes persistidas.

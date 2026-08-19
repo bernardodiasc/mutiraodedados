@@ -13,10 +13,10 @@ export function deriveBotaoEstado(input: {
 }
 
 /** Normaliza payload de pergunta para o server-fn. Faz trim e descarta vazios. */
-export function normalizarPayloadPergunta(input: {
-  texto: string;
-  contexto?: string;
-}): { titulo: string; contexto: string | null } {
+export function normalizarPayloadPergunta(input: { texto: string; contexto?: string }): {
+  titulo: string;
+  contexto: string | null;
+} {
   const titulo = input.texto.trim();
   const contexto = input.contexto?.trim() ? input.contexto.trim() : null;
   return { titulo, contexto };

@@ -38,11 +38,9 @@ export type PerguntaItem = {
 const COLS = "id, pergunta_id, user_id, tipo, ref_id, titulo, url, nota, ordem, created_at";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 const perguntaSchema = z.object({ pergunta_id: z.string().uuid() });
@@ -196,10 +194,7 @@ export const toggleItemEmPergunta = createServerFn({ method: "POST" })
       .maybeSingle();
     if (er0) throw new Error(`Falha ao consultar item: ${er0.message}`);
     if (existing) {
-      const { error } = await supabase
-        .from("pergunta_itens")
-        .delete()
-        .eq("id", existing.id);
+      const { error } = await supabase.from("pergunta_itens").delete().eq("id", existing.id);
       if (error) throw new Error(`Falha ao remover item: ${error.message}`);
       return { added: false };
     }

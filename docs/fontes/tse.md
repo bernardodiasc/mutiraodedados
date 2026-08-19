@@ -12,13 +12,13 @@ Quem se candidatou, o que declarou de bens, quantos votos recebeu e de quem veio
 
 ## O que importamos
 
-| Entidade | Tabela cache | Origem no CKAN | Página |
-|---|---|---|---|
-| Candidatos | `tse_candidatos_cache` | `consulta_cand_<ano>.zip` | `/eleicoes`, `/eleicoes/candidatos` |
-| Bens declarados | `tse_bens_candidato_cache` | `bem_candidato_<ano>.zip` | ficha do candidato |
-| Resultados (votos por município) | `tse_resultados_cache` | `votacao_candidato_munzona_<ano>.zip` | ficha do candidato |
-| Receitas de campanha | `tse_receitas_campanha_cache` | prestação de contas por ano | fichas de candidato/parlamentar/fornecedor |
-| Despesas de campanha (contratadas) | `tse_despesas_campanha_cache` | prestação de contas por ano | fichas de candidato/parlamentar |
+| Entidade                           | Tabela cache                  | Origem no CKAN                        | Página                                     |
+| ---------------------------------- | ----------------------------- | ------------------------------------- | ------------------------------------------ |
+| Candidatos                         | `tse_candidatos_cache`        | `consulta_cand_<ano>.zip`             | `/eleicoes`, `/eleicoes/candidatos`        |
+| Bens declarados                    | `tse_bens_candidato_cache`    | `bem_candidato_<ano>.zip`             | ficha do candidato                         |
+| Resultados (votos por município)   | `tse_resultados_cache`        | `votacao_candidato_munzona_<ano>.zip` | ficha do candidato                         |
+| Receitas de campanha               | `tse_receitas_campanha_cache` | prestação de contas por ano           | fichas de candidato/parlamentar/fornecedor |
+| Despesas de campanha (contratadas) | `tse_despesas_campanha_cache` | prestação de contas por ano           | fichas de candidato/parlamentar            |
 
 Além disso, a **ponte** `tse_parlamentar_candidato` liga deputados/senadores em exercício às suas candidaturas (CPF na Câmara; nome+UF no Senado — vínculos por nome têm confiança menor e fila de revisão).
 

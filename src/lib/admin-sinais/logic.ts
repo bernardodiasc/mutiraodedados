@@ -19,17 +19,11 @@ export type Curl = { label: string; url: string; nota?: string };
 
 const SWAGGER = "https://api.portaldatransparencia.gov.br/swagger-ui/index.html";
 
-export function anoDeEvidencia(
-  e: Record<string, string | number>,
-  now: Date = new Date(),
-): number {
+export function anoDeEvidencia(e: Record<string, string | number>, now: Date = new Date()): number {
   return Number(e.ano ?? e.ano_anterior ?? now.getFullYear());
 }
 
-export function buildCurlsSinal(
-  f: Anomalia,
-  now: Date = new Date(),
-): Curl[] | undefined {
+export function buildCurlsSinal(f: Anomalia, now: Date = new Date()): Curl[] | undefined {
   if (f.entidadeTipo === "contrato") {
     return [
       {
@@ -63,9 +57,7 @@ export function buildCurlsSinal(
 }
 
 export function ordenarPorSeveridade(items: Anomalia[]): Anomalia[] {
-  return [...items].sort(
-    (a, b) => (SEV_ORDER[a.severidade] ?? 9) - (SEV_ORDER[b.severidade] ?? 9),
-  );
+  return [...items].sort((a, b) => (SEV_ORDER[a.severidade] ?? 9) - (SEV_ORDER[b.severidade] ?? 9));
 }
 
 export function filtrarSinais(
@@ -74,9 +66,7 @@ export function filtrarSinais(
   sevSel: string | null,
 ): Anomalia[] {
   return items.filter(
-    (f) =>
-      (!regraSel || f.regra === regraSel) &&
-      (!sevSel || f.severidade === sevSel),
+    (f) => (!regraSel || f.regra === regraSel) && (!sevSel || f.severidade === sevSel),
   );
 }
 

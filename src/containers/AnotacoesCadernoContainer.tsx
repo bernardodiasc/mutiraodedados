@@ -9,11 +9,7 @@ import {
   excluirAnotacao,
   type Anotacao,
 } from "@/lib/anotacoes.functions";
-import {
-  type AnotacaoDraft,
-  DRAFT_INICIAL,
-  draftDeAnotacao,
-} from "@/lib/anotacoes-caderno/logic";
+import { type AnotacaoDraft, DRAFT_INICIAL, draftDeAnotacao } from "@/lib/anotacoes-caderno/logic";
 import { AnotacoesCadernoView } from "@/components/AnotacoesCadernoView";
 
 export function AnotacoesCadernoContainer() {
@@ -30,8 +26,7 @@ export function AnotacoesCadernoContainer() {
     queryFn: () => listar(),
   });
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: ["anotacoes", "minhas"] });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["anotacoes", "minhas"] });
 
   const salvarMutation = useMutation({
     mutationFn: async (d: AnotacaoDraft) => {
@@ -49,8 +44,7 @@ export function AnotacoesCadernoContainer() {
       setDraft(null);
       invalidate();
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao salvar"),
   });
 
   const removerMutation = useMutation({
@@ -60,8 +54,7 @@ export function AnotacoesCadernoContainer() {
       toast.success("Anotação removida");
       invalidate();
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao remover"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao remover"),
     onSettled: () => setRemovingId(null),
   });
 
@@ -76,9 +69,7 @@ export function AnotacoesCadernoContainer() {
       onComecarNova={() => setDraft({ ...DRAFT_INICIAL })}
       onComecarEditar={(a) => setDraft(draftDeAnotacao(a))}
       onCancelar={() => setDraft(null)}
-      onAlterarDraft={(patch) =>
-        setDraft((prev) => (prev ? { ...prev, ...patch } : prev))
-      }
+      onAlterarDraft={(patch) => setDraft((prev) => (prev ? { ...prev, ...patch } : prev))}
       onSalvarDraft={() => {
         if (draft) salvarMutation.mutate(draft);
       }}

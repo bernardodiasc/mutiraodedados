@@ -24,6 +24,9 @@ describe("interpretarPromptLink", () => {
     expect(interpretarPromptLink("")).toEqual({ tipo: "remover" });
   });
   it("string com URL = definir", () => {
-    expect(interpretarPromptLink("https://x.com")).toEqual({ tipo: "definir", href: "https://x.com" });
+    expect(interpretarPromptLink("https://x.com")).toEqual({
+      tipo: "definir",
+      href: "https://x.com",
+    });
   });
 });

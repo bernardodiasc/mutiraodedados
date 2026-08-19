@@ -26,7 +26,6 @@ function anosDaLegislatura(n: number): string {
   return `${ini}–${ini + 4}`;
 }
 
-
 export const Route = createFileRoute("/camara_/deputados/$id")({
   component: DeputadoDetalhe,
   head: ({ params }) => ({
@@ -51,7 +50,12 @@ function DeputadoDetalhe() {
   const [mes, setMes] = useState<number | null>(null);
 
   if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { deputado, perfil, mandatos, despesas } = data;
@@ -65,22 +69,23 @@ function DeputadoDetalhe() {
   }`;
   const fonteOficialHref =
     perfil?.urlPerfil ?? `https://www.camara.leg.br/deputados/${deputado.id}`;
-  const foto = deputado.urlFoto ?? `https://www.camara.leg.br/internet/deputado/bandep/${deputado.id}.jpg`;
+  const foto =
+    deputado.urlFoto ?? `https://www.camara.leg.br/internet/deputado/bandep/${deputado.id}.jpg`;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-10">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/camara" className="hover:text-accent">Câmara</Link>
+          <Link to="/camara" className="hover:text-accent">
+            Câmara
+          </Link>
           {" · "}
-          <Link to="/camara/deputados" className="hover:text-accent">Deputados</Link>
+          <Link to="/camara/deputados" className="hover:text-accent">
+            Deputados
+          </Link>
         </div>
         <div className="flex items-start gap-5 mt-3 flex-wrap">
-          <img
-            src={foto}
-            alt=""
-            className="size-28 rounded-md object-cover border border-border"
-          />
+          <img src={foto} alt="" className="size-28 rounded-md object-cover border border-border" />
           <div className="flex-1 min-w-[260px]">
             <h1 className="font-display text-4xl leading-tight">{deputado.nome}</h1>
             <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
@@ -130,48 +135,76 @@ function DeputadoDetalhe() {
             <dl className="space-y-2">
               {perfil?.nomeCivil && (
                 <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Nome civil</dt>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Nome civil
+                  </dt>
                   <dd>{perfil.nomeCivil}</dd>
                 </div>
               )}
               {perfil?.naturalidade && (
                 <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Naturalidade</dt>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Naturalidade
+                  </dt>
                   <dd>{perfil.naturalidade}</dd>
                 </div>
               )}
               {perfil?.escolaridade && (
                 <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Escolaridade</dt>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Escolaridade
+                  </dt>
                   <dd>{perfil.escolaridade}</dd>
                 </div>
               )}
               {perfil?.gabineteTelefone && (
                 <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Gabinete</dt>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Gabinete
+                  </dt>
                   <dd>{perfil.gabineteTelefone}</dd>
                 </div>
               )}
             </dl>
             <div className="flex flex-col gap-2">
               {perfil?.urlPerfil && (
-                <a href={perfil.urlPerfil} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={perfil.urlPerfil}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> Perfil oficial na Câmara
                 </a>
               )}
               {perfil?.urlWebsite && (
-                <a href={perfil.urlWebsite} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={perfil.urlWebsite}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> Site oficial
                 </a>
               )}
               {(perfil?.gabineteEmail ?? deputado.email) && (
-                <a href={`mailto:${perfil?.gabineteEmail ?? deputado.email}`} className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={`mailto:${perfil?.gabineteEmail ?? deputado.email}`}
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> {perfil?.gabineteEmail ?? deputado.email}
                 </a>
               )}
               {(perfil?.redeSocial ?? []).map((u) => (
-                <a key={u} href={u} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-flex items-center gap-1.5 truncate">
-                  <ExternalLink className="size-3.5 shrink-0" /> <span className="truncate">{u.replace(/^https?:\/\/(www\.)?/, "")}</span>
+                <a
+                  key={u}
+                  href={u}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline inline-flex items-center gap-1.5 truncate"
+                >
+                  <ExternalLink className="size-3.5 shrink-0" />{" "}
+                  <span className="truncate">{u.replace(/^https?:\/\/(www\.)?/, "")}</span>
                 </a>
               ))}
             </div>
@@ -179,11 +212,17 @@ function DeputadoDetalhe() {
 
           {mandatos.length > 0 && (
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Mandatos por legislatura</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
+                Mandatos por legislatura
+              </div>
               <div className="flex flex-wrap gap-2">
                 {mandatos.map((m) => (
-                  <span key={m.legislatura} className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
-                    {m.legislatura}ª ({anosDaLegislatura(m.legislatura)}) · {m.siglaPartido ?? "—"}/{m.siglaUf ?? "—"}
+                  <span
+                    key={m.legislatura}
+                    className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+                  >
+                    {m.legislatura}ª ({anosDaLegislatura(m.legislatura)}) · {m.siglaPartido ?? "—"}/
+                    {m.siglaUf ?? "—"}
                   </span>
                 ))}
               </div>
@@ -227,9 +266,9 @@ function DeputadoDetalhe() {
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="font-display text-xl">Trajetória no mandato</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Posse, licenças, afastamentos, vacância e reassunções registrados pela Câmara —
-            da mais recente à mais antiga. É como se acompanha quem deixou o cargo (renúncia,
-            posse em outro cargo, etc.) e quando um suplente assumiu.
+            Posse, licenças, afastamentos, vacância e reassunções registrados pela Câmara — da mais
+            recente à mais antiga. É como se acompanha quem deixou o cargo (renúncia, posse em outro
+            cargo, etc.) e quando um suplente assumiu.
           </p>
           <Trajetoria
             items={data.eventos.map((e) => ({
@@ -238,7 +277,9 @@ function DeputadoDetalhe() {
               meta:
                 [
                   e.legislatura ? `${e.legislatura}ª legislatura` : null,
-                  e.siglaPartido || e.siglaUf ? `${e.siglaPartido ?? "—"}/${e.siglaUf ?? "—"}` : null,
+                  e.siglaPartido || e.siglaUf
+                    ? `${e.siglaPartido ?? "—"}/${e.siglaUf ?? "—"}`
+                    : null,
                 ]
                   .filter(Boolean)
                   .join(" · ") || null,
@@ -304,16 +345,16 @@ function DeputadoDetalhe() {
 
       {despesas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-          Sem despesas CEAP em cache para este deputado. Um administrador precisa importar
-          um período no painel admin.
+          Sem despesas CEAP em cache para este deputado. Um administrador precisa importar um
+          período no painel admin.
         </div>
       ) : (
         <>
           <section>
             <h2 className="font-display text-2xl">Onde o dinheiro foi gasto</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Reembolsos agrupados por tipo de despesa. Lembre que CEAP cobre categorias
-              definidas em ato da Mesa — combustível, passagem, divulgação, escritório, etc.
+              Reembolsos agrupados por tipo de despesa. Lembre que CEAP cobre categorias definidas
+              em ato da Mesa — combustível, passagem, divulgação, escritório, etc.
             </p>
             <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
               <table className="w-full text-sm">
@@ -342,9 +383,9 @@ function DeputadoDetalhe() {
           <section>
             <h2 className="font-display text-2xl">Principais fornecedores</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Quem mais recebeu reembolsos vinculados a este mandato. Concentração elevada
-              em um único fornecedor pode merecer checagem — pode haver explicação legítima
-              (fornecedor único naquele tipo de serviço) ou padrão atípico.
+              Quem mais recebeu reembolsos vinculados a este mandato. Concentração elevada em um
+              único fornecedor pode merecer checagem — pode haver explicação legítima (fornecedor
+              único naquele tipo de serviço) ou padrão atípico.
             </p>
             <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
               <table className="w-full text-sm">
@@ -397,8 +438,8 @@ function DeputadoDetalhe() {
           <section>
             <h2 className="font-display text-2xl">Distribuição mensal</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Picos podem indicar período eleitoral, fim de mandato ou simplesmente
-              despesas concentradas. Comparação contextual ajuda a interpretar.
+              Picos podem indicar período eleitoral, fim de mandato ou simplesmente despesas
+              concentradas. Comparação contextual ajuda a interpretar.
             </p>
             <div className="mt-4 rounded-xl border border-border bg-card p-4 overflow-x-auto">
               <BarsMensais data={porMes} />

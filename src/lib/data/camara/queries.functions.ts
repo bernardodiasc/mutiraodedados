@@ -64,7 +64,9 @@ export const listarLegislaturasCamara = createServerFn({ method: "GET" }).handle
     const legAtual = legislaturaAtual();
     const [leg, roster] = await Promise.all([
       selectAll(() =>
-        supabaseAdmin.from("camara_deputado_legislaturas").select("id_legislatura,sigla_uf,sigla_partido"),
+        supabaseAdmin
+          .from("camara_deputado_legislaturas")
+          .select("id_legislatura,sigla_uf,sigla_partido"),
       ),
       selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("situacao")),
     ]);
@@ -112,7 +114,9 @@ export const consultarMembrosCamara = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<DeputadoConsulta[]> => {
     const legAtual = legislaturaAtual();
     const [roster, leg] = await Promise.all([
-      selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id,nome,url_foto,situacao")),
+      selectAll(() =>
+        supabaseAdmin.from("camara_deputados_cache").select("id,nome,url_foto,situacao"),
+      ),
       selectAll(() => {
         const base = supabaseAdmin
           .from("camara_deputado_legislaturas")
@@ -146,8 +150,7 @@ export const consultarMembrosCamara = createServerFn({ method: "GET" })
       });
     }
     return out.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  },
-);
+  });
 
 /** Ranking de gastos CEAP por deputado, em todo o período em cache. */
 export const rankingGastosDeputados = createServerFn({ method: "GET" }).handler(async () => {
@@ -163,7 +166,9 @@ export const rankingGastosDeputados = createServerFn({ method: "GET" }).handler(
         .order("total", { ascending: false }),
     ),
     selectAll(() =>
-      supabaseAdmin.from("camara_deputados_cache").select("id,nome,sigla_partido,sigla_uf,url_foto"),
+      supabaseAdmin
+        .from("camara_deputados_cache")
+        .select("id,nome,sigla_partido,sigla_uf,url_foto"),
     ),
   ]);
   const depMap = new Map(deps.map((d) => [d.id as number, d]));
@@ -200,18 +205,24 @@ export type Movimentacao = {
  * "Vacâncias e substituições" a partir dos eventos de /historico. Público.
  */
 export const movimentacoesLegislaturaCamara = createServerFn({ method: "GET" })
-  .inputValidator((input) => z.object({ legislatura: z.number().int().min(1).max(200) }).parse(input))
+  .inputValidator((input) =>
+    z.object({ legislatura: z.number().int().min(1).max(200) }).parse(input),
+  )
   .handler(async ({ data }): Promise<Movimentacao[]> => {
     const eventos = await selectAll(() =>
       supabaseAdmin
         .from("camara_deputado_eventos")
         .select("deputado_id,data_hora,situacao,condicao_eleitoral,sigla_uf,descricao")
         .eq("id_legislatura", data.legislatura)
-        .or("descricao.ilike.%Saída%,descricao.ilike.%Posse de Suplente%,descricao.ilike.%Reassunção%"),
+        .or(
+          "descricao.ilike.%Saída%,descricao.ilike.%Posse de Suplente%,descricao.ilike.%Reassunção%",
+        ),
     );
     const ids = [...new Set(eventos.map((e) => e.deputado_id as number))];
     const roster = ids.length
-      ? await selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id,nome").in("id", ids))
+      ? await selectAll(() =>
+          supabaseAdmin.from("camara_deputados_cache").select("id,nome").in("id", ids),
+        )
       : [];
     const nome = new Map(roster.map((r) => [r.id as number, r.nome as string]));
     return eventos
@@ -276,7 +287,9 @@ async function buscarPerfilDeputado(id: number): Promise<PerfilDeputado | null> 
       dataNascimento: d.dataNascimento ?? null,
       naturalidade,
       urlWebsite: d.urlWebsite ?? null,
-      redeSocial: Array.isArray(d.redeSocial) ? d.redeSocial.filter((u) => typeof u === "string") : [],
+      redeSocial: Array.isArray(d.redeSocial)
+        ? d.redeSocial.filter((u) => typeof u === "string")
+        : [],
       gabineteEmail: g.email ?? d.ultimoStatus?.email ?? null,
       gabineteTelefone: g.telefone ?? null,
       urlPerfil: `https://www.camara.leg.br/deputados/${id}`,
@@ -324,7 +337,10 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
     // Agregados
     const totalGeral = despesas.reduce((s, x) => s + x.valorLiquido, 0);
     const porTipo = new Map<string, number>();
-    const porFornecedor = new Map<string, { nome: string; cnpj: string | null; total: number; count: number }>();
+    const porFornecedor = new Map<
+      string,
+      { nome: string; cnpj: string | null; total: number; count: number }
+    >();
     const porMes = new Map<string, number>();
     for (const d of despesas) {
       porTipo.set(d.tipoDespesa, (porTipo.get(d.tipoDespesa) ?? 0) + d.valorLiquido);
@@ -351,7 +367,9 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
         .order("id_legislatura", { ascending: false }),
       supabaseAdmin
         .from("camara_deputado_eventos")
-        .select("id_legislatura,data_hora,situacao,condicao_eleitoral,sigla_partido,sigla_uf,descricao")
+        .select(
+          "id_legislatura,data_hora,situacao,condicao_eleitoral,sigla_partido,sigla_uf,descricao",
+        )
         .eq("deputado_id", data.id)
         .order("data_hora", { ascending: false })
         .limit(500),
@@ -390,9 +408,13 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
       eventos,
       totalGeral,
       despesas,
-      porTipo: [...porTipo.entries()].map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total),
+      porTipo: [...porTipo.entries()]
+        .map(([tipo, total]) => ({ tipo, total }))
+        .sort((a, b) => b.total - a.total),
       porFornecedor: [...porFornecedor.values()].sort((a, b) => b.total - a.total).slice(0, 30),
-      porMes: [...porMes.entries()].map(([mes, total]) => ({ mes, total })).sort((a, b) => a.mes.localeCompare(b.mes)),
+      porMes: [...porMes.entries()]
+        .map(([mes, total]) => ({ mes, total }))
+        .sort((a, b) => a.mes.localeCompare(b.mes)),
     };
   });
 
@@ -406,8 +428,15 @@ export const camaraOverview = createServerFn({ method: "GET" }).handler(async ()
     supabaseAdmin.from("camara_despesas_cache").select("id", { count: "exact", head: true }),
     // Soma no banco: `.limit(100000)` sobre as despesas cruas truncava em 1000.
     supabaseAdmin.rpc("camara_gasto_total"),
-    selectAll(() => supabaseAdmin.from("camara_deputados_cache").select("id").eq("situacao", "Exercício")),
-    selectAll(() => supabaseAdmin.from("camara_deputado_legislaturas").select("deputado_id").lt("id_legislatura", legAtual)),
+    selectAll(() =>
+      supabaseAdmin.from("camara_deputados_cache").select("id").eq("situacao", "Exercício"),
+    ),
+    selectAll(() =>
+      supabaseAdmin
+        .from("camara_deputado_legislaturas")
+        .select("deputado_id")
+        .lt("id_legislatura", legAtual),
+    ),
   ]);
   const totalGasto = Number(totalRes.data ?? 0);
   const atuaisIds = new Set(exercData.map((r) => r.id as number));
@@ -434,6 +463,8 @@ export const camaraOverview = createServerFn({ method: "GET" }).handler(async ()
     totalDespesas: nDesps ?? 0,
     totalGasto,
     periodoInicio: span?.[0] ? `${span[0].ano}-${String(span[0].mes).padStart(2, "0")}` : null,
-    periodoFim: spanEnd?.[0] ? `${spanEnd[0].ano}-${String(spanEnd[0].mes).padStart(2, "0")}` : null,
+    periodoFim: spanEnd?.[0]
+      ? `${spanEnd[0].ano}-${String(spanEnd[0].mes).padStart(2, "0")}`
+      : null,
   };
 });

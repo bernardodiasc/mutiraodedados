@@ -74,7 +74,11 @@ function AfastamentosLegislatura({ legislatura }: { legislatura: number }) {
     enabled: aberto,
   });
   return (
-    <Collapsible open={aberto} onOpenChange={setAberto} className="rounded-xl border border-border bg-card">
+    <Collapsible
+      open={aberto}
+      onOpenChange={setAberto}
+      className="rounded-xl border border-border bg-card"
+    >
       <CollapsibleTrigger className="group w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/40">
         <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
         <span className="font-medium text-sm">
@@ -113,7 +117,9 @@ function AfastamentosLegislatura({ legislatura }: { legislatura: number }) {
                     {[m.uf, m.participacao].filter(Boolean).join(" · ")}
                   </span>
                 )}
-                {m.descricaoCausa && <SituacaoBadge situacao={m.descricaoCausa} className="self-center" />}
+                {m.descricaoCausa && (
+                  <SituacaoBadge situacao={m.descricaoCausa} className="self-center" />
+                )}
               </li>
             ))}
           </ul>
@@ -168,7 +174,9 @@ function CardSenador({ d }: { d: SenadorConsulta }) {
         </div>
         {(d.participacao || d.situacao) && (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {d.participacao && <span className="text-xs text-muted-foreground">{d.participacao}</span>}
+            {d.participacao && (
+              <span className="text-xs text-muted-foreground">{d.participacao}</span>
+            )}
             {d.situacao && <SituacaoBadge situacao={d.situacao} />}
           </div>
         )}
@@ -198,7 +206,10 @@ function TituloLegislatura({ legislatura, total }: { legislatura: number; total:
       <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
       <span className="font-medium text-sm">
         {legislatura}ª legislatura
-        <span className="text-muted-foreground font-normal"> · {anosDaLegislatura(legislatura)}</span>
+        <span className="text-muted-foreground font-normal">
+          {" "}
+          · {anosDaLegislatura(legislatura)}
+        </span>
       </span>
       <span className="ml-auto text-xs text-muted-foreground">{total} senadores</span>
     </>
@@ -223,7 +234,11 @@ function PainelLegislatura({
     enabled: aberto,
   });
   return (
-    <Collapsible open={aberto} onOpenChange={setAberto} className="rounded-xl border border-border bg-card">
+    <Collapsible
+      open={aberto}
+      onOpenChange={setAberto}
+      className="rounded-xl border border-border bg-card"
+    >
       <CollapsibleTrigger className="group w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-muted/40">
         <TituloLegislatura legislatura={legislatura} total={total} />
       </CollapsibleTrigger>
@@ -340,13 +355,16 @@ function ListaSenadores() {
       <div className="mx-auto max-w-7xl px-4 py-10">
         <div>
           <div className="text-xs text-muted-foreground uppercase tracking-wider">
-            <Link to="/senado" className="hover:text-accent">Senado</Link> · Senadores
+            <Link to="/senado" className="hover:text-accent">
+              Senado
+            </Link>{" "}
+            · Senadores
           </div>
           <h1 className="font-display text-4xl mt-1">Senadores</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
-            O mandato de um senador dura <strong className="text-foreground">8 anos</strong> — duas legislaturas.
-            Por isso um mesmo senador pode aparecer em duas legislaturas, e cada uma traz seus titulares e suplentes.
-            Abra um painel para carregar os membros.
+            O mandato de um senador dura <strong className="text-foreground">8 anos</strong> — duas
+            legislaturas. Por isso um mesmo senador pode aparecer em duas legislaturas, e cada uma
+            traz seus titulares e suplentes. Abra um painel para carregar os membros.
           </p>
         </div>
 
@@ -359,7 +377,9 @@ function ListaSenadores() {
           <select
             className={selectCls}
             value={legislatura ?? ""}
-            onChange={(e) => setFiltro({ legislatura: e.target.value ? Number(e.target.value) : undefined })}
+            onChange={(e) =>
+              setFiltro({ legislatura: e.target.value ? Number(e.target.value) : undefined })
+            }
           >
             <option value="">Todas as legislaturas</option>
             {info?.legislaturas.map((l) => (
@@ -368,9 +388,17 @@ function ListaSenadores() {
               </option>
             ))}
           </select>
-          <select className={selectCls} value={uf} onChange={(e) => setFiltro({ uf: e.target.value || undefined })}>
+          <select
+            className={selectCls}
+            value={uf}
+            onChange={(e) => setFiltro({ uf: e.target.value || undefined })}
+          >
             <option value="">Todas UFs</option>
-            {info?.ufs.map((u) => <option key={u} value={u}>{u}</option>)}
+            {info?.ufs.map((u) => (
+              <option key={u} value={u}>
+                {u}
+              </option>
+            ))}
           </select>
           <select
             className={selectCls}
@@ -378,7 +406,11 @@ function ListaSenadores() {
             onChange={(e) => setFiltro({ partido: e.target.value || undefined })}
           >
             <option value="">Todos partidos</option>
-            {info?.partidos.map((p) => <option key={p} value={p}>{p}</option>)}
+            {info?.partidos.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -389,7 +421,11 @@ function ListaSenadores() {
               onChange={(e) => setFiltro({ participacao: e.target.value || undefined })}
             >
               <option value="">Titulares e suplentes</option>
-              {info.participacoes.map((p) => <option key={p} value={p}>{p}</option>)}
+              {info.participacoes.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           )}
           {info && info.situacoes.length > 0 && (
@@ -399,11 +435,17 @@ function ListaSenadores() {
               onChange={(e) => setFiltro({ situacao: e.target.value || undefined })}
             >
               <option value="">Todas as situações</option>
-              {info.situacoes.map((s) => <option key={s} value={s}>{s}</option>)}
+              {info.situacoes.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
             </select>
           )}
           {info && info.situacoes.length > 0 && (
-            <span className="text-xs text-muted-foreground">A situação reflete o status atual (legislatura vigente).</span>
+            <span className="text-xs text-muted-foreground">
+              A situação reflete o status atual (legislatura vigente).
+            </span>
           )}
         </div>
 
@@ -450,7 +492,12 @@ function ListaSenadores() {
               <p className="text-sm text-muted-foreground">Nenhum senador com esses filtros.</p>
             ) : (
               gruposResultado.map(([leg, membros], i) => (
-                <GrupoResultado key={leg} legislatura={leg} membros={membros} defaultOpen={i === 0} />
+                <GrupoResultado
+                  key={leg}
+                  legislatura={leg}
+                  membros={membros}
+                  defaultOpen={i === 0}
+                />
               ))
             )}
           </div>

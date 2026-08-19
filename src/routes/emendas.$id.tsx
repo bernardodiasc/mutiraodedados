@@ -65,25 +65,25 @@ function EmendaDetalhe() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-      <BotaoCopiar
-        obterTexto={() =>
-          textoCopiavelDeEntidade(
-            `Emenda ${e.id} — ${e.autor ?? "autor não identificado"} (${e.ano})`,
-            e.url_oficial,
-            e,
-          )
-        }
-        rotulo="Copiar dados"
-        mensagemToast="Dados da emenda copiados — cole na sua IA"
-      />
-      <BotaoSalvarItem
-        entidadeTipo="emenda"
-        entidadeId={e.id}
-        titulo={`${e.autor ?? "Emenda"} · nº ${e.numero_emenda ?? e.id} (${e.ano})`}
-        url={`/emendas/${encodeURIComponent(e.id)}`}
-        contexto={[e.tipo_emenda, e.localidade, e.funcao].filter(Boolean).join(" · ")}
-        snapshotDe={e}
-      />
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(
+              `Emenda ${e.id} — ${e.autor ?? "autor não identificado"} (${e.ano})`,
+              e.url_oficial,
+              e,
+            )
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados da emenda copiados — cole na sua IA"
+        />
+        <BotaoSalvarItem
+          entidadeTipo="emenda"
+          entidadeId={e.id}
+          titulo={`${e.autor ?? "Emenda"} · nº ${e.numero_emenda ?? e.id} (${e.ano})`}
+          url={`/emendas/${encodeURIComponent(e.id)}`}
+          contexto={[e.tipo_emenda, e.localidade, e.funcao].filter(Boolean).join(" · ")}
+          snapshotDe={e}
+        />
       </div>
 
       <QualidadeBanner fonte="cgu_emendas" entidadeTipo="emenda" entidadeId={e.id} />

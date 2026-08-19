@@ -59,26 +59,27 @@ export function SiteHeaderView({
                   <ChevronDown className="size-3.5 opacity-70" />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className={isMega ? "min-w-64 p-3" : "min-w-64"}>
-                  {g.featured && (() => {
-                    const FeaturedIcon = g.featured.icon;
-                    const isActive = isLinkActive(g.featured, pathname);
-                    return (
-                      <Link
-                        to={g.featured.to}
-                        className={`mb-3 flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3 hover:bg-muted transition-colors ${isActive ? "text-accent" : ""}`}
-                      >
-                        <FeaturedIcon className="size-6 mt-0.5 text-accent shrink-0" />
-                        <div className="min-w-0">
-                          <div className="font-semibold">{g.featured.label}</div>
-                          {g.featured.description && (
-                            <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
-                              {g.featured.description}
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                    );
-                  })()}
+                  {g.featured &&
+                    (() => {
+                      const FeaturedIcon = g.featured.icon;
+                      const isActive = isLinkActive(g.featured, pathname);
+                      return (
+                        <Link
+                          to={g.featured.to}
+                          className={`mb-3 flex items-start gap-3 rounded-md border border-border bg-muted/40 p-3 hover:bg-muted transition-colors ${isActive ? "text-accent" : ""}`}
+                        >
+                          <FeaturedIcon className="size-6 mt-0.5 text-accent shrink-0" />
+                          <div className="min-w-0">
+                            <div className="font-semibold">{g.featured.label}</div>
+                            {g.featured.description && (
+                              <div className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                                {g.featured.description}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      );
+                    })()}
                   {g.subgroups && (
                     <div className="flex flex-col gap-y-3">
                       {g.subgroups.map((sg) => (
@@ -105,21 +106,22 @@ export function SiteHeaderView({
                       ))}
                     </div>
                   )}
-                  {g.links && g.links.map((l) => {
-                    const ItemIcon = l.icon;
-                    const isActive = isLinkActive(l, pathname);
-                    return (
-                      <DropdownMenuItem key={l.to} asChild>
-                        <Link
-                          to={l.to}
-                          className={`flex items-center gap-2 ${isActive ? "text-accent" : ""}`}
-                        >
-                          <ItemIcon className="size-4 opacity-80" />
-                          {l.label}
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
+                  {g.links &&
+                    g.links.map((l) => {
+                      const ItemIcon = l.icon;
+                      const isActive = isLinkActive(l, pathname);
+                      return (
+                        <DropdownMenuItem key={l.to} asChild>
+                          <Link
+                            to={l.to}
+                            className={`flex items-center gap-2 ${isActive ? "text-accent" : ""}`}
+                          >
+                            <ItemIcon className="size-4 opacity-80" />
+                            {l.label}
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
                 </DropdownMenuContent>
               </DropdownMenu>
             );
@@ -162,18 +164,26 @@ export function SiteHeaderView({
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => void onSignOut()} className="text-muted-foreground">
+                <DropdownMenuItem
+                  onClick={() => void onSignOut()}
+                  className="text-muted-foreground"
+                >
                   <LogOut className="size-4 mr-2" /> Sair
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link to="/login" className="hidden lg:inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-md hover:bg-muted">
+            <Link
+              to="/login"
+              className="hidden lg:inline-flex items-center gap-1.5 text-sm font-medium px-3 py-2 rounded-md hover:bg-muted"
+            >
               <User className="size-4" /> Entrar
             </Link>
           )}
           <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetTrigger className="lg:hidden p-2"><Menu className="size-5" /></SheetTrigger>
+            <SheetTrigger className="lg:hidden p-2">
+              <Menu className="size-5" />
+            </SheetTrigger>
             <SheetContent side="right" className="w-80 overflow-y-auto">
               <div className="flex flex-col gap-6 mt-8">
                 {NAV_GROUPS.map((g) => {
@@ -216,27 +226,48 @@ export function SiteHeaderView({
                 <div className="border-t border-border pt-4">
                   {isAuthenticated ? (
                     <>
-                      <div className="px-3 text-xs uppercase tracking-wider text-muted-foreground mb-1 truncate">{displayName}</div>
-                      <Link to="/minhas-marcacoes" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2">
+                      <div className="px-3 text-xs uppercase tracking-wider text-muted-foreground mb-1 truncate">
+                        {displayName}
+                      </div>
+                      <Link
+                        to="/minhas-marcacoes"
+                        onClick={() => onOpenChange(false)}
+                        className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2"
+                      >
                         <Bookmark className="size-4" /> Minhas marcações
                       </Link>
-                      <Link to="/caderno" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2">
+                      <Link
+                        to="/caderno"
+                        onClick={() => onOpenChange(false)}
+                        className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2"
+                      >
                         <Notebook className="size-4" /> Meu caderno
                       </Link>
                       {isAdmin && (
-                        <Link to="/admin" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm text-accent flex items-center gap-2">
+                        <Link
+                          to="/admin"
+                          onClick={() => onOpenChange(false)}
+                          className="px-3 py-2 rounded-md hover:bg-muted text-sm text-accent flex items-center gap-2"
+                        >
                           <Shield className="size-4" /> Admin
                         </Link>
                       )}
                       <button
-                        onClick={() => { onOpenChange(false); void onSignOut(); }}
+                        onClick={() => {
+                          onOpenChange(false);
+                          void onSignOut();
+                        }}
                         className="w-full text-left px-3 py-2 rounded-md hover:bg-muted text-sm text-muted-foreground flex items-center gap-2"
                       >
                         <LogOut className="size-4" /> Sair
                       </button>
                     </>
                   ) : (
-                    <Link to="/login" onClick={() => onOpenChange(false)} className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2">
+                    <Link
+                      to="/login"
+                      onClick={() => onOpenChange(false)}
+                      className="px-3 py-2 rounded-md hover:bg-muted text-sm flex items-center gap-2"
+                    >
                       <User className="size-4" /> Entrar
                     </Link>
                   )}

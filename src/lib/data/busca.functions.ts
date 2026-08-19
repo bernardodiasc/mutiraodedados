@@ -15,7 +15,10 @@ function soDigitos(s: string) {
 // Remove caracteres com significado especial em filtros PostgREST (`.or=`)
 // e no padrão LIKE para evitar injeção de condições adicionais no query string.
 function sanitizarTermoFiltro(s: string) {
-  return s.replace(/[%(),.*]/g, " ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/[%(),.*]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 type ItemBusca = {
@@ -63,7 +66,15 @@ export const buscaGlobal = createServerFn({ method: "POST" })
       qPncp = qPncp.or(`orgao_cnpj.eq.${cnpj},fornecedor_cnpj_cpf.eq.${cnpj}`);
     } else {
       const t = sanitizarTermoFiltro(termo);
-      if (!t) return { cnpjDetectado: null, pncp: [], licitacoes: [], emendas: [], convenios: [], transferencias: [] };
+      if (!t)
+        return {
+          cnpjDetectado: null,
+          pncp: [],
+          licitacoes: [],
+          emendas: [],
+          convenios: [],
+          transferencias: [],
+        };
       qPncp = qPncp.or(`orgao_nome.ilike.%${t}%,fornecedor_nome.ilike.%${t}%,objeto.ilike.%${t}%`);
     }
     const { data: pncpRows, error: ePncp } = await qPncp;
@@ -170,7 +181,9 @@ export const buscaGlobal = createServerFn({ method: "POST" })
       convRows.map((r) => ({
         id: r.id,
         titulo: `Convênio ${r.numero ?? r.id}`,
-        subtitulo: [r.orgao_nome, "→", r.convenente_nome, r.uf, r.municipio_nome].filter(Boolean).join(" "),
+        subtitulo: [r.orgao_nome, "→", r.convenente_nome, r.uf, r.municipio_nome]
+          .filter(Boolean)
+          .join(" "),
         valor: Number(r.valor ?? 0),
         data: r.data_inicio_vigencia,
         // Página interna de detalhe (lê cgu_convenios_cache — mesmo cache
@@ -237,7 +250,9 @@ export const buscaGlobal = createServerFn({ method: "POST" })
           r.beneficiario_nome,
           r.uf_beneficiario,
           r.municipio_nome,
-        ].filter(Boolean).join(" "),
+        ]
+          .filter(Boolean)
+          .join(" "),
         valor: Number(r.valor_global ?? 0),
         data: r.data_assinatura,
         href: r.url_transferegov ?? "",

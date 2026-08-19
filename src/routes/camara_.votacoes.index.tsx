@@ -42,13 +42,16 @@ function ListaVotacoes() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-6">
       <header>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/camara" className="hover:text-accent">Câmara</Link> · Votações
+          <Link to="/camara" className="hover:text-accent">
+            Câmara
+          </Link>{" "}
+          · Votações
         </div>
         <h1 className="font-display text-4xl mt-1">Votações nominais</h1>
         <p className="text-muted-foreground mt-2 max-w-3xl">
-          Cada votação é um momento em que deputados registram nominalmente seu voto sobre
-          uma proposição, destaque ou requerimento. Aqui mostramos descrição, proposição
-          associada e contagem de Sim/Não/outros — clique para ver disciplina partidária.
+          Cada votação é um momento em que deputados registram nominalmente seu voto sobre uma
+          proposição, destaque ou requerimento. Aqui mostramos descrição, proposição associada e
+          contagem de Sim/Não/outros — clique para ver disciplina partidária.
         </p>
         {ov && (
           <p className="text-xs text-muted-foreground mt-3">
@@ -117,10 +120,14 @@ function ListaVotacoes() {
                       params={{ id: v.id }}
                       className="text-accent hover:underline"
                     >
-                      <p className="line-clamp-2 leading-snug">{v.descricao ?? "(sem descrição)"}</p>
+                      <p className="line-clamp-2 leading-snug">
+                        {v.descricao ?? "(sem descrição)"}
+                      </p>
                     </Link>
                     {v.proposicaoTitulo && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{v.proposicaoTitulo}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        {v.proposicaoTitulo}
+                      </p>
                     )}
                   </td>
                   <td className="px-4 py-3 align-top text-center">

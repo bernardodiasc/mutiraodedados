@@ -66,11 +66,17 @@ describe("parseValorPortalDetalhado — ambiguidade de grupo único", () => {
   });
 
   it("≥ 2 grupos é milhar inequívoco", () => {
-    expect(parseValorPortalDetalhado("1.000.000")).toEqual({ valor: 1000000, milharAmbiguo: false });
+    expect(parseValorPortalDetalhado("1.000.000")).toEqual({
+      valor: 1000000,
+      milharAmbiguo: false,
+    });
   });
 
   it("vírgula decimal elimina a ambiguidade", () => {
-    expect(parseValorPortalDetalhado("576.000,00")).toEqual({ valor: 576000, milharAmbiguo: false });
+    expect(parseValorPortalDetalhado("576.000,00")).toEqual({
+      valor: 576000,
+      milharAmbiguo: false,
+    });
   });
 
   it("number cru nunca é ambíguo", () => {

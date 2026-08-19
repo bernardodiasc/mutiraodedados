@@ -3,6 +3,7 @@
 ## Quando aplicar
 
 Sempre que um componente tiver pelo menos um dos itens abaixo:
+
 - `useState` / `useReducer` para estado de feature (não apenas estado transiente de UI primitiva)
 - `useEffect`
 - `useQuery` / `useMutation` / `useSuspenseQuery`
@@ -17,6 +18,7 @@ Componentes 100% apresentacionais (cards, banners, blocos estáticos) NÃO preci
 ## Template canônico
 
 ### logic.ts (puro)
+
 ```ts
 export type Estado = "ocioso" | "carregando" | "pronto" | "erro";
 
@@ -39,6 +41,7 @@ export function formatarDataPt(iso: string): string {
 ```
 
 ### logic.test.ts (vitest)
+
 ```ts
 import { describe, it, expect } from "vitest";
 import { deriveEstado, formatarDataPt } from "./logic";
@@ -59,6 +62,7 @@ describe("formatarDataPt", () => {
 ```
 
 ### View (stateless)
+
 ```tsx
 import type { Estado } from "@/lib/minha-feature/logic";
 
@@ -75,7 +79,9 @@ export function MinhaFeatureView({ estado, itens, onSelecionar }: MinhaFeatureVi
     <ul className="grid gap-3">
       {itens.map((i) => (
         <li key={i.id} className="border border-border rounded-xl p-5 bg-card">
-          <button type="button" onClick={() => onSelecionar(i.id)}>{i.titulo}</button>
+          <button type="button" onClick={() => onSelecionar(i.id)}>
+            {i.titulo}
+          </button>
         </li>
       ))}
     </ul>
@@ -85,6 +91,7 @@ MinhaFeatureView.displayName = "MinhaFeatureView";
 ```
 
 ### Container (estado/efeitos)
+
 ```tsx
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
@@ -94,7 +101,10 @@ import { MinhaFeatureView } from "@/components/MinhaFeatureView";
 
 export function MinhaFeatureContainer() {
   const listar = useServerFn(listarItens);
-  const { data, isLoading, error } = useQuery({ queryKey: ["minha-feature"], queryFn: () => listar() });
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["minha-feature"],
+    queryFn: () => listar(),
+  });
   const itens = data ?? [];
   const estado = deriveEstado({
     carregando: isLoading,
@@ -107,11 +117,16 @@ MinhaFeatureContainer.displayName = "MinhaFeatureContainer";
 ```
 
 ### mocks.ts (style guide)
+
 ```ts
 import type { ViewVariants } from "@/lib/style-guide/registry";
 import type { MinhaFeatureViewProps } from "@/components/MinhaFeatureView";
 
-const base: MinhaFeatureViewProps = { estado: "pronto", itens: [{ id: "1", titulo: "Exemplo" }], onSelecionar: () => {} };
+const base: MinhaFeatureViewProps = {
+  estado: "pronto",
+  itens: [{ id: "1", titulo: "Exemplo" }],
+  onSelecionar: () => {},
+};
 
 export const minhaFeatureVariants: ViewVariants<MinhaFeatureViewProps> = [
   { label: "carregando", props: { ...base, estado: "carregando", itens: [] } },
@@ -122,6 +137,7 @@ export const minhaFeatureVariants: ViewVariants<MinhaFeatureViewProps> = [
 ```
 
 ### shim (compat com nome antigo)
+
 ```ts
 // src/components/MinhaFeature.tsx
 export { MinhaFeatureContainer as MinhaFeature } from "@/containers/MinhaFeatureContainer";
@@ -142,17 +158,20 @@ export function podeSalvar(d: Draft): boolean {
 ## Anti-exemplos (recusar em code review)
 
 ### ❌ View que dispara mutação
+
 ```tsx
 // ERRADO — View virou Container
 export function BotaoView({ id }: { id: string }) {
-  const fn = useServerFn(salvar);          // ← I/O em View
+  const fn = useServerFn(salvar); // ← I/O em View
   const m = useMutation({ mutationFn: () => fn({ data: { id } }) });
   return <button onClick={() => m.mutate()}>Salvar</button>;
 }
 ```
+
 Faça: View recebe `onSave: () => void` + `estado: "salvar" | "salvando" | "salvo"`; Container monta o handler.
 
 ### ❌ Container com JSX rico
+
 ```tsx
 // ERRADO — Container fazendo layout
 export function Container() {
@@ -165,16 +184,22 @@ export function Container() {
   );
 }
 ```
+
 Faça: mova todo o JSX para `View`. Container retorna `<View …props />`.
 
 ### ❌ Lógica condicional em JSX
+
 ```tsx
 // ERRADO — lógica espalhada no JSX
-{user ? (loading ? <Loading/> : data?.length ? <List/> : <Empty/>) : <Login/>}
+{
+  user ? loading ? <Loading /> : data?.length ? <List /> : <Empty /> : <Login />;
+}
 ```
+
 Faça: `deriveEstado(...)` em `logic.ts` (testável) e `switch` no View.
 
 ### ❌ View importando `toast`/`supabase`/`useAuth`
+
 Toast pertence ao Container. View só renderiza o que recebe.
 
 ## Casos legítimos de View com `useState`

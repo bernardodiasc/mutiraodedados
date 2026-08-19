@@ -124,8 +124,8 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
           const ibge = muni?.codigoIBGE
             ? String(muni.codigoIBGE)
             : c.convenente?.codigoIBGE
-            ? String(c.convenente.codigoIBGE)
-            : null;
+              ? String(c.convenente.codigoIBGE)
+              : null;
           // No Portal CGU não há "uf" como sigla pura; "uf.nome" traz a sigla
           // ("RS") enquanto "uf.sigla" traz o nome longo. Pegamos a sigla curta.
           const ufSigla =
@@ -134,9 +134,7 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             null;
           // CNPJ vem formatado ("00.378.257/0001-81"); preferimos o cru.
           const cnpjBenef =
-            c.convenente?.cnpj ??
-            (c.convenente?.cnpjFormatado ?? "").replace(/\D/g, "") ??
-            null;
+            c.convenente?.cnpj ?? (c.convenente?.cnpjFormatado ?? "").replace(/\D/g, "") ?? null;
           const dataAssin =
             isoDate(c.dataAssinatura) ??
             isoDate(c.dataPublicacao) ??
@@ -153,11 +151,13 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             modalidade: c.modalidade ?? c.tipoInstrumento?.descricao ?? null,
             situacao: c.situacao ?? null,
             objeto:
-              sanitizarTextoPublico(((c.objeto ?? c.dimConvenio?.objeto) ?? "").slice(0, 1000)) ||
+              sanitizarTextoPublico((c.objeto ?? c.dimConvenio?.objeto ?? "").slice(0, 1000)) ||
               null,
-            orgao_concedente_nome: c.unidadeGestora?.orgaoVinculado?.nome ?? c.unidadeGestora?.nome ?? null,
+            orgao_concedente_nome:
+              c.unidadeGestora?.orgaoVinculado?.nome ?? c.unidadeGestora?.nome ?? null,
             orgao_concedente_cnpj: c.unidadeGestora?.orgaoVinculado?.cnpj ?? null,
-            beneficiario_nome: sanitizarTextoPublico((c.convenente?.nome ?? "").slice(0, 240)) || null,
+            beneficiario_nome:
+              sanitizarTextoPublico((c.convenente?.nome ?? "").slice(0, 240)) || null,
             beneficiario_cnpj: cnpjBenef || null,
             esfera_beneficiario: esferaFromIbge(ibge),
             uf_beneficiario: ufSigla,
@@ -179,9 +179,9 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
                 : null),
             data_assinatura: dataAssin,
             url_transferegov: c.id
-              ? (c.dimConvenio?.codigo
-                  ? `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c.dimConvenio.codigo)}`
-                  : `https://portaldatransparencia.gov.br/convenios/${c.id}`)
+              ? c.dimConvenio?.codigo
+                ? `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c.dimConvenio.codigo)}`
+                : `https://portaldatransparencia.gov.br/convenios/${c.id}`
               : null,
             updated_at: new Date().toISOString(),
           };

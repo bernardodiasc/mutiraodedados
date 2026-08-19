@@ -1,5 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, ExternalLink, FolderOpen, Loader2, NotebookPen, Sparkles } from "lucide-react";
+import {
+  ChevronDown,
+  ExternalLink,
+  FolderOpen,
+  Loader2,
+  NotebookPen,
+  Sparkles,
+} from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
@@ -39,8 +46,8 @@ export function KitInvestigacaoView({
           <Sparkles className="size-4 text-accent" /> Kit de investigação
         </h2>
         <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-          Siga os passos do mapa para colher os dados e cole tudo na sua IA de
-          confiança junto com um dos prompts abaixo.
+          Siga os passos do mapa para colher os dados e cole tudo na sua IA de confiança junto com
+          um dos prompts abaixo.
         </p>
       </div>
 
@@ -167,8 +174,8 @@ export function KitInvestigacaoView({
           </ul>
         )}
         <p className="text-[11px] text-muted-foreground leading-relaxed">
-          Sinal não é prova: gasto aprovado não é irregularidade. Os prompts pedem
-          verificações na fonte oficial, nunca acusações.
+          Sinal não é prova: gasto aprovado não é irregularidade. Os prompts pedem verificações na
+          fonte oficial, nunca acusações.
         </p>
       </section>
     </div>

@@ -6,32 +6,23 @@ Só futuro. Trabalho entregue mora no [RELEASES.md](./RELEASES.md); processo e c
 
 Estabilizar as funcionalidades existentes para **importar todos os dados históricos possíveis** nas fontes que a plataforma já suporta, com qualidade garantida por sinais e testes. Automação periódica das importações é o horizonte final — cada release de estabilização deve manter os runners de importação chamáveis sem browser, idempotentes e com estado no banco, para que a automação seja apenas um novo gatilho sobre o mesmo código.
 
-## Release em andamento — v0.2.0: lint verde, código morto e proteção do sync
+## Release em andamento — v0.3.0: fundação de resiliência
 
 **Escopo**
-
-- Formatação em massa: `bun run format` + `eslint --fix` em commit dedicado, zerando os ~4,9 mil erros `prettier/prettier` pré-existentes triados na v0.1.0 (código commitado sem Prettier).
-- Remover `revalidarFindingsCgu` (lote) e `aplicarHeuristicasFonte` — server functions sem caller (guardadas por auth admin, não são vulnerabilidade ativa; recriar quando houver UI).
-- Endurecer `scripts/sync-opensource.mjs`: abortar (ou exigir flag) se o `main` público tiver commits fora de branches `sync/*` — proteção mecânica do invariante do espelho contra reversão de contribuições.
-
-**Critérios de aceite**
-
-- `bun run lint` sem erros.
-- Suíte segue 100% verde (`bun run test`).
-- Grep confirma ausência das duas server functions removidas.
-- Sync aborta em cenário simulado de contribuição mergeada no público e não portada ao privado.
-
-## Backlog sequenciado
-
-Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.3.0 — Fundação de resiliência
 
 - Wrapper HTTP único (retry configurável + backoff exponencial + jitter), adotado por CGU, PNCP, Transferegov e SICONFI (CKAN/Câmara/Senado como referência de comportamento).
 - Extrair do padrão `cgu_varredura`/`tse_varredura` um módulo genérico de **orçamento de tempo + checkpoint + retomada** (`{concluido, proximoCursor, processados}`), reutilizável e **chamável sem browser** — é a interface que a automação da v0.9.0 consumirá.
 - Documentar o contrato do runner em `docs/importacao.ia.md`.
 
-Aceite: testes do wrapper e do runner verdes; fontes CGU migradas sem regressão (rodada real comparando contagens no log `importacoes`); política de retry documentada num lugar só.
+**Critérios de aceite**
+
+- Testes do wrapper e do runner genérico verdes.
+- Fontes CGU migradas sem regressão: rodada real em `/admin/dados` comparando contagens no log `importacoes`.
+- Política de retry documentada num lugar só, refletindo o código.
+
+## Backlog sequenciado
+
+Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
 
 ### v0.4.0 — CEAP/CEAPS retomáveis
 

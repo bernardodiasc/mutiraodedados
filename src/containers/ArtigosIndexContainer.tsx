@@ -1,10 +1,7 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
-import {
-  listarArtigosPublicos,
-  type ArtigoCategoria,
-} from "@/lib/data/artigos.functions";
+import { listarArtigosPublicos, type ArtigoCategoria } from "@/lib/data/artigos.functions";
 import { ArtigosIndexListView } from "@/components/ArtigosIndexListView";
 import type { ArtigoBasePath } from "@/lib/artigos-index/logic";
 

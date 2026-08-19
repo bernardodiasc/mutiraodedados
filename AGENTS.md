@@ -2,12 +2,12 @@
 
 Este repositório usa um workflow de 4 documentos vivos. **Comece pelo [WORKFLOW.md](./WORKFLOW.md)** — ele define versionamento, ritmo de trabalho, fechamento de release e a relação entre os repositórios privado e público.
 
-| Documento | Papel |
-|---|---|
-| [WORKFLOW.md](./WORKFLOW.md) | Processo, convenções, guardrails e estado atual |
-| [ROADMAP.md](./ROADMAP.md) | Só futuro: release em andamento e backlog sequenciado |
-| [RELEASES.md](./RELEASES.md) | Só passado: releases entregues e validadas |
-| AGENTS.md (este) | Índice + diretrizes de comportamento do agente |
+| Documento                    | Papel                                                 |
+| ---------------------------- | ----------------------------------------------------- |
+| [WORKFLOW.md](./WORKFLOW.md) | Processo, convenções, guardrails e estado atual       |
+| [ROADMAP.md](./ROADMAP.md)   | Só futuro: release em andamento e backlog sequenciado |
+| [RELEASES.md](./RELEASES.md) | Só passado: releases entregues e validadas            |
+| AGENTS.md (este)             | Índice + diretrizes de comportamento do agente        |
 
 Ponteiros do projeto:
 

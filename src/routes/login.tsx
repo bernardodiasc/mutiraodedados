@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
-  head: () => ({ meta: [{ title: "Entrar — Mutirão de Dados" }]}),
+  head: () => ({ meta: [{ title: "Entrar — Mutirão de Dados" }] }),
   validateSearch: z.object({ redirect: z.string().optional() }),
 });
 
@@ -30,7 +30,8 @@ function LoginPage() {
     try {
       if (mode === "signup") {
         const { error } = await supabase.auth.signUp({
-          email, password,
+          email,
+          password,
           options: {
             data: { display_name: name || email.split("@")[0] },
             emailRedirectTo: `${window.location.origin}/`,
@@ -45,7 +46,9 @@ function LoginPage() {
       }
     } catch (err) {
       toast.error((err as Error).message);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function signInGoogle() {
@@ -86,16 +89,34 @@ function LoginPage() {
         {mode === "signup" && (
           <div className="space-y-1">
             <Label htmlFor="name">Como quer ser chamado</Label>
-            <Input id="name" value={name} onChange={e=>setName(e.target.value)} placeholder="Seu nome ou apelido" />
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome ou apelido"
+            />
           </div>
         )}
         <div className="space-y-1">
           <Label htmlFor="email">Email</Label>
-          <Input id="email" type="email" required value={email} onChange={e=>setEmail(e.target.value)} />
+          <Input
+            id="email"
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </div>
         <div className="space-y-1">
           <Label htmlFor="password">Senha</Label>
-          <Input id="password" type="password" required minLength={6} value={password} onChange={e=>setPassword(e.target.value)} />
+          <Input
+            id="password"
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "..." : mode === "login" ? "Entrar" : "Criar conta"}
@@ -103,7 +124,10 @@ function LoginPage() {
       </form>
       <div className="mt-6 text-sm text-center">
         {mode === "login" ? "Não tem conta?" : "Já tem conta?"}{" "}
-        <button onClick={() => setMode(mode === "login" ? "signup" : "login")} className="text-accent font-semibold">
+        <button
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="text-accent font-semibold"
+        >
           {mode === "login" ? "Criar uma" : "Entrar"}
         </button>
       </div>

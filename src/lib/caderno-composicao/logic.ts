@@ -92,7 +92,9 @@ export function montarTextoComposicao(
       ...grupos.dados.map((it) =>
         blocoItemDado(
           it,
-          it.ref_id ? conteudos.snapshotsPorItem?.get(chaveSnapshot(it.tipo, it.ref_id)) : undefined,
+          it.ref_id
+            ? conteudos.snapshotsPorItem?.get(chaveSnapshot(it.tipo, it.ref_id))
+            : undefined,
         ),
       ),
     );

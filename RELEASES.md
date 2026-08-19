@@ -23,6 +23,30 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.2.0 — 2026-08-19
+
+**Resumo:** torna o `bun run lint` utilizável como sinal de regressão — ele falhava desde antes do versionamento, com milhares de erros de formatação que escondiam qualquer problema real. Remove duas server functions expostas sem uso e faz o espelhamento para o repositório público recusar-se a reverter contribuições externas.
+
+**Entregas**
+
+- Formatação da base com Prettier em commit mecânico isolado (327 arquivos), com o hash registrado em `.git-blame-ignore-revs` para não poluir o `git blame`. `.prettierignore` passa a ignorar a mesma lista de tooling e caches que o ESLint.
+- Erros de lint remanescentes zerados: componentes nomeados nas rotas de artigo (mapas, notas, tutoriais), cast estrutural no lugar de `any` em fixture de teste, e justificativa explícita nos quatro escapes de tipo legítimos (nome de tabela dinâmico contra o `Database` gerado do Supabase, `.or()` fora do tipo do builder, registry heterogêneo).
+- `aplicarHeuristicasFonte` e `revalidarFindingsCgu` removidas — endpoints sem caller no app (protegidos por auth de admin, não eram brecha). A re-checagem unitária `revalidarFindingCgu`, que tem UI, permanece.
+- `scripts/sync-opensource.mjs` aborta se o `main` público tiver commits posteriores à última tag de release que não vieram de uma sincronização, listando-os — o `rsync --delete` os reverteria em silêncio. Flag `--allow-unported` para o caso deliberado.
+
+**Checks executados**
+
+- `bun run lint` ✓ — 0 erros (16 warnings do padrão shadcn/ui, que não bloqueiam).
+- `bun run test` ✓ — 59 arquivos, 545 testes, todos verdes.
+- `bun run build` ✓ · `bunx tsc --noEmit` ✓.
+- `diff -rq .claude/skills .agents/skills` vazio ✓ — o reformat preservou os espelhos byte a byte.
+- Detecção de commits não portados validada em cenário simulado ✓ (lógica de detecção; a integração com `origin/main` não foi exercida ponta a ponta para não escrever no repositório público).
+- Validação em staging pelo mantenedor ✓.
+
+**Plano:** [docs/planos/v0.2.0-lint-e-protecao-do-sync.md](./docs/planos/v0.2.0-lint-e-protecao-do-sync.md) — inclui o registro das decisões tomadas.
+
+**Roadmap cidadão:** sem item público — infraestrutura interna.
+
 ## v0.1.0 — 2026-08-19
 
 **Resumo:** implanta o processo de desenvolvimento do projeto em quatro documentos vivos (WORKFLOW, ROADMAP, RELEASES e AGENTS), com versionamento SemVer escopado pelo roadmap e releases sincronizadas entre o repositório privado e o espelho público. Destrava a suíte de testes, que existia mas não tinha runner configurado — 545 testes passaram a rodar por um comando padrão. Alinha a documentação ao comportamento real do código em seis pontos divergentes.

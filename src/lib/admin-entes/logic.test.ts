@@ -1,13 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  UFS,
-  PRESETS,
-  UF_LIST,
-  sanitizeIbge,
-  monthRange,
-  isMunicipio,
-  isUF,
-} from "./logic";
+import { UFS, PRESETS, UF_LIST, sanitizeIbge, monthRange, isMunicipio, isUF } from "./logic";
 
 describe("UFS", () => {
   it("tem 28 entradas (vazio + 27 UFs)", () => {

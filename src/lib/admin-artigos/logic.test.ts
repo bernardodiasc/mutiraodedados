@@ -61,7 +61,13 @@ describe("admin-artigos/logic", () => {
 
   it("buildSavePayload com editingId inclui id e usa slug do form", () => {
     const p = buildSavePayload(
-      { ...FORM_INICIAL, slug: "meu-slug", titulo: "X", categoria: "mapa", tempo_estimado_min: "10" },
+      {
+        ...FORM_INICIAL,
+        slug: "meu-slug",
+        titulo: "X",
+        categoria: "mapa",
+        tempo_estimado_min: "10",
+      },
       "abc",
     );
     expect(p.id).toBe("abc");

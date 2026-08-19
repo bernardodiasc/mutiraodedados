@@ -43,7 +43,10 @@ type Env<T> = { dados: T };
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
     .from("user_roles")
-    .select("role").eq("user_id", userId).eq("role", "admin").maybeSingle();
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error("Falha ao verificar permissão.");
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
@@ -93,11 +96,13 @@ type AutorItem = {
 export const importarProposicoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({
-      ano: z.number().int().min(1990).max(2100),
-      siglaTipo: z.string().min(2).max(10).default("PL"),
-      maxPaginas: z.number().int().min(1).max(50).default(5),
-    }).parse(input),
+    z
+      .object({
+        ano: z.number().int().min(1990).max(2100),
+        siglaTipo: z.string().min(2).max(10).default("PL"),
+        maxPaginas: z.number().int().min(1).max(50).default(5),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
@@ -207,17 +212,21 @@ export type ProposicaoRow = {
 
 export const listarProposicoes = createServerFn({ method: "GET" })
   .inputValidator((input) =>
-    z.object({
-      ano: z.number().int().optional(),
-      siglaTipo: z.string().optional(),
-      termo: z.string().max(120).optional(),
-      limit: z.number().int().min(1).max(500).default(200),
-    }).parse(input ?? {}),
+    z
+      .object({
+        ano: z.number().int().optional(),
+        siglaTipo: z.string().optional(),
+        termo: z.string().max(120).optional(),
+        limit: z.number().int().min(1).max(500).default(200),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("camara_proposicoes_cache")
-      .select("id,sigla_tipo,numero,ano,ementa,data_apresentacao,ultimo_status_descricao,ultimo_status_situacao,ultimo_status_orgao_sigla")
+      .select(
+        "id,sigla_tipo,numero,ano,ementa,data_apresentacao,ultimo_status_descricao,ultimo_status_situacao,ultimo_status_orgao_sigla",
+      )
       .order("data_apresentacao", { ascending: false })
       .limit(data.limit);
     if (data.ano) q = q.eq("ano", data.ano);
@@ -243,7 +252,10 @@ export const getProposicaoDetalhe = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ id: z.number().int().positive() }).parse(input))
   .handler(async ({ data }) => {
     const { data: p, error } = await supabaseAdmin
-      .from("camara_proposicoes_cache").select("*").eq("id", data.id).maybeSingle();
+      .from("camara_proposicoes_cache")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     if (!p) return null;
     const { data: aut } = await supabaseAdmin
@@ -312,9 +324,12 @@ export const proposicoesDoDeputado = createServerFn({ method: "GET" })
 
 export const camaraProposicoesOverview = createServerFn({ method: "GET" }).handler(async () => {
   const { count } = await supabaseAdmin
-    .from("camara_proposicoes_cache").select("id", { count: "exact", head: true });
+    .from("camara_proposicoes_cache")
+    .select("id", { count: "exact", head: true });
   const { data: porTipo } = await supabaseAdmin
-    .from("camara_proposicoes_cache").select("sigla_tipo").limit(10000);
+    .from("camara_proposicoes_cache")
+    .select("sigla_tipo")
+    .limit(10000);
   const tipos = new Map<string, number>();
   for (const r of porTipo ?? []) {
     const k = r.sigla_tipo as string;

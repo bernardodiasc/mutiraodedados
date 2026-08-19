@@ -65,9 +65,7 @@ export function AdminQualidadeContainer() {
       actions={{
         onRevalidarCgu: async (id) => {
           const r = await mutRevalUm({ data: { id } });
-          const sufixoLista = r.lista?.achado
-            ? ` (lista pág. ${r.lista.pagina})`
-            : "";
+          const sufixoLista = r.lista?.achado ? ` (lista pág. ${r.lista.pagina})` : "";
           if (r.resultado === "confirmado") {
             toast.success(
               `Divergência confirmada${sufixoLista}: cache R$${r.valor_armazenado} → Portal R$${r.valor_detalhe}. Erro real na origem, segue para reporte.`,

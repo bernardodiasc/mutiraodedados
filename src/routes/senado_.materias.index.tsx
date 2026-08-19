@@ -58,7 +58,10 @@ function ListaMaterias() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-6">
       <header>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/senado" className="hover:text-accent">Senado</Link> · Matérias
+          <Link to="/senado" className="hover:text-accent">
+            Senado
+          </Link>{" "}
+          · Matérias
         </div>
         <h1 className="font-display text-4xl mt-1">Matérias legislativas</h1>
         <p className="text-muted-foreground mt-2 max-w-3xl">
@@ -70,7 +73,8 @@ function ListaMaterias() {
             {overview.total.toLocaleString("pt-BR")} matérias em cache
             {overview.porTipo.length > 0 && (
               <>
-                {" "}· por tipo:{" "}
+                {" "}
+                · por tipo:{" "}
                 {overview.porTipo.slice(0, 8).map((t, i) => (
                   <span key={t.tipo}>
                     {i > 0 && " · "}
@@ -102,7 +106,11 @@ function ListaMaterias() {
           onChange={(e) => setTipo(e.target.value)}
         >
           <option value="">Todos tipos</option>
-          {TIPOS_COMUNS.map((t) => <option key={t} value={t}>{t}</option>)}
+          {TIPOS_COMUNS.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
         </select>
         <select
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -110,7 +118,11 @@ function ListaMaterias() {
           onChange={(e) => setAno(e.target.value)}
         >
           <option value="">Todos anos</option>
-          {anosDisponiveis.map((a) => <option key={a} value={a}>{a}</option>)}
+          {anosDisponiveis.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
         </select>
       </div>
 

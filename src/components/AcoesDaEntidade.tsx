@@ -63,9 +63,7 @@ export function AcoesDaEntidade({
         contexto={contexto}
         snapshotDe={snapshotDe}
       />
-      {fonteOficialHref && (
-        <BotaoFonteOficial href={fonteOficialHref} rotulo={fonteOficialLabel} />
-      )}
+      {fonteOficialHref && <BotaoFonteOficial href={fonteOficialHref} rotulo={fonteOficialLabel} />}
     </div>
   );
 }

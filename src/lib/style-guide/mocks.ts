@@ -23,7 +23,8 @@ export const qaFindingMocks: QaFindingMock[] = [
     severidade: "critico",
     entidade_tipo: "contrato",
     entidade_id: "00000000000001",
-    descricao: "Contrato com valor R$ 250.000 firmado por dispensa, acima do teto de R$ 50.000 da Lei 14.133.",
+    descricao:
+      "Contrato com valor R$ 250.000 firmado por dispensa, acima do teto de R$ 50.000 da Lei 14.133.",
     detectado_em: "2026-05-20",
     pii_detectada: false,
   },

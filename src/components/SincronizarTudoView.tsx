@@ -3,11 +3,7 @@ import { Download, Info, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { GRUPOS_FONTES } from "@/lib/data/cobertura-jobs";
 import type { CoberturaResult, Fonte } from "@/lib/data/cobertura.functions";
 import { ANO_INICIO_POR_FONTE } from "@/lib/data/janelas";
@@ -94,11 +90,10 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
           <Info className="size-3.5 mt-0.5 shrink-0" />
           <span>
             Baixa, mês a mês e fonte por fonte,{" "}
-            <strong>apenas o que ainda não foi consultado</strong> dentro do intervalo
-            selecionado. Células com dados e células já marcadas como
-            "consultado, vazio" são <strong>excluídas da contagem e da execução</strong>.
-            Marque/desmarque grupos ou fontes individuais para ajustar o lote.
-            SICONFI exige código IBGE e fica de fora. A etiqueta{" "}
+            <strong>apenas o que ainda não foi consultado</strong> dentro do intervalo selecionado.
+            Células com dados e células já marcadas como "consultado, vazio" são{" "}
+            <strong>excluídas da contagem e da execução</strong>. Marque/desmarque grupos ou fontes
+            individuais para ajustar o lote. SICONFI exige código IBGE e fica de fora. A etiqueta{" "}
             <strong>desde AAAA</strong> indica a janela de cada fonte (anos anteriores são
             ignorados); nas votações, os meses de <strong>recesso (jan/jul)</strong> ficam
             naturalmente vazios.
@@ -111,10 +106,22 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
               Fontes
             </span>
             <div className="flex gap-2">
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onSelectAll} disabled={isRunning}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={onSelectAll}
+                disabled={isRunning}
+              >
                 Tudo
               </Button>
-              <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={onSelectNone} disabled={isRunning}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs"
+                onClick={onSelectNone}
+                disabled={isRunning}
+              >
                 Nada
               </Button>
               <Button
@@ -150,7 +157,10 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
                       const inicio = ANO_INICIO_POR_FONTE[f.fonte];
                       const recesso = FONTES_COM_RECESSO.has(f.fonte);
                       return (
-                        <label key={f.fonte} className="flex items-start gap-2 cursor-pointer text-xs">
+                        <label
+                          key={f.fonte}
+                          className="flex items-start gap-2 cursor-pointer text-xs"
+                        >
                           <Checkbox
                             checked={selecionadas.has(f.fonte)}
                             onCheckedChange={(v) => onToggleFonte(f.fonte, v === true)}
@@ -173,19 +183,26 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
                         </label>
                       );
                     })}
-                    {(g.id === "camara" || g.id === "senado") ? (
+                    {g.id === "camara" || g.id === "senado" ? (
                       <label className="flex items-start gap-2 cursor-pointer text-xs">
                         <Checkbox
-                          checked={selecionadas.has(g.id === "camara" ? "camara_deputados" : "senado_senadores")}
+                          checked={selecionadas.has(
+                            g.id === "camara" ? "camara_deputados" : "senado_senadores",
+                          )}
                           onCheckedChange={(v) =>
-                            onToggleFonte(g.id === "camara" ? "camara_deputados" : "senado_senadores", v === true)
+                            onToggleFonte(
+                              g.id === "camara" ? "camara_deputados" : "senado_senadores",
+                              v === true,
+                            )
                           }
                           disabled={isRunning}
                           className="mt-0.5"
                         />
                         <span>
                           <span className="font-medium text-foreground">
-                            {g.id === "camara" ? "Câmara — cadastro de deputados" : "Senado — cadastro de senadores"}
+                            {g.id === "camara"
+                              ? "Câmara — cadastro de deputados"
+                              : "Senado — cadastro de senadores"}
                           </span>
                           <span className="ml-1.5 rounded bg-muted px-1 py-0.5 text-[10px] text-muted-foreground align-middle">
                             por legislatura
@@ -210,7 +227,9 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
               disabled={isRunning}
             >
               {anosOpcoes.map((y) => (
-                <option key={y} value={y}>{y}</option>
+                <option key={y} value={y}>
+                  {y}
+                </option>
               ))}
             </select>
           </div>
@@ -223,7 +242,9 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
               disabled={isRunning}
             >
               {anosOpcoes.map((y) => (
-                <option key={y} value={y}>{y}</option>
+                <option key={y} value={y}>
+                  {y}
+                </option>
               ))}
             </select>
           </div>
@@ -258,12 +279,14 @@ export function SincronizarTudoView(props: SincronizarTudoViewProps) {
                   : `${previa.total.toLocaleString("pt-BR")} chamadas pendentes`}
                 {previa.puladas > 0 && (
                   <span className="text-muted-foreground font-normal">
-                    {" "}· {previa.puladas.toLocaleString("pt-BR")} já cobertas serão puladas
+                    {" "}
+                    · {previa.puladas.toLocaleString("pt-BR")} já cobertas serão puladas
                   </span>
                 )}
                 {previa.total > 0 && syncDelayMs > 0 && (
                   <span className="text-muted-foreground font-normal">
-                    {" "}· tempo mínimo ≈ {fmtDuration(previa.total * syncDelayMs)}
+                    {" "}
+                    · tempo mínimo ≈ {fmtDuration(previa.total * syncDelayMs)}
                   </span>
                 )}
               </div>

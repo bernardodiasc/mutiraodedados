@@ -31,7 +31,9 @@ describe("admin-sinais/logic", () => {
   });
 
   it("buildCurlsSinal cobre contrato/orgao/contrato_alto/undefined", () => {
-    expect(buildCurlsSinal(base({ entidadeTipo: "contrato", entidadeId: "abc" }))![0].nota).toContain("id=abc");
+    expect(
+      buildCurlsSinal(base({ entidadeTipo: "contrato", entidadeId: "abc" }))![0].nota,
+    ).toContain("id=abc");
     const o = buildCurlsSinal(
       base({ entidadeTipo: "orgao", entidadeId: "26000", evidencia: { ano: 2022 } }),
     )!;
@@ -58,9 +60,15 @@ describe("admin-sinais/logic", () => {
 
   it("href, regras únicas e contadores", () => {
     expect(hrefSinal(base({ entidadeTipo: "orgao", entidadeId: "1" }))).toBe("/orgaos/1");
-    expect(hrefSinal(base({ entidadeTipo: "fornecedor", entidadeId: "2" }))).toBe("/fornecedores/2");
+    expect(hrefSinal(base({ entidadeTipo: "fornecedor", entidadeId: "2" }))).toBe(
+      "/fornecedores/2",
+    );
     expect(hrefSinal(base({ entidadeTipo: "contrato", entidadeId: "3" }))).toBe("/contratos/3");
-    const list = [base({ regra: "a", severidade: "alta" }), base({ regra: "a", severidade: "alta" }), base({ regra: "b", severidade: "baixa" })];
+    const list = [
+      base({ regra: "a", severidade: "alta" }),
+      base({ regra: "a", severidade: "alta" }),
+      base({ regra: "b", severidade: "baixa" }),
+    ];
     expect(regrasUnicas(list)).toEqual(["a", "b"]);
     expect(contarPorSeveridade(list, "alta")).toBe(2);
   });

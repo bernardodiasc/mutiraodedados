@@ -1,9 +1,4 @@
-export type BotaoSalvarItemEstado =
-  | "deslogado"
-  | "verificando"
-  | "salvar"
-  | "salvando"
-  | "salvo";
+export type BotaoSalvarItemEstado = "deslogado" | "verificando" | "salvar" | "salvando" | "salvo";
 
 /** Decide qual estado o botão "Salvar no caderno" deve mostrar. */
 export function deriveItemEstado(input: {

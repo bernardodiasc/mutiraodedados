@@ -30,28 +30,36 @@ Este bloco alimenta o **roadmap público cidadão** (tabela `roadmap_itens`, pá
 ## Diretrizes de Conteúdo
 
 ### `titulo`
+
 Máximo 60 caracteres. Foque no impacto prático e no contexto cidadão.
+
 - ✅ "Importação de contratos do Portal da Transparência"
 - ✅ "Correção de valores truncados nos contratos da CGU"
 - ❌ "Refatoração de componentes para o padrão Container/View"
 
 ### `descricao`
-**Descreve a tarefa/funcionalidade/problema**, não a conclusão técnica do trabalho. Deve responder: *O que o cidadão, pesquisador ou administrador pode fazer agora? Qual problema deixa de existir?*
+
+**Descreve a tarefa/funcionalidade/problema**, não a conclusão técnica do trabalho. Deve responder: _O que o cidadão, pesquisador ou administrador pode fazer agora? Qual problema deixa de existir?_
+
 - ✅ "Permite que cidadãos visualizem e filtrem todos os contratos do Executivo Federal com dados de valor, vigência e fornecedor. Os valores são automaticamente verificados contra a fonte oficial para detectar divergências."
 - ✅ "Corrige exibição de valores de contratos que apareciam incorretos (cerca de 10.000× menores que o real) por um bug na API da CGU. Os valores agora são cruzados com o endpoint de detalhe antes de serem armazenados."
 - ❌ "Concluímos a migração dos padrões técnicos do projeto para a pasta pública de documentação e a refatoração de componentes legados para o modelo desacoplado Container/View/logic."
 
 ### `status`
+
 - `"concluido"` — para a maioria das entregas.
 - `"em_andamento"` — para entregas parciais (ex: importação funcionando, mas UI ainda incompleta).
 - `"planejado"` — para registrar intenções futuras.
 
 ### `publico`
+
 - `true` — para qualquer coisa que impacte a experiência do cidadão ou pesquisador.
 - `false` — exclusivo para melhorias internas de infraestrutura sem impacto visível para o usuário final.
 
 ### `notas`
+
 Campo técnico interno. Inclua:
+
 - Arquivos criados ou modificados (use links absolutos relativos à raiz do projeto e.g. `/src`)
 - Migrations aplicadas
 - Componentes refatorados

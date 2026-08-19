@@ -9,7 +9,11 @@ export function buildFluxoSnippet(nome: string): string {
 
 /** Sanitiza o nome de um fluxo: trim + minúsculas + caracteres permitidos. */
 export function sanitizeNomeFluxo(raw: string): string {
-  return raw.trim().toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 /**

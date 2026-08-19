@@ -16,7 +16,9 @@ async function senadoGet<T = unknown>(path: string, tentativas = 4): Promise<T> 
     if (tent > 0) await sleep(500 * 3 ** (tent - 1));
     let res: Response;
     try {
-      res = await fetch(`${BASE}${path}`, { headers: { accept: "application/json", "user-agent": UA } });
+      res = await fetch(`${BASE}${path}`, {
+        headers: { accept: "application/json", "user-agent": UA },
+      });
     } catch (e) {
       ultimoErro = (e as Error).message;
       continue;
@@ -39,8 +41,11 @@ function asArray<T>(v: T | T[] | null | undefined): T[] {
 
 async function ensureAdmin(userId: string) {
   const { data, error } = await supabaseAdmin
-    .from("user_roles").select("role")
-    .eq("user_id", userId).eq("role", "admin").maybeSingle();
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
   if (error) throw new Error("Falha ao verificar permissão.");
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
@@ -52,7 +57,11 @@ type VotacaoItem = {
   DataSessao?: string;
   DescricaoVotacao?: string;
   Resultado?: string;
-  Materia?: { CodigoMateria?: string | number; DescricaoIdentificacao?: string; SiglaMateria?: string };
+  Materia?: {
+    CodigoMateria?: string | number;
+    DescricaoIdentificacao?: string;
+    SiglaMateria?: string;
+  };
   Votos?: { VotoParlamentar?: VotoItem | VotoItem[] };
 };
 
@@ -73,10 +82,12 @@ function ymd(s: string): string {
 export const importarVotacoesSenado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z.object({
-      dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    }).parse(input),
+    z
+      .object({
+        dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      })
+      .parse(input),
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
@@ -93,8 +104,7 @@ export const importarVotacoesSenado = createServerFn({ method: "POST" })
 
     for (const v of votacoes) {
       try {
-        const codSessao =
-          v.CodigoSessaoVotacao ?? v.CodigoSessao ?? v.SessaoPlenaria?.CodigoSessao;
+        const codSessao = v.CodigoSessaoVotacao ?? v.CodigoSessao ?? v.SessaoPlenaria?.CodigoSessao;
         if (!codSessao) continue;
         const id = String(codSessao);
 
@@ -103,7 +113,8 @@ export const importarVotacoesSenado = createServerFn({ method: "POST" })
         for (const x of votos) {
           const t = (x.Voto ?? "").toLowerCase().trim();
           if (t === "sim" || t.startsWith("sim")) tally.sim++;
-          else if (t === "não" || t === "nao" || t.startsWith("nã") || t.startsWith("na")) tally.nao++;
+          else if (t === "não" || t === "nao" || t.startsWith("nã") || t.startsWith("na"))
+            tally.nao++;
           else tally.outros++;
         }
 
@@ -144,7 +155,8 @@ export const importarVotacoesSenado = createServerFn({ method: "POST" })
           await supabaseAdmin.from("senado_votos_cache").delete().eq("votacao_id", id);
           for (let i = 0; i < votoRows.length; i += 500) {
             const { error: e2 } = await supabaseAdmin
-              .from("senado_votos_cache").insert(votoRows.slice(i, i + 500));
+              .from("senado_votos_cache")
+              .insert(votoRows.slice(i, i + 500));
             if (e2) throw new Error(`votos: ${e2.message}`);
           }
           totalVotos += votoRows.length;
@@ -159,15 +171,19 @@ export const importarVotacoesSenado = createServerFn({ method: "POST" })
 
 export const listarVotacoesSenado = createServerFn({ method: "GET" })
   .inputValidator((input) =>
-    z.object({
-      termo: z.string().max(120).optional(),
-      limit: z.number().int().min(1).max(500).default(200),
-    }).parse(input ?? {}),
+    z
+      .object({
+        termo: z.string().max(120).optional(),
+        limit: z.number().int().min(1).max(500).default(200),
+      })
+      .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("senado_votacoes_cache")
-      .select("id,data,descricao,resultado,materia_id,materia_titulo,votos_sim,votos_nao,votos_outros")
+      .select(
+        "id,data,descricao,resultado,materia_id,materia_titulo,votos_sim,votos_nao,votos_outros",
+      )
       .order("data", { ascending: false, nullsFirst: false })
       .limit(data.limit);
     if (data.termo) q = q.ilike("descricao", `%${data.termo}%`);
@@ -190,7 +206,10 @@ export const getVotacaoSenadoDetalhe = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ id: z.string().min(1) }).parse(input))
   .handler(async ({ data }) => {
     const { data: v, error } = await supabaseAdmin
-      .from("senado_votacoes_cache").select("*").eq("id", data.id).maybeSingle();
+      .from("senado_votacoes_cache")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
     if (error) throw new Error(error.message);
     if (!v) return null;
     const { data: votos } = await supabaseAdmin
@@ -209,20 +228,33 @@ export const getVotacaoSenadoDetalhe = createServerFn({ method: "GET" })
       if (!porUf.has(uf)) porUf.set(uf, new Map());
       porUf.get(uf)!.set(t, (porUf.get(uf)!.get(t) ?? 0) + 1);
     }
-    const disciplina = [...porPartido.entries()].map(([part, m]) => {
-      const total = [...m.values()].reduce((s, n) => s + n, 0);
-      const entradas = [...m.entries()].sort((a, b) => b[1] - a[1]);
-      const [majTipo, majN] = entradas[0] ?? ["—", 0];
-      return { partido: part, total, majTipo, indice: total ? majN / total : 0, detalhe: entradas };
-    }).sort((a, b) => b.total - a.total);
-    const porUfArr = [...porUf.entries()].map(([uf, m]) => ({
-      uf, total: [...m.values()].reduce((s, n) => s + n, 0),
-      entradas: [...m.entries()].sort((a, b) => b[1] - a[1]),
-    })).sort((a, b) => a.uf.localeCompare(b.uf));
+    const disciplina = [...porPartido.entries()]
+      .map(([part, m]) => {
+        const total = [...m.values()].reduce((s, n) => s + n, 0);
+        const entradas = [...m.entries()].sort((a, b) => b[1] - a[1]);
+        const [majTipo, majN] = entradas[0] ?? ["—", 0];
+        return {
+          partido: part,
+          total,
+          majTipo,
+          indice: total ? majN / total : 0,
+          detalhe: entradas,
+        };
+      })
+      .sort((a, b) => b.total - a.total);
+    const porUfArr = [...porUf.entries()]
+      .map(([uf, m]) => ({
+        uf,
+        total: [...m.values()].reduce((s, n) => s + n, 0),
+        entradas: [...m.entries()].sort((a, b) => b[1] - a[1]),
+      }))
+      .sort((a, b) => a.uf.localeCompare(b.uf));
 
     const ids = [...new Set((votos ?? []).map((x) => x.senador_id as number))];
     const { data: sens } = await supabaseAdmin
-      .from("senado_senadores_cache").select("id,nome").in("id", ids.length ? ids : [0]);
+      .from("senado_senadores_cache")
+      .select("id,nome")
+      .in("id", ids.length ? ids : [0]);
     const nomes = new Map((sens ?? []).map((s) => [s.id as number, s.nome as string]));
 
     return {
@@ -253,7 +285,11 @@ export const senadoVotacoesOverview = createServerFn({ method: "GET" }).handler(
   const [{ count: nVot }, { count: nVotos }, ultRes] = await Promise.all([
     supabaseAdmin.from("senado_votacoes_cache").select("id", { count: "exact", head: true }),
     supabaseAdmin.from("senado_votos_cache").select("votacao_id", { count: "exact", head: true }),
-    supabaseAdmin.from("senado_votacoes_cache").select("data").order("data", { ascending: false, nullsFirst: false }).limit(1),
+    supabaseAdmin
+      .from("senado_votacoes_cache")
+      .select("data")
+      .order("data", { ascending: false, nullsFirst: false })
+      .limit(1),
   ]);
   return {
     totalVotacoes: nVot ?? 0,

@@ -16,9 +16,7 @@ describe("regrasCguLicitacoes", () => {
   });
 
   it("sinaliza certame abandonado como sinal INVESTIGATIVO nascendo aviso", () => {
-    const findings = regrasCguLicitacoes([
-      { ...base, situacao: "Evento de Revogação Publicado" },
-    ]);
+    const findings = regrasCguLicitacoes([{ ...base, situacao: "Evento de Revogação Publicado" }]);
     const f = findings.find((x) => x.regra === "licitacao_sem_desfecho");
     expect(f).toBeDefined();
     expect(f?.tipo).toBe("investigativo");
@@ -31,9 +29,7 @@ describe("regrasCguLicitacoes", () => {
   });
 
   it("sinaliza ano implausível (anterior a 1988)", () => {
-    const findings = regrasCguLicitacoes([
-      { ...base, data_abertura: "1900-01-01", ano: 1900 },
-    ]);
+    const findings = regrasCguLicitacoes([{ ...base, data_abertura: "1900-01-01", ano: 1900 }]);
     expect(findings.some((f) => f.regra === "ano_invalido")).toBe(true);
   });
 
@@ -45,7 +41,12 @@ describe("regrasCguLicitacoes", () => {
   it("sinaliza valor ínfimo (>0 e <R$100) como suspeita de truncamento por escala", () => {
     const findings = regrasCguLicitacoes([{ ...base, valor: 57.6 }]);
     expect(findings).toMatchObject([
-      { regra: "valor_truncado_suspeito", tipo: "qualidade", severidade: "aviso", valor_armazenado: 57.6 },
+      {
+        regra: "valor_truncado_suspeito",
+        tipo: "qualidade",
+        severidade: "aviso",
+        valor_armazenado: 57.6,
+      },
     ]);
     // Limite exato e zero não disparam.
     expect(regrasCguLicitacoes([{ ...base, valor: 100 }])).toEqual([]);

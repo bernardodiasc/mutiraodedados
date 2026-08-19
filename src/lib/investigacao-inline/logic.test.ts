@@ -12,7 +12,12 @@ const c = {
 describe("chaveQueryKey", () => {
   it("inclui todos componentes na ordem certa", () => {
     expect(chaveQueryKey(c)).toEqual([
-      "finding-chave", "portal-cgu", "contrato", "X", "r", "sinal",
+      "finding-chave",
+      "portal-cgu",
+      "contrato",
+      "X",
+      "r",
+      "sinal",
     ]);
   });
 });
@@ -32,6 +37,7 @@ describe("candidatoParaPromocao", () => {
 describe("passaStatusFilter", () => {
   it("sem filtro → true", () => expect(passaStatusFilter(null)).toBe(true));
   it("pré-promoção é aberto", () => expect(passaStatusFilter(null, "aberto")).toBe(true));
-  it("status diferente → false", () => expect(passaStatusFilter("confirmado", "aberto")).toBe(false));
+  it("status diferente → false", () =>
+    expect(passaStatusFilter("confirmado", "aberto")).toBe(false));
   it("status igual → true", () => expect(passaStatusFilter("confirmado", "confirmado")).toBe(true));
 });

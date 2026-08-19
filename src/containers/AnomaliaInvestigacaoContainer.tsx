@@ -1,10 +1,7 @@
 import * as React from "react";
 import { AnomaliaInvestigacaoView } from "@/components/AnomaliaInvestigacaoView";
 import type { AnomaliaInput } from "@/lib/anomalia";
-import type {
-  AnomaliaActions,
-  AnomaliaInvestigacaoCurl,
-} from "@/lib/anomalia-investigacao/types";
+import type { AnomaliaActions, AnomaliaInvestigacaoCurl } from "@/lib/anomalia-investigacao/types";
 
 export type AnomaliaInvestigacaoContainerProps = {
   anomalia: AnomaliaInput;

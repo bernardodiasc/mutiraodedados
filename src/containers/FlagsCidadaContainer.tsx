@@ -34,18 +34,26 @@ export function FlagsCidadaContainer({ entidadeTipo, entidadeId }: FlagsCidadaCo
     const rows = (data ?? []) as FlagRow[];
     if (rows.length) {
       const userIds = [...new Set(rows.map((r) => r.user_id))];
-      const { data: profs } = await supabase.from("profiles").select("id,display_name").in("id", userIds);
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,display_name")
+        .in("id", userIds);
       const nameMap = new Map((profs ?? []).map((p) => [p.id, p.display_name]));
       for (const r of rows) r.displayName = nameMap.get(r.user_id) ?? null;
       const ids = rows.map((d) => d.id);
-      const { data: vs } = await supabase.from("votos_flag").select("flag_id,valor").in("flag_id", ids);
+      const { data: vs } = await supabase
+        .from("votos_flag")
+        .select("flag_id,valor")
+        .in("flag_id", ids);
       setVotes(aggregateVotes((vs ?? []) as Array<{ flag_id: string; valor: number }>));
     }
     setFlags(rows);
     setLoading(false);
   }, [entidadeTipo, entidadeId]);
 
-  React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => {
+    void load();
+  }, [load]);
 
   const onSubmit = React.useCallback(async () => {
     if (!user) return;
@@ -70,19 +78,22 @@ export function FlagsCidadaContainer({ entidadeTipo, entidadeId }: FlagsCidadaCo
     void load();
   }, [user, tipo, comentario, entidadeTipo, entidadeId, load]);
 
-  const onVote = React.useCallback(async (flagId: string, valor: 1 | -1) => {
-    if (!user) return;
-    const { error } = await supabase.from("votos_flag").upsert({
-      flag_id: flagId,
-      user_id: user.id,
-      valor,
-    });
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    void load();
-  }, [user, load]);
+  const onVote = React.useCallback(
+    async (flagId: string, valor: 1 | -1) => {
+      if (!user) return;
+      const { error } = await supabase.from("votos_flag").upsert({
+        flag_id: flagId,
+        user_id: user.id,
+        valor,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      void load();
+    },
+    [user, load],
+  );
 
   return (
     <FlagsCidadaView

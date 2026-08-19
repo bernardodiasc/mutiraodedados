@@ -13,9 +13,17 @@ export const Route = createFileRoute("/orgaos")({
   head: () => ({
     meta: [
       { title: "Órgãos federais — Mutirão de Dados" },
-      { name: "description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos. Inclui órgãos extintos, com histórico preservado." },
+      {
+        name: "description",
+        content:
+          "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos. Inclui órgãos extintos, com histórico preservado.",
+      },
       { property: "og:title", content: "Órgãos federais — Mutirão de Dados" },
-      { property: "og:description", content: "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos." },
+      {
+        property: "og:description",
+        content:
+          "Órgãos federais com contratos, licitações e convênios públicos, totais contratados e histórico de gastos.",
+      },
       { property: "og:url", content: "https://mutiraodedados.com.br/orgaos" },
     ],
     links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/orgaos" }],
@@ -80,7 +88,10 @@ function OrgaosList() {
         <div className="order-2 md:order-1 max-w-2xl">
           <h1 className="font-display text-4xl">Órgãos federais</h1>
           <p className="text-muted-foreground mt-2">
-            Cada página reúne contratos, licitações e convênios públicos, fornecedores e série histórica de gastos. A lista do Executivo é montada a partir dos documentos já importados e cresce conforme novos órgãos entram na base. Órgãos extintos permanecem com o histórico preservado.
+            Cada página reúne contratos, licitações e convênios públicos, fornecedores e série
+            histórica de gastos. A lista do Executivo é montada a partir dos documentos já
+            importados e cresce conforme novos órgãos entram na base. Órgãos extintos permanecem com
+            o histórico preservado.
           </p>
         </div>
         <img
@@ -104,7 +115,8 @@ function OrgaosList() {
         <div className="flex items-baseline justify-between gap-2">
           <h2 className="font-display text-2xl">{PODER_LABEL.executivo}</h2>
           <span className="text-xs text-muted-foreground">
-            {executivosFiltrados.length} {executivosFiltrados.length === 1 ? "órgão" : "órgãos"} com dados
+            {executivosFiltrados.length} {executivosFiltrados.length === 1 ? "órgão" : "órgãos"} com
+            dados
           </span>
         </div>
         {executivosFiltrados.length === 0 ? (
@@ -118,7 +130,9 @@ function OrgaosList() {
         ) : (
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {executivosFiltrados.map((o) => {
-              const st = status ? status.contratosPorOrgao[o.cod] ?? { updatedAt: null, count: 0 } : null;
+              const st = status
+                ? (status.contratosPorOrgao[o.cod] ?? { updatedAt: null, count: 0 })
+                : null;
               const badge = renderBadge(st);
               return (
                 <Link
@@ -131,20 +145,31 @@ function OrgaosList() {
                     <div className="text-xs text-muted-foreground truncate">{o.funcao || "—"}</div>
                     <div className="flex items-center gap-1.5 shrink-0">
                       {!o.ativo && (
-                        <span className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-amber-600 border-amber-500/40" title="Sem execução orçamentária recente — órgão extinto ou inativo. Histórico preservado.">
+                        <span
+                          className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-amber-600 border-amber-500/40"
+                          title="Sem execução orçamentária recente — órgão extinto ou inativo. Histórico preservado."
+                        >
                           Extinto
                         </span>
                       )}
-                      <span className={`text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border ${badge.tone}`} title={badge.title}>
+                      <span
+                        className={`text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border ${badge.tone}`}
+                        title={badge.title}
+                      >
                         {badge.label}
                       </span>
                     </div>
                   </div>
                   <div className="font-display text-lg mt-1 leading-tight">{o.nome}</div>
                   <div className="mt-3 flex items-center gap-2">
-                    {o.sigla && <span className="text-xs font-mono text-muted-foreground">{o.sigla}</span>}
+                    {o.sigla && (
+                      <span className="text-xs font-mono text-muted-foreground">{o.sigla}</span>
+                    )}
                     {o.naoCatalogado && (
-                      <span className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5" title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI.">
+                      <span
+                        className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5"
+                        title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI."
+                      >
                         Não catalogado
                       </span>
                     )}
@@ -160,7 +185,8 @@ function OrgaosList() {
         <section className="mt-12">
           <h2 className="font-display text-2xl">Outras esferas</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Legislativo, Judiciário e Ministério Público — cobertos por integrações próprias ou planejadas, fora do fluxo de contratos do Executivo.
+            Legislativo, Judiciário e Ministério Público — cobertos por integrações próprias ou
+            planejadas, fora do fluxo de contratos do Executivo.
           </p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {outrasFiltradas.map((o) => (
@@ -188,7 +214,8 @@ function CardOutraEsfera({ o }: { o: Orgao }) {
       </div>
     </>
   );
-  const cls = "border border-border rounded-xl p-5 bg-card hover:border-accent transition-colors block";
+  const cls =
+    "border border-border rounded-xl p-5 bg-card hover:border-accent transition-colors block";
   if (o.rotaPropria) {
     return (
       <Link key={o.cod} to={o.rotaPropria} className={cls}>

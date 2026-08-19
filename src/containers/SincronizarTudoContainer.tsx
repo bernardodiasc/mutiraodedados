@@ -14,7 +14,10 @@ import {
   countByLabelPrefix,
 } from "@/lib/sincronizar-tudo/logic";
 import { importarDeputados } from "@/lib/data/camara/ingest.functions";
-import { importarSenadores, importarSenadoresLegislatura } from "@/lib/data/senado/ingest.functions";
+import {
+  importarSenadores,
+  importarSenadoresLegislatura,
+} from "@/lib/data/senado/ingest.functions";
 import { SincronizarTudoView } from "@/components/SincronizarTudoView";
 
 // Cadastros (roster) por legislatura — pseudo-fontes do "Sincronizar tudo".
@@ -196,7 +199,8 @@ export function SincronizarTudoContainer({ isRunning, runJobs }: Props) {
             for (let m = 1; m <= 12; m++) {
               const j = buildJob(f.fonte, linhasIds[_i], y, m);
               if (!j) continue;
-              if (isFutureSlot({ fonte: f.fonte, linhaId: linhasIds[_i], ano: y, mes: m }, now)) continue;
+              if (isFutureSlot({ fonte: f.fonte, linhaId: linhasIds[_i], ano: y, mes: m }, now))
+                continue;
               totalPossivel += 1;
             }
           }

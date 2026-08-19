@@ -12,7 +12,7 @@ Cada página-tópico do eixo "Por tema" corresponde a um endpoint `/api-de-dados
 - `/convenios` ↔ `/convenios` (instrumentos de cooperação).
 - `/transferencias` ↔ `/transferencias` (repasses no nível de **Ordem Bancária** — execução).
 
-As **EC 105 ("emendas Pix")** são um *tipo de emenda*, não uma fonte à parte: vivem em `/emendas` (filtre por tipo "Finalidade Definida" ou "Especial"). O Transferegov é o *sistema-fonte* que as opera e fornece detalhe de execução.
+As **EC 105 ("emendas Pix")** são um _tipo de emenda_, não uma fonte à parte: vivem em `/emendas` (filtre por tipo "Finalidade Definida" ou "Especial"). O Transferegov é o _sistema-fonte_ que as opera e fornece detalhe de execução.
 
 ## Páginas públicas
 

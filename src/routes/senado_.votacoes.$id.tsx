@@ -29,7 +29,10 @@ function VotacaoSenadoDetalhe() {
     [data],
   );
   const partidos = useMemo(
-    () => [...new Set((data?.votos ?? []).map((v) => v.siglaPartido).filter(Boolean))].sort() as string[],
+    () =>
+      [
+        ...new Set((data?.votos ?? []).map((v) => v.siglaPartido).filter(Boolean)),
+      ].sort() as string[],
     [data],
   );
 
@@ -42,7 +45,12 @@ function VotacaoSenadoDetalhe() {
   }, [data, filtroTipo, filtroPart]);
 
   if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { votacao, disciplina, porUf } = data;
@@ -51,19 +59,27 @@ function VotacaoSenadoDetalhe() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/senado" className="hover:text-accent">Senado</Link>
+          <Link to="/senado" className="hover:text-accent">
+            Senado
+          </Link>
           {" · "}
-          <Link to="/senado/votacoes" className="hover:text-accent">Votações</Link>
+          <Link to="/senado/votacoes" className="hover:text-accent">
+            Votações
+          </Link>
         </div>
-        <h1 className="font-display text-3xl mt-2 leading-tight">{votacao.descricao ?? "(sem descrição)"}</h1>
+        <h1 className="font-display text-3xl mt-2 leading-tight">
+          {votacao.descricao ?? "(sem descrição)"}
+        </h1>
         <div className="mt-2 text-sm text-muted-foreground">
           {votacao.data ?? "—"}
           {votacao.materiaTitulo && <> · {votacao.materiaTitulo}</>}
           {votacao.resultado && <> · {votacao.resultado}</>}
         </div>
         <div className="mt-3 font-mono text-sm">
-          <span className="text-emerald-500">Sim {votacao.votosSim}</span>{" · "}
-          <span className="text-rose-500">Não {votacao.votosNao}</span>{" · "}
+          <span className="text-emerald-500">Sim {votacao.votosSim}</span>
+          {" · "}
+          <span className="text-rose-500">Não {votacao.votosNao}</span>
+          {" · "}
           <span className="text-muted-foreground">Outros {votacao.votosOutros}</span>
         </div>
         <AcoesDaEntidade
@@ -98,9 +114,7 @@ function VotacaoSenadoDetalhe() {
                   <td className="px-4 py-2 font-medium">{d.partido}</td>
                   <td className="px-4 py-2">{d.majTipo}</td>
                   <td className="px-4 py-2 text-right text-muted-foreground">{d.total}</td>
-                  <td className="px-4 py-2 text-right font-mono">
-                    {(d.indice * 100).toFixed(0)}%
-                  </td>
+                  <td className="px-4 py-2 text-right font-mono">{(d.indice * 100).toFixed(0)}%</td>
                 </tr>
               ))}
             </tbody>
@@ -116,7 +130,9 @@ function VotacaoSenadoDetalhe() {
               <div className="font-display text-base">{u.uf}</div>
               <div className="mt-1 text-muted-foreground">
                 {u.entradas.map(([t, n]) => (
-                  <div key={t}>{t}: <span className="font-mono text-foreground">{n}</span></div>
+                  <div key={t}>
+                    {t}: <span className="font-mono text-foreground">{n}</span>
+                  </div>
                 ))}
               </div>
             </div>
@@ -133,7 +149,11 @@ function VotacaoSenadoDetalhe() {
             onChange={(e) => setFiltroTipo(e.target.value)}
           >
             <option value="">Todos os votos</option>
-            {tipos.map((t) => <option key={t} value={t}>{t}</option>)}
+            {tipos.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
           </select>
           <select
             className="rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -141,7 +161,11 @@ function VotacaoSenadoDetalhe() {
             onChange={(e) => setFiltroPart(e.target.value)}
           >
             <option value="">Todos partidos</option>
-            {partidos.map((p) => <option key={p} value={p}>{p}</option>)}
+            {partidos.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
           </select>
           <BotaoBaixarCsv
             filename={`votos_senado_${id}`}

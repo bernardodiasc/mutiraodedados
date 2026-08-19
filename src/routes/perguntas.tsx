@@ -10,9 +10,15 @@ export const Route = createFileRoute("/perguntas")({
   head: () => ({
     meta: [
       { title: "Perguntas — Mutirão de Dados" },
-      { name: "description", content: "Modelos de pergunta e investigações públicas. Comece sua pasta de investigação." },
+      {
+        name: "description",
+        content: "Modelos de pergunta e investigações públicas. Comece sua pasta de investigação.",
+      },
       { property: "og:title", content: "Perguntas — Mutirão de Dados" },
-      { property: "og:description", content: "Modelos para começar uma investigação e perguntas já em andamento publicamente." },
+      {
+        property: "og:description",
+        content: "Modelos para começar uma investigação e perguntas já em andamento publicamente.",
+      },
       { property: "og:url", content: "https://mutiraodedados.com.br/perguntas" },
     ],
     links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/perguntas" }],
@@ -68,8 +74,8 @@ function PerguntasPage() {
           Toda investigação começa por uma pergunta.
         </h1>
         <p className="text-muted-foreground mt-4 text-lg">
-          Uma pergunta é uma <strong>pasta de investigação</strong>. Nasce privada no seu
-          caderno, ganha itens e anotações, e pode (se você quiser) virar pública.
+          Uma pergunta é uma <strong>pasta de investigação</strong>. Nasce privada no seu caderno,
+          ganha itens e anotações, e pode (se você quiser) virar pública.
         </p>
         <div className="mt-5 flex flex-wrap gap-2">
           <Link
@@ -90,7 +96,8 @@ function PerguntasPage() {
         </p>
         {publicas.length === 0 ? (
           <div className="mt-6 border border-dashed border-border rounded-xl p-6 bg-card text-sm text-muted-foreground">
-            Nenhuma investigação publicada ainda. Seja o primeiro — crie a sua e solicite publicação.
+            Nenhuma investigação publicada ainda. Seja o primeiro — crie a sua e solicite
+            publicação.
           </div>
         ) : (
           <ul className="mt-6 grid gap-3">
@@ -117,7 +124,8 @@ function PerguntasPage() {
                   <p className="text-sm text-muted-foreground leading-relaxed">{p.descricao}</p>
                 ) : null}
                 <div className="text-[11px] text-muted-foreground">
-                  Publicada em {formatarData(p.publicada_em)} · Atualizada em {formatarData(p.updated_at)}
+                  Publicada em {formatarData(p.publicada_em)} · Atualizada em{" "}
+                  {formatarData(p.updated_at)}
                 </div>
               </li>
             ))}
@@ -151,13 +159,22 @@ function PerguntasPage() {
       )}
 
       <div className="mt-12 flex flex-col gap-2">
-        <Link to="/aprender" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">
+        <Link
+          to="/aprender"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent"
+        >
           Aprender antes de perguntar <ArrowRight className="size-3.5" />
         </Link>
-        <Link to="/anomalias" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">
+        <Link
+          to="/anomalias"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent"
+        >
           Ir para os sinais investigativos <ArrowRight className="size-3.5" />
         </Link>
-        <Link to="/lacunas" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">
+        <Link
+          to="/lacunas"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent"
+        >
           Ver o que falta saber <ArrowRight className="size-3.5" />
         </Link>
       </div>

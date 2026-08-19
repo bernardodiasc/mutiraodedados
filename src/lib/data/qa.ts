@@ -200,10 +200,7 @@ export function findingFornecedorAusente(args: {
   };
 }
 
-export function regrasCgu(
-  rows: CguContratoLike[],
-  paginaPorId?: Map<string, number>,
-): QaFinding[] {
+export function regrasCgu(rows: CguContratoLike[], paginaPorId?: Map<string, number>): QaFinding[] {
   const out: QaFinding[] = [];
   for (const r of rows) {
     const final = Number(r.valor ?? 0);
@@ -306,7 +303,11 @@ export function regrasCguLicitacoes(rows: CguLicitacaoLike[]): QaFinding[] {
         regra: "licitacao_sem_desfecho",
         tipo: "investigativo",
         severidade: "aviso",
-        detalhes: { situacao: r.situacao, orgao_cod: r.orgao_cod ?? null, campos_suspeitos: ["situacaoCompra"] },
+        detalhes: {
+          situacao: r.situacao,
+          orgao_cod: r.orgao_cod ?? null,
+          campos_suspeitos: ["situacaoCompra"],
+        },
       });
     }
 
@@ -400,7 +401,11 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         severidade: "critico",
         valor_armazenado: pago,
         valor_esperado: emp,
-        detalhes: { valor_empenhado: emp, valor_pago: pago, campos_suspeitos: ["valorPago", "valorEmpenhado"] },
+        detalhes: {
+          valor_empenhado: emp,
+          valor_pago: pago,
+          campos_suspeitos: ["valorPago", "valorEmpenhado"],
+        },
       });
     }
     // Liquidado > empenhado: inconsistência (atesta-se mais do que se reservou).
@@ -414,7 +419,11 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         severidade: "aviso",
         valor_armazenado: liq,
         valor_esperado: emp,
-        detalhes: { valor_empenhado: emp, valor_liquidado: liq, campos_suspeitos: ["valorLiquidado", "valorEmpenhado"] },
+        detalhes: {
+          valor_empenhado: emp,
+          valor_liquidado: liq,
+          campos_suspeitos: ["valorLiquidado", "valorEmpenhado"],
+        },
       });
     }
     // Valores negativos — defeito de origem.
@@ -440,7 +449,12 @@ export function regrasCguEmendas(rows: CguEmendaLike[]): QaFinding[] {
         tipo: "qualidade",
         severidade: "aviso",
         valor_armazenado: emp,
-        detalhes: { limite: 100, valor_liquidado: liq, valor_pago: pago, campos_suspeitos: ["valorEmpenhado"] },
+        detalhes: {
+          limite: 100,
+          valor_liquidado: liq,
+          valor_pago: pago,
+          campos_suspeitos: ["valorEmpenhado"],
+        },
       });
     }
   }
@@ -474,7 +488,11 @@ export function regrasCguConvenios(rows: CguConvenioLike[]): QaFinding[] {
         severidade: "aviso",
         valor_armazenado: liberado,
         valor_esperado: valor,
-        detalhes: { valor_global: valor, valor_liberado: liberado, campos_suspeitos: ["valorLiberado", "valor"] },
+        detalhes: {
+          valor_global: valor,
+          valor_liberado: liberado,
+          campos_suspeitos: ["valorLiberado", "valor"],
+        },
       });
     }
     if (valor < 0 || liberado < 0) {
@@ -699,10 +717,7 @@ export async function flagQA(findings: QaFinding[]): Promise<number> {
   for (let i = 0; i < unicos.length; i += LOTE) {
     const slice = unicos.slice(i, i + LOTE);
     const filtroLote = slice
-      .map(
-        (k) =>
-          `and(fonte.eq.${k.fonte},entidade_id.eq.${k.entidade_id},regra.eq.${k.regra})`,
-      )
+      .map((k) => `and(fonte.eq.${k.fonte},entidade_id.eq.${k.entidade_id},regra.eq.${k.regra})`)
       .join(",");
     const { data: existentes } = await supabaseAdmin
       .from("qa_findings")
@@ -722,8 +737,9 @@ export async function flagQA(findings: QaFinding[]): Promise<number> {
         finding: f,
         existente: existentesPorChave.get(`${f.fonte}|${f.entidade_id}|${f.regra}`),
       }))
-      .filter((x): x is { finding: QaFinding; existente: { id: string; status: string } } =>
-        x.existente?.status === "aberto",
+      .filter(
+        (x): x is { finding: QaFinding; existente: { id: string; status: string } } =>
+          x.existente?.status === "aberto",
       );
     if (novos.length > 0) {
       const payload = novos.map((f) => ({
@@ -812,7 +828,8 @@ export function cguAindaSuspeito(
     regraDesconhecidaContaComoSuspeita?: boolean;
   },
 ): boolean {
-  if (regra === "discrepancia_extrema_inicial_final") return inicial > 0 && final > 0 && (inicial >= final * 1000 || final >= inicial * 1000);
+  if (regra === "discrepancia_extrema_inicial_final")
+    return inicial > 0 && final > 0 && (inicial >= final * 1000 || final >= inicial * 1000);
   if (regra === "valor_muito_baixo") return final > 0 && final < 100;
   // Aposentada, mas pode existir aberta no banco — mantém a semântica original.
   if (regra === "valor_final_truncado_suspeito") return final > 0 && final < 100 && inicial > 1000;

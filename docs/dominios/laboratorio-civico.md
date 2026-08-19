@@ -17,9 +17,9 @@ Um **modelo de pergunta** (`pergunta_modelos`) é um ponto de partida curado pel
 
 ## Kit de investigação (mapas → prompts)
 
-O projeto **não embute LLM** (por custo): a experiência é levar o cidadão até onde os dados estão e deixá-lo **copiar dados / baixar CSV / ir à fonte oficial** para colar na *própria IA*.
+O projeto **não embute LLM** (por custo): a experiência é levar o cidadão até onde os dados estão e deixá-lo **copiar dados / baixar CSV / ir à fonte oficial** para colar na _própria IA_.
 
-- Um **mapa** (artigo `categoria='mapa'`) é um procedimento investigativo reutilizável: os passos dizem *onde colher os dados*, por links internos e externos.
+- Um **mapa** (artigo `categoria='mapa'`) é um procedimento investigativo reutilizável: os passos dizem _onde colher os dados_, por links internos e externos.
 - O **Kit** é o painel lateral que aparece só em mapas (`KitInvestigacao`). Rola junto com a página (não é sticky, porque é alto). No topo: "Copiar texto do mapa", "Adicionar ao caderno" e links para **Meu caderno** e para as **pastas em uso** (as perguntas do usuário que já contêm prompts deste mapa — `listarPastasComPrompts`).
 - Cada prompt é **collapsible**: ao abrir mostra a descrição, a lista **"O que preencher"**, o **texto do prompt visível** e os botões "Copiar prompt" / "Adicionar ao caderno".
 - Um **prompt** (`prompt_modelos`) é um objetivo com placeholders `{{var}}` que o cidadão preenche com o que colheu. Vários prompts servem a um mapa e um prompt serve a vários mapas (N:N via `mapa_prompts`).
@@ -57,18 +57,18 @@ arquivada ──[autor reabrir]──▶ privada
 
 ## Páginas
 
-| Rota                  | Quem vê       | O que faz                                                                                     |
-| --------------------- | ------------- | --------------------------------------------------------------------------------------------- |
-| `/perguntas`          | Público       | Modelos curados + investigações publicadas.                                                   |
-| `/perguntas/$slug`    | Público       | Página da investigação publicada (sem expor autor).                                           |
-| `/caderno`            | Usuário       | Lista de perguntas do usuário + itens salvos + anotações soltas.                              |
-| `/caderno/$id`        | Autor/admin   | Pasta de investigação (itens, ações solicitar publicação / encerrar / arquivar / excluir).    |
-| `/caderno/nova`       | Usuário       | Cria pergunta em branco ou a partir de modelo (`?modelo=<id>`).                               |
-| `/admin/perguntas`    | Admin         | Modelos (CRUD) e Moderação (em_revisao → publicada/privada).                                  |
-| `/admin/prompts`      | Admin         | CRUD de prompts do Kit e vínculo N:N com mapas.                                               |
-| `/lacunas`            | Público       | Mapa público de informações que faltam.                                                       |
-| `/afirmacoes`         | Público       | Conteúdo editorial curado.                                                                    |
-| `/trilhas`            | Público       | Trilhas guiadas de investigação.                                                              |
+| Rota               | Quem vê     | O que faz                                                                                  |
+| ------------------ | ----------- | ------------------------------------------------------------------------------------------ |
+| `/perguntas`       | Público     | Modelos curados + investigações publicadas.                                                |
+| `/perguntas/$slug` | Público     | Página da investigação publicada (sem expor autor).                                        |
+| `/caderno`         | Usuário     | Lista de perguntas do usuário + itens salvos + anotações soltas.                           |
+| `/caderno/$id`     | Autor/admin | Pasta de investigação (itens, ações solicitar publicação / encerrar / arquivar / excluir). |
+| `/caderno/nova`    | Usuário     | Cria pergunta em branco ou a partir de modelo (`?modelo=<id>`).                            |
+| `/admin/perguntas` | Admin       | Modelos (CRUD) e Moderação (em_revisao → publicada/privada).                               |
+| `/admin/prompts`   | Admin       | CRUD de prompts do Kit e vínculo N:N com mapas.                                            |
+| `/lacunas`         | Público     | Mapa público de informações que faltam.                                                    |
+| `/afirmacoes`      | Público     | Conteúdo editorial curado.                                                                 |
+| `/trilhas`         | Público     | Trilhas guiadas de investigação.                                                           |
 
 ## Componentes transversais
 
@@ -105,23 +105,23 @@ Na [taxonomia dos três tipos de sinal](../qualidade-dados.md), **lacuna** é a 
 
 Critérios resumidos:
 
-| Severidade do finding | Status                | Vira lacuna?                  |
-| --------------------- | --------------------- | ----------------------------- |
-| `critico`             | `confirmado`          | **Sim, automaticamente**      |
-| `critico`             | `aberto` ou outro     | Não — admin pode promover     |
-| `aviso` ou inferior   | qualquer              | Não — admin pode promover     |
+| Severidade do finding | Status            | Vira lacuna?              |
+| --------------------- | ----------------- | ------------------------- |
+| `critico`             | `confirmado`      | **Sim, automaticamente**  |
+| `critico`             | `aberto` ou outro | Não — admin pode promover |
+| `aviso` ou inferior   | qualquer          | Não — admin pode promover |
 
 ## Vocabulário cidadão
 
 A UI usa rótulos cidadãos; o código mantém o termo técnico (ver `.lovable/plan.md`, seção 5).
 
-| Código        | UI                                       |
-| ------------- | ---------------------------------------- |
-| Evidência     | Fonte / O que comprova                   |
-| Lacuna        | Informação que falta                     |
-| Afirmação     | O que foi prometido / declarado          |
-| Investigação  | Caderno de investigação                  |
-| Visibilidade  | Privado / Com link / Público             |
+| Código       | UI                              |
+| ------------ | ------------------------------- |
+| Evidência    | Fonte / O que comprova          |
+| Lacuna       | Informação que falta            |
+| Afirmação    | O que foi prometido / declarado |
+| Investigação | Caderno de investigação         |
+| Visibilidade | Privado / Com link / Público    |
 
 ## Princípios
 

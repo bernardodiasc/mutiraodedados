@@ -21,7 +21,9 @@ async function senadoGet<T = unknown>(path: string, tentativas = 4): Promise<T> 
     if (tent > 0) await sleep(500 * 3 ** (tent - 1));
     let res: Response;
     try {
-      res = await fetch(`${BASE}${path}`, { headers: { accept: "application/json", "user-agent": UA } });
+      res = await fetch(`${BASE}${path}`, {
+        headers: { accept: "application/json", "user-agent": UA },
+      });
     } catch (e) {
       ultimoErro = (e as Error).message;
       continue;
@@ -54,7 +56,6 @@ function asArray<T>(v: T | T[] | null | undefined): T[] {
   if (v === null || v === undefined) return [];
   return Array.isArray(v) ? v : [v];
 }
-
 
 type Parlamentar = {
   IdentificacaoParlamentar?: {
@@ -137,7 +138,9 @@ type MandatoDetalhe = {
 async function mandatosSenador(cod: number): Promise<MandatoDetalhe[]> {
   try {
     const j = await senadoGet<{
-      MandatoParlamentar?: { Parlamentar?: { Mandatos?: { Mandato?: MandatoDetalhe | MandatoDetalhe[] } } };
+      MandatoParlamentar?: {
+        Parlamentar?: { Mandatos?: { Mandato?: MandatoDetalhe | MandatoDetalhe[] } };
+      };
     }>(`/senador/${cod}/mandatos`);
     return asArray(j.MandatoParlamentar?.Parlamentar?.Mandatos?.Mandato);
   } catch {
@@ -157,7 +160,9 @@ async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
   const now = new Date().toISOString();
   for (let i = 0; i < codigos.length; i += LOTE) {
     const lote = codigos.slice(i, i + LOTE);
-    const res = await Promise.all(lote.map((cod) => mandatosSenador(cod).then((m) => [cod, m] as const)));
+    const res = await Promise.all(
+      lote.map((cod) => mandatosSenador(cod).then((m) => [cod, m] as const)),
+    );
     const exRows: Array<{
       codigo_parlamentar: number;
       data_inicio: string | null;
@@ -226,11 +231,15 @@ async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
     await supabaseAdmin.from("senado_exercicios").delete().in("codigo_parlamentar", lote);
     await supabaseAdmin.from("senado_suplencia").delete().in("titular_codigo", lote);
     for (let j = 0; j < exRows.length; j += 200) {
-      const { error } = await supabaseAdmin.from("senado_exercicios").insert(exRows.slice(j, j + 200));
+      const { error } = await supabaseAdmin
+        .from("senado_exercicios")
+        .insert(exRows.slice(j, j + 200));
       if (error) throw new Error(`db exercicios: ${error.message}`);
     }
     for (let j = 0; j < supRows.length; j += 200) {
-      const { error } = await supabaseAdmin.from("senado_suplencia").insert(supRows.slice(j, j + 200));
+      const { error } = await supabaseAdmin
+        .from("senado_suplencia")
+        .insert(supRows.slice(j, j + 200));
       if (error) throw new Error(`db suplencia: ${error.message}`);
     }
     for (const { cod, situacao } of situacaoUpd) {
@@ -494,9 +503,7 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
     if (data.senadorId) {
       senadorIds = [data.senadorId];
     } else {
-      const { data: sens, error } = await supabaseAdmin
-        .from("senado_senadores_cache")
-        .select("id");
+      const { data: sens, error } = await supabaseAdmin.from("senado_senadores_cache").select("id");
       if (error) throw new Error(`db: ${error.message}`);
       senadorIds = (sens ?? []).map((s) => s.id as number);
     }
@@ -528,7 +535,8 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
             senador_id: senId,
             ano: Number(d.Ano ?? data.ano),
             mes: Number(d.Mes ?? data.mes),
-            tipo_despesa: sanitizarTextoPublico((d.TipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+            tipo_despesa:
+              sanitizarTextoPublico((d.TipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
             fornecedor_nome: sanitizarTextoPublico((d.Fornecedor ?? "").slice(0, 240)) || null,
             fornecedor_cnpj: d.CnpjCpfFornecedor ?? null,
             data_documento:

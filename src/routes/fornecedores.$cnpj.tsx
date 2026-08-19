@@ -20,10 +20,17 @@ export const Route = createFileRoute("/fornecedores/$cnpj")({
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
       <h1 className="font-display text-3xl">Fornecedor não encontrado</h1>
-      <p className="text-sm text-muted-foreground mt-2">Carregue contratos de um órgão em /orgaos para que seus fornecedores apareçam aqui.</p>
+      <p className="text-sm text-muted-foreground mt-2">
+        Carregue contratos de um órgão em /orgaos para que seus fornecedores apareçam aqui.
+      </p>
     </div>
   ),
-  errorComponent: ({ error }) => <div className="mx-auto max-w-3xl px-4 py-20"><h1 className="font-display text-2xl">Erro</h1><p>{error.message}</p></div>,
+  errorComponent: ({ error }) => (
+    <div className="mx-auto max-w-3xl px-4 py-20">
+      <h1 className="font-display text-2xl">Erro</h1>
+      <p>{error.message}</p>
+    </div>
+  ),
 });
 
 function FornecedorDetail() {
@@ -31,15 +38,24 @@ function FornecedorDetail() {
   const { hydrated } = useData();
   const ds = useDataSource();
   if (!hydrated) {
-    return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">Carregando…</div>;
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
+        Carregando…
+      </div>
+    );
   }
   const f = ds.getFornecedor(cnpj);
   if (!f) throw notFound();
   const contratos = ds.contratosFornecedor(cnpj);
   const serie = ds.serieAnualFornecedor(cnpj);
-  const total = serie.reduce((s,x)=>s+x.valor, 0);
+  const total = serie.reduce((s, x) => s + x.valor, 0);
 
-  if (contratos.length === 0) return <div className="mx-auto max-w-3xl px-4 py-20"><EmptyState title="Sem contratos para este fornecedor" /></div>;
+  if (contratos.length === 0)
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20">
+        <EmptyState title="Sem contratos para este fornecedor" />
+      </div>
+    );
 
   // grafo
   const porOrgao = new Map<string, number>();
@@ -50,8 +66,11 @@ function FornecedorDetail() {
   });
 
   // sinais simples
-  const pctDispensa = contratos.filter(c => c.modalidade === "dispensa").length / contratos.length;
-  const dispAltoValor = contratos.filter(c => c.modalidade === "dispensa" && c.valor >= 50_000).length;
+  const pctDispensa =
+    contratos.filter((c) => c.modalidade === "dispensa").length / contratos.length;
+  const dispAltoValor = contratos.filter(
+    (c) => c.modalidade === "dispensa" && c.valor >= 50_000,
+  ).length;
   const orgaoUnico = porOrgao.size === 1;
 
   // radar de risco — eixos 0..1 a partir dos contratos DESTE fornecedor (sinal, nunca prova)
@@ -82,7 +101,9 @@ function FornecedorDetail() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Voltar</Link>
+      <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">
+        ← Voltar
+      </Link>
       <h1 className="font-display text-4xl mt-3">{f.nome}</h1>
       <div className="font-mono text-sm text-muted-foreground">CNPJ {f.cnpj}</div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -110,13 +131,20 @@ function FornecedorDetail() {
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
         <Stat label="Recebido (total)" value={fmtBRL(total)} />
         <Stat label="Contratos" value={contratos.length.toString()} />
-        <Stat label="Órgãos contratantes" value={new Set(contratos.map(c=>c.orgaoCod)).size.toString()} />
+        <Stat
+          label="Órgãos contratantes"
+          value={new Set(contratos.map((c) => c.orgaoCod)).size.toString()}
+        />
       </div>
 
       <div className="mt-4 border border-dashed border-border rounded-xl p-4 bg-card text-sm text-muted-foreground">
         <strong className="text-foreground">Sinais a observar:</strong>{" "}
         {orgaoUnico && <span className="mr-2">contrata apenas com 1 órgão · </span>}
-        {pctDispensa > 0.5 && <span className="mr-2">{(pctDispensa*100).toFixed(0)}% dos contratos por dispensa · </span>}
+        {pctDispensa > 0.5 && (
+          <span className="mr-2">
+            {(pctDispensa * 100).toFixed(0)}% dos contratos por dispensa ·{" "}
+          </span>
+        )}
         {dispAltoValor > 0 && <span className="mr-2">{dispAltoValor} dispensa(s) ≥ R$ 50k · </span>}
         <span>nada disso, isoladamente, é irregular — são pontos para começar a olhar.</span>
       </div>
@@ -126,7 +154,11 @@ function FornecedorDetail() {
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="font-display text-2xl">Radar de risco</h2>
             <MetodologiaPopover titulo="Eixos do radar">
-              <p>Cada eixo é normalizado de 0 a 1 a partir dos contratos deste fornecedor. Quanto mais próximo da borda, mais atenção o eixo merece — sempre como sinal, nunca como prova.</p>
+              <p>
+                Cada eixo é normalizado de 0 a 1 a partir dos contratos deste fornecedor. Quanto
+                mais próximo da borda, mais atenção o eixo merece — sempre como sinal, nunca como
+                prova.
+              </p>
             </MetodologiaPopover>
           </div>
           <div className="border border-border rounded-xl p-4 bg-card">
@@ -135,7 +167,9 @@ function FornecedorDetail() {
         </div>
         <div>
           <h2 className="font-display text-2xl mb-3">Evolução do recebido</h2>
-          <div className="border border-border rounded-xl p-4 bg-card"><SerieAnualChart data={serie} /></div>
+          <div className="border border-border rounded-xl p-4 bg-card">
+            <SerieAnualChart data={serie} />
+          </div>
         </div>
       </div>
 
@@ -144,8 +178,14 @@ function FornecedorDetail() {
           <div className="flex items-baseline justify-between mb-3">
             <h2 className="font-display text-2xl">Mapa de relacionamento</h2>
             <MetodologiaPopover titulo="Como ler o grafo">
-              <p>O fornecedor está no centro. Cada satélite é um órgão contratante. Espessura da aresta e tamanho do nó são proporcionais ao volume contratado.</p>
-              <p>Concentração em poucos órgãos não é, por si só, irregular — depende do mercado e do objeto.</p>
+              <p>
+                O fornecedor está no centro. Cada satélite é um órgão contratante. Espessura da
+                aresta e tamanho do nó são proporcionais ao volume contratado.
+              </p>
+              <p>
+                Concentração em poucos órgãos não é, por si só, irregular — depende do mercado e do
+                objeto.
+              </p>
             </MetodologiaPopover>
           </div>
           <div className="border border-border rounded-xl p-4 bg-card">
@@ -162,11 +202,18 @@ function FornecedorDetail() {
         <div>
           <h2 className="font-display text-2xl mb-3">Contratos</h2>
           <div className="border border-border rounded-xl bg-card divide-y divide-border">
-            {contratos.slice(0, 12).map(c => (
-              <Link key={c.id} to="/contratos/$id" params={{ id: c.id }} className="block p-4 hover:bg-muted">
+            {contratos.slice(0, 12).map((c) => (
+              <Link
+                key={c.id}
+                to="/contratos/$id"
+                params={{ id: c.id }}
+                className="block p-4 hover:bg-muted"
+              >
                 <div className="text-sm font-semibold">{sanitizarTextoPublico(c.objeto)}</div>
                 <div className="flex items-center justify-between mt-1 text-xs text-muted-foreground">
-                  <span className="font-mono uppercase">{c.modalidade} · {c.ano}</span>
+                  <span className="font-mono uppercase">
+                    {c.modalidade} · {c.ano}
+                  </span>
                   <span className="font-mono text-foreground">{fmtBRL(c.valor)}</span>
                 </div>
               </Link>

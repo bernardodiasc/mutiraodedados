@@ -41,8 +41,10 @@ export const listarTransferencias = createServerFn({ method: "POST" })
       .select(
         "id,numero,modalidade,situacao,objeto,orgao_concedente_nome,beneficiario_nome,uf_beneficiario,municipio_nome,valor_global,valor_repasse,data_assinatura,url_transferegov",
       );
-    if (data.sort === "valor_desc") q = q.order("valor_global", { ascending: false, nullsFirst: false });
-    else if (data.sort === "repasse_desc") q = q.order("valor_repasse", { ascending: false, nullsFirst: false });
+    if (data.sort === "valor_desc")
+      q = q.order("valor_global", { ascending: false, nullsFirst: false });
+    else if (data.sort === "repasse_desc")
+      q = q.order("valor_repasse", { ascending: false, nullsFirst: false });
     else q = q.order("data_assinatura", { ascending: false, nullsFirst: false });
     q = q.range(data.offset, data.offset + data.limit - 1);
 
@@ -55,6 +57,7 @@ export const listarTransferencias = createServerFn({ method: "POST" })
     }
     if (data.valorMin != null) q = q.gte("valor_global", data.valorMin);
     if (data.q)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `.or()` não aparece no tipo do builder após os filtros encadeados
       q = (q as any).or(
         `objeto.ilike.%${data.q}%,beneficiario_nome.ilike.%${data.q}%,orgao_concedente_nome.ilike.%${data.q}%,numero.ilike.%${data.q}%`,
       );
@@ -76,9 +79,7 @@ export type InstrumentoDetalhe = TransferenciaRow & {
 };
 
 export const obterInstrumento = createServerFn({ method: "POST" })
-  .inputValidator((input) =>
-    z.object({ id: z.string().min(1).max(200) }).parse(input),
-  )
+  .inputValidator((input) => z.object({ id: z.string().min(1).max(200) }).parse(input))
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
       .from("transferegov_instrumentos_cache")

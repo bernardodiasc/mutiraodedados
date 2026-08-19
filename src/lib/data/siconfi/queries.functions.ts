@@ -33,7 +33,9 @@ export const listarRelatoriosSICONFI = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     let q = supabaseAdmin
       .from("siconfi_relatorios_cache")
-      .select("id,cod_ibge,esfera,uf,ente_nome,exercicio,periodo,tipo_relatorio,anexo,coluna,conta,valor")
+      .select(
+        "id,cod_ibge,esfera,uf,ente_nome,exercicio,periodo,tipo_relatorio,anexo,coluna,conta,valor",
+      )
       .order("exercicio", { ascending: false })
       .limit(data.limit);
 

@@ -1,13 +1,17 @@
 import * as React from "react";
-import { ChevronLeft, ChevronRight, RefreshCw, Loader2, Zap, AlertTriangle, Play, RotateCw } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  RefreshCw,
+  Loader2,
+  Zap,
+  AlertTriangle,
+  Play,
+  RotateCw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CoberturaResult, Fonte, Linha } from "@/lib/data/cobertura.functions";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { fmtBRL } from "@/lib/fmt";
@@ -72,11 +76,21 @@ export function CoberturaMatrixView({
 
       <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <Button size="icon" variant="ghost" onClick={() => onAnoChange(ano - 1)} disabled={isRunning}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onAnoChange(ano - 1)}
+            disabled={isRunning}
+          >
             <ChevronLeft className="size-4" />
           </Button>
           <div className="font-display text-3xl tabular-nums w-20 text-center">{ano}</div>
-          <Button size="icon" variant="ghost" onClick={() => onAnoChange(ano + 1)} disabled={isRunning || ano >= new Date().getFullYear()}>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onAnoChange(ano + 1)}
+            disabled={isRunning || ano >= new Date().getFullYear()}
+          >
             <ChevronRight className="size-4" />
           </Button>
         </div>
@@ -110,9 +124,16 @@ export function CoberturaMatrixView({
         </Button>
 
         <p className="text-[11px] text-muted-foreground max-w-xs">
-          Marque fontes individualmente (caixa no cabeçalho de cada bloco) e clique acima para baixar lacunas do ano em lote.
+          Marque fontes individualmente (caixa no cabeçalho de cada bloco) e clique acima para
+          baixar lacunas do ano em lote.
         </p>
-        <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading || isRunning} className="ml-auto">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRefresh}
+          disabled={loading || isRunning}
+          className="ml-auto"
+        >
           <RefreshCw className={`size-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Atualizar visão
         </Button>
@@ -234,7 +255,9 @@ function FonteSecao({
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-muted/30">
-              <th className="text-left p-2 font-medium sticky left-0 bg-muted/30 z-10 min-w-[140px]">Linha</th>
+              <th className="text-left p-2 font-medium sticky left-0 bg-muted/30 z-10 min-w-[140px]">
+                Linha
+              </th>
               {colunas.map((m) => (
                 <th key={m} className="p-1 font-medium">
                   <button
@@ -257,7 +280,9 @@ function FonteSecao({
               {linhas.map((linha) => {
                 const celulasAno = linha.celulas.filter((c) => c.ano === ano);
                 const totalLinha = celulasAno.reduce((s, c) => s + c.qtd, 0);
-                const semData = celulasAno.filter((c) => c.mes === 0).reduce((s, c) => s + c.qtd, 0);
+                const semData = celulasAno
+                  .filter((c) => c.mes === 0)
+                  .reduce((s, c) => s + c.qtd, 0);
                 return (
                   <tr key={linha.id} className="border-t border-border hover:bg-muted/20">
                     <th className="text-left p-2 font-normal sticky left-0 bg-card z-10">
@@ -272,12 +297,18 @@ function FonteSecao({
                                 </span>
                               </TooltipTrigger>
                               <TooltipContent side="right" className="text-xs max-w-xs">
-                                {semData.toLocaleString("pt-BR")} registros existem no banco para {ano} mas vieram sem data de assinatura — não podem ser alocados num mês específico.
+                                {semData.toLocaleString("pt-BR")} registros existem no banco para{" "}
+                                {ano} mas vieram sem data de assinatura — não podem ser alocados num
+                                mês específico.
                               </TooltipContent>
                             </Tooltip>
                           )}
                         </div>
-                        {linha.sublabel && <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">{linha.sublabel}</div>}
+                        {linha.sublabel && (
+                          <div className="text-[10px] text-muted-foreground truncate max-w-[180px]">
+                            {linha.sublabel}
+                          </div>
+                        )}
                       </div>
                     </th>
                     {colunas.map((m) => {
@@ -301,23 +332,38 @@ function FonteSecao({
                                       : "border-dashed border-border/50 bg-transparent hover:border-accent/60"
                                     : "border-transparent hover:ring-1 hover:ring-accent"
                                 } ${stale ? "ring-1 ring-amber-500/40" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
-                                style={qtd > 0 ? { backgroundColor: `color-mix(in oklch, var(--accent) ${Math.round(intensidade * 100)}%, transparent)` } : undefined}
+                                style={
+                                  qtd > 0
+                                    ? {
+                                        backgroundColor: `color-mix(in oklch, var(--accent) ${Math.round(intensidade * 100)}%, transparent)`,
+                                      }
+                                    : undefined
+                                }
                                 aria-label={`${linha.label} · ${colLabelLong(m)}: ${qtd === 0 ? (tentado ? "consultado, sem dados" : "nunca consultado") : `${qtd} registros`}`}
                               />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
-                              <div className="font-medium">{linha.label} · {colLabelLong(m)}</div>
+                              <div className="font-medium">
+                                {linha.label} · {colLabelLong(m)}
+                              </div>
                               <div className="text-muted-foreground mt-0.5">
                                 {qtd === 0
                                   ? tentado
                                     ? "Consultado — fonte não retornou dados"
                                     : "Nunca consultado"
                                   : `${qtd.toLocaleString("pt-BR")} registros`}
-                                {cel?.ultimo && ` · atualizado ${new Date(cel.ultimo).toLocaleDateString("pt-BR")}`}
-                                {!cel?.ultimo && cel?.tentativaEm && ` · tentado ${new Date(cel.tentativaEm).toLocaleDateString("pt-BR")}`}
-                                {stale && <span className="ml-1 text-amber-600">⚠ {">"}90 dias</span>}
+                                {cel?.ultimo &&
+                                  ` · atualizado ${new Date(cel.ultimo).toLocaleDateString("pt-BR")}`}
+                                {!cel?.ultimo &&
+                                  cel?.tentativaEm &&
+                                  ` · tentado ${new Date(cel.tentativaEm).toLocaleDateString("pt-BR")}`}
+                                {stale && (
+                                  <span className="ml-1 text-amber-600">⚠ {">"}90 dias</span>
+                                )}
                               </div>
-                              <div className="text-muted-foreground mt-1">Clique para (re)importar</div>
+                              <div className="text-muted-foreground mt-1">
+                                Clique para (re)importar
+                              </div>
                             </TooltipContent>
                           </Tooltip>
                         </td>
@@ -337,7 +383,11 @@ function FonteSecao({
                             onClick={() => onLinhaClick(linha)}
                             aria-label={`Importar ano ${ano} completo para ${linha.label}`}
                           >
-                            {totalLinha > 0 ? <RotateCw className="size-3.5" /> : <Play className="size-3.5" />}
+                            {totalLinha > 0 ? (
+                              <RotateCw className="size-3.5" />
+                            ) : (
+                              <Play className="size-3.5" />
+                            )}
                           </Button>
                         </TooltipTrigger>
                         <TooltipContent side="left" className="text-xs">
@@ -365,7 +415,12 @@ function FonteSecao({
                     consultado, vazio
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <span className="inline-block size-3 rounded" style={{ backgroundColor: "color-mix(in oklch, var(--accent) 60%, transparent)" }} />
+                    <span
+                      className="inline-block size-3 rounded"
+                      style={{
+                        backgroundColor: "color-mix(in oklch, var(--accent) 60%, transparent)",
+                      }}
+                    />
                     com dados
                   </span>
                   <span className="flex items-center gap-1.5">

@@ -22,7 +22,13 @@ export const Route = createFileRoute("/perguntas_/$slug")({
   head: ({ loaderData }) => ({
     meta: [
       { title: `${loaderData?.pergunta?.titulo ?? "Pergunta"} — Mutirão de Dados` },
-      { name: "description", content: loaderData?.pergunta?.descricao ?? loaderData?.pergunta?.contexto?.slice(0, 160) ?? "Investigação cidadã pública." },
+      {
+        name: "description",
+        content:
+          loaderData?.pergunta?.descricao ??
+          loaderData?.pergunta?.contexto?.slice(0, 160) ??
+          "Investigação cidadã pública.",
+      },
       { property: "og:title", content: loaderData?.pergunta?.titulo ?? "" },
       { property: "og:description", content: loaderData?.pergunta?.descricao ?? "" },
     ],
@@ -33,7 +39,9 @@ export const Route = createFileRoute("/perguntas_/$slug")({
   notFoundComponent: () => (
     <div className="mx-auto max-w-2xl px-4 py-16 text-center">
       <h1 className="font-display text-2xl">Investigação não encontrada</h1>
-      <Link to="/perguntas" className="text-sm text-accent">← Ver investigações públicas</Link>
+      <Link to="/perguntas" className="text-sm text-accent">
+        ← Ver investigações públicas
+      </Link>
     </div>
   ),
 });
@@ -62,7 +70,10 @@ function PerguntaPublicaPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12">
-      <Link to="/perguntas" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+      <Link
+        to="/perguntas"
+        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+      >
         <ArrowLeft className="size-3.5" /> Voltar
       </Link>
       <div className="mt-3 flex items-center gap-2 flex-wrap">
@@ -96,9 +107,14 @@ function PerguntaPublicaPage() {
             {itens.map((it) => (
               <li key={it.id} className="border border-border rounded-xl p-4 bg-card">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-0.5 rounded bg-muted">{it.tipo}</span>
+                  <span className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold px-2 py-0.5 rounded bg-muted">
+                    {it.tipo}
+                  </span>
                   {it.url ? (
-                    <a href={it.url} className="text-sm font-semibold hover:text-accent inline-flex items-center gap-1">
+                    <a
+                      href={it.url}
+                      className="text-sm font-semibold hover:text-accent inline-flex items-center gap-1"
+                    >
                       {it.titulo} <ExternalLink className="size-3" />
                     </a>
                   ) : (

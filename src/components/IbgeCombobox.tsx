@@ -61,8 +61,7 @@ export function IbgeCombobox({
   }, [open, municipios.length, loadingList]);
 
   const all = useMemo<Ente[]>(() => [...UF_LIST, ...municipios], [municipios]);
-  const selected =
-    all.find((e) => e.codigo === value) ?? PRESETS.find((p) => p.codigo === value);
+  const selected = all.find((e) => e.codigo === value) ?? PRESETS.find((p) => p.codigo === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -76,7 +75,9 @@ export function IbgeCombobox({
         >
           {selected ? (
             <span className="truncate text-left">
-              <span className="font-mono text-xs text-muted-foreground mr-2">{selected.codigo}</span>
+              <span className="font-mono text-xs text-muted-foreground mr-2">
+                {selected.codigo}
+              </span>
               {selected.nome}
               {selected.uf && selected.tipo === "Município" ? ` / ${selected.uf}` : ""}
             </span>
@@ -93,7 +94,9 @@ export function IbgeCombobox({
           filter={(val, search) => (val.toLowerCase().includes(search.toLowerCase()) ? 1 : 0)}
         >
           <CommandInput
-            placeholder={loadingList ? "Carregando municípios…" : "Buscar por nome, UF ou código IBGE…"}
+            placeholder={
+              loadingList ? "Carregando municípios…" : "Buscar por nome, UF ou código IBGE…"
+            }
           />
           <CommandList className="max-h-[320px]">
             <CommandEmpty>{loadingList ? "Carregando…" : "Nada encontrado."}</CommandEmpty>
@@ -107,7 +110,9 @@ export function IbgeCombobox({
                     setOpen(false);
                   }}
                 >
-                  <Check className={cn("mr-2 size-4", value === e.codigo ? "opacity-100" : "opacity-0")} />
+                  <Check
+                    className={cn("mr-2 size-4", value === e.codigo ? "opacity-100" : "opacity-0")}
+                  />
                   <span className="font-mono text-xs text-muted-foreground w-12">{e.codigo}</span>
                   <span className="ml-2">{e.nome}</span>
                 </CommandItem>
@@ -124,7 +129,12 @@ export function IbgeCombobox({
                       setOpen(false);
                     }}
                   >
-                    <Check className={cn("mr-2 size-4", value === e.codigo ? "opacity-100" : "opacity-0")} />
+                    <Check
+                      className={cn(
+                        "mr-2 size-4",
+                        value === e.codigo ? "opacity-100" : "opacity-0",
+                      )}
+                    />
                     <span className="font-mono text-xs text-muted-foreground w-16">{e.codigo}</span>
                     <span className="ml-2">
                       {e.nome}

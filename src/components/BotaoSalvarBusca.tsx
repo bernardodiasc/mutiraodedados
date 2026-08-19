@@ -17,7 +17,13 @@ export type BotaoSalvarBuscaProps = {
  * Salva a lista com os filtros ativos como link dinâmico no caderno
  * (tipo "busca") — a lista re-roda pela URL, sem snapshot dos dados.
  */
-export function BotaoSalvarBusca({ path, search, titulo, filtros, className }: BotaoSalvarBuscaProps) {
+export function BotaoSalvarBusca({
+  path,
+  search,
+  titulo,
+  filtros,
+  className,
+}: BotaoSalvarBuscaProps) {
   const chave = chaveDaBusca(path, search);
   const resumo = resumoDaBusca(filtros);
   return (

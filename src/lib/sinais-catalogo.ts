@@ -174,7 +174,8 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
     fontes: ["cgu_licitacoes", "cgu_emendas", "cgu_convenios", "transferegov"],
     oQueDetecta:
       "Valor entre R$ 0 e R$ 100 em registro que normalmente vale milhares — assinatura do mesmo bug de escala da CGU nas entidades sem endpoint de detalhe para conferência.",
-    limiares: "0 < valor < R$ 100 (licitações: valor; emendas: empenhado; convênios/Transferegov: global).",
+    limiares:
+      "0 < valor < R$ 100 (licitações: valor; emendas: empenhado; convênios/Transferegov: global).",
     severidade: "aviso",
     ondeRoda: "importação",
     persistencia: "banco",
@@ -351,7 +352,8 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
     label: "Encoding suspeito",
     tipo: "qualidade",
     fontes: ["tse"],
-    oQueDetecta: "Caractere de substituição (�) após decodificar Latin-1 — byte corrompido na origem.",
+    oQueDetecta:
+      "Caractere de substituição (�) após decodificar Latin-1 — byte corrompido na origem.",
     limiares: "Presença de U+FFFD em qualquer campo textual.",
     severidade: "info",
     ondeRoda: "importação",
@@ -408,7 +410,8 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
     fontes: ["tse"],
     oQueDetecta:
       "Candidato sem nenhuma linha de bens — a declaração é obrigatória no registro; mesmo 'sem bens' deveria gerar registro.",
-    limiares: "Zero linhas de bens no (candidato, ano). Pode ser desligada num ano em que 'sem bens' não gere linha no CSV.",
+    limiares:
+      "Zero linhas de bens no (candidato, ano). Pode ser desligada num ano em que 'sem bens' não gere linha no CSV.",
     severidade: "info",
     ondeRoda: "pós-importação",
     persistencia: "banco",
@@ -624,7 +627,8 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
     label: "Precisão suspeita (aposentada)",
     tipo: "qualidade",
     fontes: ["cgu"],
-    oQueDetecta: "Heurística antiga de sub-centavo na listagem. Substituída pela conferência por detalhe.",
+    oQueDetecta:
+      "Heurística antiga de sub-centavo na listagem. Substituída pela conferência por detalhe.",
     limiares: "—",
     severidade: "aviso (histórico)",
     ondeRoda: "importação",
@@ -636,7 +640,8 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
     label: "Final truncado suspeito (aposentada)",
     tipo: "qualidade",
     fontes: ["cgu"],
-    oQueDetecta: "Heurística antiga (final < R$ 100 com inicial > R$ 1.000). Substituída pela conferência por detalhe.",
+    oQueDetecta:
+      "Heurística antiga (final < R$ 100 com inicial > R$ 1.000). Substituída pela conferência por detalhe.",
     limiares: "—",
     severidade: "aviso (histórico)",
     ondeRoda: "importação",
@@ -649,10 +654,11 @@ export const SINAIS_CATALOGO: SinalCatalogo[] = [
 // Derivações (fonte única para filtros e labels da UI)
 // ---------------------------------------------------------------------------
 
-export function sinaisPorTipo(tipo: SinalTipo, opts?: { incluirInativas?: boolean }): SinalCatalogo[] {
-  return SINAIS_CATALOGO.filter(
-    (s) => s.tipo === tipo && (opts?.incluirInativas || s.ativa),
-  );
+export function sinaisPorTipo(
+  tipo: SinalTipo,
+  opts?: { incluirInativas?: boolean },
+): SinalCatalogo[] {
+  return SINAIS_CATALOGO.filter((s) => s.tipo === tipo && (opts?.incluirInativas || s.ativa));
 }
 
 export function sinaisPorFonte(fonte: string): SinalCatalogo[] {
