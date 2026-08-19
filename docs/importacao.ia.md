@@ -30,15 +30,54 @@ type QaFinding = {
 
 ## Retries
 
-A política varia por fonte (não há wrapper comum):
+Política **única**, em `src/lib/data/http-retry.ts`. Não reimplemente retry em cliente novo — use `fetchComRetry`.
 
-- CGU e Transferegov (`real/portal-client.ts`): 2 tentativas, espera fixa de 1500ms entre elas.
-- PNCP (`pncp/ingest.functions.ts`): 2 tentativas, espera fixa de 1500ms.
-- TSE/CKAN (`ckan/client.ts`): 4 tentativas, backoff 500ms → 1500ms → 4500ms.
-- Câmara e Senado (`camara/ingest.functions.ts`, `senado/ingest.functions.ts`): 4 tentativas, backoff 500ms → 1500ms → 4500ms.
-- SICONFI (`siconfi/ingest.functions.ts`): sem retry — uma única tentativa; qualquer erro propaga.
+`RETRY_PADRAO`: 4 tentativas, backoff exponencial 500ms → 1500ms → 4500ms, teto de 10s, jitter de ±25%.
 
-Nos clientes com retry: 429, 5xx e erro de rede fazem retry; 4xx (exceto 429) propaga erro.
+- Erro de rede, 429 e 5xx → nova tentativa.
+- 4xx (exceto 429) → devolve na hora; quem chamou decide.
+- `Retry-After` do servidor (segundos ou data HTTP) tem precedência sobre o backoff calculado.
+- O jitter existe para rodadas que falham ao mesmo tempo não voltarem ao mesmo tempo.
+
+`fetchComRetry` devolve a `Response` mesmo com status ruim — a mensagem de erro é de cada fonte. Só lança quando nenhuma tentativa teve resposta (rede fora em todas). Use `ehStatusTransitorio(status)` para decidir o prefixo `TRANSIENT:`, que o painel admin lê para abrir o circuito depois de três falhas seguidas na mesma fonte.
+
+Adotam a política: CGU e Transferegov (via `portalGet`), PNCP, SICONFI, TSE/CKAN. Câmara e Senado ainda têm laço próprio equivalente ao padrão.
+
+Para ajustar por fonte, passe `politica` parcial — ex.: `fetchComRetry(url, init, { politica: { tentativas: 6 } })`. Para teste, injete `fetchImpl`, `sleepImpl`, `aleatorio` e `agora`.
+
+## Runner retomável (`src/lib/data/runner.ts`)
+
+O Cloudflare Workers corta requisições longas, então nenhuma importação histórica cabe numa chamada só. `rodarComOrcamento` é a mecânica que resolve isso, sem nenhuma fonte dentro: não sabe o que é uma página, não faz HTTP, não conhece tabela.
+
+```ts
+const r = await rodarComOrcamento({
+  chave: varreduraKey,
+  checkpoint, // Checkpoint: ler/salvar sobre a tabela da fonte
+  orcamentoMs, // ~180s (teto do Worker é maior; a folga é do upsert)
+  maxPassos, // trava contra laço infinito
+  passo: async (cursor) => ({ processados, fim, erros, interromper }),
+});
+// r: { concluido, proximoCursor, processados, totalAcumulado,
+//      cursorInicial, cursorFinal, orcamentoEsgotado, semRetomada, erros }
+```
+
+Contrato do passo:
+
+| Retorno             | Efeito                                                                                     |
+| ------------------- | ------------------------------------------------------------------------------------------ |
+| `fim: true`         | origem acabou → varredura marcada completa                                                 |
+| `interromper: true` | para **sem** marcar completa e **sem** avançar o cursor: a próxima rodada refaz este passo |
+| nenhum dos dois     | cursor avança, checkpoint gravado, segue                                                   |
+
+O checkpoint é gravado **depois de cada passo**, antes do seguinte: se o Worker for morto no meio, o trabalho feito não se perde. Como os upserts são idempotentes por chave natural, refazer um passo que gravou metade das linhas não duplica nada.
+
+`Checkpoint.salvar` **não lança** — migração pendente não pode derrubar importação em curso. Devolvendo `persistido: false`, a rodada segue e só perde a retomada; o runner acrescenta `AVISO_SEM_RETOMADA` aos erros.
+
+Varredura já marcada completa **recomeça do zero** — é o que permite reimportar uma janela depois de uma limpeza.
+
+**Chamável sem browser.** Hoje quem repete as rodadas até `concluido` é o painel admin. O contrato de saída (`concluido` + `proximoCursor`) foi desenhado para um agendador do lado do servidor repetir igual, sem mudança no runner: todo o estado vive no banco, nada em memória entre rodadas.
+
+Implementações de `Checkpoint`: `checkpointCguVarredura` (`real/sweep.ts`, sobre `cgu_varredura`). O TSE ainda tem laço próprio sobre `tse_varredura`.
 
 ## Upsert
 

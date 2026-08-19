@@ -23,6 +23,29 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.3.0 — 2026-08-19
+
+**Resumo:** dá às importações a base de resiliência de que a carga histórica depende. Unifica a política de retry, que variava por fonte (e no SICONFI simplesmente não existia), e extrai a mecânica de orçamento, checkpoint e retomada num runner sem nenhuma fonte dentro — a mesma peça que a automação periódica vai consumir mais adiante.
+
+**Entregas**
+
+- `src/lib/data/http-retry.ts`: política única — 4 tentativas, backoff exponencial 500ms → 1,5s → 4,5s, teto de 10s, jitter de ±25% e precedência para o `Retry-After` do servidor. O wrapper devolve a `Response` mesmo com status ruim, para cada fonte manter sua mensagem e o prefixo `TRANSIENT:` que o painel admin usa no circuit breaker.
+- Adotam a política: CGU, PNCP, SICONFI, TSE/CKAN e Transferegov (via `portalGet`). O SICONFI, que não tinha retry nenhum, deixa de perder a rodada inteira em qualquer 503 do Tesouro.
+- `src/lib/data/runner.ts`: `rodarComOrcamento` roda passos até esgotar o orçamento, grava o checkpoint depois de cada passo e devolve `{concluido, proximoCursor}`. Passo interrompido não avança o cursor — a próxima rodada refaz a página que falhou em vez de dá-la por importada. Todo o estado vive no banco, nada em memória entre rodadas.
+- `varrerPaginado` (CGU) delega orçamento, checkpoint e retomada ao runner, com um adaptador de `Checkpoint` sobre `cgu_varredura` — primeiro uso real do runner.
+- `docs/importacao.ia.md` documenta a política única e o contrato do runner; o guia de nova fonte deixa de mandar criar wrapper de retry próprio.
+
+**Checks executados**
+
+- `bun run test` ✓ — 61 arquivos, 576 testes, todos verdes (31 novos: 18 do wrapper, 13 do runner, com fetch e relógio injetados).
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Bundle do cliente conferido: sem `supabaseAdmin`, sem chave da CGU ✓.
+- **Pendente:** a rodada real de importação em `/admin/dados` prevista nos critérios de aceite **não foi executada** — o mantenedor optou por verificar manualmente depois. Até lá, a ausência de regressão no caminho de ingestão está apoiada apenas na suíte e na revisão do código.
+
+**Plano:** sem plano dedicado — escopo detalhado no ROADMAP.
+
+**Roadmap cidadão:** sem item público — infraestrutura interna.
+
 ## v0.2.0 — 2026-08-19
 
 **Resumo:** torna o `bun run lint` utilizável como sinal de regressão — ele falhava desde antes do versionamento, com milhares de erros de formatação que escondiam qualquer problema real. Remove duas server functions expostas sem uso e faz o espelhamento para o repositório público recusar-se a reverter contribuições externas.

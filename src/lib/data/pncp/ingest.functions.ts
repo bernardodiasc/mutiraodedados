@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasPncp, flagQA } from "@/lib/data/qa";
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
 
 /**
  * PNCP — Portal Nacional de Contratações Públicas
@@ -19,33 +20,26 @@ async function pncpGet<T = unknown>(
 ): Promise<T> {
   const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
   const url = `${BASE}${path}?${qs}`;
-  // Retry uma vez em 5xx / 429 — PNCP frequentemente devolve 503 transitório.
-  let lastErr: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    let res: Response;
-    try {
-      res = await fetch(url, { headers: { accept: "application/json", "user-agent": UA } });
-    } catch (e) {
-      lastErr = new Error(`TRANSIENT: PNCP indisponível (rede): ${(e as Error).message}`);
-      if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
-      continue;
-    }
-    if (res.ok) return (await res.json()) as T;
-    const transient = res.status >= 500 || res.status === 429;
-    const body = await res.text().catch(() => "");
-    const snippet = body
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 120);
-    const msg = transient
-      ? `TRANSIENT: PNCP ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
-      : `PNCP API ${res.status}: ${snippet}`;
-    lastErr = new Error(msg);
-    if (!transient) throw lastErr;
-    if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
+  // Retry pela política única do projeto — o PNCP devolve 503 transitório
+  // com frequência, e a carga histórica depende de atravessar isso.
+  let res: Response;
+  try {
+    res = await fetchComRetry(url, { headers: { accept: "application/json", "user-agent": UA } });
+  } catch (e) {
+    throw new Error(`TRANSIENT: PNCP indisponível (rede): ${(e as Error).message}`);
   }
-  throw lastErr ?? new Error("TRANSIENT: PNCP indisponível");
+  if (res.ok) return (await res.json()) as T;
+  const body = await res.text().catch(() => "");
+  const snippet = body
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 120);
+  throw new Error(
+    ehStatusTransitorio(res.status)
+      ? `TRANSIENT: PNCP ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
+      : `PNCP API ${res.status}: ${snippet}`,
+  );
 }
 
 async function ensureAdmin(userId: string) {

@@ -103,6 +103,6 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** v0.3.0 — fundação de resiliência das importações ([escopo](./ROADMAP.md)).
-- **Última release fechada:** v0.2.0, em 2026-08-19 ([RELEASES.md](./RELEASES.md)).
-- **Pendências conhecidas:** nenhuma. `bun run lint`, `bun run test` e `bun run build` passam limpos; os 16 warnings de lint restantes são o padrão shadcn/ui (componente e constante de variantes no mesmo arquivo) e não bloqueiam.
+- **Release em andamento:** v0.4.0 — CEAP/CEAPS retomáveis ([escopo](./ROADMAP.md)).
+- **Última release fechada:** v0.3.0, em 2026-08-19 ([RELEASES.md](./RELEASES.md)).
+- **Pendências conhecidas:** a rodada real de importação da v0.3.0 segue por verificar — o refactor de `varrerPaginado` e a adoção do retry único foram validados por testes, build e revisão, mas ainda não por uma importação de ponta a ponta em `/admin/dados`. Os 16 warnings de lint remanescentes são o padrão shadcn/ui e não bloqueiam.

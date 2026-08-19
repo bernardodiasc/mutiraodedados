@@ -6,29 +6,24 @@ Só futuro. Trabalho entregue mora no [RELEASES.md](./RELEASES.md); processo e c
 
 Estabilizar as funcionalidades existentes para **importar todos os dados históricos possíveis** nas fontes que a plataforma já suporta, com qualidade garantida por sinais e testes. Automação periódica das importações é o horizonte final — cada release de estabilização deve manter os runners de importação chamáveis sem browser, idempotentes e com estado no banco, para que a automação seja apenas um novo gatilho sobre o mesmo código.
 
-## Release em andamento — v0.3.0: fundação de resiliência
+## Release em andamento — v0.4.0: CEAP/CEAPS retomáveis
+
+Fragilidade nº 1 do diagnóstico: `importarCEAPMes` e `importarCEAPSMes` percorrem **todos** os parlamentares em cache dentro de uma única server function, cada um com até 30 páginas — sem orçamento de tempo, sem retomada e sem limite de subrequisições. Com o histórico de várias legislaturas importado, é o candidato mais provável a estourar os limites do Worker.
 
 **Escopo**
 
-- Wrapper HTTP único (retry configurável + backoff exponencial + jitter), adotado por CGU, PNCP, Transferegov e SICONFI (CKAN/Câmara/Senado como referência de comportamento).
-- Extrair do padrão `cgu_varredura`/`tse_varredura` um módulo genérico de **orçamento de tempo + checkpoint + retomada** (`{concluido, proximoCursor, processados}`), reutilizável e **chamável sem browser** — é a interface que a automação da v0.9.0 consumirá.
-- Documentar o contrato do runner em `docs/importacao.ia.md`.
+- Migrar `importarCEAPMes` (`src/lib/data/camara/ingest.functions.ts`) e `importarCEAPSMes` (`src/lib/data/senado/ingest.functions.ts`) para o runner genérico: checkpoint por parlamentar dentro do mês, orçamento de tempo, retomada pelo auto-continuar do admin.
+- Migration da tabela de varredura correspondente (GRANT + RLS).
 
 **Critérios de aceite**
 
-- Testes do wrapper e do runner genérico verdes.
-- Fontes CGU migradas sem regressão: rodada real em `/admin/dados` comparando contagens no log `importacoes`.
-- Política de retry documentada num lugar só, refletindo o código.
+- Teste unitário da lógica de particionamento por parlamentar.
+- 1 mês histórico completo de CEAP e CEAPS importado via retomada múltipla, sem timeout, com contagem conferida contra a fonte.
+- Migration aplicada com RLS conferida.
 
 ## Backlog sequenciado
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.4.0 — CEAP/CEAPS retomáveis
-
-- Migrar `importarCEAPMes` (`src/lib/data/camara/ingest.functions.ts`) e `importarCEAPSMes` (`src/lib/data/senado/ingest.functions.ts`) para o runner genérico: checkpoint por parlamentar dentro do mês, orçamento de tempo, retomada pelo auto-continuar do admin; migration de varredura própria (GRANT + RLS).
-
-Aceite: 1 mês histórico completo de CEAP e CEAPS importado via retomada múltipla, sem timeout, contagem conferida contra a fonte; teste unitário do particionamento.
 
 ### v0.5.0 — PNCP, Transferegov e proposições em modo carga
 
