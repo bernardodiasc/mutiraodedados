@@ -40,9 +40,11 @@ export type AdminQualidadeViewProps = {
   fonte: string | undefined;
   status: string | undefined;
   regra: string | undefined;
+  tipo: string | undefined;
   onChangeFonte: (v: string | undefined) => void;
   onChangeStatus: (v: string | undefined) => void;
   onChangeRegra: (v: string | undefined) => void;
+  onChangeTipo: (v: string | undefined) => void;
   agg: AggItem[];
   findings: FindingAdmin[];
   isLoading: boolean;
@@ -53,9 +55,11 @@ export function AdminQualidadeView({
   fonte,
   status,
   regra,
+  tipo,
   onChangeFonte,
   onChangeStatus,
   onChangeRegra,
+  onChangeTipo,
   agg,
   findings,
   isLoading,
@@ -142,6 +146,16 @@ export function AdminQualidadeView({
                 {r}
               </option>
             ))}
+          </select>
+          <select
+            className="rounded-md border border-input bg-background px-2 py-1"
+            value={tipo ?? ""}
+            onChange={(e) => onChangeTipo(e.target.value || undefined)}
+          >
+            <option value="">Todos os tipos</option>
+            <option value="qualidade">Alerta de qualidade</option>
+            <option value="lacuna">Lacuna</option>
+            <option value="investigativo">Sinal investigativo</option>
           </select>
         </div>
 

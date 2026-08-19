@@ -10,19 +10,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { TSE_ANOS_ELEICAO, TSE_UFS } from "@/lib/data/tse/client-ckan";
-import { dentroDaJanela } from "@/lib/data/janelas";
+import { dentroDaJanelaAnual } from "@/lib/data/janelas";
 
 const chunkSchema = z.object({
   ano: z.number().refine((a) => (TSE_ANOS_ELEICAO as readonly number[]).includes(a), {
-    message: `Ano deve ser uma eleição de 2014 em diante (${TSE_ANOS_ELEICAO.join(", ")}).`,
+    message: `Ano deve ser uma eleição coberta pela fonte (${TSE_ANOS_ELEICAO.join(", ")}).`,
   }),
   uf: z.enum(TSE_UFS),
   reprocessar: z.boolean().optional(),
 });
 
 function validarJanela(ano: number): void {
-  if (!dentroDaJanela("tse", ano, 12)) {
-    throw new Error(`Fora da janela da fonte TSE (2014 em diante): ${ano}.`);
+  // Anual, não mensal: a eleição em curso é importável desde o dia em que o TSE
+  // começa a publicar o registro das candidaturas.
+  if (!dentroDaJanelaAnual("tse", ano)) {
+    throw new Error(`Fora da janela da fonte TSE (1998 até o ano corrente): ${ano}.`);
   }
 }
 

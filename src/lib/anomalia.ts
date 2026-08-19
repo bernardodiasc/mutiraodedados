@@ -20,6 +20,9 @@ export type AnomaliaStatus =
 
 export type AnomaliaOrigem = "qa" | "marcacao_cidada" | "sinal";
 
+/** Tipo do sinal (taxonomia normativa em docs/qualidade-dados.md). */
+export type AnomaliaTipoSinal = "qualidade" | "lacuna" | "investigativo";
+
 export type AnomaliaEntidade = {
   tipo: string;
   id: string;
@@ -46,6 +49,8 @@ export type AnomaliaInput = {
   fonte: string;
   severidade: AnomaliaSeveridade;
   status: AnomaliaStatus;
+  /** Tipo do sinal persistido em qa_findings.tipo (default 'qualidade'). */
+  tipo_sinal?: AnomaliaTipoSinal;
   regra: string;
   resumo: string;
   entidade: AnomaliaEntidade;
@@ -82,4 +87,10 @@ export const ORIGEM_LABEL: Record<AnomaliaOrigem, string> = {
   qa: "Auditoria automática",
   marcacao_cidada: "Marcação cidadã",
   sinal: "Sinal investigativo",
+};
+
+export const TIPO_SINAL_LABEL: Record<AnomaliaTipoSinal, string> = {
+  qualidade: "Alerta de qualidade",
+  lacuna: "Lacuna",
+  investigativo: "Sinal investigativo",
 };

@@ -5,6 +5,7 @@ import {
   ANOS_TSE,
   TIPOS_TSE,
   UFS_TSE,
+  motivoIndisponivel,
   rotuloTipo,
   type ProgressoResumo,
 } from "@/lib/tse-import/logic";
@@ -34,6 +35,7 @@ export type TseImportPanelViewProps = {
 
 export function TseImportPanelView(p: TseImportPanelViewProps) {
   const tipoSel = TIPOS_TSE.find((t) => t.id === p.tipo);
+  const indisponivel = motivoIndisponivel(p.tipo, p.ano);
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-border bg-card p-5">
@@ -109,13 +111,17 @@ export function TseImportPanelView(p: TseImportPanelViewProps) {
               Cancelar
             </Button>
           ) : (
-            <Button onClick={p.onImportar}>
+            <Button onClick={p.onImportar} disabled={!!indisponivel}>
               <Download className="size-4 mr-2" />
               Importar
             </Button>
           )}
         </div>
-        {tipoSel && <p className="text-xs text-muted-foreground mt-2">{tipoSel.nota}</p>}
+        {indisponivel ? (
+          <p className="text-xs text-muted-foreground mt-2">{indisponivel}</p>
+        ) : (
+          tipoSel && <p className="text-xs text-muted-foreground mt-2">{tipoSel.nota}</p>
+        )}
         {p.busy && p.statusAtual && (
           <p className="text-sm mt-3 flex items-center gap-2">
             <Loader2 className="size-4 animate-spin text-accent" />

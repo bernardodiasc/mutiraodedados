@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { CircleDashed, ArrowRight } from "lucide-react";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { listarLacunasPublicas, type Lacuna } from "@/lib/lacunas.functions";
+import { sinaisPorTipo } from "@/lib/sinais-catalogo";
+import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
 
 const lacunasQuery = queryOptions({
   queryKey: ["lacunas", "publicas"],
@@ -66,6 +68,26 @@ function LacunasPage() {
           qualificada e acompanhada — e não desaparece quando é resolvida: vira memória.
         </p>
       </header>
+
+      <div className="mt-8">
+        <BoxComoLerSinais
+          titulo="Como ler esta página: as regras que detectam lacunas"
+          sinais={sinaisPorTipo("lacuna")}
+          descricao={
+            <p>
+              Há duas camadas nesta página. A <strong>detecção automática</strong>: regras que rodam
+              após cada importação e registram ausências que <em>deveriam ser impossíveis</em>{" "}
+              (tabela abaixo) — esses achados aparecem em{" "}
+              <Link to="/qualidade" className="text-accent underline">
+                /qualidade
+              </Link>{" "}
+              como sinais do tipo <strong>lacuna</strong>. E a <strong>curadoria editorial</strong>:
+              as lacunas registradas mais abaixo, que passam por qualificação humana antes de
+              publicar (a tipologia de seis tipos logo abaixo é dessa camada).
+            </p>
+          }
+        />
+      </div>
 
       <section className="mt-10">
         <h2 className="font-display text-2xl">Tipologia</h2>

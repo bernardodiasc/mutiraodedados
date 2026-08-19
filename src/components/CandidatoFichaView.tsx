@@ -1,18 +1,29 @@
-import { Link } from "@tanstack/react-router";
-import { ExternalLink, Landmark, Loader2, Vote, Wallet } from "lucide-react";
+import type { ReactNode } from "react";
+import { ExternalLink, Loader2, Vote, Wallet } from "lucide-react";
 import { EmptyState } from "@/components/EmptyState";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
 import type { CandidatoDetalhe } from "@/lib/data/tse/queries.functions";
 import type { Estado } from "@/lib/candidato-ficha/logic";
-import { somaBens, subtituloFicha } from "@/lib/candidato-ficha/logic";
+import { subtituloFicha, totalPatrimonio } from "@/lib/candidato-ficha/logic";
 
 export type CandidatoFichaViewProps = {
   estado: Estado;
   detalhe: CandidatoDetalhe | null;
   urlOficial: string;
+  /** Seções compostas pelo Container. */
+  vinculoParlamentar?: ReactNode;
+  historico?: ReactNode;
+  comparador?: ReactNode;
 };
 
-export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFichaViewProps) {
+export function CandidatoFichaView({
+  estado,
+  detalhe,
+  urlOficial,
+  vinculoParlamentar,
+  historico,
+  comparador,
+}: CandidatoFichaViewProps) {
   if (estado === "carregando") {
     return (
       <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
@@ -35,7 +46,9 @@ export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFic
   }
 
   const c = detalhe.candidato;
-  const totalBens = c.bens_total_declarado ?? somaBens(detalhe.bens);
+  // null quando não há nem agregado nem linhas: "não sabemos" não pode virar
+  // "R$ 0,00", que é o que o leitor entende como patrimônio zerado.
+  const totalBens = totalPatrimonio(c.bens_total_declarado, detalhe.bens);
 
   return (
     <div className="grid gap-6">
@@ -102,6 +115,8 @@ export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFic
         </dl>
       </header>
 
+      {vinculoParlamentar}
+
       <section className="border border-border rounded-xl p-5 bg-card">
         <h2 className="font-display text-lg flex items-center gap-2">
           <Vote className="size-4 text-accent" /> Votação
@@ -138,8 +153,12 @@ export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFic
         {detalhe.bens.length > 0 ? (
           <>
             <p className="text-sm mt-2">
-              <span className="font-mono text-xl">{fmtBRL(totalBens)}</span>{" "}
-              <span className="text-muted-foreground">em {detalhe.bens.length} bem(ns)</span>
+              <span className="font-mono text-xl">
+                {totalBens != null ? fmtBRL(totalBens) : "sem dados"}
+              </span>{" "}
+              <span className="text-muted-foreground">
+                em {fmtNum(detalhe.bensTotalLinhas)} bem(ns)
+              </span>
             </p>
             <ul className="grid gap-1 mt-3 text-sm">
               {detalhe.bens.map((b) => (
@@ -156,6 +175,11 @@ export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFic
                 </li>
               ))}
             </ul>
+            {detalhe.bens.length < detalhe.bensTotalLinhas && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Mostrando os {detalhe.bens.length} maiores de {fmtNum(detalhe.bensTotalLinhas)}.
+              </p>
+            )}
           </>
         ) : (
           <p className="text-sm text-muted-foreground mt-2">
@@ -164,31 +188,8 @@ export function CandidatoFichaView({ estado, detalhe, urlOficial }: CandidatoFic
         )}
       </section>
 
-      {detalhe.outrasCandidaturas.length > 0 && (
-        <section className="border border-border rounded-xl p-5 bg-card">
-          <h2 className="font-display text-lg flex items-center gap-2">
-            <Landmark className="size-4 text-accent" /> Outras candidaturas da mesma pessoa
-          </h2>
-          <ul className="grid gap-1 mt-3 text-sm">
-            {detalhe.outrasCandidaturas.map((o) => (
-              <li
-                key={`${o.sq_candidato}-${o.ano_eleicao}`}
-                className="flex justify-between border-b border-border/60 py-1"
-              >
-                <Link
-                  to="/eleicoes/candidatos/$sq"
-                  params={{ sq: o.sq_candidato }}
-                  search={{ ano: o.ano_eleicao }}
-                  className="hover:text-accent"
-                >
-                  {o.ano_eleicao} — {o.cargo_nome ?? "cargo não informado"}
-                </Link>
-                <span className="text-muted-foreground">{o.situacao_totalizacao ?? ""}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      {historico}
+      {comparador}
     </div>
   );
 }

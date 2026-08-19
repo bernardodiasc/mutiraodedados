@@ -17,19 +17,17 @@ TypeError: z.function(...).returns is not a function
 **Causa**
 O projeto usa Zod v4 (`^4.4.3`), mas o `@lovable.dev/vite-tanstack-config` e o gerador de rotas interno do TanStack carregam o `vite.config.ts` esperando APIs do Zod v3. O Vitest tenta carregar o `vite.config.ts` e falha antes de rodar qualquer teste.
 
-**Contorno**
-Ao rodar testes unitários de funções puras (que não dependem de rotas ou React), crie um `vitest.config.ts` temporário com a configuração mínima:
-```ts
-import { defineConfig } from "vitest/config";
-import react from "@vitejs/plugin-react";
-import tsconfigPaths from "vite-tsconfig-paths";
+**Resolvido (v0.1.0)**
+O repositório tem um `vitest.config.ts` **definitivo** na raiz. Quando esse arquivo existe, o Vitest o usa com precedência e nem carrega o `vite.config.ts` — o conflito não ocorre. O `vite build` ignora o `vitest.config.ts`, então ele não interfere no build de produção (verificado).
 
-export default defineConfig({
-  plugins: [react(), tsconfigPaths()],
-  test: { environment: "node", globals: true },
-});
+Rode os testes com:
+```bash
+bun run test        # suíte completa (vitest run)
+bun run test:watch  # modo watch
+bunx vitest run src/lib/<área>  # recorte
 ```
-Execute os testes e **remova o arquivo** em seguida para não interferir no build de produção.
+
+Regra: **nunca importe o `vite.config.ts` dentro do `vitest.config.ts`** — é exatamente o que reintroduziria o conflito. Não é mais necessário criar/remover config temporário.
 
 ---
 

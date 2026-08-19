@@ -15,7 +15,7 @@ export const Route = createFileRoute("/tse")({
       {
         name: "description",
         content:
-          "O que a fonte TSE cobre no Mutirão de Dados: candidatos, bens declarados, votação e contas de campanha de 2014 em diante — com sinais de qualidade, lacunas e cruzamentos investigativos.",
+          "O que a fonte TSE cobre no Mutirão de Dados: candidatos, bens declarados, votação e contas de campanha de 1998 em diante — com sinais de qualidade, lacunas e cruzamentos investigativos.",
       },
     ],
   }),
@@ -49,7 +49,7 @@ function TsePage() {
           Quem se candidatou, o que declarou de bens, quantos votos recebeu e de quem veio o
           dinheiro da campanha. A carga em massa vem dos CSVs do portal de dados abertos do TSE
           (padrão CKAN); a API do DivulgaCandContas entra só para revalidação pontual. Cobrimos
-          eleições de <strong>2014 em diante</strong>.{" "}
+          eleições de <strong>1998 em diante</strong>.{" "}
           <a
             href="https://dadosabertos.tse.jus.br"
             target="_blank"

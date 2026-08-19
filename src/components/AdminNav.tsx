@@ -76,7 +76,7 @@ export const ADMIN_SECTIONS: AdminSection[] = [
   {
     to: "/admin/roadmap",
     label: "Roadmap",
-    description: "Itens públicos exibidos em /sobre.",
+    description: "Itens públicos exibidos em /roadmap.",
     icon: MapIcon,
   },
   {

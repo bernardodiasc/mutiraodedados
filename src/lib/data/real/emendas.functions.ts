@@ -198,7 +198,7 @@ export const importEmendas = createServerFn({ method: "POST" })
       .object({
         ano: z.number().int().min(2013).max(2100),
         maxPaginas: z.number().int().min(1).max(5000).default(5000),
-        delayMs: z.number().int().min(0).max(10000).default(500),
+        delayMs: z.number().int().min(0).max(10000).default(800),
         orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
       })
       .parse(input),

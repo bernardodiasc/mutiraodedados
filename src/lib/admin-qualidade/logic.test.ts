@@ -6,9 +6,22 @@ describe("admin-qualidade logic", () => {
     expect(isoToBR("2024-05-09")).toBe("09/05/2024");
   });
 
-  it("FONTES_QA contém as 6 fontes esperadas", () => {
-    expect(FONTES_QA).toContain("cgu");
-    expect(FONTES_QA).toHaveLength(6);
+  it("FONTES_QA (derivada do catálogo) contém todas as fontes com regras persistidas", () => {
+    for (const f of [
+      "cgu",
+      "cgu_licitacoes",
+      "cgu_emendas",
+      "cgu_convenios",
+      "pncp",
+      "camara_ceap",
+      "senado_ceaps",
+      "transferegov",
+      "siconfi",
+      "tse",
+      "tse-cruzamento",
+    ]) {
+      expect(FONTES_QA).toContain(f);
+    }
   });
 
   it("buildCurlsQualidade retorna curls para CGU/contrato com contexto", () => {

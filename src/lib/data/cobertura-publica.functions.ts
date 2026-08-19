@@ -361,7 +361,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       mkFonte(
         "tse",
         "TSE — eleições (candidatos, bens, votos e contas)",
-        `Dados abertos eleitorais de 2014 em diante. Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
+        `Dados abertos eleitorais de 1998 em diante (bens a partir de 2006, contas a partir de 2012). Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
         ((tseContagem.data as { ano_eleicao: number; candidatos: number }[] | null) ?? []).map(
           (r) => ({ ano: r.ano_eleicao, mes: 1, qtd: Number(r.candidatos), ultimo: updTse }),
         ),

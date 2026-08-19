@@ -102,6 +102,7 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
     await ensureAdmin(context.userId);
 
     let total = 0;
+    const erros: string[] = [];
     for (let pagina = 1; pagina <= data.maxPaginas; pagina++) {
       const params: Record<string, string> = {
         dataInicial: brDate(data.dataInicial),
@@ -209,11 +210,12 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             })),
           ),
         );
-      } catch {
-        // ignora erros de QA
+      } catch (e) {
+        // Não interrompe a ingestão, mas o erro de QA fica visível no retorno.
+        erros.push(`qa p${pagina}: ${(e as Error).message}`);
       }
       if (json.length < 15) break; // página padrão do Portal
     }
 
-    return { importados: total };
+    return { importados: total, erros };
   });

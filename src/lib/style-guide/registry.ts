@@ -52,7 +52,15 @@ import { eleicoesHubVariants } from "@/lib/eleicoes-hub/mocks";
 import { CandidatosListaView } from "@/components/CandidatosListaView";
 import { candidatosListaVariants } from "@/lib/candidatos-lista/mocks";
 import { CandidatoFichaView } from "@/components/CandidatoFichaView";
-import { candidatoFichaVariants } from "@/lib/candidato-ficha/mocks";
+import { HistoricoCandidaturasView } from "@/components/HistoricoCandidaturasView";
+import { ComparadorPatrimonioView } from "@/components/ComparadorPatrimonioView";
+import { VinculoParlamentarView } from "@/components/VinculoParlamentarView";
+import {
+  candidatoFichaVariants,
+  comparadorPatrimonioVariants,
+  historicoCandidaturasVariants,
+  vinculoParlamentarVariants,
+} from "@/lib/candidato-ficha/mocks";
 import { TseImportPanelView } from "@/components/TseImportPanelView";
 import { tseImportPanelVariants } from "@/lib/tse-import/mocks";
 import { SecaoEleicaoView } from "@/components/SecaoEleicaoView";
@@ -140,14 +148,14 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
   },
   {
     name: "CoberturaMatrix",
-    description:
-      "Matriz ano × mês × fonte com ações de re-importação por célula, linha e coluna.",
+    description: "Matriz ano × mês × fonte com ações de re-importação por célula, linha e coluna.",
     View: CoberturaMatrixView,
     variants: coberturaMatrixVariants,
   },
   {
     name: "CoberturaResumo",
-    description: "Cabeçalho do painel público de cobertura: 3 KPIs sobre fontes, atualização e volume.",
+    description:
+      "Cabeçalho do painel público de cobertura: 3 KPIs sobre fontes, atualização e volume.",
     View: CoberturaResumo,
     variants: coberturaResumoVariants,
   },
@@ -160,9 +168,31 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
   },
   {
     name: "FonteCard",
-    description: "Card de uma fonte na página de cobertura — variantes compact, full (heatmap), anual e sem dados.",
+    description:
+      "Card de uma fonte na página de cobertura — variantes compact, full (heatmap), anual e sem dados.",
     View: FonteCard,
     variants: fonteCardVariants,
+  },
+  {
+    name: "ComparadorPatrimonio",
+    description:
+      "Comparação dos bens declarados em duas candidaturas da mesma pessoa: total, categorias e as duas listas lado a lado (fonte TSE).",
+    View: ComparadorPatrimonioView,
+    variants: comparadorPatrimonioVariants,
+  },
+  {
+    name: "HistoricoCandidaturas",
+    description:
+      "Candidaturas da mesma pessoa ligadas pelo CPF, com patrimônio declarado por eleição, variação e minigráfico (fonte TSE).",
+    View: HistoricoCandidaturasView,
+    variants: historicoCandidaturasVariants,
+  },
+  {
+    name: "VinculoParlamentar",
+    description:
+      "Ponte da candidatura para a ficha de parlamentar em exercício da mesma pessoa, com aviso quando o vínculo veio de nome e não de CPF.",
+    View: VinculoParlamentarView,
+    variants: vinculoParlamentarVariants,
   },
   {
     name: "DoacoesEleitorais",

@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
+import { parseValorSenado } from "@/lib/data/senado/parsers";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -54,13 +55,6 @@ function asArray<T>(v: T | T[] | null | undefined): T[] {
   return Array.isArray(v) ? v : [v];
 }
 
-function toNum(v: unknown): number {
-  if (v == null) return 0;
-  if (typeof v === "number") return v;
-  const s = String(v).replace(/\./g, "").replace(",", ".");
-  const n = Number(s);
-  return Number.isFinite(n) ? n : 0;
-}
 
 type Parlamentar = {
   IdentificacaoParlamentar?: {
@@ -542,7 +536,7 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
                 ? d.DataDocumento.slice(0, 10)
                 : null,
             num_documento: d.Documento ?? null,
-            valor_reembolsado: toNum(d.ValorReembolsado),
+            valor_reembolsado: parseValorSenado(d.ValorReembolsado),
             detalhamento: sanitizarTextoPublico((d.Detalhamento ?? "").slice(0, 500)) || null,
             updated_at: new Date().toISOString(),
           };
@@ -565,8 +559,9 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
               })),
             ),
           );
-        } catch {
-          // ignora erros de QA
+        } catch (e) {
+          // Não interrompe a ingestão, mas o erro de QA fica visível.
+          erros.push(`qa sen ${senId}: ${(e as Error).message}`);
         }
       } catch (e) {
         erros.push(`sen ${senId}: ${(e as Error).message}`);

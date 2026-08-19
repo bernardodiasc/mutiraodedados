@@ -21,7 +21,7 @@ Um mesmo tema pode vir de mais de uma fonte (ex.: contratos existem no Portal CG
 | [PNCP](./pncp.md)                           | Governo Federal   | 2021   | não       | Contratos sob Lei 14.133         | contratos             |
 | [Transferegov](./transferegov.md)           | Plataforma+ / CGU | 2017   | parcial   | Convênios, emendas Pix           | convênios e transferências |
 | [SICONFI](./siconfi.md)                     | Tesouro Nacional  | 2013   | não       | RREO, RGF, DCA                   | finanças públicas     |
-| [TSE](./tse.md)                             | Tribunal Superior Eleitoral | 2014 | não | Candidatos, bens, votação, contas de campanha | eleições, parlamentares, fornecedores |
+| [TSE](./tse.md)                             | Tribunal Superior Eleitoral | 1998 | não | Candidatos, bens, votação, contas de campanha | eleições, parlamentares, fornecedores |
 | [Sanções e preços](./sancoes-precos-referencia.md) | — (roadmap) | —    | —         | CEIS/CNEP, TCU, Receita/QSA, Painel de Preços, NF-e, SICAF, despesas, transferências | _doc-only_ |
 
 ## Princípio

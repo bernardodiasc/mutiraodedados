@@ -487,8 +487,9 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
               })),
             ),
           );
-        } catch {
-          // ignora erros de QA
+        } catch (e) {
+          // Não interrompe a ingestão, mas o erro de QA fica visível.
+          erros.push(`qa dep ${depId}: ${(e as Error).message}`);
         }
       } catch (e) {
         erros.push(`dep ${depId}: ${(e as Error).message}`);

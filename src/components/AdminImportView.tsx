@@ -62,7 +62,22 @@ export type AdminImportViewProps = {
     pagina: number;
     filtrarId?: string;
   }) => Promise<DiagnosticoPortalResult>;
+  onDiagnosticarEndpoint: (params: {
+    endpoint: string;
+    codigoOrgao?: string;
+    dataInicial?: string;
+    dataFinal?: string;
+    pagina?: number;
+    params?: Record<string, string>;
+  }) => Promise<DiagnosticoEndpointResult>;
   varredurasIncompletas: Array<{ orgaoCod: string; ultimaPagina: number; dataInicial?: string; dataFinal?: string }>;
+  /** Migração `cgu_varredura` pendente: varreduras rodam sem retomada. */
+  varreduraTabelaAusente: boolean;
+  // Outras entidades do Portal (licitações/convênios/emendas), motor retomável.
+  entidadeBusy: null | "licitacoes" | "convenios" | "emendas";
+  onImportarLicitacoes: () => void;
+  onImportarConvenios: () => void;
+  onImportarEmendas: () => void;
   continuarVarredura: (cod: string, dataInicial?: string, dataFinal?: string) => void;
   autoContinuar: boolean;
   setAutoContinuar: (v: boolean) => void;
@@ -199,6 +214,14 @@ function HistorySentinel({
     </div>
   );
 }
+
+export type DiagnosticoEndpointResult = {
+  urlConsultada: string;
+  totalNaPagina: number;
+  camposDetectados: string[];
+  numerosComDecimaisNoJson: string[];
+  amostra: string[];
+};
 
 export type DiagnosticoPortalResult = {
   urlConsultada: string;
@@ -355,6 +378,140 @@ function DiagnosticoPortalPanel({
   );
 }
 
+/**
+ * Diagnóstico genérico de QUALQUER endpoint do Portal (de-risking Fase 0):
+ * mostra os nomes de campo reais, amostra crua e números com 4+ casas decimais
+ * (candidatos ao bug de escala ÷10000). Usa `diagnosticarPortalEndpoint`.
+ */
+function DiagnosticoEndpointPanel({
+  onDiagnosticar,
+}: {
+  onDiagnosticar: AdminImportViewProps["onDiagnosticarEndpoint"];
+}) {
+  const [endpoint, setEndpoint] = useState("/licitacoes");
+  const [orgao, setOrgao] = useState("");
+  const [pagina, setPagina] = useState("1");
+  const [extras, setExtras] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [resultado, setResultado] = useState<DiagnosticoEndpointResult | null>(null);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const run = async () => {
+    setBusy(true);
+    setResultado(null);
+    setErro(null);
+    try {
+      // Extras no formato `chave=valor&chave2=valor2` (ex.: ano=2024).
+      const params: Record<string, string> = {};
+      for (const par of extras.split("&")) {
+        const [k, v] = par.split("=");
+        if (k?.trim() && v?.trim()) params[k.trim()] = v.trim();
+      }
+      const r = await onDiagnosticar({
+        endpoint: endpoint.trim(),
+        codigoOrgao: orgao.trim() || undefined,
+        pagina: Number(pagina) || 1,
+        params: Object.keys(params).length > 0 ? params : undefined,
+      });
+      setResultado(r);
+    } catch (e) {
+      setErro((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="rounded-xl border border-border bg-card/50 p-4 space-y-4">
+      <div>
+        <h2 className="font-display text-lg">Diagnóstico de endpoint (genérico)</h2>
+        <p className="text-xs text-muted-foreground mt-1 max-w-2xl">
+          Inspeciona o JSON cru de qualquer endpoint do Portal (<code>/licitacoes</code>,{" "}
+          <code>/convenios</code>, <code>/emendas</code>, …) e lista os <strong>nomes de campo
+          reais</strong> — o passo de de-risking antes de escrever/alterar um mapper, já que os
+          campos diferem por endpoint.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Endpoint</label>
+          <input
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm w-40"
+            value={endpoint}
+            onChange={(e) => setEndpoint(e.target.value)}
+            placeholder="/licitacoes"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Órgão (opcional)</label>
+          <input
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm w-24"
+            value={orgao}
+            onChange={(e) => setOrgao(e.target.value)}
+            placeholder="22000"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">Página</label>
+          <input
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm w-20"
+            value={pagina}
+            onChange={(e) => setPagina(e.target.value)}
+            type="number"
+            min={1}
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] uppercase tracking-wider text-muted-foreground">
+            Parâmetros extras (chave=valor&…)
+          </label>
+          <input
+            className="rounded-md border border-input bg-background px-2 py-1 text-sm w-52"
+            value={extras}
+            onChange={(e) => setExtras(e.target.value)}
+            placeholder="ano=2024"
+          />
+        </div>
+        <Button size="sm" onClick={run} disabled={busy || !endpoint.trim()}>
+          {busy ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
+          Inspecionar endpoint
+        </Button>
+      </div>
+
+      {erro && <p className="text-xs text-destructive">{erro}</p>}
+
+      {resultado && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            URL consultada: <code className="text-[11px] break-all">{resultado.urlConsultada}</code>{" "}
+            · itens na página: <strong>{resultado.totalNaPagina}</strong>
+          </p>
+          {resultado.numerosComDecimaisNoJson.length > 0 && (
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              ⚠ Números com 4+ casas decimais no JSON bruto:{" "}
+              <code>{resultado.numerosComDecimaisNoJson.join(", ")}</code>
+            </p>
+          )}
+          <div>
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+              Campos detectados
+            </p>
+            <code className="text-[11px] break-all block rounded bg-muted/50 p-2">
+              {resultado.camposDetectados.join(", ") || "—"}
+            </code>
+          </div>
+          {resultado.amostra.map((s, i) => (
+            <details key={i} className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground">Item cru #{i + 1}</summary>
+              <pre className="mt-1 rounded bg-muted/50 p-2 overflow-x-auto text-[11px]">{s}</pre>
+            </details>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export function AdminImportView(p: AdminImportViewProps) {
   return (
     <div className="space-y-6">
@@ -400,6 +557,17 @@ export function AdminImportView(p: AdminImportViewProps) {
         </TabsContent>
 
         <TabsContent value="portal" className="space-y-4 mt-4">
+          {p.varreduraTabelaAusente && (
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs flex items-start gap-2">
+              <AlertTriangle className="size-4 shrink-0 text-destructive mt-0.5" />
+              <span className="text-muted-foreground">
+                <strong className="text-destructive">Migração pendente:</strong> a tabela{" "}
+                <code>cgu_varredura</code> não existe neste banco. As varreduras funcionam, mas{" "}
+                <strong>não retomam de onde pararam</strong> — cada rodada recomeça da página 1.
+                Aplique as migrations do Supabase antes de varrer órgãos grandes.
+              </span>
+            </div>
+          )}
           <div className="rounded-xl border border-border bg-card p-5">
             <h3 className="font-display text-lg flex items-center gap-2">
               <RefreshCw className="size-4 text-accent" />
@@ -542,7 +710,70 @@ export function AdminImportView(p: AdminImportViewProps) {
             )}
           </div>
 
+          <div className="rounded-xl border border-border bg-card p-5">
+            <h3 className="font-display text-lg flex items-center gap-2">
+              <Database className="size-4 text-accent" />
+              Licitações, convênios e emendas
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Importam pelo mesmo motor retomável dos contratos (rodadas de ~3min, com
+              auto-continuar). <strong>Licitações</strong> usam o órgão e o período selecionados
+              acima (a API filtra por data de abertura); <strong>convênios</strong> usam só o
+              período (data de referência); <strong>emendas</strong> são importadas por{" "}
+              <strong>ano</strong> (seletor abaixo). Também rodam automaticamente pela matriz de
+              cobertura — estes botões servem para importar sob demanda.
+            </p>
+            <div className="mt-4 flex flex-wrap items-end gap-3">
+              <Button
+                variant="outline"
+                onClick={p.onImportarLicitacoes}
+                disabled={p.entidadeBusy !== null || p.isRunning}
+              >
+                {p.entidadeBusy === "licitacoes" ? (
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                ) : null}
+                Importar licitações (órgão + período)
+              </Button>
+              <Button
+                variant="outline"
+                onClick={p.onImportarConvenios}
+                disabled={p.entidadeBusy !== null || p.isRunning}
+              >
+                {p.entidadeBusy === "convenios" ? (
+                  <Loader2 className="size-4 mr-2 animate-spin" />
+                ) : null}
+                Importar convênios (período)
+              </Button>
+              <div className="flex items-end gap-2">
+                <div>
+                  <Label className="text-xs">Ano (emendas)</Label>
+                  <select
+                    className="mt-1 block rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                    value={p.ano}
+                    onChange={(e) => p.setAno(Number(e.target.value))}
+                    disabled={p.entidadeBusy !== null || p.isRunning}
+                  >
+                    {p.years.map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={p.onImportarEmendas}
+                  disabled={p.entidadeBusy !== null || p.isRunning}
+                >
+                  {p.entidadeBusy === "emendas" ? (
+                    <Loader2 className="size-4 mr-2 animate-spin" />
+                  ) : null}
+                  Importar emendas (ano)
+                </Button>
+              </div>
+            </div>
+          </div>
+
           <DiagnosticoPortalPanel onDiagnosticar={p.onDiagnosticarPortal} />
+          <DiagnosticoEndpointPanel onDiagnosticar={p.onDiagnosticarEndpoint} />
         </TabsContent>
 
         <TabsContent value="camara" className="space-y-4 mt-4">

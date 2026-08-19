@@ -45,4 +45,15 @@ export const tseImportPanelVariants: ViewVariants<TseImportPanelViewProps> = [
     props: { ...base, busy: true, statusAtual: "Candidatos 2022/SP (26/28 · rodada 2)" },
   },
   { label: "sem varreduras", props: { ...base, progresso: [] } },
+  {
+    // Eleição em curso: o TSE publica os arquivos em etapas, e o botão precisa
+    // dizer o que falta em vez de disparar uma rodada que termina em 404.
+    label: "2026 — tipo ainda não publicado pelo TSE",
+    props: { ...base, tipo: "resultados", ano: 2026, progresso: [] },
+  },
+  {
+    // Borda de baixo: esperar não resolve, o arquivo nunca existiu.
+    label: "1998 — tipo que o TSE só passou a publicar depois",
+    props: { ...base, tipo: "bens", ano: 1998, progresso: [] },
+  },
 ];

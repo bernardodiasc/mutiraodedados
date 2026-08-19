@@ -158,6 +158,45 @@ export type Database = {
         }
         Relationships: []
       }
+      camara_deputado_eventos: {
+        Row: {
+          condicao_eleitoral: string | null
+          data_hora: string | null
+          deputado_id: number
+          descricao: string | null
+          id: number
+          id_legislatura: number | null
+          sigla_partido: string | null
+          sigla_uf: string | null
+          situacao: string | null
+          updated_at: string
+        }
+        Insert: {
+          condicao_eleitoral?: string | null
+          data_hora?: string | null
+          deputado_id: number
+          descricao?: string | null
+          id?: never
+          id_legislatura?: number | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
+        }
+        Update: {
+          condicao_eleitoral?: string | null
+          data_hora?: string | null
+          deputado_id?: number
+          descricao?: string | null
+          id?: never
+          id_legislatura?: number | null
+          sigla_partido?: string | null
+          sigla_uf?: string | null
+          situacao?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       camara_deputado_legislaturas: {
         Row: {
           condicao_eleitoral: string | null
@@ -227,105 +266,6 @@ export type Database = {
           situacao?: string | null
           updated_at?: string
           url_foto?: string | null
-        }
-        Relationships: []
-      }
-      camara_deputado_eventos: {
-        Row: {
-          condicao_eleitoral: string | null
-          data_hora: string | null
-          deputado_id: number
-          descricao: string | null
-          id: number
-          id_legislatura: number | null
-          sigla_partido: string | null
-          sigla_uf: string | null
-          situacao: string | null
-          updated_at: string
-        }
-        Insert: {
-          condicao_eleitoral?: string | null
-          data_hora?: string | null
-          deputado_id: number
-          descricao?: string | null
-          id_legislatura?: number | null
-          sigla_partido?: string | null
-          sigla_uf?: string | null
-          situacao?: string | null
-          updated_at?: string
-        }
-        Update: {
-          condicao_eleitoral?: string | null
-          data_hora?: string | null
-          deputado_id?: number
-          descricao?: string | null
-          id_legislatura?: number | null
-          sigla_partido?: string | null
-          sigla_uf?: string | null
-          situacao?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      senado_exercicios: {
-        Row: {
-          codigo_parlamentar: number
-          data_fim: string | null
-          data_inicio: string | null
-          descricao_causa: string | null
-          id: number
-          participacao: string | null
-          sigla_causa: string | null
-          uf: string | null
-          updated_at: string
-        }
-        Insert: {
-          codigo_parlamentar: number
-          data_fim?: string | null
-          data_inicio?: string | null
-          descricao_causa?: string | null
-          participacao?: string | null
-          sigla_causa?: string | null
-          uf?: string | null
-          updated_at?: string
-        }
-        Update: {
-          codigo_parlamentar?: number
-          data_fim?: string | null
-          data_inicio?: string | null
-          descricao_causa?: string | null
-          participacao?: string | null
-          sigla_causa?: string | null
-          uf?: string | null
-          updated_at?: string
-        }
-        Relationships: []
-      }
-      senado_suplencia: {
-        Row: {
-          id: number
-          legislatura: number | null
-          ordem: string | null
-          suplente_codigo: number | null
-          suplente_nome: string | null
-          titular_codigo: number
-          updated_at: string
-        }
-        Insert: {
-          legislatura?: number | null
-          ordem?: string | null
-          suplente_codigo?: number | null
-          suplente_nome?: string | null
-          titular_codigo: number
-          updated_at?: string
-        }
-        Update: {
-          legislatura?: number | null
-          ordem?: string | null
-          suplente_codigo?: number | null
-          suplente_nome?: string | null
-          titular_codigo?: number
-          updated_at?: string
         }
         Relationships: []
       }
@@ -1659,6 +1599,42 @@ export type Database = {
         }
         Relationships: []
       }
+      senado_exercicios: {
+        Row: {
+          codigo_parlamentar: number
+          data_fim: string | null
+          data_inicio: string | null
+          descricao_causa: string | null
+          id: number
+          participacao: string | null
+          sigla_causa: string | null
+          uf: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo_parlamentar: number
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao_causa?: string | null
+          id?: never
+          participacao?: string | null
+          sigla_causa?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo_parlamentar?: number
+          data_fim?: string | null
+          data_inicio?: string | null
+          descricao_causa?: string | null
+          id?: never
+          participacao?: string | null
+          sigla_causa?: string | null
+          uf?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       senado_materias_autores_cache: {
         Row: {
           materia_id: number
@@ -1794,6 +1770,36 @@ export type Database = {
           situacao?: string | null
           updated_at?: string
           url_foto?: string | null
+        }
+        Relationships: []
+      }
+      senado_suplencia: {
+        Row: {
+          id: number
+          legislatura: number | null
+          ordem: string | null
+          suplente_codigo: number | null
+          suplente_nome: string | null
+          titular_codigo: number
+          updated_at: string
+        }
+        Insert: {
+          id?: never
+          legislatura?: number | null
+          ordem?: string | null
+          suplente_codigo?: number | null
+          suplente_nome?: string | null
+          titular_codigo: number
+          updated_at?: string
+        }
+        Update: {
+          id?: never
+          legislatura?: number | null
+          ordem?: string | null
+          suplente_codigo?: number | null
+          suplente_nome?: string | null
+          titular_codigo?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -2002,6 +2008,7 @@ export type Database = {
           ordem_bem: number
           sq_candidato: string
           tipo_bem: string | null
+          tipo_bem_cod: string | null
           updated_at: string
           valor: number | null
         }
@@ -2011,6 +2018,7 @@ export type Database = {
           ordem_bem: number
           sq_candidato: string
           tipo_bem?: string | null
+          tipo_bem_cod?: string | null
           updated_at?: string
           valor?: number | null
         }
@@ -2020,6 +2028,7 @@ export type Database = {
           ordem_bem?: number
           sq_candidato?: string
           tipo_bem?: string | null
+          tipo_bem_cod?: string | null
           updated_at?: string
           valor?: number | null
         }
@@ -2403,14 +2412,7 @@ export type Database = {
       }
     }
     Functions: {
-      camara_gasto_total: {
-        Args: never
-        Returns: number
-      }
-      senado_gasto_total: {
-        Args: never
-        Returns: number
-      }
+      camara_gasto_total: { Args: never; Returns: number }
       cobertura_camara_ceap: {
         Args: never
         Returns: {
@@ -2549,6 +2551,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      limpar_cache_por_ano: {
+        Args: {
+          _ano_col: string
+          _ano_fim: number
+          _ano_ini: number
+          _tabela: string
+        }
+        Returns: number
+      }
       qa_finding_publico: {
         Args: { _id: string }
         Returns: {
@@ -2616,6 +2627,9 @@ export type Database = {
           valor_esperado: number
         }[]
       }
+      senado_gasto_total: { Args: never; Returns: number }
+      tabela_cache_limpavel: { Args: { _tabela: string }; Returns: boolean }
+      truncar_cache: { Args: { _tabela: string }; Returns: number }
       tse_candidatos_sem_bens: {
         Args: { _ano: number }
         Returns: {

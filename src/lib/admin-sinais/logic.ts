@@ -10,17 +10,10 @@ export const SEV_STYLES: Record<string, string> = {
   baixa: "bg-muted text-muted-foreground border-border",
 };
 
-export const REGRA_LABEL: Record<string, string> = {
-  crescimento_abrupto: "Crescimento abrupto (fornecedor)",
-  fracionamento: "Fracionamento de despesa",
-  concentracao: "Concentração de fornecedor",
-  outlier_valor: "Outlier de valor",
-  fornecedor_recente_alto: "Fornecedor recém-chegado",
-  descricao_generica: "Descrição genérica",
-  dispensa_recorrente: "Dispensa recorrente",
-  crescimento_orgao: "Crescimento do órgão",
-  transparencia_baixa: "Transparência baixa (ITI)",
-};
+import { REGRA_LABEL_MEMORIA } from "@/lib/sinais-catalogo";
+
+// Derivado do catálogo central de sinais — fonte única dos labels.
+export const REGRA_LABEL: Record<string, string> = REGRA_LABEL_MEMORIA;
 
 export type Curl = { label: string; url: string; nota?: string };
 

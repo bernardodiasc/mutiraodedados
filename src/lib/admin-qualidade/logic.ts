@@ -1,38 +1,14 @@
 import type { listarQualidadeAdmin } from "@/lib/data/qa.functions";
+import { FONTES_QA_CATALOGO, REGRAS_PERSISTIDAS } from "@/lib/sinais-catalogo";
 
-export const FONTES_QA = [
-  "cgu",
-  "pncp",
-  "camara_ceap",
-  "senado_ceaps",
-  "transferegov",
-  "siconfi",
-] as const;
+// Derivados do catálogo central de sinais (src/lib/sinais-catalogo) — fonte
+// única de fontes e regras persistidas em qa_findings. Inclui as regras
+// aposentadas que ainda podem existir no banco (para o filtro cobrir tudo).
+export const FONTES_QA = FONTES_QA_CATALOGO;
 
 export type FonteQA = (typeof FONTES_QA)[number];
 
-/**
- * Lista canônica de regras de QA (todas as fontes). Usada para pré-popular o
- * filtro "Todas as regras" com a lista completa — como os filtros de fonte e
- * status. As regras `valor_precisao_suspeita` e `valor_final_truncado_suspeito`
- * (CGU) foram removidas: a varredura passou a conferir o detalhe de cada
- * contrato e gravar o valor correto, então a divergência vira o alerta
- * `valor_corrigido_listagem` em vez de heurísticas sobre a listagem.
- */
-export const REGRAS_QA = [
-  "valor_corrigido_listagem",
-  "fornecedor_ausente",
-  "discrepancia_extrema_inicial_final",
-  "valor_truncado_suspeito",
-  "valor_muito_baixo",
-  "valor_negativo",
-  "valor_negativo_em_conta_positiva",
-  "valor_global_zerado",
-  "valor_global_menor_inicial",
-  "repasse_maior_global",
-  "pago_maior_empenhado",
-  "liquido_maior_documento",
-] as const;
+export const REGRAS_QA = REGRAS_PERSISTIDAS;
 
 export type FindingAdmin = Awaited<ReturnType<typeof listarQualidadeAdmin>>[number];
 

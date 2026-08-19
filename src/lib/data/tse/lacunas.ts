@@ -57,9 +57,9 @@ export type CandidatoSemBens = {
 
 /**
  * candidato_sem_bens: a declaração de bens é obrigatória no registro — mesmo
- * "sem bens" gera registro; ausência total é lacuna. O comportamento real
- * varia por ano (em alguns anos "sem bens" não gera linha), por isso a regra
- * fica atrás de flag no runner até ser confirmada ano a ano.
+ * "sem bens" gera registro; ausência total é lacuna. Roda por padrão; o flag
+ * do runner permite desligar pontualmente num ano em que a declaração
+ * "sem bens" comprovadamente não gera linha no CSV.
  */
 export function lacunasCandidatoSemBens(linhas: CandidatoSemBens[]): QaFinding[] {
   return linhas.map((l) => ({

@@ -24,14 +24,24 @@ export function AdminQualidadeContainer() {
   const [fonte, setFonte] = React.useState<string | undefined>(undefined);
   const [status, setStatus] = React.useState<string | undefined>("aberto");
   const [regra, setRegra] = React.useState<string | undefined>(undefined);
+  const [tipo, setTipo] = React.useState<string | undefined>(undefined);
 
   const { data: aggData = { fontes: [], regras: [] } } = useQuery({
     queryKey: ["qa-agg"],
     queryFn: () => fetchAgg(),
   });
   const { data: findings = [], isLoading } = useQuery({
-    queryKey: ["qa-list", fonte, status, regra],
-    queryFn: () => fetchList({ data: { fonte, status, regra, limit: 200 } }),
+    queryKey: ["qa-list", fonte, status, regra, tipo],
+    queryFn: () =>
+      fetchList({
+        data: {
+          fonte,
+          status,
+          regra,
+          tipo: tipo as "qualidade" | "lacuna" | "investigativo" | undefined,
+          limit: 200,
+        },
+      }),
   });
 
   const invalidar = () => {
@@ -44,9 +54,11 @@ export function AdminQualidadeContainer() {
       fonte={fonte}
       status={status}
       regra={regra}
+      tipo={tipo}
       onChangeFonte={setFonte}
       onChangeStatus={setStatus}
       onChangeRegra={setRegra}
+      onChangeTipo={setTipo}
       agg={aggData.fontes}
       findings={findings}
       isLoading={isLoading}
@@ -63,6 +75,10 @@ export function AdminQualidadeContainer() {
           } else if (r.resultado === "corrigido_origem") {
             toast.success(
               `Cache corrigido${sufixoLista}: valor errado R$${r.valor_armazenado} → valor oficial R$${r.valor_detalhe}.`,
+            );
+          } else if (r.resultado === "inconclusivo") {
+            toast.warning(
+              `Inconclusivo: só o detalhe pôde ser lido (R$${r.valor_detalhe}) e ele diverge do cache. Nada foi alterado — repita a re-checagem.`,
             );
           } else {
             toast.message(

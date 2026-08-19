@@ -35,11 +35,22 @@ export function limparSentinela(v: string | undefined | null): string {
   return s;
 }
 
-/** Valor monetário TSE: "1500,00" → 1500; "162" → 162; sentinela/inválido → null. */
+/**
+ * Valor monetário TSE: "1.500,00" → 1500; "162" → 162; sentinela/inválido →
+ * null. Só remove pontos quando há vírgula decimal (formato pt-BR do CSV) ou
+ * quando a string é inequivocamente milhar pt-BR ("1.234.567"). Uma string
+ * decimal americana ("3000.00") passa direta — antes virava 300000 (×100).
+ */
 export function parseValorTse(v: string | undefined | null): number | null {
   const s = limparSentinela(v);
   if (!s) return null;
-  const n = Number(s.replace(/\./g, "").replace(",", "."));
+  const pareceMilharPtBr = /^-?\d{1,3}(\.\d{3})+$/.test(s);
+  const normalizado = s.includes(",")
+    ? s.replace(/\./g, "").replace(",", ".")
+    : pareceMilharPtBr
+      ? s.replace(/\./g, "")
+      : s;
+  const n = Number(normalizado);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -155,6 +166,8 @@ export type TseBemRow = {
   sq_candidato: string;
   ano_eleicao: number;
   ordem_bem: number;
+  /** CD_TIPO_BEM_CANDIDATO — tabela Bens e Direitos da Receita (dezena = grupo). */
+  tipo_bem_cod: string | null;
   tipo_bem: string | null;
   descricao: string | null;
   valor: number | null;
@@ -243,6 +256,7 @@ export function mapearBem(idx: IndiceCabecalho, campos: string[]): TseBemRow | n
     ano_eleicao: ano,
     // 2016 usa NR_ORDEM_CANDIDATO; demais anos NR_ORDEM_BEM_CANDIDATO.
     ordem_bem: parseIntTse(idx.get(campos, "NR_ORDEM_BEM_CANDIDATO", "NR_ORDEM_CANDIDATO")) ?? 0,
+    tipo_bem_cod: vazioNull(limparSentinela(idx.get(campos, "CD_TIPO_BEM_CANDIDATO"))),
     tipo_bem: vazioNull(limparSentinela(idx.get(campos, "DS_TIPO_BEM_CANDIDATO"))),
     descricao: vazioNull(limparSentinela(idx.get(campos, "DS_BEM_CANDIDATO"))),
     valor: parseValorTse(idx.get(campos, "VR_BEM_CANDIDATO")),

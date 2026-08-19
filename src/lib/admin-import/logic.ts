@@ -1,8 +1,18 @@
 import { FONTES_LIMPEZA } from "@/lib/data/limpeza";
 
 export const MONTHS = [
-  "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
-  "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ] as const;
 
 /** Lista decrescente de anos de 2014 até `currentYear` (inclusive). */
@@ -12,7 +22,10 @@ export function yearList(currentYear: number): number[] {
 
 /** Período padrão = mês 3 meses atrás. Parametriza `now` para ser pura. */
 export function defaultMonth(now: Date = new Date()): {
-  ini: string; fim: string; ano: number; mes: number;
+  ini: string;
+  fim: string;
+  ano: number;
+  mes: number;
 } {
   const d = new Date(now);
   d.setMonth(d.getMonth() - 3);
@@ -73,6 +86,42 @@ export function buildLimpezaPayload(input: {
     payload.anoFim = input.anoFim;
   }
   return payload;
+}
+
+export type ResultadoLimpeza = {
+  removed: Record<string, number | string>;
+  falhas?: Record<string, string>;
+};
+
+export type ResumoLimpeza = {
+  /** `false` quando alguma fonte falhou — o chamador escolhe o tom do aviso. */
+  ok: boolean;
+  titulo: string;
+  detalhe: string;
+};
+
+/**
+ * Mensagem da limpeza, com as falhas em primeiro plano.
+ *
+ * A limpeza roda fonte a fonte e cada DELETE é uma transação própria: dá para
+ * uma falhar e as outras terem sido apagadas de verdade. Despejar só o JSON de
+ * `removed` — o que o admin fazia antes — escondia exatamente isso.
+ */
+export function resumirLimpeza(res: ResultadoLimpeza): ResumoLimpeza {
+  const linhas = Object.entries(res.removed)
+    .filter(([, v]) => v !== 0)
+    .map(([k, v]) => `${k}: ${v}`);
+  const apagado = linhas.length > 0 ? linhas.join(" · ") : "nada a apagar";
+  const falhas = Object.entries(res.falhas ?? {});
+  if (falhas.length === 0) return { ok: true, titulo: "Limpeza concluída", detalhe: apagado };
+  return {
+    ok: false,
+    titulo:
+      falhas.length === 1
+        ? "1 fonte falhou — as demais foram apagadas"
+        : `${falhas.length} fontes falharam — as demais foram apagadas`,
+    detalhe: `${falhas.map(([f, m]) => `${f}: ${m}`).join(" · ")}\nApagado: ${apagado}`,
+  };
 }
 
 /** IDs válidos de fontes para limpeza (referência ao catálogo). */

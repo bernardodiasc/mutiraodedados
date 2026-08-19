@@ -10,6 +10,7 @@
  */
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { mensagemColunaAusente } from "@/lib/data/erros-banco";
 import {
   abrirEntradaZip,
   encontrarEntrada,
@@ -112,7 +113,8 @@ async function upsertLote(
   for (let i = 0; i < rows.length; i += LOTE) {
     const slice = rows.slice(i, i + LOTE);
     const { error } = await supabaseAdmin.from(tabela).upsert(slice as never[]);
-    if (error) erros.push(`${tabela}: ${error.message}`);
+    if (error)
+      erros.push(mensagemColunaAusente(tabela, error.message) ?? `${tabela}: ${error.message}`);
     else ok += slice.length;
   }
   return ok;
