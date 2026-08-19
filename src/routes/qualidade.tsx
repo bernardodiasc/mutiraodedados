@@ -3,11 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 import { ExternalLink } from "lucide-react";
-import {
-  listarQualidadePublico,
-  agregadoQualidade,
-  STATUS_QA,
-} from "@/lib/data/qa.functions";
+import { listarQualidadePublico, agregadoQualidade, STATUS_QA } from "@/lib/data/qa.functions";
 import { TIPO_SINAL_LABEL, type AnomaliaTipoSinal } from "@/lib/anomalia";
 import {
   FONTE_SINAL_LABEL,
@@ -144,15 +140,12 @@ function QualidadePage() {
         <span className="inline-block text-xs font-semibold tracking-widest text-accent uppercase">
           Transparência da plataforma
         </span>
-        <h1 className="font-display text-5xl leading-[0.95] mt-2">
-          Qualidade dos dados
-        </h1>
+        <h1 className="font-display text-5xl leading-[0.95] mt-2">Qualidade dos dados</h1>
         <p className="mt-6 text-lg text-muted-foreground max-w-3xl">
-          Inconsistências nas bases públicas são detectadas automaticamente
-          durante a importação dos dados. Em seguida, nossa equipe revalida
-          manualmente cada suspeita contra a API oficial e, quando o defeito
-          está na fonte, reporta ao órgão responsável. Esta página é o
-          registro público desse processo — o objetivo é que ela fique vazia.
+          Inconsistências nas bases públicas são detectadas automaticamente durante a importação dos
+          dados. Em seguida, nossa equipe revalida manualmente cada suspeita contra a API oficial e,
+          quando o defeito está na fonte, reporta ao órgão responsável. Esta página é o registro
+          público desse processo — o objetivo é que ela fique vazia.
         </p>
         <div className="mt-6 rounded-lg border border-border bg-card/50 p-4 text-sm text-muted-foreground max-w-3xl space-y-2">
           <p>
@@ -163,10 +156,9 @@ function QualidadePage() {
             — acompanhe ali quais bases já foram ingeridas e em que período.
           </p>
           <p>
-            Aqui tratamos apenas de <strong>falhas técnicas</strong> nos dados
-            (valores corrompidos, campos ausentes, divergências com a fonte).
-            Suspeitas sobre o <em>uso</em> de verba pública — sinais
-            investigativos — ficam em{" "}
+            Aqui tratamos apenas de <strong>falhas técnicas</strong> nos dados (valores corrompidos,
+            campos ausentes, divergências com a fonte). Suspeitas sobre o <em>uso</em> de verba
+            pública — sinais investigativos — ficam em{" "}
             <Link to="/anomalias" className="text-accent underline">
               /anomalias
             </Link>
@@ -192,16 +184,17 @@ function QualidadePage() {
         descricao={
           <>
             <p>
-              Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na importação
-              (só com o dado em cache), passa por uma <strong>re-checagem</strong> contra a API oficial
-              e, se o defeito for real e estiver na fonte, é <strong>reportada</strong> ao órgão.
-              A tabela abaixo é o catálogo completo das regras persistidas, nos três tipos de sinal.
+              Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na
+              importação (só com o dado em cache), passa por uma <strong>re-checagem</strong> contra
+              a API oficial e, se o defeito for real e estiver na fonte, é{" "}
+              <strong>reportada</strong> ao órgão. A tabela abaixo é o catálogo completo das regras
+              persistidas, nos três tipos de sinal.
             </p>
             <p>
               Nos contratos da CGU, a importação cruza a <strong>listagem</strong> com o{" "}
-              <strong>detalhe</strong> (<code>/contratos/id</code>) de cada contrato: o bug de escala
-              (÷10.000) da API aparece em qualquer um dos dois endpoints, e gravamos sempre o valor{" "}
-              <strong>não-truncado</strong>, que bate com o documento oficial.{" "}
+              <strong>detalhe</strong> (<code>/contratos/id</code>) de cada contrato: o bug de
+              escala (÷10.000) da API aparece em qualquer um dos dois endpoints, e gravamos sempre o
+              valor <strong>não-truncado</strong>, que bate com o documento oficial.{" "}
               <strong>Limitação conhecida:</strong> se as duas leituras vierem truncadas na mesma
               escala ao mesmo tempo, a divergência é indetectável naquele momento — o valor é
               corrigido numa leitura futura e o histórico fica registrado no alerta.
@@ -212,13 +205,29 @@ function QualidadePage() {
         <div>
           <h3 className="font-medium text-foreground mb-1.5">Status</h3>
           <ul className="space-y-1.5">
-            <li><strong>Aberto</strong> — detectado, ainda não analisado.</li>
-            <li><strong>Confirmado</strong> — re-checado contra a fonte oficial; a divergência é real.</li>
-            <li><strong>Reportado</strong> — encaminhado ao órgão responsável.</li>
-            <li><strong>Corrigido na origem</strong> — a fonte oficial corrigiu o dado numa reimportação posterior (a API passou a devolver o valor certo).</li>
-            <li><strong>Corrigido automaticamente</strong> — a nossa conferência por detalhe corrigiu o valor no site (a fonte ainda não corrigiu); o alerta fica como registro do defeito.</li>
-            <li><strong>Falso positivo</strong> — analisado e descartado: não havia defeito.</li>
-            <li><strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.</li>
+            <li>
+              <strong>Aberto</strong> — detectado, ainda não analisado.
+            </li>
+            <li>
+              <strong>Confirmado</strong> — re-checado contra a fonte oficial; a divergência é real.
+            </li>
+            <li>
+              <strong>Reportado</strong> — encaminhado ao órgão responsável.
+            </li>
+            <li>
+              <strong>Corrigido na origem</strong> — a fonte oficial corrigiu o dado numa
+              reimportação posterior (a API passou a devolver o valor certo).
+            </li>
+            <li>
+              <strong>Corrigido automaticamente</strong> — a nossa conferência por detalhe corrigiu
+              o valor no site (a fonte ainda não corrigiu); o alerta fica como registro do defeito.
+            </li>
+            <li>
+              <strong>Falso positivo</strong> — analisado e descartado: não havia defeito.
+            </li>
+            <li>
+              <strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.
+            </li>
           </ul>
         </div>
       </BoxComoLerSinais>
@@ -273,9 +282,7 @@ function QualidadePage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Carregando…</p>
         ) : findings.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum defeito com esses filtros.
-          </p>
+          <p className="text-sm text-muted-foreground">Nenhum defeito com esses filtros.</p>
         ) : (
           <ul className="divide-y divide-border rounded-xl border border-border bg-card">
             {findings.map((f) => (
@@ -305,8 +312,7 @@ function QualidadePage() {
                         className="text-muted-foreground"
                         title="Data em que esta inconsistência foi detectada — não é a data do contrato"
                       >
-                        Aviso emitido em{" "}
-                        {new Date(f.detectado_em).toLocaleDateString("pt-BR")}
+                        Aviso emitido em {new Date(f.detectado_em).toLocaleDateString("pt-BR")}
                       </span>
                       <div className="flex flex-col items-end gap-0.5 text-[11px]">
                         {f.entidade.url_interno && (
@@ -339,7 +345,8 @@ function QualidadePage() {
                   </div>
                   {f.comparacao && (
                     <div className="mt-1 text-xs text-muted-foreground font-mono">
-                      {f.comparacao.armazenadoLabel ?? "armazenado"} {fmtBRL(f.comparacao.armazenado)} → {f.comparacao.esperadoLabel ?? "esperado"}{" "}
+                      {f.comparacao.armazenadoLabel ?? "armazenado"}{" "}
+                      {fmtBRL(f.comparacao.armazenado)} → {f.comparacao.esperadoLabel ?? "esperado"}{" "}
                       {fmtBRL(f.comparacao.esperado)}
                     </div>
                   )}

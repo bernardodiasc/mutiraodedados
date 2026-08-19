@@ -159,9 +159,9 @@ function TrilhasPage() {
         </h1>
         <p className="text-muted-foreground mt-4 text-lg">
           As Trilhas são <strong>rotas de aprendizado metodológico</strong> — não um catálogo de
-          ferramentas. Aqui você desenvolve o olhar do fiscalizador: o que observar, quais
-          perguntas fazer e como transformar uma desconfiança em investigação. São 3 passos por
-          trilha, sem ordem obrigatória — escolha a que mais se aproxima da sua pergunta.
+          ferramentas. Aqui você desenvolve o olhar do fiscalizador: o que observar, quais perguntas
+          fazer e como transformar uma desconfiança em investigação. São 3 passos por trilha, sem
+          ordem obrigatória — escolha a que mais se aproxima da sua pergunta.
         </p>
         <div className="mt-5 flex items-start gap-3 rounded-lg border border-accent/30 bg-accent/5 p-4 text-sm">
           <Map className="size-4 mt-0.5 shrink-0 text-accent" />
@@ -200,7 +200,8 @@ function TrilhasPage() {
                         to="/mapas"
                         className="inline-flex items-center gap-1 mt-2 text-xs text-muted-foreground hover:text-accent"
                       >
-                        <Map className="size-3" /> Prefere o passo a passo técnico (cliques e campos)? Veja os Mapas Investigativos
+                        <Map className="size-3" /> Prefere o passo a passo técnico (cliques e
+                        campos)? Veja os Mapas Investigativos
                       </Link>
                     ) : null}
                     {p.to ? (

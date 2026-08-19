@@ -52,17 +52,51 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-type RpcRowOrgao = { orgao_cod: string; ano: number; mes: number; qtd: number; ultimo: string | null };
+type RpcRowOrgao = {
+  orgao_cod: string;
+  ano: number;
+  mes: number;
+  qtd: number;
+  ultimo: string | null;
+};
 type RpcRow = { ano: number; mes: number; qtd: number; ultimo: string | null };
-type RpcSiconfi = { tipo_relatorio: string; ano: number; periodo: number; qtd: number; ultimo: string | null };
-type RpcTentativa = { fonte: string; escopo: string; ano: number; mes: number; tentativas: number; ultimo: string | null };
+type RpcSiconfi = {
+  tipo_relatorio: string;
+  ano: number;
+  periodo: number;
+  qtd: number;
+  ultimo: string | null;
+};
+type RpcTentativa = {
+  fonte: string;
+  escopo: string;
+  ano: number;
+  mes: number;
+  tentativas: number;
+  ultimo: string | null;
+};
 
 export const statusCobertura = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<CoberturaResult> => {
     await ensureAdmin(context.userId);
 
-    const [cgu, cguLic, cguEme, cguConv, ceap, camVot, camProps, ceaps, senVot, senMat, pncp, transf, siconfi, tentativas] = await Promise.all([
+    const [
+      cgu,
+      cguLic,
+      cguEme,
+      cguConv,
+      ceap,
+      camVot,
+      camProps,
+      ceaps,
+      senVot,
+      senMat,
+      pncp,
+      transf,
+      siconfi,
+      tentativas,
+    ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
       supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
       supabaseAdmin.rpc("cobertura_cgu_emendas"),
@@ -98,7 +132,14 @@ export const statusCobertura = createServerFn({ method: "GET" })
       for (const [k, t] of tentMap) {
         const [f, e, a, m] = k.split("|");
         if (f === fonte && e === escopo) {
-          out.push({ ano: Number(a), mes: Number(m), qtd: 0, ultimo: null, tentado: true, tentativaEm: t.ultimo });
+          out.push({
+            ano: Number(a),
+            mes: Number(m),
+            qtd: 0,
+            ultimo: null,
+            tentado: true,
+            tentativaEm: t.ultimo,
+          });
           tentMap.delete(k);
         }
       }
@@ -133,7 +174,9 @@ export const statusCobertura = createServerFn({ method: "GET" })
     const cguMap = new Map<string, Celula[]>();
     for (const r of cguRows) {
       if (!cguMap.has(r.orgao_cod)) cguMap.set(r.orgao_cod, []);
-      cguMap.get(r.orgao_cod)!.push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
+      cguMap
+        .get(r.orgao_cod)!
+        .push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
     }
     // Ensure rows exist for any orgao that has only attempts (no contracts yet)
     for (const [k] of tentMap) {
@@ -151,7 +194,9 @@ export const statusCobertura = createServerFn({ method: "GET" })
     const cguLicMap = new Map<string, Celula[]>();
     for (const r of cguLicRows) {
       if (!cguLicMap.has(r.orgao_cod)) cguLicMap.set(r.orgao_cod, []);
-      cguLicMap.get(r.orgao_cod)!.push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
+      cguLicMap
+        .get(r.orgao_cod)!
+        .push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
     }
     for (const [k] of tentMap) {
       const [f, e] = k.split("|");
@@ -227,14 +272,16 @@ export const statusCobertura = createServerFn({ method: "GET" })
         {
           fonte: "cgu",
           titulo: "Portal CGU — contratos por órgão",
-          descricao: "Linhas por órgão do Executivo. Clique numa célula para (re)importar aquele mês.",
+          descricao:
+            "Linhas por órgão do Executivo. Clique numa célula para (re)importar aquele mês.",
           granularidade: "mes",
           linhas: linhasCgu,
         },
         {
           fonte: "cgu_licitacoes",
           titulo: "Portal CGU — licitações por órgão",
-          descricao: "Licitações do Executivo federal por órgão e mês de abertura. Clique numa célula para (re)importar aquele mês.",
+          descricao:
+            "Licitações do Executivo federal por órgão e mês de abertura. Clique numa célula para (re)importar aquele mês.",
           granularidade: "mes",
           linhas: linhasCguLic,
         },

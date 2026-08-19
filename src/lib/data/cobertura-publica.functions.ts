@@ -43,18 +43,22 @@ type RpcSiconfi = {
 };
 
 async function maxUpdated(table: string): Promise<string | null> {
-  const { data } = await (supabaseAdmin.from as (t: string) => any)(table)
-    .select("updated_at")
-    .order("updated_at", { ascending: false })
-    .limit(1);
+  const { data } =
+    await // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `from` é tipado com os nomes literais de tabela do Database gerado; nome dinâmico exige escape
+    (supabaseAdmin.from as (t: string) => any)(table)
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1);
   return (data?.[0] as { updated_at?: string } | undefined)?.updated_at ?? null;
 }
 
 async function countOf(table: string): Promise<number> {
-  const { count } = await (supabaseAdmin.from as (t: string) => any)(table).select("*", {
-    count: "exact",
-    head: true,
-  });
+  const { count } =
+    await // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `from` é tipado com os nomes literais de tabela do Database gerado; nome dinâmico exige escape
+    (supabaseAdmin.from as (t: string) => any)(table).select("*", {
+      count: "exact",
+      head: true,
+    });
   return count ?? 0;
 }
 

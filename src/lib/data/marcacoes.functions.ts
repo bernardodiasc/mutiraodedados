@@ -11,8 +11,7 @@ async function ensureAdmin(userId: string) {
     .eq("role", "admin")
     .maybeSingle();
   if (error) throw new Error("Falha ao verificar permissão.");
-  if (data?.role !== "admin")
-    throw new Error("Acesso restrito: somente administradores.");
+  if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
 // -------------------------------------------------------------
@@ -38,9 +37,7 @@ export const listarContestacoesAdmin = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        status: z
-          .enum(["aberta", "em_analise", "respondida", "arquivada"])
-          .optional(),
+        status: z.enum(["aberta", "em_analise", "respondida", "arquivada"]).optional(),
         limit: z.number().int().min(1).max(500).default(200),
       })
       .parse(input ?? {}),
@@ -85,10 +82,7 @@ export const atualizarContestacao = createServerFn({ method: "POST" })
       patch.respondido_em = r ? new Date().toISOString() : null;
       patch.respondido_por = r ? context.userId : null;
     }
-    const { error } = await supabaseAdmin
-      .from("contestacoes")
-      .update(patch)
-      .eq("id", data.id);
+    const { error } = await supabaseAdmin.from("contestacoes").update(patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -113,9 +107,7 @@ export const listarMarcacoesAdmin = createServerFn({ method: "POST" })
   .inputValidator((input) =>
     z
       .object({
-        entidade_tipo: z
-          .enum(["orgao", "fornecedor", "contrato"])
-          .optional(),
+        entidade_tipo: z.enum(["orgao", "fornecedor", "contrato"]).optional(),
         limit: z.number().int().min(1).max(500).default(200),
       })
       .parse(input ?? {}),
@@ -155,15 +147,10 @@ export const listarMarcacoesAdmin = createServerFn({ method: "POST" })
 
 export const deletarMarcacao = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z.object({ id: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-    const { error } = await supabaseAdmin
-      .from("user_flags")
-      .delete()
-      .eq("id", data.id);
+    const { error } = await supabaseAdmin.from("user_flags").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

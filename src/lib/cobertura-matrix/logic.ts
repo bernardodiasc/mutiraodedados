@@ -4,8 +4,18 @@
 import type { Fonte, Linha } from "@/lib/data/cobertura.functions";
 
 export const MESES_CURTO = [
-  "Jan", "Fev", "Mar", "Abr", "Mai", "Jun",
-  "Jul", "Ago", "Set", "Out", "Nov", "Dez",
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
 ] as const;
 
 export type Granularidade = Fonte["granularidade"];
@@ -57,9 +67,7 @@ export function isStale(
 
 /** Soma de registros (`qtd`) das células de uma linha para um dado ano. */
 export function totalLinhaAno(linha: Linha, ano: number): number {
-  return linha.celulas
-    .filter((c) => c.ano === ano)
-    .reduce((s, c) => s + c.qtd, 0);
+  return linha.celulas.filter((c) => c.ano === ano).reduce((s, c) => s + c.qtd, 0);
 }
 
 /** Maior `qtd` (>=1) entre todas as células de `linhas` no `ano` dado. */
@@ -79,9 +87,7 @@ export function colMaxQtd(linhas: Linha[], ano: number): number {
  */
 export function lacunasMesesDaLinha(linha: Linha, ano: number): number[] {
   const tentados = new Set(
-    linha.celulas
-      .filter((c) => c.ano === ano && (c.qtd > 0 || c.tentado))
-      .map((c) => c.mes),
+    linha.celulas.filter((c) => c.ano === ano && (c.qtd > 0 || c.tentado)).map((c) => c.mes),
   );
   const out: number[] = [];
   for (let m = 1; m <= 12; m++) if (!tentados.has(m)) out.push(m);

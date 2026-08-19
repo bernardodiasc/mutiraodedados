@@ -46,11 +46,9 @@ const COLS =
   "id, titulo, descricao, prompt_template, variaveis, tags, ordem, ativo, created_at, updated_at";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 async function ensureAdmin(supabase: SupabaseClient<Database>, userId: string) {
@@ -193,12 +191,14 @@ export const vincularPrompt = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     const { supabase, userId } = context;
     await ensureAdmin(supabase, userId);
-    const { error } = await supabase
-      .from("mapa_prompts")
-      .upsert(
-        { artigo_id: data.artigo_id, prompt_modelo_id: data.prompt_modelo_id, ordem: data.ordem ?? 0 },
-        { onConflict: "artigo_id,prompt_modelo_id" },
-      );
+    const { error } = await supabase.from("mapa_prompts").upsert(
+      {
+        artigo_id: data.artigo_id,
+        prompt_modelo_id: data.prompt_modelo_id,
+        ordem: data.ordem ?? 0,
+      },
+      { onConflict: "artigo_id,prompt_modelo_id" },
+    );
     if (error) throw new Error(`Falha ao vincular prompt: ${error.message}`);
     return { ok: true };
   });

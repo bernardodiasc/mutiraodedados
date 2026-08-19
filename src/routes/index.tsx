@@ -119,22 +119,29 @@ function ConstrucaoHero() {
         </h1>
 
         <p className="mt-6 max-w-2xl text-lg leading-relaxed text-muted-foreground">
-          Uma iniciativa <strong className="text-foreground">independente e ainda em
-          construção</strong> para reunir, cruzar e tornar compreensível o gasto público do Brasil.
-          Os dados são <strong className="text-foreground">reais, de fontes oficiais</strong> — mas
-          sabidamente <strong className="text-foreground">incompletos</strong>. A cobertura cresce
-          semana a semana.
+          Uma iniciativa{" "}
+          <strong className="text-foreground">independente e ainda em construção</strong> para
+          reunir, cruzar e tornar compreensível o gasto público do Brasil. Os dados são{" "}
+          <strong className="text-foreground">reais, de fontes oficiais</strong> — mas sabidamente{" "}
+          <strong className="text-foreground">incompletos</strong>. A cobertura cresce semana a
+          semana.
         </p>
 
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
           É um projeto sério e ativamente evoluindo, mas também uma plataforma de aprendizado em
           várias camadas — não venho desta área, e construo à medida que aprendo. Até o nome pode
           mudar no futuro. Se algo parecer incompleto, provavelmente é: acompanhe o{" "}
-          <Link to="/roadmap" className="font-medium text-foreground underline underline-offset-2 hover:text-accent">
+          <Link
+            to="/roadmap"
+            className="font-medium text-foreground underline underline-offset-2 hover:text-accent"
+          >
             roadmap
           </Link>{" "}
           e a{" "}
-          <Link to="/cobertura" className="font-medium text-foreground underline underline-offset-2 hover:text-accent">
+          <Link
+            to="/cobertura"
+            className="font-medium text-foreground underline underline-offset-2 hover:text-accent"
+          >
             cobertura dos dados
           </Link>
           .
@@ -212,8 +219,8 @@ function ConstrucaoHero() {
 
         <p className="mt-6 max-w-2xl text-sm text-muted-foreground">
           O projeto é <strong className="text-foreground">open source</strong>. Todo o código, os
-          métodos e o progresso estão abertos — quem quiser acompanhar, apontar erros ou contribuir é
-          bem-vindo.
+          métodos e o progresso estão abertos — quem quiser acompanhar, apontar erros ou contribuir
+          é bem-vindo.
         </p>
       </div>
     </section>

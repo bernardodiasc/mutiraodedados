@@ -23,9 +23,17 @@ export const Route = createFileRoute("/lacunas")({
   head: () => ({
     meta: [
       { title: "Informação que falta — Mutirão de Dados" },
-      { name: "description", content: "O que ainda não é público sobre o funcionamento do Estado: lacunas de transparência, avaliação, mensuração, documento, instituição e método." },
+      {
+        name: "description",
+        content:
+          "O que ainda não é público sobre o funcionamento do Estado: lacunas de transparência, avaliação, mensuração, documento, instituição e método.",
+      },
       { property: "og:title", content: "Informação que falta — Mutirão de Dados" },
-      { property: "og:description", content: "A ausência de informação é, ela mesma, um achado. Mapa de lacunas do Estado brasileiro." },
+      {
+        property: "og:description",
+        content:
+          "A ausência de informação é, ela mesma, um achado. Mapa de lacunas do Estado brasileiro.",
+      },
       { property: "og:url", content: "https://mutiraodedados.com.br/lacunas" },
     ],
     links: [{ rel: "canonical", href: "https://mutiraodedados.com.br/lacunas" }],
@@ -34,16 +42,30 @@ export const Route = createFileRoute("/lacunas")({
 
 const TIPOS = [
   { key: "transparencia", tipo: "Transparência", desc: "O dado existe mas não está publicado." },
-  { key: "avaliacao", tipo: "Avaliação", desc: "Política sem indicador público que permita avaliar resultado." },
-  { key: "mensuracao", tipo: "Mensuração", desc: "Não há método claro para medir o que se quer saber." },
-  { key: "documental", tipo: "Documental", desc: "Falta o documento original que sustenta a decisão." },
+  {
+    key: "avaliacao",
+    tipo: "Avaliação",
+    desc: "Política sem indicador público que permita avaliar resultado.",
+  },
+  {
+    key: "mensuracao",
+    tipo: "Mensuração",
+    desc: "Não há método claro para medir o que se quer saber.",
+  },
+  {
+    key: "documental",
+    tipo: "Documental",
+    desc: "Falta o documento original que sustenta a decisão.",
+  },
   { key: "institucional", tipo: "Institucional", desc: "Não está claro qual órgão é responsável." },
-  { key: "metodologica", tipo: "Metodológica", desc: "Os dados existem mas não são comparáveis entre si." },
+  {
+    key: "metodologica",
+    tipo: "Metodológica",
+    desc: "Os dados existem mas não são comparáveis entre si.",
+  },
 ] as const;
 
-const TIPO_LABEL: Record<string, string> = Object.fromEntries(
-  TIPOS.map((t) => [t.key, t.tipo]),
-);
+const TIPO_LABEL: Record<string, string> = Object.fromEntries(TIPOS.map((t) => [t.key, t.tipo]));
 const CICLO_LABEL: Record<string, string> = {
   nasce: "Nasce",
   qualificada: "Qualificada",
@@ -124,8 +146,11 @@ function LacunasPage() {
         <h2 className="font-display text-2xl">Lacunas registradas</h2>
         {lacunas.length === 0 ? (
           <p className="text-sm text-muted-foreground mt-3">
-            Nenhuma lacuna publicada ainda. As primeiras serão convertidas a partir
-            de findings de <Link to="/qualidade" className="underline">qualidade dos dados</Link>.
+            Nenhuma lacuna publicada ainda. As primeiras serão convertidas a partir de findings de{" "}
+            <Link to="/qualidade" className="underline">
+              qualidade dos dados
+            </Link>
+            .
           </p>
         ) : (
           <ul className="mt-4 space-y-3">
@@ -152,17 +177,23 @@ function LacunasPage() {
       </section>
 
       <div className="mt-10 flex flex-wrap gap-3">
-        <Link to="/qualidade" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">
+        <Link
+          to="/qualidade"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent"
+        >
           De onde vêm: qualidade dos dados <ArrowRight className="size-3.5" />
         </Link>
-        <Link to="/perguntas" className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent">
+        <Link
+          to="/perguntas"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold hover:text-accent"
+        >
           Perguntas relacionadas <ArrowRight className="size-3.5" />
         </Link>
       </div>
 
       <p className="text-xs text-muted-foreground mt-8 leading-relaxed max-w-3xl">
-        Página inicial do mapa de lacunas. Em breve, cada lacuna terá registro próprio,
-        vínculo com perguntas e entidades, e ciclo de vida visível.
+        Página inicial do mapa de lacunas. Em breve, cada lacuna terá registro próprio, vínculo com
+        perguntas e entidades, e ciclo de vida visível.
       </p>
     </div>
   );

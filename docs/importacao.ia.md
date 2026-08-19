@@ -12,13 +12,13 @@
 
 ```ts
 type QaFinding = {
-  fonte: 'cgu' | 'camara' | 'senado' | 'pncp' | 'transferegov' | 'siconfi';
-  entidade_tipo: 'contrato' | 'instrumento' | 'despesa' | 'votacao' | 'relatorio';
+  fonte: "cgu" | "camara" | "senado" | "pncp" | "transferegov" | "siconfi";
+  entidade_tipo: "contrato" | "instrumento" | "despesa" | "votacao" | "relatorio";
   entidade_id: string;
-  regra: string;                           // ex: 'valor_corrigido_listagem'
-  severidade: 'critico' | 'aviso' | 'info';
-  origem?: 'heuristica' | 'auto_correcao' | 'denuncia';
-  status?: 'aberto' | 'corrigido_origem' | 'falso_positivo' | 'resolvido';
+  regra: string; // ex: 'valor_corrigido_listagem'
+  severidade: "critico" | "aviso" | "info";
+  origem?: "heuristica" | "auto_correcao" | "denuncia";
+  status?: "aberto" | "corrigido_origem" | "falso_positivo" | "resolvido";
   valor_armazenado?: number | null;
   valor_esperado?: number | null;
   detalhes?: Record<string, unknown>;

@@ -14,11 +14,9 @@ import {
 } from "@/lib/caderno-composicao/logic";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 const schema = z.object({
@@ -70,9 +68,7 @@ export const montarComposicaoDaPasta = createServerFn({ method: "POST" })
       }
     }
 
-    const promptIds = grupos.prompts
-      .map((it) => it.ref_id)
-      .filter((r): r is string => Boolean(r));
+    const promptIds = grupos.prompts.map((it) => it.ref_id).filter((r): r is string => Boolean(r));
     const promptsPorId = new Map<string, string>();
     if (promptIds.length > 0) {
       const { data: prompts } = await anon
@@ -86,9 +82,7 @@ export const montarComposicaoDaPasta = createServerFn({ method: "POST" })
 
     // Enriquecimento: se o usuário também salvou a entidade no caderno (com
     // snapshot), os dados de prova entram na composição — RLS limita ao dono.
-    const refIds = grupos.dados
-      .map((it) => it.ref_id)
-      .filter((r): r is string => Boolean(r));
+    const refIds = grupos.dados.map((it) => it.ref_id).filter((r): r is string => Boolean(r));
     const snapshotsPorItem = new Map<string, SnapshotResolvido>();
     if (refIds.length > 0) {
       const { data: salvos } = await supabase

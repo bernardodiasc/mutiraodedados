@@ -38,7 +38,9 @@ describe("regrasCamaraCeap", () => {
   });
 
   it("tolera arredondamento de até 1%", () => {
-    expect(regrasCamaraCeap([{ id: "d2", valor_liquido: 100.9, valor_documento: 100 }])).toEqual([]);
+    expect(regrasCamaraCeap([{ id: "d2", valor_liquido: 100.9, valor_documento: 100 }])).toEqual(
+      [],
+    );
     expect(regrasCamaraCeap([{ id: "d3", valor_liquido: 90, valor_documento: 100 }])).toEqual([]);
   });
 
@@ -78,9 +80,9 @@ describe("regrasTransferegov", () => {
   });
 
   it("instrumento coerente não gera findings", () => {
-    expect(
-      regrasTransferegov([{ id: "t4", valor_repasse: 90000, valor_global: 100000 }]),
-    ).toEqual([]);
+    expect(regrasTransferegov([{ id: "t4", valor_repasse: 90000, valor_global: 100000 }])).toEqual(
+      [],
+    );
   });
 });
 
@@ -100,13 +102,17 @@ describe("regrasSiconfi", () => {
 
   it("despesa negativa (estorno) não dispara — a regra é só para contas positivas", () => {
     expect(
-      regrasSiconfi([{ id: "r3", valor: -500, conta: "Despesas Empenhadas", tipo_relatorio: "RREO" }]),
+      regrasSiconfi([
+        { id: "r3", valor: -500, conta: "Despesas Empenhadas", tipo_relatorio: "RREO" },
+      ]),
     ).toEqual([]);
   });
 
   it("receita positiva não dispara", () => {
     expect(
-      regrasSiconfi([{ id: "r4", valor: 500, conta: "Receita Tributária", tipo_relatorio: "RREO" }]),
+      regrasSiconfi([
+        { id: "r4", valor: 500, conta: "Receita Tributária", tipo_relatorio: "RREO" },
+      ]),
     ).toEqual([]);
   });
 });

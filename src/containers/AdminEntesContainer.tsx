@@ -3,7 +3,10 @@ import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { importarContratosPNCP } from "@/lib/data/pncp/ingest.functions";
-import { importarRelatorioSICONFI, importarConjuntoSICONFI } from "@/lib/data/siconfi/ingest.functions";
+import {
+  importarRelatorioSICONFI,
+  importarConjuntoSICONFI,
+} from "@/lib/data/siconfi/ingest.functions";
 import { importarConveniosTransferegov } from "@/lib/data/transferegov/ingest.functions";
 import { monthRange, isMunicipio } from "@/lib/admin-entes/logic";
 import { AdminEntesView } from "@/components/AdminEntesView";
@@ -23,16 +26,11 @@ export function AdminEntesContainer({ ano, mes }: { ano: number; mes: number }) 
 
   const { ini, fim } = monthRange(ano, mes);
 
-  async function run(
-    label: string,
-    fn: () => Promise<{ importados?: number; aviso?: string }>,
-  ) {
+  async function run(label: string, fn: () => Promise<{ importados?: number; aviso?: string }>) {
     setLoading(label);
     try {
       const r = await fn();
-      toast.success(
-        `${label}: ${r.importados ?? 0} registros${r.aviso ? ` — ${r.aviso}` : ""}`,
-      );
+      toast.success(`${label}: ${r.importados ?? 0} registros${r.aviso ? ` — ${r.aviso}` : ""}`);
     } catch (e) {
       toast.error(`${label}: ${(e as Error).message}`);
     } finally {

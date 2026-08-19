@@ -14,7 +14,9 @@ describe("regrasCguEmendas", () => {
     const f = regrasCguEmendas([
       { id: "e2", valor_empenhado: 100000, valor_liquidado: 100000, valor_pago: 150000 },
     ]);
-    expect(f.some((x) => x.regra === "pago_maior_empenhado" && x.severidade === "critico")).toBe(true);
+    expect(f.some((x) => x.regra === "pago_maior_empenhado" && x.severidade === "critico")).toBe(
+      true,
+    );
   });
 
   it("sinaliza liquidado maior que empenhado (aviso)", () => {
@@ -39,9 +41,7 @@ describe("regrasCguEmendas", () => {
 
 describe("regrasCguConvenios", () => {
   it("não gera findings quando liberado ≤ valor global", () => {
-    expect(
-      regrasCguConvenios([{ id: "c1", valor: 100000, valor_liberado: 90000 }]),
-    ).toEqual([]);
+    expect(regrasCguConvenios([{ id: "c1", valor: 100000, valor_liberado: 90000 }])).toEqual([]);
   });
 
   it("sinaliza liberado maior que o valor global (aviso)", () => {

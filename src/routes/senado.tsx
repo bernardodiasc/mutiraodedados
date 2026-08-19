@@ -27,11 +27,13 @@ function SenadoHome() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <header>
-        <div className="text-xs text-muted-foreground uppercase tracking-wider">Poder Legislativo</div>
+        <div className="text-xs text-muted-foreground uppercase tracking-wider">
+          Poder Legislativo
+        </div>
         <h1 className="font-display text-4xl mt-1">Senado Federal</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
-          81 senadores (três por estado) representam as unidades da federação no Congresso
-          Nacional. Esta área reorganiza os dados abertos publicados pelo Senado em{" "}
+          81 senadores (três por estado) representam as unidades da federação no Congresso Nacional.
+          Esta área reorganiza os dados abertos publicados pelo Senado em{" "}
           <a
             href="https://legis.senado.leg.br/dadosabertos/"
             target="_blank"
@@ -48,9 +50,21 @@ function SenadoHome() {
       <AvisoMetodologico />
 
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Stat icon={<Users className="size-4" />} label="Senadores em cache" value={isLoading ? "…" : String(data?.totalSenadores ?? 0)} />
-        <Stat icon={<Receipt className="size-4" />} label="Despesas CEAPS" value={isLoading ? "…" : String(data?.totalDespesas ?? 0)} />
-        <Stat icon={<Building2 className="size-4" />} label="Total reembolsado" value={isLoading ? "…" : fmtBRL(data?.totalGasto ?? 0)} />
+        <Stat
+          icon={<Users className="size-4" />}
+          label="Senadores em cache"
+          value={isLoading ? "…" : String(data?.totalSenadores ?? 0)}
+        />
+        <Stat
+          icon={<Receipt className="size-4" />}
+          label="Despesas CEAPS"
+          value={isLoading ? "…" : String(data?.totalDespesas ?? 0)}
+        />
+        <Stat
+          icon={<Building2 className="size-4" />}
+          label="Total reembolsado"
+          value={isLoading ? "…" : fmtBRL(data?.totalGasto ?? 0)}
+        />
         <Stat
           icon={<ExternalLink className="size-4" />}
           label="Período coberto"
@@ -86,10 +100,10 @@ function SenadoHome() {
         <h2 className="font-display text-xl">O que é CEAPS?</h2>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           A <strong>Cota para Exercício da Atividade Parlamentar do Senado (CEAPS)</strong> é o
-          equivalente da CEAP da Câmara: um limite mensal de despesas reembolsáveis vinculadas
-          ao mandato (passagem, combustível, divulgação, escritório, telefone). O valor varia
-          conforme a UF do senador. Como é ressarcimento mediante nota fiscal, os dados trazem
-          fornecedor, valor e detalhamento — material rico para investigação cidadã.
+          equivalente da CEAP da Câmara: um limite mensal de despesas reembolsáveis vinculadas ao
+          mandato (passagem, combustível, divulgação, escritório, telefone). O valor varia conforme
+          a UF do senador. Como é ressarcimento mediante nota fiscal, os dados trazem fornecedor,
+          valor e detalhamento — material rico para investigação cidadã.
         </p>
       </section>
     </div>

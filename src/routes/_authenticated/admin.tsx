@@ -92,7 +92,10 @@ function AdminPage() {
     : [];
   const fontesComDados = fontes.filter((f) => f.count > 0 && f.updatedAt);
   const maisRecente = fontesComDados.reduce<{ nome: string; updatedAt: string } | null>(
-    (acc, f) => (!acc || (f.updatedAt && f.updatedAt > acc.updatedAt) ? { nome: f.nome, updatedAt: f.updatedAt! } : acc),
+    (acc, f) =>
+      !acc || (f.updatedAt && f.updatedAt > acc.updatedAt)
+        ? { nome: f.nome, updatedAt: f.updatedAt! }
+        : acc,
     null,
   );
   const agora = Date.now();
@@ -135,8 +138,8 @@ function AdminPage() {
         <div>
           <h1 className="font-display text-4xl">Painel do administrador</h1>
           <p className="text-muted-foreground mt-1 max-w-3xl text-sm">
-            Ingestão de dados, governança, roadmap e conteúdo editorial da plataforma.
-            Tudo o que é salvo aqui fica disponível para consulta pública.
+            Ingestão de dados, governança, roadmap e conteúdo editorial da plataforma. Tudo o que é
+            salvo aqui fica disponível para consulta pública.
           </p>
         </div>
       </header>
@@ -162,9 +165,7 @@ function AdminPage() {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-2">{s.description}</p>
-              {counts[s.to] && (
-                <p className="text-xs text-foreground/80 mt-3">{counts[s.to]}</p>
-              )}
+              {counts[s.to] && <p className="text-xs text-foreground/80 mt-3">{counts[s.to]}</p>}
             </Link>
           );
         })}

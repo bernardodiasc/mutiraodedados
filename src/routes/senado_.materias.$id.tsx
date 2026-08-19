@@ -22,7 +22,12 @@ function MateriaDetalhe() {
   });
 
   if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { materia, autores } = data;
@@ -31,9 +36,13 @@ function MateriaDetalhe() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/senado" className="hover:text-accent">Senado</Link>
+          <Link to="/senado" className="hover:text-accent">
+            Senado
+          </Link>
           {" · "}
-          <Link to="/senado/materias" className="hover:text-accent">Matérias</Link>
+          <Link to="/senado/materias" className="hover:text-accent">
+            Matérias
+          </Link>
         </div>
         <h1 className="font-display text-4xl mt-2 font-mono">
           {materia.siglaSubtipo} {materia.numero}/{materia.ano}
@@ -89,7 +98,11 @@ function MateriaDetalhe() {
                 <tr key={i} className="border-t border-border">
                   <td className="px-4 py-2">{a.nome}</td>
                   <td className="px-4 py-2 text-xs text-muted-foreground">
-                    {a.proponente ? <span className="text-accent">{a.tipo ?? "Principal"}</span> : (a.tipo ?? "Coautor")}
+                    {a.proponente ? (
+                      <span className="text-accent">{a.tipo ?? "Principal"}</span>
+                    ) : (
+                      (a.tipo ?? "Coautor")
+                    )}
                   </td>
                 </tr>
               ))}

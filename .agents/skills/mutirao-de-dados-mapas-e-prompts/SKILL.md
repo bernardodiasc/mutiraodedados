@@ -7,24 +7,24 @@ description: Fluxo para criar mapas investigativos e gerenciar os prompts do Kit
 
 Skill de **fluxo**. As regras completas ficam nos docs abaixo — leia o relevante antes de agir.
 
-| Precisa de… | Doc de referência |
-|---|---|
-| Escrever o conteúdo do mapa (passos, chaves de busca) | [`/docs/padroes/conteudo-investigativo.md`](/docs/padroes/conteudo-investigativo.md) e a skill `mutirao-de-dados-conteudo-investigativo` |
-| Onde mapas e prompts vivem no produto | [`/docs/dominios/artigos-e-aprendizado.md`](/docs/dominios/artigos-e-aprendizado.md) |
-| Kit, variáveis, caderno, a **regra de coerência** | [`/docs/dominios/laboratorio-civico.md`](/docs/dominios/laboratorio-civico.md) |
-| Telas de admin (`/admin/artigos`, `/admin/prompts`) | [`/docs/admin.md`](/docs/admin.md) |
-| Tabelas `prompt_modelos` / `mapa_prompts` / `variaveis` jsonb | [`/docs/modelo-dados.ia.md`](/docs/modelo-dados.ia.md) |
-| Criar schema novo (migração) | [`/docs/padroes/migrations.md`](/docs/padroes/migrations.md) |
+| Precisa de…                                                   | Doc de referência                                                                                                                        |
+| ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Escrever o conteúdo do mapa (passos, chaves de busca)         | [`/docs/padroes/conteudo-investigativo.md`](/docs/padroes/conteudo-investigativo.md) e a skill `mutirao-de-dados-conteudo-investigativo` |
+| Onde mapas e prompts vivem no produto                         | [`/docs/dominios/artigos-e-aprendizado.md`](/docs/dominios/artigos-e-aprendizado.md)                                                     |
+| Kit, variáveis, caderno, a **regra de coerência**             | [`/docs/dominios/laboratorio-civico.md`](/docs/dominios/laboratorio-civico.md)                                                           |
+| Telas de admin (`/admin/artigos`, `/admin/prompts`)           | [`/docs/admin.md`](/docs/admin.md)                                                                                                       |
+| Tabelas `prompt_modelos` / `mapa_prompts` / `variaveis` jsonb | [`/docs/modelo-dados.ia.md`](/docs/modelo-dados.ia.md)                                                                                   |
+| Criar schema novo (migração)                                  | [`/docs/padroes/migrations.md`](/docs/padroes/migrations.md)                                                                             |
 
 ## Modelo mental
 
-- **Mapa** = artigo com `categoria='mapa'`, criado/editado em `/admin/artigos`. Os passos dizem *onde colher os dados*.
+- **Mapa** = artigo com `categoria='mapa'`, criado/editado em `/admin/artigos`. Os passos dizem _onde colher os dados_.
 - **Prompt** (`prompt_modelos`) = objetivo com placeholders `{{var}}` que o cidadão copia para a própria IA. Vinculado N:N ao mapa via `mapa_prompts`. Gerido em `/admin/prompts`.
 - **Kit de investigação** = painel lateral que aparece só em mapas, com o texto do mapa + os prompts vinculados.
 
 ## Regras que não podem ser quebradas
 
-1. **Coerência mapa↔prompt.** Cada prompt e cada link de variável tem que fazer sentido com os passos *daquele* mapa. Ex.: no mapa das emendas, o CSV vem de `/emendas`; no de cota parlamentar, da página do parlamentar. A mesma variável pode ter link diferente em mapas diferentes.
+1. **Coerência mapa↔prompt.** Cada prompt e cada link de variável tem que fazer sentido com os passos _daquele_ mapa. Ex.: no mapa das emendas, o CSV vem de `/emendas`; no de cota parlamentar, da página do parlamentar. A mesma variável pode ter link diferente em mapas diferentes.
 2. **Zero hardcode.** Dica e link de cada variável são dados (`prompt_modelos.variaveis` jsonb: `{nome, dica?, href?, hrefLabel?}`), editados **só em `/admin/prompts`**. Nunca colocar catálogo de variáveis no código — `src/lib/kit-investigacao/logic.ts` apenas normaliza.
 3. **Link interno.** `href` de variável é sempre rota interna (começa com `/`); links externos são descartados.
 4. **Visibilidade.** Um prompt só aparece no site quando está `ativo` **e** vinculado a um mapa **público**.

@@ -17,9 +17,16 @@ export function tomSituacao(s: string | null | undefined): TomSituacao {
   // "Nunca exerceu" (suplente que jamais assumiu) — cinza neutro, sem alarde.
   if (v.includes("nunca")) return "neutro";
   // Saída da cadeira (vermelho): fora de exercício, vacância, renúncia, falecimento.
-  if (v.includes("vac") || v.includes("fora de") || v.includes("afast") || v.includes("renún") || v.includes("faleci"))
+  if (
+    v.includes("vac") ||
+    v.includes("fora de") ||
+    v.includes("afast") ||
+    v.includes("renún") ||
+    v.includes("faleci")
+  )
     return "saida";
-  if (v.includes("licen") || v.includes("suplên") || v.includes("suplen") || v.includes("convoc")) return "alerta";
+  if (v.includes("licen") || v.includes("suplên") || v.includes("suplen") || v.includes("convoc"))
+    return "alerta";
   if (v.includes("exerc")) return "ok";
   return "neutro";
 }
@@ -37,7 +44,13 @@ const DOT_TOM: Record<TomSituacao, string> = {
   neutro: "bg-muted-foreground/40",
 };
 
-export function SituacaoBadge({ situacao, className = "" }: { situacao: string; className?: string }) {
+export function SituacaoBadge({
+  situacao,
+  className = "",
+}: {
+  situacao: string;
+  className?: string;
+}) {
   return (
     <span
       className={`inline-block rounded-md border px-2 py-0.5 text-[11px] font-medium ${BADGE_TOM[tomSituacao(situacao)]} ${className}`}

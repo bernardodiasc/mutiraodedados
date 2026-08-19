@@ -6,7 +6,17 @@ export const Route = createFileRoute("/estilo/")({
   component: EstiloHome,
 });
 
-function Card({ to, params, title, sub }: { to: string; params?: Record<string, string>; title: string; sub: string }) {
+function Card({
+  to,
+  params,
+  title,
+  sub,
+}: {
+  to: string;
+  params?: Record<string, string>;
+  title: string;
+  sub: string;
+}) {
   return (
     <Link
       to={to}
@@ -25,17 +35,20 @@ function EstiloHome() {
       <header>
         <h1 className="font-display text-3xl">Style guide</h1>
         <p className="text-sm text-muted-foreground mt-1 max-w-3xl">
-          Tokens visuais definidos em <code>src/styles.css</code>, tipografia,
-          componentes UI base e composições do projeto — todos isolados,
-          renderizados com dados mockados. Composições rodam em iframes para
-          isolar modais e estado.
+          Tokens visuais definidos em <code>src/styles.css</code>, tipografia, componentes UI base e
+          composições do projeto — todos isolados, renderizados com dados mockados. Composições
+          rodam em iframes para isolar modais e estado.
         </p>
       </header>
 
       <section className="space-y-3">
         <h2 className="font-display text-xl">Fundamentos</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Card to="/estilo/tokens" title="Tokens visuais" sub="Cores, radius, sombras, espaçamento" />
+          <Card
+            to="/estilo/tokens"
+            title="Tokens visuais"
+            sub="Cores, radius, sombras, espaçamento"
+          />
           <Card to="/estilo/tipografia" title="Tipografia" sub="Famílias e escala" />
         </div>
       </section>

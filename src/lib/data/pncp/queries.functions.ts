@@ -51,10 +51,9 @@ export const listarContratosPNCP = createServerFn({ method: "POST" })
     return { contratos: (rows ?? []) as ContratoPNCPRow[] };
   });
 
-export const statsContratosPNCP = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { count } = await supabaseAdmin
-      .from("pncp_contratos_cache")
-      .select("id", { count: "exact", head: true });
-    return { total: count ?? 0 };
-  });
+export const statsContratosPNCP = createServerFn({ method: "GET" }).handler(async () => {
+  const { count } = await supabaseAdmin
+    .from("pncp_contratos_cache")
+    .select("id", { count: "exact", head: true });
+  return { total: count ?? 0 };
+});

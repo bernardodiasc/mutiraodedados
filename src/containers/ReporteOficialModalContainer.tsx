@@ -13,7 +13,12 @@ export type ReporteOficialModalProps = {
   onConfirmar: (canal: string, protocolo: string) => Promise<void>;
 };
 
-export function ReporteOficialModalContainer({ open, onOpenChange, anomalia, onConfirmar }: ReporteOficialModalProps) {
+export function ReporteOficialModalContainer({
+  open,
+  onOpenChange,
+  anomalia,
+  onConfirmar,
+}: ReporteOficialModalProps) {
   const canal = canalParaFonte(anomalia.fonte);
   const origin = safeOrigin();
   const inicial = React.useMemo(() => gerarTextoReporte(anomalia, origin), [anomalia, origin]);

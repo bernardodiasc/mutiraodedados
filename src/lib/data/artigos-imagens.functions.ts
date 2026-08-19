@@ -53,7 +53,10 @@ export const listarImagensGaleria = createServerFn({ method: "GET" })
     if (data.q && data.q.trim()) {
       // remove caracteres estruturais da sintaxe de filtros PostgREST (`.or=`)
       // para impedir injeção de condições adicionais via termo de busca
-      const limpo = data.q.replace(/[%(),.*]/g, " ").replace(/\s+/g, " ").trim();
+      const limpo = data.q
+        .replace(/[%(),.*]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
       if (limpo) {
         const termo = `%${limpo}%`;
         q = q.or(`nome_original.ilike.${termo},legenda.ilike.${termo}`);

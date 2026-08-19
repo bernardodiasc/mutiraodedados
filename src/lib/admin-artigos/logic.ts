@@ -1,8 +1,4 @@
-import type {
-  Artigo,
-  ArtigoCategoria,
-  ArtigoDificuldade,
-} from "@/lib/data/artigos.functions";
+import type { Artigo, ArtigoCategoria, ArtigoDificuldade } from "@/lib/data/artigos.functions";
 
 export type Aba = "tudo" | "mapa" | "tutorial" | "nota";
 
@@ -131,8 +127,7 @@ export function formFromArtigo(a: Artigo): FormState {
     conteudo_md: a.conteudo_md ?? "",
     categoria: a.categoria,
     dificuldade: a.dificuldade ?? "",
-    tempo_estimado_min:
-      a.tempo_estimado_min != null ? String(a.tempo_estimado_min) : "",
+    tempo_estimado_min: a.tempo_estimado_min != null ? String(a.tempo_estimado_min) : "",
     fontes_usadas: (a.fontes_usadas ?? []).join(", "),
     notas_internas: a.notas_internas ?? "",
     publico: a.publico,
@@ -163,9 +158,7 @@ export function buildSavePayload(form: FormState, editingId?: string): SavePaylo
     conteudo_md: form.conteudo_md,
     categoria: form.categoria,
     dificuldade:
-      form.categoria === "nota"
-        ? null
-        : ((form.dificuldade || null) as ArtigoDificuldade | null),
+      form.categoria === "nota" ? null : ((form.dificuldade || null) as ArtigoDificuldade | null),
     tempo_estimado_min:
       form.categoria === "nota"
         ? null

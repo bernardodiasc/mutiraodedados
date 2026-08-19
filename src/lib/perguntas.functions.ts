@@ -38,11 +38,9 @@ const COLS =
   "id, user_id, modelo_id, titulo, descricao, contexto, tags, status, visibilidade_publica, slug, publicada_em, arquivada_em, encerrada_em, solicitada_publicacao_em, motivo_rejeicao, ordem, created_at, updated_at";
 
 function publicClient() {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    { auth: { storage: undefined, persistSession: false, autoRefreshToken: false } },
-  );
+  return createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_PUBLISHABLE_KEY!, {
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
 }
 
 function slugify(s: string): string {
@@ -365,7 +363,13 @@ const editarAdminSchema = z.object({
   descricao: z.string().trim().max(4000).optional().nullable(),
   contexto: z.string().trim().max(4000).optional().nullable(),
   tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
-  slug: z.string().trim().min(3).max(160).regex(/^[a-z0-9-]+$/).optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(3)
+    .max(160)
+    .regex(/^[a-z0-9-]+$/)
+    .optional(),
 });
 export const editarPerguntaAdmin = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -406,21 +410,20 @@ export const reordenarPerguntasPublicas = createServerFn({ method: "POST" })
 
 // ---------- páginas públicas ----------
 
-export const listarPerguntasPublicas = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const supabase = publicClient();
-    const { data, error } = await supabase
-      .from("perguntas")
-      .select(
-        "id, titulo, descricao, contexto, tags, status, slug, publicada_em, encerrada_em, ordem, updated_at",
-      )
-      .eq("visibilidade_publica", true)
-      .order("ordem", { ascending: true })
-      .order("publicada_em", { ascending: false })
-      .limit(100);
-    if (error) throw new Error(`Falha ao listar perguntas públicas: ${error.message}`);
-    return data ?? [];
-  });
+export const listarPerguntasPublicas = createServerFn({ method: "GET" }).handler(async () => {
+  const supabase = publicClient();
+  const { data, error } = await supabase
+    .from("perguntas")
+    .select(
+      "id, titulo, descricao, contexto, tags, status, slug, publicada_em, encerrada_em, ordem, updated_at",
+    )
+    .eq("visibilidade_publica", true)
+    .order("ordem", { ascending: true })
+    .order("publicada_em", { ascending: false })
+    .limit(100);
+  if (error) throw new Error(`Falha ao listar perguntas públicas: ${error.message}`);
+  return data ?? [];
+});
 
 const slugSchema = z.object({ slug: z.string().min(1).max(160) });
 export const obterPerguntaPublica = createServerFn({ method: "POST" })

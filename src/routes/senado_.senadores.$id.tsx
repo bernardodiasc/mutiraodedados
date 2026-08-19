@@ -49,7 +49,11 @@ function SupChip({
     </>
   );
   return codigo ? (
-    <Link to="/senado/senadores/$id" params={{ id: String(codigo) }} className={`${cls} hover:border-accent hover:text-accent`}>
+    <Link
+      to="/senado/senadores/$id"
+      params={{ id: String(codigo) }}
+      className={`${cls} hover:border-accent hover:text-accent`}
+    >
       {inner}
     </Link>
   ) : (
@@ -76,7 +80,12 @@ function SenadorDetalhe() {
   const [mes, setMes] = useState<number | null>(null);
 
   if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { senador, perfil, mandatos, legislaturas, despesas } = data;
@@ -132,16 +141,16 @@ function SenadorDetalhe() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-10">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/senado" className="hover:text-accent">Senado</Link>
+          <Link to="/senado" className="hover:text-accent">
+            Senado
+          </Link>
           {" · "}
-          <Link to="/senado/senadores" className="hover:text-accent">Senadores</Link>
+          <Link to="/senado/senadores" className="hover:text-accent">
+            Senadores
+          </Link>
         </div>
         <div className="flex items-start gap-5 mt-3 flex-wrap">
-          <img
-            src={foto}
-            alt=""
-            className="size-28 rounded-md object-cover border border-border"
-          />
+          <img src={foto} alt="" className="size-28 rounded-md object-cover border border-border" />
           <div className="flex-1 min-w-[260px]">
             <h1 className="font-display text-4xl leading-tight">{senador.nome}</h1>
             <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
@@ -151,7 +160,10 @@ function SenadorDetalhe() {
               {senador.situacao && <SituacaoBadge situacao={senador.situacao} />}
             </div>
             {senador.email && (
-              <a href={`mailto:${senador.email}`} className="text-sm text-accent underline mt-1 inline-block">
+              <a
+                href={`mailto:${senador.email}`}
+                className="text-sm text-accent underline mt-1 inline-block"
+              >
                 {senador.email}
               </a>
             )}
@@ -187,7 +199,9 @@ function SenadorDetalhe() {
             <dl className="space-y-2">
               {(perfil?.nomeCompleto ?? senador.nomeCompleto) && (
                 <div>
-                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">Nome completo</dt>
+                  <dt className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Nome completo
+                  </dt>
                   <dd>{perfil?.nomeCompleto ?? senador.nomeCompleto}</dd>
                 </div>
               )}
@@ -200,17 +214,30 @@ function SenadorDetalhe() {
             </dl>
             <div className="flex flex-col gap-2">
               {perfil?.urlPagina && (
-                <a href={perfil.urlPagina} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={perfil.urlPagina}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> Perfil oficial no Senado
                 </a>
               )}
               {perfil?.urlParticular && (
-                <a href={perfil.urlParticular} target="_blank" rel="noreferrer" className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={perfil.urlParticular}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> Site pessoal
                 </a>
               )}
               {(perfil?.email ?? senador.email) && (
-                <a href={`mailto:${perfil?.email ?? senador.email}`} className="text-accent hover:underline inline-flex items-center gap-1.5">
+                <a
+                  href={`mailto:${perfil?.email ?? senador.email}`}
+                  className="text-accent hover:underline inline-flex items-center gap-1.5"
+                >
                   <ExternalLink className="size-3.5" /> {perfil?.email ?? senador.email}
                 </a>
               )}
@@ -225,7 +252,10 @@ function SenadorDetalhe() {
               <div className="flex flex-wrap gap-2">
                 {mandatos.length > 0
                   ? mandatos.map((m, i) => (
-                      <span key={i} className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
+                      <span
+                        key={i}
+                        className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+                      >
                         {m.anoInicio ?? "?"}–{m.anoFim ?? "?"}
                         {m.legInicio
                           ? ` · ${m.legInicio}ª${m.legFim && m.legFim !== m.legInicio ? `–${m.legFim}ª` : ""} leg.`
@@ -235,8 +265,12 @@ function SenadorDetalhe() {
                       </span>
                     ))
                   : legislaturas.map((m) => (
-                      <span key={m.legislatura} className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs">
-                        {m.legislatura}ª ({anosDaLegislatura(m.legislatura)}) · {m.siglaPartido ?? "—"}/{m.siglaUf ?? "—"}
+                      <span
+                        key={m.legislatura}
+                        className="rounded-md border border-border bg-muted/40 px-2 py-1 text-xs"
+                      >
+                        {m.legislatura}ª ({anosDaLegislatura(m.legislatura)}) ·{" "}
+                        {m.siglaPartido ?? "—"}/{m.siglaUf ?? "—"}
                         {m.participacao ? ` · ${m.participacao}` : ""}
                       </span>
                     ))}
@@ -252,7 +286,9 @@ function SenadorDetalhe() {
               <CollapsibleTrigger className="group w-full flex items-center gap-2 px-3 py-2 text-left text-sm hover:bg-muted/40">
                 <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
                 Dados abertos deste senador (JSON)
-                <span className="ml-auto text-xs text-muted-foreground">{perfil.servicos.length}</span>
+                <span className="ml-auto text-xs text-muted-foreground">
+                  {perfil.servicos.length}
+                </span>
               </CollapsibleTrigger>
               <CollapsibleContent className="px-3 pb-3 pt-1">
                 <div className="flex flex-wrap gap-2">
@@ -278,9 +314,10 @@ function SenadorDetalhe() {
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="font-display text-xl">Trajetória no mandato</h2>
           <p className="text-sm text-muted-foreground mt-1">
-            Entradas em exercício e afastamentos registrados pelo Senado — do mais recente ao mais antigo.
-            Um afastamento com causa (renúncia, licença, investidura em cargo, falecimento) mostra quando —
-            e por quê — deixou a cadeira, abrindo vaga para o suplente. "Término do mandato" é o fim normal.
+            Entradas em exercício e afastamentos registrados pelo Senado — do mais recente ao mais
+            antigo. Um afastamento com causa (renúncia, licença, investidura em cargo, falecimento)
+            mostra quando — e por quê — deixou a cadeira, abrindo vaga para o suplente. "Término do
+            mandato" é o fim normal.
           </p>
           <Trajetoria items={trajetoriaSenado} />
         </section>
@@ -291,26 +328,42 @@ function SenadorDetalhe() {
           <div>
             <h2 className="font-display text-xl">Cadeia de suplência</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Suplentes não são eleitos diretamente para a cadeira — assumem quando o titular se afasta.
-              Aqui, quem substitui quem.
+              Suplentes não são eleitos diretamente para a cadeira — assumem quando o titular se
+              afasta. Aqui, quem substitui quem.
             </p>
           </div>
           {data.meusSuplentes.length > 0 && (
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">Suplentes deste senador</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
+                Suplentes deste senador
+              </div>
               <div className="flex flex-wrap gap-2">
                 {data.meusSuplentes.map((s, i) => (
-                  <SupChip key={i} ordem={s.ordem} codigo={s.codigo} nome={s.nome} legislaturas={s.legislaturas} />
+                  <SupChip
+                    key={i}
+                    ordem={s.ordem}
+                    codigo={s.codigo}
+                    nome={s.nome}
+                    legislaturas={s.legislaturas}
+                  />
                 ))}
               </div>
             </div>
           )}
           {data.souSuplenteDe.length > 0 && (
             <div>
-              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">É suplente de</div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1.5">
+                É suplente de
+              </div>
               <div className="flex flex-wrap gap-2">
                 {data.souSuplenteDe.map((t, i) => (
-                  <SupChip key={i} ordem={t.ordem} codigo={t.codigo} nome={t.nome} legislaturas={t.legislaturas} />
+                  <SupChip
+                    key={i}
+                    ordem={t.ordem}
+                    codigo={t.codigo}
+                    nome={t.nome}
+                    legislaturas={t.legislaturas}
+                  />
                 ))}
               </div>
             </div>
@@ -373,8 +426,8 @@ function SenadorDetalhe() {
 
       {despesas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-          Sem despesas CEAPS em cache para este senador. Um administrador precisa importar
-          um período no painel admin.
+          Sem despesas CEAPS em cache para este senador. Um administrador precisa importar um
+          período no painel admin.
         </div>
       ) : (
         <>
@@ -410,8 +463,8 @@ function SenadorDetalhe() {
           <section>
             <h2 className="font-display text-2xl">Principais fornecedores</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Quem mais recebeu reembolsos vinculados a este mandato. Concentração elevada
-              em um único fornecedor pode merecer checagem.
+              Quem mais recebeu reembolsos vinculados a este mandato. Concentração elevada em um
+              único fornecedor pode merecer checagem.
             </p>
             <div className="mt-4 rounded-xl border border-border bg-card overflow-hidden">
               <table className="w-full text-sm">

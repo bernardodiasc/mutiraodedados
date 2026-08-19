@@ -9,14 +9,15 @@ Consulte [`docs/padroes/conteudo-investigativo.md`](/docs/padroes/conteudo-inves
 
 ## Resumo dos padrões
 
-| Tipo | Foco | Estrutura |
-|------|------|-----------|
-| **Trilha Investigativa** | Como pensar — processo analítico | 3 passos com verbos imperativos + gatilhos 🔍 |
-| **Mapa Investigativo** | Como fazer — engenharia de dados | Tutorial passo-a-passo com sistema, chaves de busca |
+| Tipo                     | Foco                             | Estrutura                                           |
+| ------------------------ | -------------------------------- | --------------------------------------------------- |
+| **Trilha Investigativa** | Como pensar — processo analítico | 3 passos com verbos imperativos + gatilhos 🔍       |
+| **Mapa Investigativo**   | Como fazer — engenharia de dados | Tutorial passo-a-passo com sistema, chaves de busca |
 
 ## Conceitos obrigatórios
 
 Todo conteúdo deve mencionar (quando aplicável):
+
 - **Ciclo tridimensional**: Demanda → Conexão → Resultado
 - **Anatomia da despesa**: Empenho → Liquidação → Pagamento
 - **Pontos cegos de risco**: aditivos, fracionamento, laranjas no QSA, omissão SICONFI

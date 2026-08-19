@@ -1,17 +1,9 @@
 import { ExternalLink, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  ORIGEM_LABEL,
-  SEVERIDADE_LABEL,
-  STATUS_LABEL,
-} from "@/lib/anomalia";
+import { ORIGEM_LABEL, SEVERIDADE_LABEL, STATUS_LABEL } from "@/lib/anomalia";
 import { ReporteOficialModal } from "@/components/ReporteOficialModal";
-import {
-  fmtBRL,
-  fmtData,
-  severityClasses,
-} from "@/lib/anomalia-investigacao/logic";
+import { fmtBRL, fmtData, severityClasses } from "@/lib/anomalia-investigacao/logic";
 import type { AnomaliaInvestigacaoViewProps } from "@/lib/anomalia-investigacao/types";
 
 /**
@@ -35,11 +27,7 @@ export function AnomaliaInvestigacaoView({
 
   return (
     <div
-      className={
-        flush
-          ? "p-4 space-y-4"
-          : "rounded-xl border border-border bg-card p-5 space-y-4"
-      }
+      className={flush ? "p-4 space-y-4" : "rounded-xl border border-border bg-card p-5 space-y-4"}
     >
       <header className="flex flex-wrap items-center gap-2">
         <span className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ${sevColor}`}>
@@ -63,7 +51,9 @@ export function AnomaliaInvestigacaoView({
           </span>
         )}
         <span className="text-xs text-muted-foreground">· {anomalia.fonte}</span>
-        <span className="ml-auto text-xs text-muted-foreground">Detectado em {fmtData(anomalia.detectado_em)}</span>
+        <span className="ml-auto text-xs text-muted-foreground">
+          Detectado em {fmtData(anomalia.detectado_em)}
+        </span>
       </header>
 
       <div className="text-sm">
@@ -72,8 +62,7 @@ export function AnomaliaInvestigacaoView({
             <span>{anomalia.entidade.rotulo}</span>
           ) : (
             <>
-              {anomalia.entidade.tipo}{" "}
-              <code className="text-xs">{anomalia.entidade.id}</code>
+              {anomalia.entidade.tipo} <code className="text-xs">{anomalia.entidade.id}</code>
             </>
           )}
         </div>
@@ -125,7 +114,9 @@ export function AnomaliaInvestigacaoView({
       )}
 
       <div>
-        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Trilha</div>
+        <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">
+          Trilha
+        </div>
         <ul className="text-xs space-y-1">
           {anomalia.trilha.map((t, i) => (
             <li key={i} className="flex gap-2">
@@ -140,13 +131,23 @@ export function AnomaliaInvestigacaoView({
         <div className="border-t border-border pt-3 space-y-3">
           <div className="flex flex-wrap gap-2">
             {actions.onRevalidar && (
-              <Button size="sm" variant="outline" onClick={() => onRun("rev", actions.onRevalidar)} disabled={!!busy}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onRun("rev", actions.onRevalidar)}
+                disabled={!!busy}
+              >
                 {busy === "rev" ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
                 Re-checar contra a fonte oficial
               </Button>
             )}
             {actions.onConfirmar && anomalia.status === "aberto" && (
-              <Button size="sm" variant="outline" onClick={() => onRun("conf", actions.onConfirmar)} disabled={!!busy}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onRun("conf", actions.onConfirmar)}
+                disabled={!!busy}
+              >
                 {busy === "conf" ? <Loader2 className="size-3.5 mr-1 animate-spin" /> : null}
                 Confirmar
               </Button>
@@ -157,12 +158,22 @@ export function AnomaliaInvestigacaoView({
               </Button>
             )}
             {actions.onMarcarCorrigido && (
-              <Button size="sm" variant="outline" onClick={() => onRun("cor", actions.onMarcarCorrigido)} disabled={!!busy}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onRun("cor", actions.onMarcarCorrigido)}
+                disabled={!!busy}
+              >
                 Marcar corrigido na origem
               </Button>
             )}
             {actions.onMarcarFalsoPositivo && (
-              <Button size="sm" variant="ghost" onClick={() => onRun("fp", actions.onMarcarFalsoPositivo)} disabled={!!busy}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => onRun("fp", actions.onMarcarFalsoPositivo)}
+                disabled={!!busy}
+              >
                 Falso positivo
               </Button>
             )}
@@ -196,8 +207,15 @@ export function AnomaliaInvestigacaoView({
 
           {actions.onSalvarNota && (
             <div className="space-y-1">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Notas internas</div>
-              <Textarea value={nota} onChange={(e) => onNotaChange(e.target.value)} rows={3} maxLength={4000} />
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Notas internas
+              </div>
+              <Textarea
+                value={nota}
+                onChange={(e) => onNotaChange(e.target.value)}
+                rows={3}
+                maxLength={4000}
+              />
               <Button
                 size="sm"
                 variant="outline"

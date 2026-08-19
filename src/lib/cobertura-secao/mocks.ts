@@ -21,7 +21,11 @@ const fonteMes: FonteCobertura = {
     { ano: 2026, qtd: 1280 },
   ],
   porAnoMes: [
-    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mes) => ({ ano: 2025, mes, qtd: 200 + mes * 20 })),
+    ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((mes) => ({
+      ano: 2025,
+      mes,
+      qtd: 200 + mes * 20,
+    })),
     ...[1, 2, 3, 4, 5, 6].map((mes) => ({ ano: 2026, mes, qtd: 180 + mes * 15 })),
   ],
   mesesAnoCorrente: [1, 2, 3, 4, 5, 6],
@@ -78,7 +82,10 @@ export const coberturaResumoVariants: ViewVariants<ComponentProps<typeof Cobertu
 
 export const fonteCardVariants: ViewVariants<ComponentProps<typeof FonteCard>> = [
   { label: "mensal · compact", props: { fonte: fonteMes, anoCorrente: 2026, variant: "compact" } },
-  { label: "mensal · full (heatmap)", props: { fonte: fonteMes, anoCorrente: 2026, variant: "full" } },
+  {
+    label: "mensal · full (heatmap)",
+    props: { fonte: fonteMes, anoCorrente: 2026, variant: "full" },
+  },
   { label: "anual", props: { fonte: fonteAno, anoCorrente: 2026, variant: "compact" } },
   { label: "sem dados", props: { fonte: fonteSemDados, anoCorrente: 2026, variant: "compact" } },
 ];

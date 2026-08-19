@@ -1,11 +1,7 @@
 import * as React from "react";
 import { useDataSource } from "@/lib/data-store";
 import { AdminSinaisView } from "@/components/AdminSinaisView";
-import {
-  filtrarSinais,
-  ordenarPorSeveridade,
-  regrasUnicas,
-} from "@/lib/admin-sinais/logic";
+import { filtrarSinais, ordenarPorSeveridade, regrasUnicas } from "@/lib/admin-sinais/logic";
 
 export default function AdminSinaisContainer() {
   const ds = useDataSource();

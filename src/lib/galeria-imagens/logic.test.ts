@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  slugifyNome,
-  extrairExtensao,
-  nomeBase,
-  buildStoragePath,
-  validarArquivo,
-} from "./logic";
+import { slugifyNome, extrairExtensao, nomeBase, buildStoragePath, validarArquivo } from "./logic";
 
 describe("slugifyNome", () => {
   it("remove acentos e normaliza", () => {
@@ -47,7 +41,9 @@ describe("buildStoragePath", () => {
 describe("validarArquivo", () => {
   const lim = { MAX_BYTES: 5 * 1024 * 1024, MIMES_OK: ["image/png", "image/jpeg"] };
   it("aceita mime/tamanho válidos", () => {
-    expect(validarArquivo({ name: "a.png", type: "image/png", size: 100 }, lim)).toEqual({ ok: true });
+    expect(validarArquivo({ name: "a.png", type: "image/png", size: 100 }, lim)).toEqual({
+      ok: true,
+    });
   });
   it("rejeita mime", () => {
     const r = validarArquivo({ name: "a.svg", type: "image/svg+xml", size: 100 }, lim);

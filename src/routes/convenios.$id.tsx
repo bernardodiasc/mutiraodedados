@@ -80,27 +80,27 @@ function ConvenioDetalhe() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-      <BotaoCopiar
-        obterTexto={() =>
-          textoCopiavelDeEntidade(`Convênio ${c.numero ?? c.id}`, c.url_oficial, c)
-        }
-        rotulo="Copiar dados"
-        mensagemToast="Dados do convênio copiados — cole na sua IA"
-      />
-      <BotaoSalvarItem
-        entidadeTipo="convenio"
-        entidadeId={c.id}
-        titulo={
-          c.objeto
-            ? sanitizarTextoPublico(c.objeto).slice(0, 200)
-            : `Convênio ${c.numero ?? c.id}`
-        }
-        url={`/convenios/${encodeURIComponent(c.id)}`}
-        contexto={[c.tipo_instrumento, c.numero ? `nº ${c.numero}` : null, fmtBRL(c.valor)]
-          .filter(Boolean)
-          .join(" · ")}
-        snapshotDe={c}
-      />
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(`Convênio ${c.numero ?? c.id}`, c.url_oficial, c)
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados do convênio copiados — cole na sua IA"
+        />
+        <BotaoSalvarItem
+          entidadeTipo="convenio"
+          entidadeId={c.id}
+          titulo={
+            c.objeto
+              ? sanitizarTextoPublico(c.objeto).slice(0, 200)
+              : `Convênio ${c.numero ?? c.id}`
+          }
+          url={`/convenios/${encodeURIComponent(c.id)}`}
+          contexto={[c.tipo_instrumento, c.numero ? `nº ${c.numero}` : null, fmtBRL(c.valor)]
+            .filter(Boolean)
+            .join(" · ")}
+          snapshotDe={c}
+        />
       </div>
 
       <QualidadeBanner fonte="cgu_convenios" entidadeTipo="convenio" entidadeId={c.id} />

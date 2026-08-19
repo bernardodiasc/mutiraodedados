@@ -14,14 +14,7 @@ export type CandidatoInvestigacao = {
 
 /** Constrói a chave estável de queryKey para finding por chave. */
 export function chaveQueryKey(c: CandidatoInvestigacao): readonly unknown[] {
-  return [
-    "finding-chave",
-    c.fonte,
-    c.entidade_tipo,
-    c.entidade_id,
-    c.regra,
-    c.origem,
-  ] as const;
+  return ["finding-chave", c.fonte, c.entidade_tipo, c.entidade_id, c.regra, c.origem] as const;
 }
 
 /** Monta o payload de promoção a partir do candidato (defaults estáveis). */
@@ -40,7 +33,10 @@ export function candidatoParaPromocao(c: CandidatoInvestigacao) {
 }
 
 /** Filtro: trata pré-promoção como "aberto". */
-export function passaStatusFilter(statusFinding: string | null | undefined, statusFilter?: string): boolean {
+export function passaStatusFilter(
+  statusFinding: string | null | undefined,
+  statusFilter?: string,
+): boolean {
   if (!statusFilter) return true;
   const atual = statusFinding ?? "aberto";
   return atual === statusFilter;

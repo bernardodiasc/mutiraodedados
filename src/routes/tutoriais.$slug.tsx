@@ -2,10 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArtigoDetalhe } from "@/components/ArtigoDetalhe";
 
 export const Route = createFileRoute("/tutoriais/$slug")({
-  component: () => {
-    const { slug } = Route.useParams();
-    return <ArtigoDetalhe slug={slug} voltarTo="/tutoriais" voltarLabel="Tutoriais" />;
-  },
+  component: TutorialDetalhe,
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
       <h1 className="font-display text-3xl">Tutorial não encontrado</h1>
@@ -21,3 +18,8 @@ export const Route = createFileRoute("/tutoriais/$slug")({
     </div>
   ),
 });
+
+function TutorialDetalhe() {
+  const { slug } = Route.useParams();
+  return <ArtigoDetalhe slug={slug} voltarTo="/tutoriais" voltarLabel="Tutoriais" />;
+}

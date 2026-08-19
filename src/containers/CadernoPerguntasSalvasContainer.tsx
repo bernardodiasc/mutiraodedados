@@ -2,11 +2,7 @@ import * as React from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  listarMinhasPerguntas,
-  excluirPergunta,
-  type Pergunta,
-} from "@/lib/perguntas.functions";
+import { listarMinhasPerguntas, excluirPergunta, type Pergunta } from "@/lib/perguntas.functions";
 import { CadernoPerguntasSalvasView } from "@/components/CadernoPerguntasSalvasView";
 
 export function CadernoPerguntasSalvasContainer() {
@@ -27,8 +23,7 @@ export function CadernoPerguntasSalvasContainer() {
       toast.success("Pergunta removida do caderno");
       queryClient.invalidateQueries({ queryKey: ["perguntas", "minhas"] });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao remover"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao remover"),
     onSettled: () => setRemovingId(null),
   });
 

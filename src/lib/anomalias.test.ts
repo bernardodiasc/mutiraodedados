@@ -91,7 +91,10 @@ describe("fracionamento (teto por data)", () => {
     const ds = dataset(dispensas(5, 15_000, 2019, "2019-05-01"));
     const [a] = regras(ds, "fracionamento");
     expect(a).toBeDefined();
-    expect(a.evidencia).toMatchObject({ teto: 17_600, base_legal: "Decreto 9.412/2018 (Lei 8.666)" });
+    expect(a.evidencia).toMatchObject({
+      teto: 17_600,
+      base_legal: "Decreto 9.412/2018 (Lei 8.666)",
+    });
   });
 
   it("dispensas de R$ 45 mil em 2019 NÃO disparam (acima do teto da época)…", () => {
@@ -135,9 +138,7 @@ describe("concentracao", () => {
     ]);
     expect(regras(alta, "concentracao")[0]?.severidade).toBe("alta");
 
-    const pequeno = dataset([
-      contrato({ fornecedorCnpj: "00000000000191", valor: 1_500_000 }),
-    ]);
+    const pequeno = dataset([contrato({ fornecedorCnpj: "00000000000191", valor: 1_500_000 })]);
     expect(regras(pequeno, "concentracao")).toHaveLength(0);
   });
 });
@@ -196,7 +197,10 @@ describe("descricao_generica", () => {
     expect(regras(curto, "descricao_generica")).toHaveLength(1);
 
     const bandeira = dataset([
-      contrato({ objeto: "Contratação de apoio operacional para as unidades descentralizadas", valor: 300_000 }),
+      contrato({
+        objeto: "Contratação de apoio operacional para as unidades descentralizadas",
+        valor: 300_000,
+      }),
     ]);
     expect(regras(bandeira, "descricao_generica")).toHaveLength(1);
   });

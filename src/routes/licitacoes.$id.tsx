@@ -89,25 +89,25 @@ function LicitacaoDetalhe() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-      <BotaoCopiar
-        obterTexto={() =>
-          textoCopiavelDeEntidade(`Licitação ${l.numero ?? l.id}`, l.url_oficial, l)
-        }
-        rotulo="Copiar dados"
-        mensagemToast="Dados da licitação copiados — cole na sua IA"
-      />
-      <BotaoSalvarItem
-        entidadeTipo="licitacao"
-        entidadeId={l.id}
-        titulo={
-          l.objeto
-            ? sanitizarTextoPublico(l.objeto).slice(0, 200)
-            : `Licitação ${l.numero ?? l.id}`
-        }
-        url={`/licitacoes/${encodeURIComponent(l.id)}`}
-        contexto={[l.modalidade, l.situacao, fmtBRL(l.valor)].filter(Boolean).join(" · ")}
-        snapshotDe={l}
-      />
+        <BotaoCopiar
+          obterTexto={() =>
+            textoCopiavelDeEntidade(`Licitação ${l.numero ?? l.id}`, l.url_oficial, l)
+          }
+          rotulo="Copiar dados"
+          mensagemToast="Dados da licitação copiados — cole na sua IA"
+        />
+        <BotaoSalvarItem
+          entidadeTipo="licitacao"
+          entidadeId={l.id}
+          titulo={
+            l.objeto
+              ? sanitizarTextoPublico(l.objeto).slice(0, 200)
+              : `Licitação ${l.numero ?? l.id}`
+          }
+          url={`/licitacoes/${encodeURIComponent(l.id)}`}
+          contexto={[l.modalidade, l.situacao, fmtBRL(l.valor)].filter(Boolean).join(" · ")}
+          snapshotDe={l}
+        />
       </div>
 
       <QualidadeBanner fonte="cgu_licitacoes" entidadeTipo="licitacao" entidadeId={l.id} />

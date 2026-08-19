@@ -44,7 +44,10 @@ export function FlagsCidadaView({
     <div className="border border-border rounded-xl p-5 bg-card">
       {!hasUser ? (
         <div className="text-sm text-muted-foreground">
-          <Link to="/login" className="text-accent font-semibold">Entre</Link> para marcar suspeitas, confirmar regularidade ou adicionar contexto a esta entidade.
+          <Link to="/login" className="text-accent font-semibold">
+            Entre
+          </Link>{" "}
+          para marcar suspeitas, confirmar regularidade ou adicionar contexto a esta entidade.
         </div>
       ) : (
         <div className="space-y-3">
@@ -80,7 +83,9 @@ export function FlagsCidadaView({
           flags.map((f) => (
             <div key={f.id} className="border-t border-border pt-3">
               <div className="flex items-center justify-between gap-2">
-                <div className="text-xs font-semibold uppercase tracking-wider text-accent">{f.tipo}</div>
+                <div className="text-xs font-semibold uppercase tracking-wider text-accent">
+                  {f.tipo}
+                </div>
                 <div className="text-xs text-muted-foreground">
                   {f.displayName ?? "anônimo"} · {formatDataCurta(f.created_at)}
                 </div>

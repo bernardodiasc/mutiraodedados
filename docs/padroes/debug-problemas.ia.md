@@ -9,6 +9,7 @@ Este documento consolida particularidades e limitações técnicas descobertas n
 ## 1. Conflito do Zod 4 com Gerador de Rotas do TanStack Router (Vitest)
 
 **Sintoma**
+
 ```
 TypeError: z.function(...).returns is not a function
   at node_modules/@tanstack/router-generator/dist/esm/config.js:52:89
@@ -21,6 +22,7 @@ O projeto usa Zod v4 (`^4.4.3`), mas o `@lovable.dev/vite-tanstack-config` e o g
 O repositório tem um `vitest.config.ts` **definitivo** na raiz. Quando esse arquivo existe, o Vitest o usa com precedência e nem carrega o `vite.config.ts` — o conflito não ocorre. O `vite build` ignora o `vitest.config.ts`, então ele não interfere no build de produção (verificado).
 
 Rode os testes com:
+
 ```bash
 bun run test        # suíte completa (vitest run)
 bun run test:watch  # modo watch
@@ -40,6 +42,7 @@ Timeouts ou estouro de recursos durante importações longas no servidor.
 O deploy roda em Cloudflare Workers (`wrangler.jsonc`). Limites rígidos de CPU e tempo por requisição. Não são permitidos subprocessos nem binários nativos.
 
 **Solução aplicada**
+
 - Importações paginadas em lotes de até 200 registros no upsert.
 - Varreduras longas (ex.: Portal CGU) são **retomáveis**: cada rodada roda até esgotar um orçamento de tempo (`orcamentoMs ≈ 3min`), salva o progresso na tabela `cgu_varredura`, e a próxima rodada retoma de onde parou. O `AdminImportContainer` gerencia o loop de auto-continuar no cliente.
 
@@ -55,10 +58,12 @@ Build com erro de bundle ou chave `SUPABASE_SERVICE_ROLE_KEY` vazando para o fro
 
 **Regra (atualizada — reflete o código real)**
 O que importa é **quem** importa, não _como_. Arquivos de **server function** (`*.functions.ts`, e módulos `*.server.ts`) são server-only — o TanStack Start separa os handlers do bundle do cliente — então o **import estático no topo é o padrão** do projeto e é seguro:
+
 ```ts
 // ✅ padrão em *.functions.ts / sweep.ts (server-only)
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 ```
+
 A regra de verdade: **nunca** importe `client.server` (nem `supabaseAdmin`) em **componentes/rotas `.tsx`** que renderizam no cliente. Se precisar de dados num componente, chame uma server function via `useServerFn`. Se um `.tsx` precisar pontualmente, use import dinâmico dentro de um handler server-side.
 
 ---
@@ -87,7 +92,9 @@ Os **dois** vars faltando = `process.env` **vazio** = o código do handler está
 ```ts
 // ❌ ERRADO — factory: o compilador não extrai o handler
 function fazerSync(tipo) {
-  return createServerFn({ method: "POST" }).handler(async () => { /* usa supabaseAdmin */ });
+  return createServerFn({ method: "POST" }).handler(async () => {
+    /* usa supabaseAdmin */
+  });
 }
 export const sincronizarA = fazerSync("a");
 export const sincronizarB = fazerSync("b");
@@ -95,9 +102,12 @@ export const sincronizarB = fazerSync("b");
 
 **Regra**
 Defina **cada** `createServerFn(...).handler(...)` inline, no topo do módulo (padrão de `camara/ingest.functions.ts`). Fatore só o corpo em um helper comum e chame-o de dentro de cada handler:
+
 ```ts
 // ✅ CERTO — cada server fn é estática; o corpo compartilhado é um helper
-async function executar(tipo, userId, data) { /* usa supabaseAdmin via await import */ }
+async function executar(tipo, userId, data) {
+  /* usa supabaseAdmin via await import */
+}
 export const sincronizarA = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context, data }) => executar("a", context.userId, data));

@@ -21,7 +21,10 @@ export const Route = createFileRoute("/caderno_/nova")({
   head: () => ({
     meta: [
       { title: "Nova pergunta — Meu caderno" },
-      { name: "description", content: "Crie uma pergunta no seu caderno — em branco ou a partir de um modelo." },
+      {
+        name: "description",
+        content: "Crie uma pergunta no seu caderno — em branco ou a partir de um modelo.",
+      },
     ],
   }),
 });
@@ -97,15 +100,18 @@ function NovaPerguntaPage() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-12">
-      <Link to="/caderno" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+      <Link
+        to="/caderno"
+        className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+      >
         <ArrowLeft className="size-3.5" /> Voltar ao caderno
       </Link>
       <h1 className="font-display text-3xl mt-3">
         {modeloId ? "Nova pergunta a partir de um modelo" : "Nova pergunta"}
       </h1>
       <p className="text-sm text-muted-foreground mt-2">
-        Vai nascer privada no seu caderno. Você pode editar, adicionar itens e solicitar
-        publicação depois.
+        Vai nascer privada no seu caderno. Você pode editar, adicionar itens e solicitar publicação
+        depois.
       </p>
       <form
         className="mt-8 space-y-5"

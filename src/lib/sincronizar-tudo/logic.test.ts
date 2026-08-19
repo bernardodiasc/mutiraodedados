@@ -1,10 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  fmtDuration,
-  buildTriedSet,
-  isFutureSlot,
-  countByLabelPrefix,
-} from "./logic";
+import { fmtDuration, buildTriedSet, isFutureSlot, countByLabelPrefix } from "./logic";
 import type { CoberturaResult } from "@/lib/data/cobertura.functions";
 
 describe("fmtDuration", () => {

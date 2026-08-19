@@ -3,11 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
-import {
-  salvarItem,
-  verificarItemSalvo,
-  type EntidadeTipo,
-} from "@/lib/itens-salvos.functions";
+import { salvarItem, verificarItemSalvo, type EntidadeTipo } from "@/lib/itens-salvos.functions";
 import { listarMinhasPerguntas } from "@/lib/perguntas.functions";
 import {
   listarPerguntasContendoItem,
@@ -36,9 +32,7 @@ export type BotaoSalvarItemContainerProps = {
  * não fazem sentido dentro de uma pergunta (ex.: a própria pergunta). */
 function mapToPerguntaItemTipo(t: EntidadeTipo): PerguntaItemTipo | null {
   if (t === "pergunta") return null;
-  return (PERGUNTA_ITEM_TIPOS as readonly string[]).includes(t)
-    ? (t as PerguntaItemTipo)
-    : "link";
+  return (PERGUNTA_ITEM_TIPOS as readonly string[]).includes(t) ? (t as PerguntaItemTipo) : "link";
 }
 
 export function BotaoSalvarItemContainer({
@@ -102,8 +96,7 @@ export function BotaoSalvarItemContainer({
   const contendoKey = ["pergunta-itens", "contendo", perguntaTipo, entidadeId];
   const contendoQ = useQuery({
     queryKey: contendoKey,
-    queryFn: () =>
-      listarContendo({ data: { tipo: perguntaTipo!, ref_id: entidadeId } }),
+    queryFn: () => listarContendo({ data: { tipo: perguntaTipo!, ref_id: entidadeId } }),
     enabled: podeUsarPastas,
   });
 

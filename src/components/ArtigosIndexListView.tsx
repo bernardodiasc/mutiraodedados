@@ -88,7 +88,10 @@ export function ArtigosIndexListView({
                   {m.fontes_usadas.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1">
                       {m.fontes_usadas.map((f: string) => (
-                        <span key={f} className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent">
+                        <span
+                          key={f}
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent"
+                        >
                           {f}
                         </span>
                       ))}

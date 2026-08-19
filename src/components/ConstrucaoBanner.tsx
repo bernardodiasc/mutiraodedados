@@ -12,11 +12,18 @@ export function ConstrucaoBanner() {
         <HardHat className="size-4 shrink-0" aria-hidden />
         <p className="flex-1 truncate">
           <span className="font-semibold">Site em construção:</span>{" "}
-          <span className="hidden sm:inline">dados reais de fontes oficiais, mas ainda incompletos — acompanhe o </span>
+          <span className="hidden sm:inline">
+            dados reais de fontes oficiais, mas ainda incompletos — acompanhe o{" "}
+          </span>
           <span className="sm:hidden">veja </span>
-          <Link to="/roadmap" className="underline underline-offset-2 hover:text-accent">roadmap</Link>
-          {" "}e a{" "}
-          <Link to="/cobertura" className="underline underline-offset-2 hover:text-accent">cobertura</Link>.
+          <Link to="/roadmap" className="underline underline-offset-2 hover:text-accent">
+            roadmap
+          </Link>{" "}
+          e a{" "}
+          <Link to="/cobertura" className="underline underline-offset-2 hover:text-accent">
+            cobertura
+          </Link>
+          .
         </p>
         <button
           onClick={() => setVisible(false)}

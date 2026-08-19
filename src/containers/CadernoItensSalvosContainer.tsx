@@ -31,14 +31,12 @@ export function CadernoItensSalvosContainer() {
       queryClient.invalidateQueries({ queryKey: ["itens-salvos", "minhas"] });
       queryClient.invalidateQueries({ queryKey: ["itens-salvos", "verificar"] });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao remover"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao remover"),
     onSettled: () => setRemovingId(null),
   });
 
   const verificar = useMutation({
-    mutationFn: async (args: { id: string; substituir?: boolean }) =>
-      verificarFn({ data: args }),
+    mutationFn: async (args: { id: string; substituir?: boolean }) => verificarFn({ data: args }),
     onMutate: ({ id }) => setVerificandoId(id),
     onSuccess: (res, args) => {
       if (args.substituir) {
@@ -52,8 +50,7 @@ export function CadernoItensSalvosContainer() {
       }
       queryClient.invalidateQueries({ queryKey: ["itens-salvos", "minhas"] });
     },
-    onError: (e: unknown) =>
-      toast.error(e instanceof Error ? e.message : "Erro ao verificar"),
+    onError: (e: unknown) => toast.error(e instanceof Error ? e.message : "Erro ao verificar"),
     onSettled: () => setVerificandoId(null),
   });
 
@@ -70,9 +67,7 @@ export function CadernoItensSalvosContainer() {
       onVerificar={(id) => verificar.mutate({ id })}
       onAtualizarSnapshot={(id) => {
         if (
-          confirm(
-            "Substituir o snapshot pelo dado ao vivo? O valor de prova antigo será perdido.",
-          )
+          confirm("Substituir o snapshot pelo dado ao vivo? O valor de prova antigo será perdido.")
         )
           verificar.mutate({ id, substituir: true });
       }}

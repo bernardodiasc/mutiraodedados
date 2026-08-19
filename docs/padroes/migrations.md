@@ -69,6 +69,7 @@ SELECT public.has_role(auth.uid(), 'admin'::app_role);
 ## Funções SQL novas
 
 Toda função SQL nova:
+
 - declara `SET search_path = public`
 - declara `STABLE` ou `IMMUTABLE` quando aplicável
 - usa `SECURITY DEFINER` apenas quando precisa atravessar RLS de forma controlada (e nunca recebe o user_id como argumento confiável vindo do cliente — sempre `auth.uid()`).

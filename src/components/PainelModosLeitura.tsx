@@ -106,9 +106,7 @@ export function PainelModosLeitura({
       {Atual && ativo ? (
         <div className="mt-4">
           <div className="text-xs text-muted-foreground italic">{Atual.resumo}</div>
-          <p className="text-sm leading-relaxed mt-2 whitespace-pre-line">
-            {leituras[ativo]}
-          </p>
+          <p className="text-sm leading-relaxed mt-2 whitespace-pre-line">{leituras[ativo]}</p>
         </div>
       ) : null}
       <p className="text-[11px] text-muted-foreground mt-4">

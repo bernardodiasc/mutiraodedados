@@ -60,7 +60,8 @@ const PORTAIS_OFICIAIS: Ref[] = [
   {
     titulo: "Diário Oficial da União (Imprensa Nacional)",
     url: "https://www.in.gov.br",
-    descricao: "Publicação oficial de atos normativos, nomeações, contratos e extratos do Executivo federal.",
+    descricao:
+      "Publicação oficial de atos normativos, nomeações, contratos e extratos do Executivo federal.",
   },
   {
     titulo: "Câmara dos Deputados — Dados Abertos",
@@ -75,17 +76,20 @@ const PORTAIS_OFICIAIS: Ref[] = [
   {
     titulo: "Tribunal de Contas da União (TCU)",
     url: "https://portal.tcu.gov.br",
-    descricao: "Acórdãos, fiscalizações, contas de governo e jurisprudência sobre gestão pública federal.",
+    descricao:
+      "Acórdãos, fiscalizações, contas de governo e jurisprudência sobre gestão pública federal.",
   },
   {
     titulo: "Receita Federal — CNPJ aberto",
     url: "https://dadosabertos.rfb.gov.br/CNPJ",
-    descricao: "Base completa de empresas brasileiras (matriz, filiais, sócios, atividades) publicada mensalmente.",
+    descricao:
+      "Base completa de empresas brasileiras (matriz, filiais, sócios, atividades) publicada mensalmente.",
   },
   {
     titulo: "IBGE",
     url: "https://www.ibge.gov.br",
-    descricao: "Estatísticas demográficas, econômicas e sociais. Base geográfica oficial dos municípios.",
+    descricao:
+      "Estatísticas demográficas, econômicas e sociais. Base geográfica oficial dos municípios.",
   },
   {
     titulo: "Tribunal Superior Eleitoral (TSE) — Repositório de Dados",
@@ -95,17 +99,20 @@ const PORTAIS_OFICIAIS: Ref[] = [
   {
     titulo: "DivulgaCandContas (TSE)",
     url: "https://divulgacandcontas.tse.jus.br",
-    descricao: "Consulta pública a candidaturas, prestação de contas eleitorais e propaganda de todos os cargos e eleições.",
+    descricao:
+      "Consulta pública a candidaturas, prestação de contas eleitorais e propaganda de todos os cargos e eleições.",
   },
   {
     titulo: "DivulgaSPCA (TSE)",
     url: "https://divulgaspca.tse.jus.br",
-    descricao: "Divulgação das prestações de contas anuais dos diretórios partidários (nacional, estaduais e municipais), por exercício.",
+    descricao:
+      "Divulgação das prestações de contas anuais dos diretórios partidários (nacional, estaduais e municipais), por exercício.",
   },
   {
     titulo: "ComunicaBR (Presidência da República)",
     url: "https://comunicabr.presidencia.gov.br",
-    descricao: "Portal oficial de comunicação do governo federal: notícias, informes e divulgação institucional.",
+    descricao:
+      "Portal oficial de comunicação do governo federal: notícias, informes e divulgação institucional.",
   },
 ];
 
@@ -138,7 +145,8 @@ const APIS_OFICIAIS: Ref[] = [
   {
     titulo: "BrasilAPI",
     url: "https://brasilapi.com.br",
-    descricao: "Agregador comunitário de APIs brasileiras: CEP, CNPJ, bancos, feriados, FIPE, IBGE.",
+    descricao:
+      "Agregador comunitário de APIs brasileiras: CEP, CNPJ, bancos, feriados, FIPE, IBGE.",
   },
   {
     titulo: "Minha Receita",
@@ -148,7 +156,8 @@ const APIS_OFICIAIS: Ref[] = [
   {
     titulo: "LexML",
     url: "https://www.lexml.gov.br",
-    descricao: "Rede de informação legislativa e jurídica brasileira com identificadores estáveis (URN LEX).",
+    descricao:
+      "Rede de informação legislativa e jurídica brasileira com identificadores estáveis (URN LEX).",
   },
 ];
 
@@ -166,17 +175,20 @@ const SITES_RELEVANTES: Ref[] = [
   {
     titulo: "e-SIC dos entes federativos",
     url: "https://www.gov.br/acessoainformacao/pt-br/lai-para-sic/guia-rapido-para-busca-de-informacoes",
-    descricao: "Diretório de Sistemas Eletrônicos de Informação ao Cidadão em estados e municípios.",
+    descricao:
+      "Diretório de Sistemas Eletrônicos de Informação ao Cidadão em estados e municípios.",
   },
   {
     titulo: "ANPD — Autoridade Nacional de Proteção de Dados",
     url: "https://www.gov.br/anpd",
-    descricao: "Regulador da LGPD. Guias, decisões e orientações sobre tratamento de dados pessoais.",
+    descricao:
+      "Regulador da LGPD. Guias, decisões e orientações sobre tratamento de dados pessoais.",
   },
   {
     titulo: "Open Knowledge Brasil",
     url: "https://ok.org.br",
-    descricao: "Organização da sociedade civil dedicada a dados abertos, transparência e tecnologia cívica.",
+    descricao:
+      "Organização da sociedade civil dedicada a dados abertos, transparência e tecnologia cívica.",
   },
   {
     titulo: "Transparência Brasil",
@@ -205,17 +217,20 @@ const PROJETOS_SIMILARES: Ref[] = [
   {
     titulo: "Querido Diário (Open Knowledge Brasil)",
     url: "https://queridodiario.ok.org.br",
-    descricao: "Coleta e disponibiliza diários oficiais municipais em formato aberto e pesquisável.",
+    descricao:
+      "Coleta e disponibiliza diários oficiais municipais em formato aberto e pesquisável.",
   },
   {
     titulo: "Achados e Pedidos",
     url: "https://achadosepedidos.org.br",
-    descricao: "Buscador de pedidos de LAI já respondidos por órgãos públicos federais e estaduais.",
+    descricao:
+      "Buscador de pedidos de LAI já respondidos por órgãos públicos federais e estaduais.",
   },
   {
     titulo: "Ranking dos Políticos",
     url: "https://www.rankingdospoliticos.com.br",
-    descricao: "Avaliação automatizada de parlamentares com base em produção legislativa e ficha-limpa.",
+    descricao:
+      "Avaliação automatizada de parlamentares com base em produção legislativa e ficha-limpa.",
   },
   {
     titulo: "Basômetro (Estadão)",
@@ -317,13 +332,11 @@ function Referencias() {
       <p className="mt-3 text-muted-foreground">
         Transparência pública não é zona de competição — é bem comum. Listamos abaixo projetos
         brasileiros que usam dados públicos para devolver interpretação ao cidadão. Se você está
-        pensando em criar algo parecido com o Mutirão de Dados, <strong className="text-foreground">faça</strong>.
-        Os dados são os mesmos e estão disponíveis. Quanto mais leituras independentes, mais difícil
-        é capturar a narrativa pública. Se sua iniciativa não está aqui e deveria estar,{" "}
-        <Link
-          to="/contestar"
-          className="text-accent underline-offset-4 hover:underline"
-        >
+        pensando em criar algo parecido com o Mutirão de Dados,{" "}
+        <strong className="text-foreground">faça</strong>. Os dados são os mesmos e estão
+        disponíveis. Quanto mais leituras independentes, mais difícil é capturar a narrativa
+        pública. Se sua iniciativa não está aqui e deveria estar,{" "}
+        <Link to="/contestar" className="text-accent underline-offset-4 hover:underline">
           escreva para a gente
         </Link>
         .

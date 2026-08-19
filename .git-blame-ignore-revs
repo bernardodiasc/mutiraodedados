@@ -1,0 +1,6 @@
+# Commits puramente mecânicos, ignorados pelo `git blame`.
+# Uso local (uma vez por clone):
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+
+# style: formata a base com Prettier (v0.2.0)
+12c085de3aba38dc86a7d3210459986c09e2cd89

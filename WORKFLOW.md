@@ -2,12 +2,12 @@
 
 Este documento define **como o projeto evolui**: versionamento, ritmo de trabalho, fechamento de release e a relação entre os dois repositórios. Como o projeto **funciona** está em [`docs/`](./docs/README.md) — nada daqui duplica aquilo.
 
-| Documento | Fonte de verdade sobre | Nunca contém |
-|---|---|---|
-| [ROADMAP.md](./ROADMAP.md) | Futuro: visão, release em andamento, backlog | Trabalho entregue |
-| [RELEASES.md](./RELEASES.md) | Passado: releases entregues e validadas | Planos futuros |
-| WORKFLOW.md (este) | Processo, convenções, estado atual | Changelog detalhado |
-| [AGENTS.md](./AGENTS.md) | Índice para agentes + diretrizes de comportamento | — |
+| Documento                    | Fonte de verdade sobre                            | Nunca contém        |
+| ---------------------------- | ------------------------------------------------- | ------------------- |
+| [ROADMAP.md](./ROADMAP.md)   | Futuro: visão, release em andamento, backlog      | Trabalho entregue   |
+| [RELEASES.md](./RELEASES.md) | Passado: releases entregues e validadas           | Planos futuros      |
+| WORKFLOW.md (este)           | Processo, convenções, estado atual                | Changelog detalhado |
+| [AGENTS.md](./AGENTS.md)     | Índice para agentes + diretrizes de comportamento | —                   |
 
 ## 1. Processo de release
 
@@ -31,12 +31,12 @@ Este documento define **como o projeto evolui**: versionamento, ritmo de trabalh
 
 ## 2. Checks proporcionais
 
-| Escopo da release | Checks obrigatórios |
-|---|---|
-| Toda release | `bun run lint` · `bun run build` · `bun run test` |
-| Toca importação de dados | Rodada real da fonte afetada em `/admin/dados`, conferindo o log `importacoes` |
-| Contém migration | Migration aplicada + `GRANT`/RLS conferidos ([padrões](./docs/padroes/migrations.md)) |
-| Muda UI | Fluxos afetados testados no preview; screenshots quando visual |
+| Escopo da release        | Checks obrigatórios                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------- |
+| Toda release             | `bun run lint` · `bun run build` · `bun run test`                                     |
+| Toca importação de dados | Rodada real da fonte afetada em `/admin/dados`, conferindo o log `importacoes`        |
+| Contém migration         | Migration aplicada + `GRANT`/RLS conferidos ([padrões](./docs/padroes/migrations.md)) |
+| Muda UI                  | Fluxos afetados testados no preview; screenshots quando visual                        |
 
 Registre em RELEASES.md **apenas os checks realmente executados**, com resultado.
 
@@ -57,10 +57,10 @@ Uma linha por regra; o detalhe mora no doc canônico — não duplique aqui.
 
 ## 4. Os dois roadmaps
 
-| Onde | Papel | Audiência |
-|---|---|---|
-| [ROADMAP.md](./ROADMAP.md) / [RELEASES.md](./RELEASES.md) | Planejamento e histórico de **engenharia** (releases SemVer, critérios técnicos) | Mantenedor, contribuidores, agentes |
-| Tabela `roadmap_itens` (páginas `/roadmap` e `/admin/roadmap`) | Comunicação **pública cidadã** (o que o cidadão pode fazer agora) | Visitantes do site |
+| Onde                                                           | Papel                                                                            | Audiência                           |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------- | ----------------------------------- |
+| [ROADMAP.md](./ROADMAP.md) / [RELEASES.md](./RELEASES.md)      | Planejamento e histórico de **engenharia** (releases SemVer, critérios técnicos) | Mantenedor, contribuidores, agentes |
+| Tabela `roadmap_itens` (páginas `/roadmap` e `/admin/roadmap`) | Comunicação **pública cidadã** (o que o cidadão pode fazer agora)                | Visitantes do site                  |
 
 Os dois convivem: ao fechar uma release, os itens com impacto cidadão viram bloco JSON da skill [`mutirao-de-dados-features-roadmap`](./.claude/skills/mutirao-de-dados-features-roadmap/SKILL.md), colado em `/admin/roadmap`. Itens de infraestrutura interna não vão ao roadmap público.
 
@@ -97,14 +97,12 @@ Fluxo do mantenedor para um PR externo:
 3. **Port imediato ao privado preservando autoria** — `git am` do patch do PR (`curl -L <url-do-pr>.patch | git am`) ou cherry-pick, mantendo o author original.
 4. A mudança entra na release em andamento e sai na próxima publicação — o sync encontra conteúdo idêntico e não a reverte.
 
-**Nunca rodar `sync:opensource` com contribuição mergeada no público ainda não portada ao privado.**
+**Nunca rodar `sync:opensource` com contribuição mergeada no público ainda não portada ao privado.** O script verifica isso sozinho: se o `main` público tiver commits posteriores à última tag de release que não vieram de uma sincronização, ele aborta e lista os commits (a flag `--allow-unported` força, assumindo a reversão).
 
 Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do mantenedor.
 
 ## 7. Estado atual
 
-- **Release em andamento:** v0.2.0 — lint verde, remoção de código morto e proteção do sync ([escopo](./ROADMAP.md)).
-- **Última release fechada:** v0.1.0, em 2026-08-19 ([RELEASES.md](./RELEASES.md)). O histórico anterior é a baseline sem versão.
-- **Pendências conhecidas:**
-  - Nenhuma falha de teste — a suíte completa (59 arquivos, 545 testes) passou verde na primeira execução com o `vitest.config.ts` definitivo (2026-08-19).
-  - `bun run lint` falha com ~4,9 mil erros `prettier/prettier` **pré-existentes** espalhados por `src/` (código commitado sem passar pelo Prettier). Triado na v0.1.0: os arquivos tocados pela release estão limpos; a formatação em massa (`bun run format` + commit dedicado) é escopo da v0.2.0.
+- **Release em andamento:** v0.3.0 — fundação de resiliência das importações ([escopo](./ROADMAP.md)).
+- **Última release fechada:** v0.2.0, em 2026-08-19 ([RELEASES.md](./RELEASES.md)).
+- **Pendências conhecidas:** nenhuma. `bun run lint`, `bun run test` e `bun run build` passam limpos; os 16 warnings de lint restantes são o padrão shadcn/ui (componente e constante de variantes no mesmo arquivo) e não bloqueiam.

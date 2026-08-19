@@ -6,14 +6,11 @@ import { flattenGroupLinks } from "@/lib/nav-groups";
  * Nome amigável a exibir a partir do `user` do Supabase.
  * Ordem: user_metadata.display_name → user_metadata.full_name → prefixo do email → "Conta".
  */
-export function computeDisplayName(user: Pick<User, "user_metadata" | "email"> | null | undefined): string {
+export function computeDisplayName(
+  user: Pick<User, "user_metadata" | "email"> | null | undefined,
+): string {
   const meta = (user?.user_metadata ?? {}) as { display_name?: string; full_name?: string };
-  return (
-    meta.display_name ??
-    meta.full_name ??
-    user?.email?.split("@")[0] ??
-    "Conta"
-  );
+  return meta.display_name ?? meta.full_name ?? user?.email?.split("@")[0] ?? "Conta";
 }
 
 /** Primeira letra (maiúscula) do `displayName` para o avatar. */

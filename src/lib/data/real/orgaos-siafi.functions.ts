@@ -73,7 +73,9 @@ export const sincronizarOrgaosSIAFI = createServerFn({ method: "POST" })
     const linhas = [...validos.entries()].map(([cod, nome]) => ({ cod, nome }));
     for (let i = 0; i < linhas.length; i += 500) {
       const chunk = linhas.slice(i, i + 500);
-      const { error } = await supabaseAdmin.from("orgaos_cache").upsert(chunk, { onConflict: "cod" });
+      const { error } = await supabaseAdmin
+        .from("orgaos_cache")
+        .upsert(chunk, { onConflict: "cod" });
       if (error) throw new Error(`Falha ao gravar orgaos_cache: ${error.message}`);
     }
 
@@ -106,9 +108,7 @@ async function temExecucao(cod: string, ano: number): Promise<boolean> {
 export const verificarAtividadeOrgaos = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
-    z
-      .object({ delayMs: z.number().int().min(0).max(2000).default(250) })
-      .parse(input ?? {}),
+    z.object({ delayMs: z.number().int().min(0).max(2000).default(250) }).parse(input ?? {}),
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);

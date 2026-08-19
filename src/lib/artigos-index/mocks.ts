@@ -43,7 +43,14 @@ export const artigosIndexListVariants: ViewVariants<ArtigosIndexListViewProps> =
       ...baseProps,
       itens: [
         baseArtigo,
-        { ...baseArtigo, id: "a2", slug: "mapa-pncp", titulo: "Mapa: PNCP", dificuldade: "iniciante", tempo_estimado_min: 6 },
+        {
+          ...baseArtigo,
+          id: "a2",
+          slug: "mapa-pncp",
+          titulo: "Mapa: PNCP",
+          dificuldade: "iniciante",
+          tempo_estimado_min: 6,
+        },
       ],
     },
   },

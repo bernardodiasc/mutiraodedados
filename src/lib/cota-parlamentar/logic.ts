@@ -75,9 +75,13 @@ export function agregarDespesas(despesas: DespesaCota[]): AgregadoCota {
   }
   return {
     totalGeral,
-    porTipo: [...porTipo.entries()].map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total),
+    porTipo: [...porTipo.entries()]
+      .map(([tipo, total]) => ({ tipo, total }))
+      .sort((a, b) => b.total - a.total),
     porFornecedor: [...porFornecedor.values()].sort((a, b) => b.total - a.total).slice(0, 30),
-    porMes: [...porMes.entries()].map(([mes, total]) => ({ mes, total })).sort((a, b) => a.mes.localeCompare(b.mes)),
+    porMes: [...porMes.entries()]
+      .map(([mes, total]) => ({ mes, total }))
+      .sort((a, b) => a.mes.localeCompare(b.mes)),
   };
 }
 

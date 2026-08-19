@@ -20,7 +20,12 @@ export const Route = createFileRoute("/contratos/$id")({
       <h1 className="font-display text-3xl">Contrato não encontrado</h1>
     </div>
   ),
-  errorComponent: ({ error }) => <div className="mx-auto max-w-3xl px-4 py-20"><h1 className="font-display text-2xl">Erro</h1><p>{error.message}</p></div>,
+  errorComponent: ({ error }) => (
+    <div className="mx-auto max-w-3xl px-4 py-20">
+      <h1 className="font-display text-2xl">Erro</h1>
+      <p>{error.message}</p>
+    </div>
+  ),
 });
 
 function ContratoDetail() {
@@ -53,11 +58,19 @@ function ContratoDetail() {
   }, [hydrated, local, id, fetchPorId]);
 
   if (!hydrated) {
-    return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">Carregando…</div>;
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
+        Carregando…
+      </div>
+    );
   }
   const c = local ?? remoto?.contrato ?? null;
   if (!local && remoto === undefined) {
-    return <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">Carregando…</div>;
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
+        Carregando…
+      </div>
+    );
   }
   if (!c) throw notFound();
   const orgao = local ? ds.getOrgao(c.orgaoCod) : (remoto?.orgao ?? undefined);
@@ -65,8 +78,12 @@ function ContratoDetail() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
-      <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">← Voltar</Link>
-      <div className="text-xs font-semibold uppercase tracking-widest text-accent mt-3">{c.modalidade}</div>
+      <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">
+        ← Voltar
+      </Link>
+      <div className="text-xs font-semibold uppercase tracking-widest text-accent mt-3">
+        {c.modalidade}
+      </div>
       <h1 className="font-display text-3xl mt-1">{sanitizarTextoPublico(c.objeto)}</h1>
       <div className="mt-2">
         <BotaoFonteOficial
@@ -80,7 +97,11 @@ function ContratoDetail() {
             textoCopiavelDeEntidade(
               `Contrato ${c.id} — ${sanitizarTextoPublico(c.objeto).slice(0, 120)}`,
               null,
-              { contrato: c, fornecedor, orgao: orgao ? { cod: orgao.cod, sigla: orgao.sigla, nome: orgao.nome } : null },
+              {
+                contrato: c,
+                fornecedor,
+                orgao: orgao ? { cod: orgao.cod, sigla: orgao.sigla, nome: orgao.nome } : null,
+              },
             )
           }
           rotulo="Copiar dados"
@@ -118,7 +139,9 @@ function ContratoDetail() {
           </div>
         </div>
         <div className="border border-border rounded-xl p-5 bg-card">
-          <div className="text-xs uppercase tracking-wider text-muted-foreground">Início de vigência</div>
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">
+            Início de vigência
+          </div>
           <div className="font-display text-3xl mt-1">
             {(() => {
               if (!c.dataInicioVigencia) return "—";
@@ -134,17 +157,27 @@ function ContratoDetail() {
           {orgao ? (
             <Link to="/orgaos/$cod" params={{ cod: orgao.cod }} className="hover:text-accent">
               <div className="font-semibold">{orgao.nome}</div>
-              <div className="text-xs font-mono text-muted-foreground">{orgao.sigla} · {orgao.cod}</div>
+              <div className="text-xs font-mono text-muted-foreground">
+                {orgao.sigla} · {orgao.cod}
+              </div>
             </Link>
-          ) : <div className="text-muted-foreground">{c.orgaoCod}</div>}
+          ) : (
+            <div className="text-muted-foreground">{c.orgaoCod}</div>
+          )}
         </Card>
         <Card title="Fornecedor">
           {fornecedor ? (
-            <Link to="/fornecedores/$cnpj" params={{ cnpj: fornecedor.cnpj }} className="hover:text-accent">
+            <Link
+              to="/fornecedores/$cnpj"
+              params={{ cnpj: fornecedor.cnpj }}
+              className="hover:text-accent"
+            >
               <div className="font-semibold">{fornecedor.nome}</div>
               <div className="text-xs font-mono text-muted-foreground">{fornecedor.cnpj}</div>
             </Link>
-          ) : <div className="text-muted-foreground">{c.fornecedorCnpj}</div>}
+          ) : (
+            <div className="text-muted-foreground">{c.fornecedorCnpj}</div>
+          )}
         </Card>
       </div>
 
@@ -155,7 +188,11 @@ function ContratoDetail() {
 
       <p className="mt-10 text-[11px] text-muted-foreground border-t border-border pt-4">
         Dados pessoais identificáveis em campos livres (CPF, e-mails, telefones, CEPs) são
-        mascarados automaticamente. <a href="/tratamento-de-dados" className="underline">Saiba por quê</a>.
+        mascarados automaticamente.{" "}
+        <a href="/tratamento-de-dados" className="underline">
+          Saiba por quê
+        </a>
+        .
       </p>
     </div>
   );

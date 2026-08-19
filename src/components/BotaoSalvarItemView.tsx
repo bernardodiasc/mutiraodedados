@@ -89,7 +89,9 @@ export function BotaoSalvarItemView({
               aria-label="Adicionar a pastas de investigação"
             >
               <FolderPlus className="size-3.5" />
-              {presentes > 0 ? `Em ${presentes} pasta${presentes > 1 ? "s" : ""}` : "Adicionar a pasta"}
+              {presentes > 0
+                ? `Em ${presentes} pasta${presentes > 1 ? "s" : ""}`
+                : "Adicionar a pasta"}
             </button>
           </PopoverTrigger>
           <PopoverContent align="end" className="w-72 p-2">

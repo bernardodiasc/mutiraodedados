@@ -8,12 +8,12 @@ API oficial da Controladoria-Geral da União. É a principal fonte de dados do E
 
 ## O que importamos (eixo "Por tema")
 
-| Tema | Endpoint | Tabela cache | Varredura | Janela | Página/rota |
-|------|----------|--------------|-----------|--------|-------------|
-| Contratos | `/contratos` (+ `/contratos/id`) | `contratos_cache` | por órgão (com conferência por detalhe) | 2013 | `/contratos`, `/contratos/$id` |
-| Licitações | `/licitacoes` | `cgu_licitacoes_cache` | por órgão + janela | 2013 | `/licitacoes`, `/licitacoes/$id` |
-| Emendas | `/emendas` | `cgu_emendas_cache` | **por ano** | 2014 | `/emendas`, `/emendas/$id` |
-| Convênios | `/convenios` | `cgu_convenios_cache` | por janela de referência | 2017 | (repoint de `/convenios` pendente) |
+| Tema       | Endpoint                         | Tabela cache           | Varredura                               | Janela | Página/rota                        |
+| ---------- | -------------------------------- | ---------------------- | --------------------------------------- | ------ | ---------------------------------- |
+| Contratos  | `/contratos` (+ `/contratos/id`) | `contratos_cache`      | por órgão (com conferência por detalhe) | 2013   | `/contratos`, `/contratos/$id`     |
+| Licitações | `/licitacoes`                    | `cgu_licitacoes_cache` | por órgão + janela                      | 2013   | `/licitacoes`, `/licitacoes/$id`   |
+| Emendas    | `/emendas`                       | `cgu_emendas_cache`    | **por ano**                             | 2014   | `/emendas`, `/emendas/$id`         |
+| Convênios  | `/convenios`                     | `cgu_convenios_cache`  | por janela de referência                | 2017   | (repoint de `/convenios` pendente) |
 
 Também importamos os **órgãos** SIAFI (catálogo das páginas de órgão).
 

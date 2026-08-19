@@ -42,12 +42,15 @@ function ListaVotacoesSenado() {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-6">
       <header>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/senado" className="hover:text-accent">Senado</Link> · Votações
+          <Link to="/senado" className="hover:text-accent">
+            Senado
+          </Link>{" "}
+          · Votações
         </div>
         <h1 className="font-display text-4xl mt-1">Votações nominais</h1>
         <p className="text-muted-foreground mt-2 max-w-3xl">
-          Cada votação registra nominalmente como cada senador votou. Clique em uma votação
-          para ver disciplina partidária e voto individual.
+          Cada votação registra nominalmente como cada senador votou. Clique em uma votação para ver
+          disciplina partidária e voto individual.
         </p>
         {ov && (
           <p className="text-xs text-muted-foreground mt-3">
@@ -114,10 +117,14 @@ function ListaVotacoesSenado() {
                       params={{ id: v.id }}
                       className="text-accent hover:underline"
                     >
-                      <p className="line-clamp-2 leading-snug">{v.descricao ?? "(sem descrição)"}</p>
+                      <p className="line-clamp-2 leading-snug">
+                        {v.descricao ?? "(sem descrição)"}
+                      </p>
                     </Link>
                     {v.materiaTitulo && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{v.materiaTitulo}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        {v.materiaTitulo}
+                      </p>
                     )}
                   </td>
                   <td className="px-4 py-3 align-top text-center">

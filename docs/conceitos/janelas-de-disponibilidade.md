@@ -4,18 +4,18 @@ Cada fonte oficial publica dados a partir de uma data específica — antes diss
 
 ## Tabela
 
-| Fonte                                | Início | Razão                                                                  |
-| ------------------------------------ | ------ | ---------------------------------------------------------------------- |
-| Portal CGU (contratos)               | 2013   | Início da publicação consolidada via API                               |
-| Câmara — CEAP                        | 2009   | Início da Cota substituindo o "verbão"                                 |
-| Câmara — Votações                    | 2003   | Início da publicação eletrônica                                        |
-| Senado — CEAPS                       | 2008   | Início da Cota                                                         |
-| Senado — Votações                    | 2003   | Idem Câmara                                                            |
-| PNCP                                 | 2021   | Criação do portal (Lei 14.133)                                         |
-| Transferegov — convênios via CGU     | 2017   | Consolidação dos dados consistentes no espelho CGU                     |
-| Transferegov — emendas especiais     | 2020   | EC 105/2019 regulamentada em 2020                                      |
-| Transferegov — emendas finalidade    | 2020   | EC 105/2019                                                            |
-| SICONFI                              | 2013   | Início da publicação via API                                           |
+| Fonte                             | Início | Razão                                              |
+| --------------------------------- | ------ | -------------------------------------------------- |
+| Portal CGU (contratos)            | 2013   | Início da publicação consolidada via API           |
+| Câmara — CEAP                     | 2009   | Início da Cota substituindo o "verbão"             |
+| Câmara — Votações                 | 2003   | Início da publicação eletrônica                    |
+| Senado — CEAPS                    | 2008   | Início da Cota                                     |
+| Senado — Votações                 | 2003   | Idem Câmara                                        |
+| PNCP                              | 2021   | Criação do portal (Lei 14.133)                     |
+| Transferegov — convênios via CGU  | 2017   | Consolidação dos dados consistentes no espelho CGU |
+| Transferegov — emendas especiais  | 2020   | EC 105/2019 regulamentada em 2020                  |
+| Transferegov — emendas finalidade | 2020   | EC 105/2019                                        |
+| SICONFI                           | 2013   | Início da publicação via API                       |
 
 ## Como é usado
 

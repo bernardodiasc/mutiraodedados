@@ -70,10 +70,10 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
       // Só compara anos CONSECUTIVOS: com lacuna na série (ex.: 2019 → 2023),
       // "ano anterior" seria outro exercício e o salto não é comparável.
       if (anos[i] !== anos[i - 1] + 1) continue;
-      const prev = m.get(anos[i-1])!;
+      const prev = m.get(anos[i - 1])!;
       const atual = m.get(anos[i])!;
       if (prev >= 500_000 && atual / prev >= 3) {
-        const f = ds.fornecedores.find(x => x.cnpj === cnpj);
+        const f = ds.fornecedores.find((x) => x.cnpj === cnpj);
         out.push({
           id: `cresc-${cnpj}-${anos[i]}`,
           entidadeTipo: "fornecedor",
@@ -81,10 +81,14 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
           entidadeNome: f?.nome ?? cnpj,
           regra: "crescimento_abrupto",
           severidade: atual / prev >= 6 ? "alta" : "media",
-          titulo: `Receita pública multiplicada por ${(atual/prev).toFixed(1)}x em ${anos[i]}`,
-          explicacao:
-            `Este fornecedor recebeu ${fmtBRL(prev)} em ${anos[i-1]} e ${fmtBRL(atual)} em ${anos[i]} — um salto incomum. Crescimentos abruptos podem indicar uma demanda legítima nova, mas também podem sinalizar captura, contratos sem competição ou direcionamento. Verifique o objeto e a modalidade dos contratos recentes.`,
-          evidencia: { ano_anterior: anos[i-1], total_anterior: prev, ano: anos[i], total: atual },
+          titulo: `Receita pública multiplicada por ${(atual / prev).toFixed(1)}x em ${anos[i]}`,
+          explicacao: `Este fornecedor recebeu ${fmtBRL(prev)} em ${anos[i - 1]} e ${fmtBRL(atual)} em ${anos[i]} — um salto incomum. Crescimentos abruptos podem indicar uma demanda legítima nova, mas também podem sinalizar captura, contratos sem competição ou direcionamento. Verifique o objeto e a modalidade dos contratos recentes.`,
+          evidencia: {
+            ano_anterior: anos[i - 1],
+            total_anterior: prev,
+            ano: anos[i],
+            total: atual,
+          },
         });
       }
     }
@@ -106,8 +110,8 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   for (const [k, lista] of fracMap) {
     if (lista.length >= 5) {
       const [orgaoCod, cnpj] = k.split("|");
-      const f = ds.fornecedores.find(x => x.cnpj === cnpj);
-      const o = ds.orgaos.find(x => x.cod === orgaoCod);
+      const f = ds.fornecedores.find((x) => x.cnpj === cnpj);
+      const o = ds.orgaos.find((x) => x.cod === orgaoCod);
       const tetoRef = tetoDispensaNaData(lista[0].dataAssinatura || `${lista[0].ano}-07-01`);
       out.push({
         id: `frac-${k}`,
@@ -117,11 +121,10 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
         regra: "fracionamento",
         severidade: "alta",
         titulo: `${lista.length} dispensas seguidas abaixo do limite legal`,
-        explicacao:
-          `${f?.nome ?? "Fornecedor"} recebeu ${lista.length} contratos por dispensa de licitação em ${lista[0].ano}, no órgão ${o?.sigla ?? orgaoCod}, todos logo abaixo de ${fmtBRL(tetoRef.teto)} — o teto que permitia contratar sem licitação na época (${tetoRef.baseLegal}). Esse padrão é compatível com fracionamento de despesa, vedado pela legislação de licitações.`,
+        explicacao: `${f?.nome ?? "Fornecedor"} recebeu ${lista.length} contratos por dispensa de licitação em ${lista[0].ano}, no órgão ${o?.sigla ?? orgaoCod}, todos logo abaixo de ${fmtBRL(tetoRef.teto)} — o teto que permitia contratar sem licitação na época (${tetoRef.baseLegal}). Esse padrão é compatível com fracionamento de despesa, vedado pela legislação de licitações.`,
         evidencia: {
           contratos: lista.length,
-          soma: lista.reduce((s,c)=>s+c.valor,0),
+          soma: lista.reduce((s, c) => s + c.valor, 0),
           teto: tetoRef.teto,
           base_legal: tetoRef.baseLegal,
         },
@@ -133,7 +136,10 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   const orgaoAnoTotal = new Map<string, number>();
   const orgaoAnoFornTotal = new Map<string, number>();
   for (const c of ds.contratos) {
-    orgaoAnoTotal.set(`${c.orgaoCod}|${c.ano}`, (orgaoAnoTotal.get(`${c.orgaoCod}|${c.ano}`) ?? 0) + c.valor);
+    orgaoAnoTotal.set(
+      `${c.orgaoCod}|${c.ano}`,
+      (orgaoAnoTotal.get(`${c.orgaoCod}|${c.ano}`) ?? 0) + c.valor,
+    );
     const kf = `${c.orgaoCod}|${c.ano}|${c.fornecedorCnpj}`;
     orgaoAnoFornTotal.set(kf, (orgaoAnoFornTotal.get(kf) ?? 0) + c.valor);
   }
@@ -141,33 +147,36 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     const [orgaoCod, ano, cnpj] = kf.split("|");
     const tot = orgaoAnoTotal.get(`${orgaoCod}|${ano}`) ?? 0;
     if (tot > 2_000_000 && val / tot > 0.6) {
-      const f = ds.fornecedores.find(x => x.cnpj === cnpj);
-      const o = ds.orgaos.find(x => x.cod === orgaoCod);
+      const f = ds.fornecedores.find((x) => x.cnpj === cnpj);
+      const o = ds.orgaos.find((x) => x.cod === orgaoCod);
       out.push({
         id: `conc-${kf}`,
         entidadeTipo: "orgao",
         entidadeId: orgaoCod,
         entidadeNome: o?.nome ?? orgaoCod,
         regra: "concentracao",
-        severidade: val/tot > 0.8 ? "alta" : "media",
-        titulo: `Um único fornecedor concentrou ${(val*100/tot).toFixed(0)}% dos contratos em ${ano}`,
-        explicacao:
-          `Em ${ano}, ${f?.nome ?? "um único fornecedor"} recebeu ${fmtBRL(val)} dos ${fmtBRL(tot)} contratados pelo órgão ${o?.sigla ?? orgaoCod} — concentração de ${(val*100/tot).toFixed(0)}%. Alta concentração reduz competição e pode indicar dependência ou favoritismo. Concorrência saudável tende a distribuir contratos.`,
-        evidencia: { fornecedor: f?.nome ?? cnpj, percentual: Number((val*100/tot).toFixed(1)), total_orgao: tot },
+        severidade: val / tot > 0.8 ? "alta" : "media",
+        titulo: `Um único fornecedor concentrou ${((val * 100) / tot).toFixed(0)}% dos contratos em ${ano}`,
+        explicacao: `Em ${ano}, ${f?.nome ?? "um único fornecedor"} recebeu ${fmtBRL(val)} dos ${fmtBRL(tot)} contratados pelo órgão ${o?.sigla ?? orgaoCod} — concentração de ${((val * 100) / tot).toFixed(0)}%. Alta concentração reduz competição e pode indicar dependência ou favoritismo. Concorrência saudável tende a distribuir contratos.`,
+        evidencia: {
+          fornecedor: f?.nome ?? cnpj,
+          percentual: Number(((val * 100) / tot).toFixed(1)),
+          total_orgao: tot,
+        },
       });
     }
   }
 
   // 4. Outlier por z-score em valor de contratos (>= z 3).
-  const vals = ds.contratos.map(c => c.valor);
+  const vals = ds.contratos.map((c) => c.valor);
   if (vals.length > 5) {
-    const mean = vals.reduce((a,b)=>a+b,0)/vals.length;
-    const variance = vals.reduce((a,b)=>a+(b-mean)**2,0)/vals.length;
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length;
     const sd = Math.sqrt(variance) || 1;
     for (const c of ds.contratos) {
       const z = (c.valor - mean) / sd;
       if (z >= 3) {
-        const f = ds.fornecedores.find(x => x.cnpj === c.fornecedorCnpj);
+        const f = ds.fornecedores.find((x) => x.cnpj === c.fornecedorCnpj);
         out.push({
           id: `outlier-${c.id}`,
           entidadeTipo: "contrato",
@@ -176,9 +185,13 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
           regra: "outlier_valor",
           severidade: z >= 5 ? "alta" : "media",
           titulo: `Contrato com valor ${z.toFixed(1)}× acima da média`,
-          explicacao:
-            `Este contrato de ${fmtBRL(c.valor)} com ${f?.nome ?? "o fornecedor"} está ${z.toFixed(1)} desvios-padrão acima da média de todos os contratos comparáveis (${fmtBRL(mean)}). Valores muito atípicos merecem checagem do objeto, da modalidade e do parecer técnico.`,
-          evidencia: { valor: c.valor, media: Math.round(mean), z: Number(z.toFixed(2)), modalidade: c.modalidade },
+          explicacao: `Este contrato de ${fmtBRL(c.valor)} com ${f?.nome ?? "o fornecedor"} está ${z.toFixed(1)} desvios-padrão acima da média de todos os contratos comparáveis (${fmtBRL(mean)}). Valores muito atípicos merecem checagem do objeto, da modalidade e do parecer técnico.`,
+          evidencia: {
+            valor: c.valor,
+            media: Math.round(mean),
+            z: Number(z.toFixed(2)),
+            modalidade: c.modalidade,
+          },
         });
       }
     }
@@ -199,10 +212,11 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     if (c.valor < 1_000_000 || !c.dataAssinatura) continue;
     const first = firstSeen.get(c.fornecedorCnpj);
     if (!first) continue;
-    const diasDesdePrim = (new Date(c.dataAssinatura).getTime() - new Date(first).getTime()) / 86_400_000;
+    const diasDesdePrim =
+      (new Date(c.dataAssinatura).getTime() - new Date(first).getTime()) / 86_400_000;
     if (diasDesdePrim <= 365 && !fornAlertados.has(c.fornecedorCnpj)) {
       fornAlertados.add(c.fornecedorCnpj);
-      const f = ds.fornecedores.find(x => x.cnpj === c.fornecedorCnpj);
+      const f = ds.fornecedores.find((x) => x.cnpj === c.fornecedorCnpj);
       out.push({
         id: `novato-${c.fornecedorCnpj}`,
         entidadeTipo: "fornecedor",
@@ -211,8 +225,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
         regra: "fornecedor_recente_alto",
         severidade: c.valor >= 5_000_000 ? "alta" : "media",
         titulo: `Fornecedor recente com contrato de ${fmtBRL(c.valor)}`,
-        explicacao:
-          `Este fornecedor aparece nos contratos públicos a partir de ${new Date(first).toLocaleDateString("pt-BR")} e em menos de um ano já firmou um contrato de ${fmtBRL(c.valor)}. Empresas novas podem ter capacidade técnica legítima, mas a literatura de controle aponta para cautela extra com escala rápida — vale checar quadro societário, capital social e histórico no CNPJ.`,
+        explicacao: `Este fornecedor aparece nos contratos públicos a partir de ${new Date(first).toLocaleDateString("pt-BR")} e em menos de um ano já firmou um contrato de ${fmtBRL(c.valor)}. Empresas novas podem ter capacidade técnica legítima, mas a literatura de controle aponta para cautela extra com escala rápida — vale checar quadro societário, capital social e histórico no CNPJ.`,
         evidencia: { primeiro_contrato: first, contrato_alto: c.id, valor: c.valor },
       });
     }
@@ -223,9 +236,9 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     if (c.valor < 200_000) continue;
     const obj = (c.objeto || "").toLowerCase().trim();
     const curto = obj.length < 30;
-    const generico = TERMOS_GENERICOS.some(t => obj.includes(t));
+    const generico = TERMOS_GENERICOS.some((t) => obj.includes(t));
     if (!curto && !generico) continue;
-    const f = ds.fornecedores.find(x => x.cnpj === c.fornecedorCnpj);
+    const f = ds.fornecedores.find((x) => x.cnpj === c.fornecedorCnpj);
     out.push({
       id: `gen-${c.id}`,
       entidadeTipo: "contrato",
@@ -234,8 +247,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
       regra: "descricao_generica",
       severidade: c.valor >= 1_000_000 ? "media" : "baixa",
       titulo: `Objeto contratual pouco específico para ${fmtBRL(c.valor)}`,
-      explicacao:
-        `O contrato com ${f?.nome ?? "o fornecedor"} descreve seu objeto como “${c.objeto}”. Descrições muito curtas ou genéricas dificultam fiscalização — a Lei nº 14.133/2021 exige objeto definido. Vale procurar o termo de referência completo no Portal e checar se há detalhamento.`,
+      explicacao: `O contrato com ${f?.nome ?? "o fornecedor"} descreve seu objeto como “${c.objeto}”. Descrições muito curtas ou genéricas dificultam fiscalização — a Lei nº 14.133/2021 exige objeto definido. Vale procurar o termo de referência completo no Portal e checar se há detalhamento.`,
       evidencia: { tamanho_descricao: obj.length, valor: c.valor },
     });
   }
@@ -250,15 +262,18 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     m.set(c.ano, (m.get(c.ano) ?? 0) + 1);
   }
   for (const [k, m] of dispMap) {
-    const anos = [...m.entries()].filter(([, n]) => n >= 3).map(([a]) => a).sort();
+    const anos = [...m.entries()]
+      .filter(([, n]) => n >= 3)
+      .map(([a]) => a)
+      .sort();
     if (anos.length < 2) continue;
     // exige dois anos consecutivos
     let consecutivos = false;
-    for (let i = 1; i < anos.length; i++) if (anos[i] === anos[i-1] + 1) consecutivos = true;
+    for (let i = 1; i < anos.length; i++) if (anos[i] === anos[i - 1] + 1) consecutivos = true;
     if (!consecutivos) continue;
     const [orgaoCod, cnpj] = k.split("|");
-    const f = ds.fornecedores.find(x => x.cnpj === cnpj);
-    const o = ds.orgaos.find(x => x.cod === orgaoCod);
+    const f = ds.fornecedores.find((x) => x.cnpj === cnpj);
+    const o = ds.orgaos.find((x) => x.cod === orgaoCod);
     const totalDisp = anos.reduce((s, a) => s + (m.get(a) ?? 0), 0);
     out.push({
       id: `disprec-${k}`,
@@ -268,8 +283,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
       regra: "dispensa_recorrente",
       severidade: anos.length >= 3 ? "alta" : "media",
       titulo: `Dispensa de licitação repetida em ${anos.length} anos com o mesmo órgão`,
-      explicacao:
-        `${f?.nome ?? "Este fornecedor"} foi contratado por dispensa de licitação ${totalDisp} vezes pelo órgão ${o?.sigla ?? orgaoCod} ao longo dos anos ${anos.join(", ")}. A dispensa é exceção legal (Lei nº 14.133/2021); recorrência com mesmo fornecedor sugere checar se a hipótese de dispensa continua se justificando ou se uma licitação seria cabível.`,
+      explicacao: `${f?.nome ?? "Este fornecedor"} foi contratado por dispensa de licitação ${totalDisp} vezes pelo órgão ${o?.sigla ?? orgaoCod} ao longo dos anos ${anos.join(", ")}. A dispensa é exceção legal (Lei nº 14.133/2021); recorrência com mesmo fornecedor sugere checar se a hipótese de dispensa continua se justificando ou se uma licitação seria cabível.`,
       evidencia: { anos: anos.join(","), dispensas: totalDisp },
     });
   }
@@ -288,9 +302,9 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     for (let i = 3; i < anos.length; i++) {
       const ano = anos[i];
       const atual = m.get(ano)!;
-      const baseline = median([m.get(anos[i-1])!, m.get(anos[i-2])!, m.get(anos[i-3])!]);
+      const baseline = median([m.get(anos[i - 1])!, m.get(anos[i - 2])!, m.get(anos[i - 3])!]);
       if (baseline >= 1_000_000 && atual / baseline >= 2) {
-        const o = ds.orgaos.find(x => x.cod === cod);
+        const o = ds.orgaos.find((x) => x.cod === cod);
         out.push({
           id: `crescorg-${cod}-${ano}`,
           entidadeTipo: "orgao",
@@ -298,10 +312,14 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
           entidadeNome: o?.nome ?? cod,
           regra: "crescimento_orgao",
           severidade: atual / baseline >= 4 ? "alta" : "media",
-          titulo: `Gasto do órgão ${(atual/baseline).toFixed(1)}× a mediana recente em ${ano}`,
-          explicacao:
-            `O órgão ${o?.sigla ?? cod} contratou ${fmtBRL(atual)} em ${ano}, frente a uma mediana de ${fmtBRL(baseline)} nos três anos anteriores com dados. Saltos dessa magnitude podem decorrer de uma política nova legítima, mas também merecem checagem da composição (quais fornecedores e modalidades responderam pelo crescimento).`,
-          evidencia: { ano, atual: Math.round(atual), baseline: Math.round(baseline), salto: Number((atual/baseline).toFixed(2)) },
+          titulo: `Gasto do órgão ${(atual / baseline).toFixed(1)}× a mediana recente em ${ano}`,
+          explicacao: `O órgão ${o?.sigla ?? cod} contratou ${fmtBRL(atual)} em ${ano}, frente a uma mediana de ${fmtBRL(baseline)} nos três anos anteriores com dados. Saltos dessa magnitude podem decorrer de uma política nova legítima, mas também merecem checagem da composição (quais fornecedores e modalidades responderam pelo crescimento).`,
+          evidencia: {
+            ano,
+            atual: Math.round(atual),
+            baseline: Math.round(baseline),
+            salto: Number((atual / baseline).toFixed(2)),
+          },
         });
       }
     }
@@ -326,8 +344,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
       regra: "transparencia_baixa",
       severidade: n.nota < 25 ? "alta" : "media",
       titulo: `Publicação contratual opaca (ITI ${n.nota}/100) com volume de ${fmtBRL(total)}`,
-      explicacao:
-        `O órgão ${o.sigla} apresenta Índice de Transparência Institucional de ${n.nota}/100 sobre uma amostra de ${n.amostra} contratos somando ${fmtBRL(total)}. ITI baixo combinado com volume relevante indica dificuldade para a sociedade interpretar como o recurso público é alocado — objetos vagos, baixa competitividade, gasto concentrado em poucos fornecedores ou cobertura defasada. Não é juízo sobre legalidade; é sinal sobre clareza informacional. Consulte a página de transparência institucional para o detalhamento dos cinco eixos.`,
+      explicacao: `O órgão ${o.sigla} apresenta Índice de Transparência Institucional de ${n.nota}/100 sobre uma amostra de ${n.amostra} contratos somando ${fmtBRL(total)}. ITI baixo combinado com volume relevante indica dificuldade para a sociedade interpretar como o recurso público é alocado — objetos vagos, baixa competitividade, gasto concentrado em poucos fornecedores ou cobertura defasada. Não é juízo sobre legalidade; é sinal sobre clareza informacional. Consulte a página de transparência institucional para o detalhamento dos cinco eixos.`,
       evidencia: {
         nota: n.nota,
         amostra: n.amostra,

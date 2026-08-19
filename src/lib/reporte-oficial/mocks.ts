@@ -34,7 +34,8 @@ const base: ReporteOficialModalViewProps = {
   onCorpoChange: noop,
   protocolo: "",
   onProtocoloChange: noop,
-  identificacao: "Tipo: contrato\nID: 12/2025\nURL: https://portaldatransparencia.gov.br/contratos/12-2025",
+  identificacao:
+    "Tipo: contrato\nID: 12/2025\nURL: https://portaldatransparencia.gov.br/contratos/12-2025",
   busy: false,
   onSubmit: noop,
   onCopiar: noop,

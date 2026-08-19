@@ -168,7 +168,11 @@ export function AdminEntesView(props: AdminEntesViewProps) {
           <Button disabled={!!loading || !ibge} onClick={onImportSiconfi}>
             {busy("SICONFI") ? <Loader2 className="size-4 animate-spin" /> : "Importar SICONFI"}
           </Button>
-          <Button variant="secondary" disabled={!!loading || !ibge} onClick={onImportSiconfiConjunto}>
+          <Button
+            variant="secondary"
+            disabled={!!loading || !ibge}
+            onClick={onImportSiconfiConjunto}
+          >
             {busy("SICONFI conjunto") ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (

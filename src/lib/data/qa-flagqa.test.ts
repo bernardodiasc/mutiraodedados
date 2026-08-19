@@ -96,7 +96,13 @@ describe("flagQA", () => {
 
   it("atualiza finding aberto existente incluindo o tipo (regras híbridas mudam de veredito)", async () => {
     estado.existentes = [
-      { id: "uuid-1", fonte: "tse", entidade_id: "123-2022", regra: "eleito_sem_prestacao_contas", status: "aberto" },
+      {
+        id: "uuid-1",
+        fonte: "tse",
+        entidade_id: "123-2022",
+        regra: "eleito_sem_prestacao_contas",
+        status: "aberto",
+      },
     ];
     const inseridos = await flagQA([
       finding({
@@ -114,7 +120,13 @@ describe("flagQA", () => {
 
   it("não toca findings já resolvidos/falso-positivo", async () => {
     estado.existentes = [
-      { id: "uuid-2", fonte: "cgu", entidade_id: "c1", regra: "valor_muito_baixo", status: "falso_positivo" },
+      {
+        id: "uuid-2",
+        fonte: "cgu",
+        entidade_id: "c1",
+        regra: "valor_muito_baixo",
+        status: "falso_positivo",
+      },
     ];
     const inseridos = await flagQA([finding()]);
     expect(inseridos).toBe(0);
@@ -140,7 +152,13 @@ describe("flagQA", () => {
 
   it("propaga erro de UPDATE em finding aberto", async () => {
     estado.existentes = [
-      { id: "uuid-3", fonte: "cgu", entidade_id: "c1", regra: "valor_muito_baixo", status: "aberto" },
+      {
+        id: "uuid-3",
+        fonte: "cgu",
+        entidade_id: "c1",
+        regra: "valor_muito_baixo",
+        status: "aberto",
+      },
     ];
     estado.erroUpdate = { message: "update falhou" };
     await expect(flagQA([finding()])).rejects.toThrow(/flagQA/);

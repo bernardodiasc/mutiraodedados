@@ -16,7 +16,10 @@ export const Route = createFileRoute("/notas/")({
   head: () => ({
     meta: [
       { title: "Notas de campo — Mutirão de Dados" },
-      { name: "description", content: "Notas curtas sobre casos, mudanças em fontes e limitações de dados." },
+      {
+        name: "description",
+        content: "Notas curtas sobre casos, mudanças em fontes e limitações de dados.",
+      },
       { property: "og:title", content: "Notas de campo — Mutirão de Dados" },
       { property: "og:description", content: "Notas curtas sobre casos, fontes e dados públicos." },
       { property: "og:url", content: "https://mutiraodedados.com.br/notas" },

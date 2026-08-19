@@ -406,9 +406,7 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
     if (data.deputadoId) {
       deputadoIds = [data.deputadoId];
     } else {
-      const { data: deps, error } = await supabaseAdmin
-        .from("camara_deputados_cache")
-        .select("id");
+      const { data: deps, error } = await supabaseAdmin.from("camara_deputados_cache").select("id");
       if (error) throw new Error(`db: ${error.message}`);
       deputadoIds = (deps ?? []).map((d) => d.id as number);
     }
@@ -452,13 +450,15 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
             deputado_id: depId,
             ano: d.ano ?? data.ano,
             mes: d.mes ?? data.mes,
-            tipo_despesa: sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+            tipo_despesa:
+              sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
             cod_documento: cod,
             tipo_documento: d.tipoDocumento ?? null,
             num_documento: d.numDocumento ?? null,
-            data_documento: d.dataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.dataDocumento)
-              ? d.dataDocumento.slice(0, 10)
-              : null,
+            data_documento:
+              d.dataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.dataDocumento)
+                ? d.dataDocumento.slice(0, 10)
+                : null,
             valor_documento: Number(d.valorDocumento ?? 0),
             valor_liquido: Number(d.valorLiquido ?? 0),
             valor_glosa: Number(d.valorGlosa ?? 0),

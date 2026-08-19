@@ -4,10 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/use-auth";
 import { criarPergunta } from "@/lib/perguntas.functions";
-import {
-  deriveBotaoEstado,
-  normalizarPayloadPergunta,
-} from "@/lib/botao-salvar-pergunta/logic";
+import { deriveBotaoEstado, normalizarPayloadPergunta } from "@/lib/botao-salvar-pergunta/logic";
 import { BotaoSalvarPerguntaView } from "@/components/BotaoSalvarPerguntaView";
 
 export type BotaoSalvarPerguntaContainerProps = {

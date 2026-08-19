@@ -241,7 +241,9 @@ export const importEmendas = createServerFn({ method: "POST" })
         const erros: string[] = [];
         for (let i = 0; i < rows.length; i += 200) {
           const chunk = rows.slice(i, i + 200);
-          const { error } = await supabaseAdmin.from("cgu_transferegov_emendas_cache").upsert(chunk);
+          const { error } = await supabaseAdmin
+            .from("cgu_transferegov_emendas_cache")
+            .upsert(chunk);
           if (error) erros.push(`db: ${error.message}`);
         }
         return erros;

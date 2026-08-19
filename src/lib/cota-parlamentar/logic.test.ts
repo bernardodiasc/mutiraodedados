@@ -32,7 +32,15 @@ describe("mesesDisponiveis", () => {
     expect(mesesDisponiveis(base, 2024)).toEqual([1, 3]);
   });
   it("ano null usa todos os meses", () => {
-    expect(mesesDisponiveis([{ ano: 2024, mes: 2 }, { ano: 2023, mes: 5 }], null)).toEqual([2, 5]);
+    expect(
+      mesesDisponiveis(
+        [
+          { ano: 2024, mes: 2 },
+          { ano: 2023, mes: 5 },
+        ],
+        null,
+      ),
+    ).toEqual([2, 5]);
   });
 });
 
@@ -76,7 +84,13 @@ describe("agregarDespesas", () => {
 describe("despesasParaCsv", () => {
   it("mapeia campos e troca nulos por string vazia", () => {
     const [linha] = despesasParaCsv([
-      d({ dataDocumento: null, valorDocumento: undefined, fornecedorNome: null, fornecedorCnpj: null, urlDocumento: null }),
+      d({
+        dataDocumento: null,
+        valorDocumento: undefined,
+        fornecedorNome: null,
+        fornecedorCnpj: null,
+        urlDocumento: null,
+      }),
     ]);
     expect(linha.data).toBe("");
     expect(linha.valor_documento).toBe("");

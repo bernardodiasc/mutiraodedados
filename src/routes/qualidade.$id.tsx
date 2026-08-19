@@ -30,9 +30,7 @@ function QualidadeDetalhePage() {
 
   if (isLoading)
     return (
-      <div className="mx-auto max-w-3xl px-4 py-12 text-sm text-muted-foreground">
-        Carregando…
-      </div>
+      <div className="mx-auto max-w-3xl px-4 py-12 text-sm text-muted-foreground">Carregando…</div>
     );
   if (!data) throw notFound();
 
@@ -52,9 +50,9 @@ function QualidadeDetalhePage() {
           {data.entidade.tipo} {data.entidade.id}
         </h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Inconsistência detectada na base <strong>{data.fonte}</strong> pela
-          regra <code className="text-xs">{data.regra}</code>. Esta página é o
-          registro público — sem dados internos nem ações administrativas.
+          Inconsistência detectada na base <strong>{data.fonte}</strong> pela regra{" "}
+          <code className="text-xs">{data.regra}</code>. Esta página é o registro público — sem
+          dados internos nem ações administrativas.
         </p>
       </header>
       <AnomaliaInvestigacao anomalia={data} modo="publico" />

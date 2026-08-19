@@ -62,8 +62,10 @@ export const listarLacunasPublicas = createServerFn({ method: "GET" }).handler(a
 export const promover = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase
-      .rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
     if (!isAdmin) throw new Error("Apenas admin.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // ... operação privilegiada

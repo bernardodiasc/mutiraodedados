@@ -34,7 +34,10 @@ export const PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dado
 export function parseValorPortalDetalhado(v: unknown): { valor: number; milharAmbiguo: boolean } {
   if (typeof v === "number") return { valor: Number.isFinite(v) ? v : 0, milharAmbiguo: false };
   if (typeof v !== "string") return { valor: 0, milharAmbiguo: false };
-  const s = v.trim().replace(/^R\$\s*/i, "").replace(/\s/g, "");
+  const s = v
+    .trim()
+    .replace(/^R\$\s*/i, "")
+    .replace(/\s/g, "");
   if (!s) return { valor: 0, milharAmbiguo: false };
   // pt-BR com vírgula decimal: "1.234.567,89" → "1234567.89".
   // pt-BR sem centavos: "60.000" → "60000" (sem isso, Number("60.000")=60).
@@ -44,7 +47,7 @@ export function parseValorPortalDetalhado(v: unknown): { valor: number; milharAm
     ? s.replace(/\./g, "").replace(",", ".")
     : pareceMilharPtBr
       ? s.replace(/\./g, "")
-    : s;
+      : s;
   const n = Number(normalizado);
   return { valor: Number.isFinite(n) ? n : 0, milharAmbiguo };
 }
@@ -101,7 +104,11 @@ async function portalFetch<T = unknown>(
     }
     const transient = res.status >= 500 || res.status === 429;
     const body = await res.text().catch(() => "");
-    const snippet = body.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+    const snippet = body
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 120);
     const msg = transient
       ? `TRANSIENT: Portal ${res.status} (serviço indisponível${snippet ? ` — ${snippet}` : ""})`
       : `Portal API ${res.status}: ${snippet}`;

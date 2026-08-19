@@ -44,17 +44,17 @@ Fixtures reais reduzidas (Latin-1) em `src/lib/data/tse/__fixtures__/`; testes e
 
 CDN base: `https://cdn.tse.jus.br/estatistica/sead/odsele`
 
-| tipo | zip | entrada (por UF) |
-|---|---|---|
-| candidatos | `consulta_cand/consulta_cand_<ano>.zip` | `consulta_cand_<ano>_<UF>.csv` |
-| bens | `bem_candidato/bem_candidato_<ano>.zip` | `bem_candidato_<ano>_<UF>.csv` |
-| resultados | `votacao_candidato_munzona/votacao_candidato_munzona_<ano>.zip` | `votacao_candidato_munzona_<ano>_<UF>.csv` |
-| receitas 2014 | `prestacao_contas/prestacao_final_2014.zip` | `receitas_candidatos_2014_<UF>.txt` |
-| receitas 2016 | `prestacao_contas/prestacao_contas_final_2016.zip` | `receitas_candidatos_prestacao_contas_final_2016_<UF>.txt` |
-| receitas 2018+ | `prestacao_contas/prestacao_de_contas_eleitorais_candidatos_<ano>.zip` | `receitas_candidatos_<ano>_<UF>.csv` |
-| despesas 2014 | (mesmo zip de 2014) | `despesas_candidatos_2014_<UF>.txt` |
-| despesas 2016 | (mesmo zip de 2016) | `despesas_candidatos_prestacao_contas_final_2016_<UF>.txt` |
-| despesas 2018+ | (mesmo zip 2018+) | `despesas_contratadas_candidatos_<ano>_<UF>.csv` |
+| tipo           | zip                                                                    | entrada (por UF)                                           |
+| -------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------- |
+| candidatos     | `consulta_cand/consulta_cand_<ano>.zip`                                | `consulta_cand_<ano>_<UF>.csv`                             |
+| bens           | `bem_candidato/bem_candidato_<ano>.zip`                                | `bem_candidato_<ano>_<UF>.csv`                             |
+| resultados     | `votacao_candidato_munzona/votacao_candidato_munzona_<ano>.zip`        | `votacao_candidato_munzona_<ano>_<UF>.csv`                 |
+| receitas 2014  | `prestacao_contas/prestacao_final_2014.zip`                            | `receitas_candidatos_2014_<UF>.txt`                        |
+| receitas 2016  | `prestacao_contas/prestacao_contas_final_2016.zip`                     | `receitas_candidatos_prestacao_contas_final_2016_<UF>.txt` |
+| receitas 2018+ | `prestacao_contas/prestacao_de_contas_eleitorais_candidatos_<ano>.zip` | `receitas_candidatos_<ano>_<UF>.csv`                       |
+| despesas 2014  | (mesmo zip de 2014)                                                    | `despesas_candidatos_2014_<UF>.txt`                        |
+| despesas 2016  | (mesmo zip de 2016)                                                    | `despesas_candidatos_prestacao_contas_final_2016_<UF>.txt` |
+| despesas 2018+ | (mesmo zip 2018+)                                                      | `despesas_contratadas_candidatos_<ano>_<UF>.csv`           |
 
 `UF` ∈ 27 UFs + `BR` (cargos nacionais; só nas gerais). O dataset CKAN de contas de 2022 tem id fora do padrão: `dadosabertos-tse-jus-br-dataset-prestacao-de-contas-eleitorais-2022` — irrelevante para o ingest, que monta URLs do CDN diretamente.
 
@@ -62,7 +62,7 @@ CDN base: `https://cdn.tse.jus.br/estatistica/sead/odsele`
 
 - **Candidatos/bens/votação**: layout moderno em TODOS os anos (o TSE republicou o histórico). Aliases: `DS_EMAIL`↔`NM_EMAIL` (2016); bens 2016 usa `NR_ORDEM_CANDIDATO` e `DT_ULTIMA_ATUALIZACAO` (demais: `NR_ORDEM_BEM_CANDIDATO`, `DT_ULT_ATUAL_BEM_CANDIDATO`).
 - **Contas 2018+** (moderno): `SQ_RECEITA`/`SQ_DESPESA` são id natural → chave `\<ano>-<sq>`. Campos: `NR_CPF_CNPJ_DOADOR`, `NM_DOADOR`, `DS_ORIGEM_RECEITA`, `DS_ESPECIE_RECEITA`, `VR_RECEITA` ("1500,00"); despesas: `NR_CPF_CNPJ_FORNECEDOR`, `VR_DESPESA_CONTRATADA`, `DS_ORIGEM_DESPESA`.
-- **Contas 2014/2016** (legado, cabeçalhos humanos, `.txt`): "Sequencial Candidato", "CPF/CNPJ do doador", "Valor receita", "Numero Recibo Eleitoral", "CPF/CNPJ do doador originário"; 2014 tem "Sigla  Partido" (dois espaços) e o typo real "Descriçao da despesa". Normalização de chave: maiúsculas, sem acento, `[^A-Z0-9]+`→`_`. Id = hash FNV-1a de `(sq, ano, data, documento, valor, recibo|documento)` prefixado pelo ano.
+- **Contas 2014/2016** (legado, cabeçalhos humanos, `.txt`): "Sequencial Candidato", "CPF/CNPJ do doador", "Valor receita", "Numero Recibo Eleitoral", "CPF/CNPJ do doador originário"; 2014 tem "Sigla Partido" (dois espaços) e o typo real "Descriçao da despesa". Normalização de chave: maiúsculas, sem acento, `[^A-Z0-9]+`→`_`. Id = hash FNV-1a de `(sq, ano, data, documento, valor, recibo|documento)` prefixado pelo ano.
 - Sentinelas: `#NULO#`, `#NULO`, `#NE`, `-1`, `-3`, `-4`, `NÃO DIVULGÁVEL` (CPF pode vir `-4`).
 - Datas: `DD/MM/YYYY` e o formato colado de 2014 `DD/MM/YYYYHH:MM:SS`.
 - **Identificador da pessoa oscila por ano**: até 2022 `NR_CPF_CANDIDATO` vem preenchido; em **2024** ele é `-4`/`NÃO DIVULGÁVEL` em 100% das linhas e só `NR_TITULO_ELEITORAL_CANDIDATO` vem; em **2026 os dois voltam** (amostra AC: 136/136 em cada). Na base atual: 2022 tem 29.241 títulos e CPFs; 2024 tem 463.583 títulos e **zero** CPFs. Ligar candidaturas só por CPF perde a eleição de 2024 inteira — por isso a chave é título, com CPF de reforço, e não o contrário.
@@ -72,12 +72,12 @@ CDN base: `https://cdn.tse.jus.br/estatistica/sead/odsele`
 
 O piso **não é o mesmo para todos**. Sondagem ano a ano no CDN em **2026-08-08**:
 
-| tipo | primeiro ano no CDN | usamos a partir de |
-|---|---|---|
-| candidatos | 1994 | **1998** |
-| resultados (votação) | 1994 | **1998** |
-| bens | **2006** (1994–2004 dão 404) | 2006 |
-| receitas / despesas | **2012** (`prestacao_final_2012.zip`) | 2012 |
+| tipo                 | primeiro ano no CDN                   | usamos a partir de |
+| -------------------- | ------------------------------------- | ------------------ |
+| candidatos           | 1994                                  | **1998**           |
+| resultados (votação) | 1994                                  | **1998**           |
+| bens                 | **2006** (1994–2004 dão 404)          | 2006               |
+| receitas / despesas  | **2012** (`prestacao_final_2012.zip`) | 2012               |
 
 `ANO_INICIO_POR_TIPO` + `origemDisponivel(tipo, ano)` em `client-ckan.ts` guardam isso, e `motivoIndisponivel` distingue as duas bordas na interface: "o TSE só publica X a partir de N" (esperar não resolve) × "ainda não foi publicada" (eleição em curso).
 
@@ -91,12 +91,12 @@ Baixar para 1994 é mudar `ANO_INICIO_POR_TIPO` e acrescentar 1994/1996 a `TSE_A
 
 Verificado no CDN em **2026-08-08** (registro de candidaturas aberto até 15/08):
 
-| tipo | situação |
-|---|---|
-| `consulta_cand_2026.zip` | **no ar**, 1,65 MB, 29 CSVs (27 UFs + BR + ZZ) + `leiame.pdf`, atualizado diariamente. Compare: 2024 tem 63 MB — 2026 cresce até o fim do registro |
-| `bem_candidato_2026.zip` | **no ar**, 2,16 MB, mesma estrutura |
-| `votacao_candidato_munzona_2026.zip` | existe, mas cada CSV tem **894 bytes = só cabeçalho** (pleito em outubro) |
-| `prestacao_de_contas_eleitorais_candidatos_2026.zip` | **404** |
+| tipo                                                 | situação                                                                                                                                           |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `consulta_cand_2026.zip`                             | **no ar**, 1,65 MB, 29 CSVs (27 UFs + BR + ZZ) + `leiame.pdf`, atualizado diariamente. Compare: 2024 tem 63 MB — 2026 cresce até o fim do registro |
+| `bem_candidato_2026.zip`                             | **no ar**, 2,16 MB, mesma estrutura                                                                                                                |
+| `votacao_candidato_munzona_2026.zip`                 | existe, mas cada CSV tem **894 bytes = só cabeçalho** (pleito em outubro)                                                                          |
+| `prestacao_de_contas_eleitorais_candidatos_2026.zip` | **404**                                                                                                                                            |
 
 `origemDisponivel(tipo, ano)` em `client-ckan.ts` codifica isso; `combinacaoValida` o consulta, e `motivoIndisponivel` (em `tse-import/logic.ts`) devolve o texto que o admin mostra ao desabilitar o botão. **Ao liberar contas/votação de 2026, é só relaxar `origemDisponivel`.** Reimporte candidatos e bens periodicamente enquanto o registro estiver aberto — o upsert é idempotente.
 

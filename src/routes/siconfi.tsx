@@ -22,8 +22,7 @@ export const Route = createFileRoute("/siconfi")({
 function SICONFIPage() {
   const fetchCob = useServerFn(coberturaPublica);
   const { data } = useQuery({ queryKey: ["cobertura-publica"], queryFn: () => fetchCob() });
-  const total =
-    (data?.fontes ?? []).find((f) => f.id === "siconfi")?.totalRegistros ?? null;
+  const total = (data?.fontes ?? []).find((f) => f.id === "siconfi")?.totalRegistros ?? null;
   const Icon = iconFor("/relatorios-fiscais");
 
   return (
@@ -35,10 +34,10 @@ function SICONFIPage() {
         <h1 className="font-display text-4xl mt-1">SICONFI (Tesouro Nacional)</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
           Sistema de Informações Contábeis e Fiscais do Setor Público Brasileiro, mantido pela
-          Secretaria do Tesouro Nacional (STN). Nasceu para operacionalizar a Lei de Responsabilidade
-          Fiscal (LC 101/2000): padroniza e consolida os relatórios fiscais (RREO, RGF e DCA) dos{" "}
-          <strong>~5.598 entes</strong> federados — União, 26 estados, DF e os municípios — sob a
-          mesma metodologia contábil.{" "}
+          Secretaria do Tesouro Nacional (STN). Nasceu para operacionalizar a Lei de
+          Responsabilidade Fiscal (LC 101/2000): padroniza e consolida os relatórios fiscais (RREO,
+          RGF e DCA) dos <strong>~5.598 entes</strong> federados — União, 26 estados, DF e os
+          municípios — sob a mesma metodologia contábil.{" "}
           <a
             href="https://apidatalake.tesouro.gov.br/docs/siconfi/"
             target="_blank"

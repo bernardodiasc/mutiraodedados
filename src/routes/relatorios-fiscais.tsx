@@ -9,7 +9,36 @@ import { fmtBRL } from "@/lib/fmt";
 import { Landmark, Download } from "lucide-react";
 import { downloadCSV } from "@/lib/csv";
 
-const UFS = ["", "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
+const UFS = [
+  "",
+  "AC",
+  "AL",
+  "AM",
+  "AP",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MG",
+  "MS",
+  "MT",
+  "PA",
+  "PB",
+  "PE",
+  "PI",
+  "PR",
+  "RJ",
+  "RN",
+  "RO",
+  "RR",
+  "RS",
+  "SC",
+  "SE",
+  "SP",
+  "TO",
+];
 const TIPOS = ["", "RREO", "RREO Simplificado", "RGF", "RGF Simplificado", "DCA"];
 
 export const Route = createFileRoute("/relatorios-fiscais")({
@@ -56,16 +85,16 @@ function RelatoriosFiscaisPage() {
         <h1 className="font-display text-4xl mt-1">Relatórios fiscais</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
           Os relatórios contábeis e fiscais que todo ente federado é obrigado a publicar pela Lei de
-          Responsabilidade Fiscal. São três tipos:{" "}
-          <strong className="text-foreground">RREO</strong> (Relatório Resumido da Execução
-          Orçamentária, bimestral), <strong className="text-foreground">RGF</strong> (Relatório de
-          Gestão Fiscal, quadrimestral ou semestral) e{" "}
-          <strong className="text-foreground">DCA</strong> (Declaração de Contas Anuais).
+          Responsabilidade Fiscal. São três tipos: <strong className="text-foreground">RREO</strong>{" "}
+          (Relatório Resumido da Execução Orçamentária, bimestral),{" "}
+          <strong className="text-foreground">RGF</strong> (Relatório de Gestão Fiscal,
+          quadrimestral ou semestral) e <strong className="text-foreground">DCA</strong> (Declaração
+          de Contas Anuais).
         </p>
         <p className="text-muted-foreground mt-2 max-w-3xl leading-relaxed">
-          Cada linha abaixo é um valor declarado por um ente: combinação de{" "}
-          <em>anexo</em> e <em>coluna</em> do relatório (ex.: Anexo 1 do RREO = Balanço Orçamentário),
-          a <em>conta</em> contábil, o <em>valor</em> e o <em>exercício/período</em> a que se refere.
+          Cada linha abaixo é um valor declarado por um ente: combinação de <em>anexo</em> e{" "}
+          <em>coluna</em> do relatório (ex.: Anexo 1 do RREO = Balanço Orçamentário), a{" "}
+          <em>conta</em> contábil, o <em>valor</em> e o <em>exercício/período</em> a que se refere.
         </p>
       </header>
 
@@ -75,8 +104,16 @@ function RelatoriosFiscaisPage() {
 
       <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
         <div className="grid gap-3 sm:grid-cols-4">
-          <select value={uf} onChange={(e) => setUf(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
-            {UFS.map((u) => <option key={u} value={u}>{u || "Todas UFs"}</option>)}
+          <select
+            value={uf}
+            onChange={(e) => setUf(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            {UFS.map((u) => (
+              <option key={u} value={u}>
+                {u || "Todas UFs"}
+              </option>
+            ))}
           </select>
           <input
             type="number"
@@ -85,8 +122,16 @@ function RelatoriosFiscaisPage() {
             placeholder="Exercício"
             className="rounded-md border bg-background px-3 py-2 text-sm"
           />
-          <select value={tipo} onChange={(e) => setTipo(e.target.value)} className="rounded-md border bg-background px-3 py-2 text-sm">
-            {TIPOS.map((t) => <option key={t} value={t}>{t || "Todos relatórios"}</option>)}
+          <select
+            value={tipo}
+            onChange={(e) => setTipo(e.target.value)}
+            className="rounded-md border bg-background px-3 py-2 text-sm"
+          >
+            {TIPOS.map((t) => (
+              <option key={t} value={t}>
+                {t || "Todos relatórios"}
+              </option>
+            ))}
           </select>
           <input
             value={q}
@@ -107,7 +152,9 @@ function RelatoriosFiscaisPage() {
         {(data?.relatorios.length ?? 0) > 0 && (
           <div className="flex justify-end mb-2">
             <button
-              onClick={() => downloadCSV(`siconfi_${uf || "todos"}_${exercicio || "todos"}`, data!.relatorios)}
+              onClick={() =>
+                downloadCSV(`siconfi_${uf || "todos"}_${exercicio || "todos"}`, data!.relatorios)
+              }
               className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted"
             >
               <Download className="size-3.5" /> Exportar CSV
@@ -124,14 +171,17 @@ function RelatoriosFiscaisPage() {
                     {r.ente_nome}
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {[r.uf, r.esfera, r.tipo_relatorio, r.anexo, r.coluna].filter(Boolean).join(" · ")}
+                    {[r.uf, r.esfera, r.tipo_relatorio, r.anexo, r.coluna]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
                   {r.conta && <div className="text-sm mt-1">{r.conta}</div>}
                 </div>
                 <div className="text-right shrink-0">
                   <div className="font-medium">{fmtBRL(r.valor)}</div>
                   <div className="text-xs text-muted-foreground">
-                    {r.exercicio}{r.periodo ? ` · P${r.periodo}` : ""}
+                    {r.exercicio}
+                    {r.periodo ? ` · P${r.periodo}` : ""}
                   </div>
                 </div>
               </div>

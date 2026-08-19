@@ -12,7 +12,9 @@ function PreviewPage() {
   const { name, variant } = Route.useParams();
   const entry = composicoesRegistry.find((e) => e.name === name);
   if (!entry) {
-    return <div className="p-4 text-sm text-muted-foreground">Composição "{name}" não encontrada.</div>;
+    return (
+      <div className="p-4 text-sm text-muted-foreground">Composição "{name}" não encontrada.</div>
+    );
   }
   const idx = Number(variant);
   const v = entry.variants[idx];

@@ -21,17 +21,16 @@ const COLS = "id, titulo, descricao, contexto, tags, ordem, ativo, created_at, u
 // policy RLS de pergunta_modelos, que chama public.has_role(...) — função cujo
 // EXECUTE foi revogado do anon (migração 20260629001626), o que quebrava o
 // caminho anônimo com "permission denied for function has_role".
-export const listarModelosAtivos = createServerFn({ method: "GET" })
-  .handler(async () => {
-    const { data, error } = await supabaseAdmin
-      .from("pergunta_modelos")
-      .select(COLS)
-      .eq("ativo", true)
-      .order("ordem", { ascending: true })
-      .limit(200);
-    if (error) throw new Error(`Falha ao listar modelos: ${error.message}`);
-    return (data ?? []) as PerguntaModelo[];
-  });
+export const listarModelosAtivos = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabaseAdmin
+    .from("pergunta_modelos")
+    .select(COLS)
+    .eq("ativo", true)
+    .order("ordem", { ascending: true })
+    .limit(200);
+  if (error) throw new Error(`Falha ao listar modelos: ${error.message}`);
+  return (data ?? []) as PerguntaModelo[];
+});
 
 const obterSchema = z.object({ id: z.string().uuid() });
 export const obterModelo = createServerFn({ method: "POST" })

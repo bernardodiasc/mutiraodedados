@@ -13,7 +13,7 @@ export function medianaPorFuncao(ds: Dataset, funcao: string): number {
   const totais: number[] = [];
   for (const o of ds.orgaos) {
     if (o.funcao !== funcao) continue;
-    const total = ds.contratos.filter(c => c.orgaoCod === o.cod).reduce((s, c) => s + c.valor, 0);
+    const total = ds.contratos.filter((c) => c.orgaoCod === o.cod).reduce((s, c) => s + c.valor, 0);
     if (total > 0) totais.push(total);
   }
   if (totais.length === 0) return 0;

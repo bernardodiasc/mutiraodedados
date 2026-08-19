@@ -22,7 +22,12 @@ function ProposicaoDetalhe() {
   });
 
   if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10">Carregando…</div>;
-  if (error) return <div className="mx-auto max-w-4xl px-4 py-10 text-destructive">{(error as Error).message}</div>;
+  if (error)
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-10 text-destructive">
+        {(error as Error).message}
+      </div>
+    );
   if (!data) throw notFound();
 
   const { proposicao: p, autores } = data;
@@ -33,8 +38,13 @@ function ProposicaoDetalhe() {
     <div className="mx-auto max-w-4xl px-4 py-10 space-y-8">
       <div>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
-          <Link to="/camara" className="hover:text-accent">Câmara</Link> ·{" "}
-          <Link to="/camara/proposicoes" className="hover:text-accent">Proposições</Link>
+          <Link to="/camara" className="hover:text-accent">
+            Câmara
+          </Link>{" "}
+          ·{" "}
+          <Link to="/camara/proposicoes" className="hover:text-accent">
+            Proposições
+          </Link>
         </div>
         <h1 className="font-display text-4xl mt-1">
           {p.siglaTipo} {p.numero}/{p.ano}
@@ -133,10 +143,14 @@ function ProposicaoDetalhe() {
             <div className="text-xs text-muted-foreground">Atualizado em {p.ultimoStatusData}</div>
           )}
           {p.ultimoStatusSituacao && (
-            <div><strong>Situação:</strong> {p.ultimoStatusSituacao}</div>
+            <div>
+              <strong>Situação:</strong> {p.ultimoStatusSituacao}
+            </div>
           )}
           {p.ultimoStatusOrgaoSigla && (
-            <div><strong>Órgão:</strong> {p.ultimoStatusOrgaoSigla}</div>
+            <div>
+              <strong>Órgão:</strong> {p.ultimoStatusOrgaoSigla}
+            </div>
           )}
           {p.ultimoStatusDescricao && (
             <div className="text-muted-foreground">{p.ultimoStatusDescricao}</div>

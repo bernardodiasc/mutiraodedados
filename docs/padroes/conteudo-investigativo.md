@@ -13,16 +13,19 @@ O objetivo central não é "caçar escândalos" nem apontar o "gasto mais alto",
 Focadas no **processo analítico**: como formular hipóteses, onde olhar e o que questionar. Cada trilha tem exatamente **3 passos progressivos** com verbos imperativos.
 
 **Estrutura de cada passo:**
+
 1. Nome do passo (O Quê? / Por Quê? / Como?)
 2. Ação analítica em uma frase imperativa
 3. Gatilho 🔍 apontando para o Mapa Técnico correspondente
 
 **Exemplo correto de passo:**
+
 > **Passo 1 — Desmonte o Objeto (O Quê?)**
 > Isole a descrição exata do que foi comprado e compare mentalmente com a missão institucional do órgão. Uma desconexão aqui indica possível desvio de finalidade.
 > 🔍 Para extrair os dados, acesse o [Mapa: Como pesquisar contratos no Portal da Transparência].
 
 **Exemplo incorreto (muito vago):**
+
 > "Passo 1: Olhe o contrato com calma e veja se encontra algo estranho."
 
 ### B. Mapas Investigativos — Como Fazer
@@ -30,6 +33,7 @@ Focadas no **processo analítico**: como formular hipóteses, onde olhar e o que
 Focados em **engenharia de dados**: onde clicar, quais sistemas acessar, quais campos cruzar.
 
 Devem incluir:
+
 - Sistema governamental específico (SIAFI, PNCP, Transferegov, SIC/Fala.BR, SICONFI)
 - Chaves de busca e identificadores (CNPJ, Nota de Empenho, código CATMAT, número do contrato)
 - Tutorial passo-a-passo de cliques na interface oficial
@@ -41,15 +45,19 @@ Devem incluir:
 Sempre que aplicável, o conteúdo deve mencionar e explicar:
 
 ### O ciclo tridimensional do gasto
+
 **Demanda** (origem política/social) → **Conexão** (contrato / convênio / parceria) → **Resultado** (liquidação / entrega)
 
 ### A anatomia da Despesa Pública
+
 O dinheiro não sai diretamente do cofre. Ele passa obrigatoriamente por:
+
 1. **Empenho** — reserva do valor no orçamento
 2. **Liquidação** — atesto da entrega do serviço ou produto (nota fiscal)
 3. **Pagamento** — ordem bancária enviada ao banco
 
 ### Pontos cegos de risco
+
 - **Aditivos contratuais** — aumentos sucessivos além do limite legal de 25%
 - **Fracionamento de despesa** — divisão artificial para fugir da exigência de licitação
 - **Laranjas no QSA** — sócios fictícios ou sem capacidade técnica no Quadro de Sócios

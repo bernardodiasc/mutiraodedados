@@ -7,7 +7,9 @@ import type { Senador, DespesaCEAPS } from "./types";
 export const listarSenadores = createServerFn({ method: "GET" }).handler(async () => {
   const { data, error } = await supabaseAdmin
     .from("senado_senadores_cache")
-    .select("id,nome,nome_completo,sigla_partido,sigla_uf,url_foto,email,situacao,codigo_parlamentar")
+    .select(
+      "id,nome,nome_completo,sigla_partido,sigla_uf,url_foto,email,situacao,codigo_parlamentar",
+    )
     .order("nome", { ascending: true })
     .limit(200);
   if (error) throw new Error(error.message);
@@ -118,7 +120,9 @@ export const consultarMembrosSenado = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<SenadorConsulta[]> => {
     const legAtual = legislaturaAtual();
     const [roster, leg] = await Promise.all([
-      selectAll(() => supabaseAdmin.from("senado_senadores_cache").select("id,nome,url_foto,situacao")),
+      selectAll(() =>
+        supabaseAdmin.from("senado_senadores_cache").select("id,nome,url_foto,situacao"),
+      ),
       selectAll(() => {
         const base = supabaseAdmin
           .from("senado_senador_legislaturas")
@@ -154,8 +158,7 @@ export const consultarMembrosSenado = createServerFn({ method: "GET" })
       });
     }
     return out.sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  },
-);
+  });
 
 export const rankingGastosSenadores = createServerFn({ method: "GET" }).handler(async () => {
   // Soma no banco (view senado_gasto_por_senador); selectAll só pagina a view
@@ -168,7 +171,9 @@ export const rankingGastosSenadores = createServerFn({ method: "GET" }).handler(
         .order("total", { ascending: false }),
     ),
     selectAll(() =>
-      supabaseAdmin.from("senado_senadores_cache").select("id,nome,sigla_partido,sigla_uf,url_foto"),
+      supabaseAdmin
+        .from("senado_senadores_cache")
+        .select("id,nome,sigla_partido,sigla_uf,url_foto"),
     ),
   ]);
   const senMap = new Map(sens.map((d) => [d.id as number, d]));
@@ -204,14 +209,18 @@ export type AfastamentoSenado = {
  * fim normal de mandato (causa "TER"). Alimenta a visão "Vacâncias e afastamentos".
  */
 export const movimentacoesLegislaturaSenado = createServerFn({ method: "GET" })
-  .inputValidator((input) => z.object({ legislatura: z.number().int().min(1).max(200) }).parse(input))
+  .inputValidator((input) =>
+    z.object({ legislatura: z.number().int().min(1).max(200) }).parse(input),
+  )
   .handler(async ({ data }): Promise<AfastamentoSenado[]> => {
     const anoIni = 2003 + (data.legislatura - 52) * 4;
     const anoFim = anoIni + 4;
     const exRes = await selectAll(() =>
       supabaseAdmin
         .from("senado_exercicios")
-        .select("codigo_parlamentar,data_inicio,data_fim,sigla_causa,descricao_causa,participacao,uf")
+        .select(
+          "codigo_parlamentar,data_inicio,data_fim,sigla_causa,descricao_causa,participacao,uf",
+        )
         .neq("sigla_causa", "TER")
         .not("data_fim", "is", null)
         .gte("data_fim", `${anoIni}-01-01`)
@@ -220,7 +229,10 @@ export const movimentacoesLegislaturaSenado = createServerFn({ method: "GET" })
     const ids = [...new Set(exRes.map((e) => e.codigo_parlamentar as number))];
     const roster = ids.length
       ? await selectAll(() =>
-          supabaseAdmin.from("senado_senadores_cache").select("codigo_parlamentar,nome").in("codigo_parlamentar", ids),
+          supabaseAdmin
+            .from("senado_senadores_cache")
+            .select("codigo_parlamentar,nome")
+            .in("codigo_parlamentar", ids),
         )
       : [];
     const nome = new Map(roster.map((r) => [r.codigo_parlamentar as number, r.nome as string]));
@@ -296,7 +308,10 @@ async function buscarPerfilSenador(cod: number): Promise<PerfilSenador | null> {
       urlPagina: ip.UrlPaginaParlamentar ?? null,
       urlParticular: ip.UrlPaginaParticular ?? null,
       servicos: servArr
-        .map((sv) => ({ nome: ROTULO_SERVICO[sv.NomeServico ?? ""] ?? sv.NomeServico ?? "Serviço", url: sv.UrlServico ?? "" }))
+        .map((sv) => ({
+          nome: ROTULO_SERVICO[sv.NomeServico ?? ""] ?? sv.NomeServico ?? "Serviço",
+          url: sv.UrlServico ?? "",
+        }))
         .filter((x) => x.url.startsWith("http")),
     };
   } catch {
@@ -312,7 +327,9 @@ type MandatoApiItem = {
   SegundaLegislaturaDoMandato?: MandatoLegRef;
 };
 type MandatosApi = {
-  MandatoParlamentar?: { Parlamentar?: { Mandatos?: { Mandato?: MandatoApiItem | MandatoApiItem[] } } };
+  MandatoParlamentar?: {
+    Parlamentar?: { Mandatos?: { Mandato?: MandatoApiItem | MandatoApiItem[] } };
+  };
 };
 export type MandatoSenador = {
   anoInicio: number | null;
@@ -373,7 +390,9 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
 
     const { data: desps } = await supabaseAdmin
       .from("senado_despesas_cache")
-      .select("id,ano,mes,tipo_despesa,data_documento,valor_reembolsado,fornecedor_nome,fornecedor_cnpj,num_documento,detalhamento")
+      .select(
+        "id,ano,mes,tipo_despesa,data_documento,valor_reembolsado,fornecedor_nome,fornecedor_cnpj,num_documento,detalhamento",
+      )
       .eq("senador_id", data.id)
       .order("data_documento", { ascending: false })
       .limit(5000);
@@ -394,7 +413,10 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
 
     const totalGeral = despesas.reduce((s, x) => s + x.valorReembolsado, 0);
     const porTipo = new Map<string, number>();
-    const porFornecedor = new Map<string, { nome: string; cnpj: string | null; total: number; count: number }>();
+    const porFornecedor = new Map<
+      string,
+      { nome: string; cnpj: string | null; total: number; count: number }
+    >();
     const porMes = new Map<string, number>();
     for (const d of despesas) {
       const tipo = d.tipoDespesa ?? "(sem tipo)";
@@ -465,17 +487,26 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
     for (const r of meusSupRes.data ?? []) {
       const c = r.suplente_codigo as number | null;
       const key = `${c ?? r.suplente_nome}-${r.ordem ?? ""}`;
-      const cur =
-        supMap.get(key) ??
-        { codigo: c, nome: r.suplente_nome as string | null, ordem: r.ordem as string | null, legs: new Set<number>() };
+      const cur = supMap.get(key) ?? {
+        codigo: c,
+        nome: r.suplente_nome as string | null,
+        ordem: r.ordem as string | null,
+        legs: new Set<number>(),
+      };
       if (r.legislatura != null) cur.legs.add(r.legislatura as number);
       supMap.set(key, cur);
     }
     const meusSuplentes = [...supMap.values()]
-      .map((s) => ({ codigo: s.codigo, nome: s.nome, ordem: s.ordem, legislaturas: [...s.legs].sort((a, b) => a - b) }))
+      .map((s) => ({
+        codigo: s.codigo,
+        nome: s.nome,
+        ordem: s.ordem,
+        legislaturas: [...s.legs].sort((a, b) => a - b),
+      }))
       .sort(
         (a, b) =>
-          (a.ordem ?? "").localeCompare(b.ordem ?? "") || (a.legislaturas[0] ?? 0) - (b.legislaturas[0] ?? 0),
+          (a.ordem ?? "").localeCompare(b.ordem ?? "") ||
+          (a.legislaturas[0] ?? 0) - (b.legislaturas[0] ?? 0),
       );
     const titMap = new Map<number, { ordem: string | null; legs: Set<number> }>();
     for (const r of souSupRes.data ?? []) {
@@ -491,7 +522,9 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
         .from("senado_senadores_cache")
         .select("codigo_parlamentar,nome")
         .in("codigo_parlamentar", [...titMap.keys()]);
-      nomesTitulares = new Map((tits ?? []).map((t) => [t.codigo_parlamentar as number, t.nome as string]));
+      nomesTitulares = new Map(
+        (tits ?? []).map((t) => [t.codigo_parlamentar as number, t.nome as string]),
+      );
     }
     const souSuplenteDe = [...titMap.entries()].map(([codigo, v]) => ({
       codigo,
@@ -520,9 +553,13 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
       souSuplenteDe,
       totalGeral,
       despesas,
-      porTipo: [...porTipo.entries()].map(([tipo, total]) => ({ tipo, total })).sort((a, b) => b.total - a.total),
+      porTipo: [...porTipo.entries()]
+        .map(([tipo, total]) => ({ tipo, total }))
+        .sort((a, b) => b.total - a.total),
       porFornecedor: [...porFornecedor.values()].sort((a, b) => b.total - a.total).slice(0, 30),
-      porMes: [...porMes.entries()].map(([mes, total]) => ({ mes, total })).sort((a, b) => a.mes.localeCompare(b.mes)),
+      porMes: [...porMes.entries()]
+        .map(([mes, total]) => ({ mes, total }))
+        .sort((a, b) => a.mes.localeCompare(b.mes)),
     };
   });
 
@@ -534,8 +571,15 @@ export const senadoOverview = createServerFn({ method: "GET" }).handler(async ()
     supabaseAdmin.from("senado_despesas_cache").select("id", { count: "exact", head: true }),
     // Soma no banco: `.limit(100000)` sobre as despesas cruas truncava em 1000.
     supabaseAdmin.rpc("senado_gasto_total"),
-    selectAll(() => supabaseAdmin.from("senado_senadores_cache").select("id").eq("situacao", "Exercício")),
-    selectAll(() => supabaseAdmin.from("senado_senador_legislaturas").select("codigo_parlamentar").lt("legislatura", legAtual)),
+    selectAll(() =>
+      supabaseAdmin.from("senado_senadores_cache").select("id").eq("situacao", "Exercício"),
+    ),
+    selectAll(() =>
+      supabaseAdmin
+        .from("senado_senador_legislaturas")
+        .select("codigo_parlamentar")
+        .lt("legislatura", legAtual),
+    ),
   ]);
   const totalGasto = Number(totalRes.data ?? 0);
   const atuaisIds = new Set(exercData.map((r) => r.id as number));
@@ -561,6 +605,8 @@ export const senadoOverview = createServerFn({ method: "GET" }).handler(async ()
     totalDespesas: nDesps ?? 0,
     totalGasto,
     periodoInicio: span?.[0] ? `${span[0].ano}-${String(span[0].mes).padStart(2, "0")}` : null,
-    periodoFim: spanEnd?.[0] ? `${spanEnd[0].ano}-${String(spanEnd[0].mes).padStart(2, "0")}` : null,
+    periodoFim: spanEnd?.[0]
+      ? `${spanEnd[0].ano}-${String(spanEnd[0].mes).padStart(2, "0")}`
+      : null,
   };
 });

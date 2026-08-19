@@ -11,10 +11,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 const BASE = "https://apidatalake.tesouro.gov.br/ords/siconfi/tt";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
-async function siconfiGet<T = unknown>(path: string, params: Record<string, string | number>): Promise<T> {
-  const qs = new URLSearchParams(
-    Object.entries(params).map(([k, v]) => [k, String(v)]),
-  ).toString();
+async function siconfiGet<T = unknown>(
+  path: string,
+  params: Record<string, string | number>,
+): Promise<T> {
+  const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)])).toString();
   const res = await fetch(`${BASE}${path}?${qs}`, {
     headers: { accept: "application/json", "user-agent": UA },
   });
@@ -89,13 +90,15 @@ async function ingerirRelatorioSiconfi(params: {
     path = "/rreo";
     if (!periodo) throw new Error("RREO exige 'periodo' (1..6 bimestres).");
     reqParams.nr_periodo = periodo;
-    reqParams.co_tipo_demonstrativo = tipoRelatorio === "RREO Simplificado" ? "RREO Simplificado" : "RREO";
+    reqParams.co_tipo_demonstrativo =
+      tipoRelatorio === "RREO Simplificado" ? "RREO Simplificado" : "RREO";
     if (anexo) reqParams.no_anexo = anexo;
   } else {
     path = "/rgf";
     if (!periodo) throw new Error("RGF exige 'periodo' (1..3 quadrimestres).");
     reqParams.nr_periodo = periodo;
-    reqParams.co_tipo_demonstrativo = tipoRelatorio === "RGF Simplificado" ? "RGF Simplificado" : "RGF";
+    reqParams.co_tipo_demonstrativo =
+      tipoRelatorio === "RGF Simplificado" ? "RGF Simplificado" : "RGF";
     if (anexo) reqParams.no_anexo = anexo;
   }
 
@@ -182,7 +185,10 @@ async function ingerirRelatorioSiconfi(params: {
   }
 
   if (rows.length === 0) {
-    return { importados: 0, aviso: "Relatório não encontrado ou não publicado para este ente/período." };
+    return {
+      importados: 0,
+      aviso: "Relatório não encontrado ou não publicado para este ente/período.",
+    };
   }
   return { importados: rows.length };
 }

@@ -20,9 +20,7 @@ export function TipografiaSection() {
               <CardDescription className="font-mono">--font-sans</CardDescription>
               <CardTitle className="text-3xl">Sans</CardTitle>
             </CardHeader>
-            <CardContent className="text-base">
-              ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789
-            </CardContent>
+            <CardContent className="text-base">ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789</CardContent>
           </Card>
           <Card>
             <CardHeader>

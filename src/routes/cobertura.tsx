@@ -39,25 +39,25 @@ function CoberturaPage() {
       </span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Cobertura dos dados</h1>
       <p className="mt-6 text-lg text-muted-foreground max-w-3xl">
-        Aqui mostramos honestamente o quanto cada fonte pública já está armazenada no Mutirão de Dados,
-        o período coberto e quando foi a última atualização. Lacunas e fontes defasadas são o ponto —
-        não escondemos.
+        Aqui mostramos honestamente o quanto cada fonte pública já está armazenada no Mutirão de
+        Dados, o período coberto e quando foi a última atualização. Lacunas e fontes defasadas são o
+        ponto — não escondemos.
       </p>
 
       <div className="mt-6 border border-border rounded-xl bg-card p-5 text-sm text-muted-foreground max-w-3xl">
         <strong className="text-foreground">Como ler esta página</strong>
         <ul className="mt-2 space-y-1 list-disc list-inside">
           <li>
-            <strong className="text-foreground">Frescor</strong>: verde até 30 dias, âmbar até 90 dias, vermelho acima
-            de 90 dias desde a última gravação.
+            <strong className="text-foreground">Frescor</strong>: verde até 30 dias, âmbar até 90
+            dias, vermelho acima de 90 dias desde a última gravação.
           </li>
           <li>
-            <strong className="text-foreground">Período coberto</strong>: do mês mais antigo ao mais recente com pelo
-            menos um registro.
+            <strong className="text-foreground">Período coberto</strong>: do mês mais antigo ao mais
+            recente com pelo menos um registro.
           </li>
           <li>
-            <strong className="text-foreground">Heatmap ano × mês</strong>: intensidade proporcional ao volume de
-            registros naquele mês. Células tracejadas indicam ausência de dados.
+            <strong className="text-foreground">Heatmap ano × mês</strong>: intensidade proporcional
+            ao volume de registros naquele mês. Células tracejadas indicam ausência de dados.
           </li>
           <li>
             Diferente da{" "}
@@ -72,9 +72,8 @@ function CoberturaPage() {
       <div className="mt-4 border border-border rounded-xl bg-card p-5 text-sm max-w-3xl">
         <strong className="text-foreground">Qualidade ≠ cobertura.</strong>{" "}
         <span className="text-muted-foreground">
-          Esta página mostra <em>quanto</em> baixamos. Para ver os{" "}
-          <em>defeitos</em> detectados nos dados ingeridos (e o que já foi
-          reportado às fontes oficiais), veja{" "}
+          Esta página mostra <em>quanto</em> baixamos. Para ver os <em>defeitos</em> detectados nos
+          dados ingeridos (e o que já foi reportado às fontes oficiais), veja{" "}
         </span>
         <Link to="/qualidade" className="text-accent underline">
           /qualidade

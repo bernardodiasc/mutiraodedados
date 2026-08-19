@@ -16,7 +16,20 @@ import { importConvenios } from "@/lib/data/real/convenios.functions";
 import { importarConveniosTransferegov } from "@/lib/data/transferegov/ingest.functions";
 import { dentroDaJanela, type FonteJanela } from "@/lib/data/janelas";
 
-const MESES_CURTO = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MESES_CURTO = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
 // Fontes da CGU que gravam o PRÓPRIO registro de rodada em `importacoes`
 // (via fetchPortalOrgao/varrerPaginado, com data_inicial/data_final/orgao_cod).
@@ -165,27 +178,29 @@ export function useCoberturaJobBuilder(): BuildJobFn {
           console.error("[registrarTentativa] falhou", e);
         }
       };
-      const wrap = (
-        run: () => Promise<number | { importados: number; erro?: string | null }>,
-      ): CoberturaJob["run"] => async () => {
-        try {
-          const res = await run();
-          const n = typeof res === "number" ? res : (res.importados ?? 0);
-          const erro = typeof res === "number" ? null : (res.erro ?? null);
-          // CGU (contratos e licitações) já grava seu próprio registro em
-          // `importacoes` dentro do ingest/varredura (com data_inicial/
-          // data_final/orgao_cod). Não duplicar o log aqui.
-          if (!FONTES_CGU_AUTO_LOG.has(fonte)) await logar(n, erro ?? undefined);
-          return n;
-        } catch (err) {
-          const msg = (err as Error).message;
-          const transient = msg.startsWith("TRANSIENT:") || msg.includes("timeout após");
-          if (!transient && !FONTES_CGU_AUTO_LOG.has(fonte)) {
-            await logar(0, msg.slice(0, 500));
+      const wrap =
+        (
+          run: () => Promise<number | { importados: number; erro?: string | null }>,
+        ): CoberturaJob["run"] =>
+        async () => {
+          try {
+            const res = await run();
+            const n = typeof res === "number" ? res : (res.importados ?? 0);
+            const erro = typeof res === "number" ? null : (res.erro ?? null);
+            // CGU (contratos e licitações) já grava seu próprio registro em
+            // `importacoes` dentro do ingest/varredura (com data_inicial/
+            // data_final/orgao_cod). Não duplicar o log aqui.
+            if (!FONTES_CGU_AUTO_LOG.has(fonte)) await logar(n, erro ?? undefined);
+            return n;
+          } catch (err) {
+            const msg = (err as Error).message;
+            const transient = msg.startsWith("TRANSIENT:") || msg.includes("timeout após");
+            if (!transient && !FONTES_CGU_AUTO_LOG.has(fonte)) {
+              await logar(0, msg.slice(0, 500));
+            }
+            throw err;
           }
-          throw err;
-        }
-      };
+        };
       switch (fonte) {
         case "cgu": {
           const o = ORGAOS_BASE.find((x) => x.cod === linhaId);
@@ -201,9 +216,10 @@ export function useCoberturaJobBuilder(): BuildJobFn {
               // `opts`; na matriz (sem opts) a célula clicada importa só o MÊS
               // referente (janela = início..fim do mês), alocado por início de
               // vigência. A chave do cache inclui a janela para não colidir.
-              const janela = opts?.dataInicial && opts?.dataFinal
-                ? { dataInicial: opts.dataInicial, dataFinal: opts.dataFinal }
-                : { dataInicial: ini, dataFinal: fim };
+              const janela =
+                opts?.dataInicial && opts?.dataFinal
+                  ? { dataInicial: opts.dataInicial, dataFinal: opts.dataFinal }
+                  : { dataInicial: ini, dataFinal: fim };
               const cacheKey = `${linhaId}|${janela.dataInicial}|${janela.dataFinal}`;
               const emCurso = cguSweepCache.get(cacheKey);
               if (emCurso) {
@@ -228,7 +244,10 @@ export function useCoberturaJobBuilder(): BuildJobFn {
                     loadRealOrgao(linhaId, janela),
                     new Promise<never>((_, reject) =>
                       setTimeout(
-                        () => reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                        () =>
+                          reject(
+                            new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`),
+                          ),
                         RODADA_TIMEOUT_MS,
                       ),
                     ),
@@ -260,7 +279,8 @@ export function useCoberturaJobBuilder(): BuildJobFn {
                   importLic({ data: { codigoOrgao: linhaId, dataInicial: ini, dataFinal: fim } }),
                   new Promise<never>((_, reject) =>
                     setTimeout(
-                      () => reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
                       RODADA_TIMEOUT_MS,
                     ),
                   ),
@@ -288,7 +308,8 @@ export function useCoberturaJobBuilder(): BuildJobFn {
                   importEme({ data: { ano: y } }),
                   new Promise<never>((_, reject) =>
                     setTimeout(
-                      () => reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
                       RODADA_TIMEOUT_MS,
                     ),
                   ),
@@ -313,7 +334,8 @@ export function useCoberturaJobBuilder(): BuildJobFn {
                   importConv({ data: { dataInicial: ini, dataFinal: fim } }),
                   new Promise<never>((_, reject) =>
                     setTimeout(
-                      () => reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
                       RODADA_TIMEOUT_MS,
                     ),
                   ),
@@ -333,7 +355,9 @@ export function useCoberturaJobBuilder(): BuildJobFn {
           return {
             label: `Câmara votações · ${tag}`,
             run: wrap(async () => {
-              const { ids } = await listarVotsCam({ data: { dataInicio: ini, dataFim: fim, maxPaginas: 5 } });
+              const { ids } = await listarVotsCam({
+                data: { dataInicio: ini, dataFim: fim, maxPaginas: 5 },
+              });
               let total = 0;
               for (const id of ids) {
                 try {
@@ -373,7 +397,10 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "senado_vot":
           return {
             label: `Senado votações · ${tag}`,
-            run: wrap(async () => (await importarVotsSen({ data: { dataInicio: ini, dataFim: fim } })).votos),
+            run: wrap(
+              async () =>
+                (await importarVotsSen({ data: { dataInicio: ini, dataFim: fim } })).votos,
+            ),
           };
         case "senado_mat":
           // Fonte anual — um job por ano (m=1 âncora). Itera os subtipos padrão.
@@ -397,25 +424,51 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "pncp":
           return {
             label: `PNCP · ${tag}`,
-            run: wrap(async () => (await importarPNCP({ data: { dataInicial: ini, dataFinal: fim } })).importados),
+            run: wrap(
+              async () =>
+                (await importarPNCP({ data: { dataInicial: ini, dataFinal: fim } })).importados,
+            ),
           };
         case "transferegov":
           return {
             label: `Transferegov · ${tag}`,
-            run: wrap(async () => (await importarTransf({ data: { dataInicial: ini, dataFinal: fim } })).importados ?? 0),
+            run: wrap(
+              async () =>
+                (await importarTransf({ data: { dataInicial: ini, dataFinal: fim } })).importados ??
+                0,
+            ),
           };
         case "siconfi":
           return null;
       }
       return null;
     },
-    [loadRealOrgao, logTentativa, importarCEAP, listarVotsCam, importarVotCamUnica, importarProps, importarCEAPS, importarVotsSen, importarMat, importarPNCP, importLic, importEme, importConv, importarTransf],
+    [
+      loadRealOrgao,
+      logTentativa,
+      importarCEAP,
+      listarVotsCam,
+      importarVotCamUnica,
+      importarProps,
+      importarCEAPS,
+      importarVotsSen,
+      importarMat,
+      importarPNCP,
+      importLic,
+      importEme,
+      importConv,
+      importarTransf,
+    ],
   );
 }
 
 /** Agrupamento visual das fontes no painel "Sincronizar tudo". */
 export const GRUPOS_FONTES: Array<{ id: string; label: string; fontes: Fonte["fonte"][] }> = [
-  { id: "cgu", label: "Portal CGU", fontes: ["cgu", "cgu_licitacoes", "cgu_emendas", "cgu_convenios"] },
+  {
+    id: "cgu",
+    label: "Portal CGU",
+    fontes: ["cgu", "cgu_licitacoes", "cgu_emendas", "cgu_convenios"],
+  },
   { id: "camara", label: "Câmara", fontes: ["camara_ceap", "camara_vot", "camara_props"] },
   { id: "senado", label: "Senado", fontes: ["senado_ceaps", "senado_vot", "senado_mat"] },
   {
