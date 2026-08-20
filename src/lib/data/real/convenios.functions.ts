@@ -20,6 +20,74 @@ import { ensureAdmin, isoToBR, montarVarreduraKey, varrerPaginado } from "@/lib/
  * divergiam em silêncio.
  */
 
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaConvenios(
+  data: {
+    dataInicial: string;
+    dataFinal: string;
+    maxPaginas: number;
+    delayMs: number;
+    orcamentoMs: number;
+  },
+  userId: string | null,
+) {
+  const TAM_PAGINA = 15;
+  const varreduraKey = montarVarreduraKey("convenios", "geral", data.dataInicial, data.dataFinal);
+
+  const r = await varrerPaginado<PortalConvenioRaw, ConvenioCacheRow>({
+    entidade: "convenios",
+    fonte: "cgu_convenios",
+    endpoint: "/convenios",
+    orgaoCodLog: "",
+    escopo: "convênios",
+    userId: userId,
+    varreduraKey,
+    tamPagina: TAM_PAGINA,
+    maxPaginas: data.maxPaginas,
+    delayMs: data.delayMs,
+    orcamentoMs: data.orcamentoMs,
+    montarParams: (pagina) => ({
+      dataInicial: isoToBR(data.dataInicial),
+      dataFinal: isoToBR(data.dataFinal),
+      pagina: String(pagina),
+    }),
+    mapPagina: (list, _pagina, push) => {
+      const rows = list
+        .map((raw) => mapearConvenioCache(raw))
+        .filter((r): r is ConvenioCacheRow => r !== null);
+      for (const f of regrasCguConvenios(rows as CguConvenioLike[])) push.finding(f);
+      return rows;
+    },
+    upsertBatch: async (rows) => {
+      const erros: string[] = [];
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        const { error } = await supabaseAdmin.from("convenios_cache").upsert(chunk);
+        if (error) erros.push(`db: ${error.message}`);
+      }
+      return erros;
+    },
+    rowDateIso: (row) => row.data_inicio_vigencia,
+  });
+
+  return {
+    meta: {
+      totalBruto: r.totalAcumulado,
+      importados: r.totalAcumulado,
+      erros: [...r.erros, ...r.avisos],
+      fonte: "Portal da Transparência (CGU) — Convênios",
+      consultadoEm: new Date().toISOString(),
+      varredura: {
+        ultimaPagina: r.ultimaPagina,
+        completa: r.completa,
+        haMais: r.haMais,
+        totalAcumulado: r.totalAcumulado,
+        orcamentoEsgotado: r.orcamentoEsgotado,
+      },
+    },
+  };
+}
+
 export const importConvenios = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -35,60 +103,5 @@ export const importConvenios = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-
-    const TAM_PAGINA = 15;
-    const varreduraKey = montarVarreduraKey("convenios", "geral", data.dataInicial, data.dataFinal);
-
-    const r = await varrerPaginado<PortalConvenioRaw, ConvenioCacheRow>({
-      entidade: "convenios",
-      fonte: "cgu_convenios",
-      endpoint: "/convenios",
-      orgaoCodLog: "",
-      escopo: "convênios",
-      userId: context.userId,
-      varreduraKey,
-      tamPagina: TAM_PAGINA,
-      maxPaginas: data.maxPaginas,
-      delayMs: data.delayMs,
-      orcamentoMs: data.orcamentoMs,
-      montarParams: (pagina) => ({
-        dataInicial: isoToBR(data.dataInicial),
-        dataFinal: isoToBR(data.dataFinal),
-        pagina: String(pagina),
-      }),
-      mapPagina: (list, _pagina, push) => {
-        const rows = list
-          .map((raw) => mapearConvenioCache(raw))
-          .filter((r): r is ConvenioCacheRow => r !== null);
-        for (const f of regrasCguConvenios(rows as CguConvenioLike[])) push.finding(f);
-        return rows;
-      },
-      upsertBatch: async (rows) => {
-        const erros: string[] = [];
-        for (let i = 0; i < rows.length; i += 200) {
-          const chunk = rows.slice(i, i + 200);
-          const { error } = await supabaseAdmin.from("convenios_cache").upsert(chunk);
-          if (error) erros.push(`db: ${error.message}`);
-        }
-        return erros;
-      },
-      rowDateIso: (row) => row.data_inicio_vigencia,
-    });
-
-    return {
-      meta: {
-        totalBruto: r.totalAcumulado,
-        importados: r.totalAcumulado,
-        erros: [...r.erros, ...r.avisos],
-        fonte: "Portal da Transparência (CGU) — Convênios",
-        consultadoEm: new Date().toISOString(),
-        varredura: {
-          ultimaPagina: r.ultimaPagina,
-          completa: r.completa,
-          haMais: r.haMais,
-          totalAcumulado: r.totalAcumulado,
-          orcamentoEsgotado: r.orcamentoEsgotado,
-        },
-      },
-    };
+    return rodadaConvenios(data, context.userId);
   });

@@ -23,6 +23,29 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.11.0 — 2026-08-20
+
+**Resumo:** automação periódica das importações — a promessa arquitetural mantida desde a v0.3.0 (runners chamáveis sem browser) vira produto. Nove fontes rodam sozinhas em rotação, pelo MESMO código do painel; o agendador nasce dormente e a ativação é uma decisão explícita do mantenedor.
+
+**Entregas**
+
+- **Núcleos chamáveis sem browser** em nove ingests (PNCP, convênios, CEAP, CEAPS, votações Câmara/Senado, matérias, proposições, origem SICONV, IBGE); server functions viram cascas autenticadas. `user_id` nulo no histórico = rodada sem operador.
+- **Rota `/api/cron-importar`** interceptada em `src/server.ts`: `x-cron-secret` contra `CRON_SECRET` (sem secret, 401 — desligada por padrão); cada chamada executa uma rodada com orçamento da próxima tarefa e devolve `{tarefa, importados, haMais}`.
+- **Fila `automacao_tarefas`** com claim atômico (`FOR UPDATE SKIP LOCKED`, lock expira em 15 min) e rotação v1 semeada por migration. Janeladas importam o mês corrente (UTC), com helper puro testado.
+- **Agendador `pg_cron`+`pg_net`** (disponibilidade verificada no banco): tique de 5 min, dormente até `automacao_config` (service_role only) ter URL e segredo — nunca no repositório. Alternativa externa (Make) documentada.
+- `docs/automacao.md` com ativação, pausa, concorrência e o que ficou fora da rotação v1 (SICONFI e CGU por órgão — rodada de ajustes).
+
+**Checks executados**
+
+- `bun run test` ✓ — 74 arquivos, 771 testes.
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Extensões `pg_cron`/`pg_net` confirmadas disponíveis no banco do projeto; `importacoes.user_id` confirmado anulável.
+- **Ativação pendente do mantenedor** (por desenho): criar `CRON_SECRET` e inserir a linha de `automacao_config`. Validação manual na rodada única pós-release.
+
+**Plano:** sem plano dedicado — desenho no ROADMAP, operação em docs/automacao.md.
+
+**PR de sync público:** `sync v0.11.0`.
+
 ## v0.10.0 — 2026-08-20
 
 **Resumo:** a origem do SICONV passa a enriquecer os convênios com o que só ela publica — situação corrente, valor empenhado e valor desembolsado — lida do CSV oficial do módulo Discricionárias e Legais, por varredura retomável. O recorte foi decidido por medição, a pedido do mantenedor, que questionou a premissa da release.

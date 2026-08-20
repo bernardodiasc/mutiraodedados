@@ -12,6 +12,7 @@ const SERVER_ENV_KEYS = [
   "SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
   "PORTAL_TRANSPARENCIA_API_KEY",
+  "CRON_SECRET",
 ] as const;
 
 let serverEntryPromise: Promise<ServerEntry> | undefined;
@@ -87,6 +88,15 @@ export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
       syncWorkerEnv(env);
+
+      // Automação (v0.11.0): rota de servidor sem UI, interceptada ANTES do
+      // framework — protegida por CRON_SECRET dentro do handler; sem o
+      // secret configurado ela responde 401 para tudo (desligada).
+      const url = new URL(request.url);
+      if (url.pathname === "/api/cron-importar") {
+        const { executarTiqueAutomacao } = await import("./lib/data/automacao/tique.server");
+        return await executarTiqueAutomacao(request);
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);

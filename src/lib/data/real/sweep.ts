@@ -58,7 +58,7 @@ export type LogRequisicao = {
   importados: number;
   erros: string[];
   consultado_em: string;
-  user_id: string;
+  user_id: string | null;
 };
 
 /**
@@ -234,7 +234,7 @@ export type VarrerPaginadoOpts<TRaw, TRow> = {
   orgaoCodLog: string;
   /** Rótulo do escopo (sigla do órgão, ou ano). */
   escopo: string;
-  userId: string;
+  userId: string | null;
   /** Chave composta de retomada (ver `montarVarreduraKey`). */
   varreduraKey: string;
   /** Tamanho fixo de página do endpoint (página menor que isso = última). */

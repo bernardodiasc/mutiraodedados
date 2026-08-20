@@ -515,6 +515,180 @@ type DespesaRaw = {
  * em lotes — o cursor do runner é o LOTE, o que mantém o teto de
  * subrequisições respeitado mesmo num mês atípico.
  */
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaCEAPSMes(
+  data: { ano: number; mes: number; senadorId?: number },
+  userId: string | null,
+) {
+  type DespesaCeaps = {
+    id?: number;
+    tipoDocumento?: string;
+    ano?: number;
+    mes?: number;
+    codSenador?: number;
+    nomeSenador?: string;
+    tipoDespesa?: string;
+    cpfCnpj?: string;
+    fornecedor?: string;
+    documento?: string;
+    data?: string;
+    detalhamento?: string | null;
+    valorReembolsado?: number | string;
+  };
+
+  const erros: string[] = [];
+  const inicioRodada = Date.now();
+  const LOTE = 200;
+
+  // O ano é buscado UMA vez por rodada e reaproveitado entre os passos.
+  let doMes: DespesaCeaps[] | null = null;
+  let senadoresNoMes = 0;
+  const carregarMes = async (): Promise<DespesaCeaps[]> => {
+    if (doMes) return doMes;
+    const res = await fetchComRetry(`${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano}`, {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) {
+      throw new Error(
+        ehStatusTransitorio(res.status)
+          ? `TRANSIENT: Senado ${res.status} (CEAPS ${data.ano} indisponível)`
+          : `Senado API ${res.status} ao buscar CEAPS ${data.ano}`,
+      );
+    }
+    const ano = (await res.json()) as DespesaCeaps[];
+    doMes = (Array.isArray(ano) ? ano : []).filter(
+      (d) =>
+        Number(d.mes) === data.mes && (!data.senadorId || Number(d.codSenador) === data.senadorId),
+    );
+    senadoresNoMes = new Set(doMes.map((d) => d.codSenador)).size;
+    return doMes;
+  };
+
+  const rodada = await rodarComOrcamento({
+    chave: chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId),
+    checkpoint: checkpointImportacao,
+    orcamentoMs: CEAP_ORCAMENTO_MS,
+    orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
+    maxPassos: 500,
+    passo: async (cursor) => {
+      let custo = 0;
+      let lista: DespesaCeaps[];
+      try {
+        const antes = doMes;
+        lista = await carregarMes();
+        if (!antes) custo++;
+      } catch (e) {
+        // Sem a lista não há o que gravar: passageiro refaz, definitivo encerra.
+        const r = reacaoAoErroDeLista(e);
+        return {
+          processados: 0,
+          fim: r.fim,
+          custo: 1,
+          interromper: r.interromper,
+          erros: [`ceaps ${data.ano}: ${(e as Error).message}`],
+        };
+      }
+
+      const inicio = (cursor - 1) * LOTE;
+      if (inicio >= lista.length) return { processados: 0, fim: true, custo };
+      const fatia = lista.slice(inicio, inicio + LOTE);
+
+      const rows = fatia
+        .map((d) => {
+          const id = d.id != null ? String(d.id) : null;
+          const senId = Number(d.codSenador);
+          if (!id || !Number.isFinite(senId)) return null;
+          return {
+            id,
+            senador_id: senId,
+            ano: Number(d.ano ?? data.ano),
+            mes: Number(d.mes ?? data.mes),
+            tipo_despesa:
+              sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+            fornecedor_nome: sanitizarTextoPublico((d.fornecedor ?? "").slice(0, 240)) || null,
+            // A origem manda o CNPJ formatado; guardamos só os dígitos.
+            fornecedor_cnpj: d.cpfCnpj ? d.cpfCnpj.replace(/\D/g, "") || null : null,
+            data_documento:
+              d.data && /^\d{4}-\d{2}-\d{2}/.test(d.data) ? d.data.slice(0, 10) : null,
+            num_documento: d.documento ?? null,
+            valor_reembolsado: parseValorSenado(d.valorReembolsado),
+            detalhamento: sanitizarTextoPublico((d.detalhamento ?? "").slice(0, 500)) || null,
+            updated_at: new Date().toISOString(),
+          };
+        })
+        .filter((r): r is NonNullable<typeof r> => r !== null);
+
+      if (rows.length === 0) return { processados: 0, fim: false, custo };
+
+      const { error } = await supabaseAdmin.from("senado_despesas_cache").upsert(rows);
+      custo++;
+      if (error) {
+        return {
+          processados: 0,
+          fim: false,
+          custo,
+          interromper: reacaoAoErro(error).interromper,
+          erros: [`lote ${cursor}: ${error.message}`],
+        };
+      }
+
+      const errosPasso: string[] = [];
+      try {
+        await flagQA(
+          regrasSenadoCeaps(
+            rows.map((r) => ({
+              id: r.id,
+              valor_reembolsado: r.valor_reembolsado,
+              senador_id: r.senador_id,
+            })),
+          ),
+        );
+      } catch (e) {
+        // Não interrompe a ingestão, mas o erro de QA fica visível.
+        errosPasso.push(`qa lote ${cursor}: ${(e as Error).message}`);
+      }
+
+      return {
+        processados: rows.length,
+        fim: inicio + LOTE >= lista.length,
+        custo,
+        erros: errosPasso,
+      };
+    },
+  });
+
+  erros.push(...rodada.erros);
+
+  // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+  const avisoHistorico = await registrarRodadaImportacao(
+    {
+      fonte: "senado_ceaps",
+      ano: data.ano,
+      mes: data.mes,
+      endpoint: `GET ${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano} (filtro mês=${data.mes})`,
+      unidade: "lotes",
+      userId: userId,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    rodada,
+  );
+  if (avisoHistorico) erros.push(avisoHistorico);
+
+  return {
+    importados: rodada.processados,
+    senadoresProcessados: senadoresNoMes,
+    erros,
+    varredura: {
+      haMais: !rodada.concluido,
+      cursor: rodada.cursorFinal,
+      totalSenadores: senadoresNoMes,
+      totalAcumulado: rodada.totalAcumulado,
+      orcamentoEsgotado: rodada.orcamentoEsgotado,
+      custoEsgotado: rodada.custoEsgotado,
+    },
+  };
+}
+
 export const importarCEAPSMes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -528,173 +702,5 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-
-    type DespesaCeaps = {
-      id?: number;
-      tipoDocumento?: string;
-      ano?: number;
-      mes?: number;
-      codSenador?: number;
-      nomeSenador?: string;
-      tipoDespesa?: string;
-      cpfCnpj?: string;
-      fornecedor?: string;
-      documento?: string;
-      data?: string;
-      detalhamento?: string | null;
-      valorReembolsado?: number | string;
-    };
-
-    const erros: string[] = [];
-    const inicioRodada = Date.now();
-    const LOTE = 200;
-
-    // O ano é buscado UMA vez por rodada e reaproveitado entre os passos.
-    let doMes: DespesaCeaps[] | null = null;
-    let senadoresNoMes = 0;
-    const carregarMes = async (): Promise<DespesaCeaps[]> => {
-      if (doMes) return doMes;
-      const res = await fetchComRetry(`${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano}`, {
-        headers: { accept: "application/json" },
-      });
-      if (!res.ok) {
-        throw new Error(
-          ehStatusTransitorio(res.status)
-            ? `TRANSIENT: Senado ${res.status} (CEAPS ${data.ano} indisponível)`
-            : `Senado API ${res.status} ao buscar CEAPS ${data.ano}`,
-        );
-      }
-      const ano = (await res.json()) as DespesaCeaps[];
-      doMes = (Array.isArray(ano) ? ano : []).filter(
-        (d) =>
-          Number(d.mes) === data.mes &&
-          (!data.senadorId || Number(d.codSenador) === data.senadorId),
-      );
-      senadoresNoMes = new Set(doMes.map((d) => d.codSenador)).size;
-      return doMes;
-    };
-
-    const rodada = await rodarComOrcamento({
-      chave: chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId),
-      checkpoint: checkpointImportacao,
-      orcamentoMs: CEAP_ORCAMENTO_MS,
-      orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
-      maxPassos: 500,
-      passo: async (cursor) => {
-        let custo = 0;
-        let lista: DespesaCeaps[];
-        try {
-          const antes = doMes;
-          lista = await carregarMes();
-          if (!antes) custo++;
-        } catch (e) {
-          // Sem a lista não há o que gravar: passageiro refaz, definitivo encerra.
-          const r = reacaoAoErroDeLista(e);
-          return {
-            processados: 0,
-            fim: r.fim,
-            custo: 1,
-            interromper: r.interromper,
-            erros: [`ceaps ${data.ano}: ${(e as Error).message}`],
-          };
-        }
-
-        const inicio = (cursor - 1) * LOTE;
-        if (inicio >= lista.length) return { processados: 0, fim: true, custo };
-        const fatia = lista.slice(inicio, inicio + LOTE);
-
-        const rows = fatia
-          .map((d) => {
-            const id = d.id != null ? String(d.id) : null;
-            const senId = Number(d.codSenador);
-            if (!id || !Number.isFinite(senId)) return null;
-            return {
-              id,
-              senador_id: senId,
-              ano: Number(d.ano ?? data.ano),
-              mes: Number(d.mes ?? data.mes),
-              tipo_despesa:
-                sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
-              fornecedor_nome: sanitizarTextoPublico((d.fornecedor ?? "").slice(0, 240)) || null,
-              // A origem manda o CNPJ formatado; guardamos só os dígitos.
-              fornecedor_cnpj: d.cpfCnpj ? d.cpfCnpj.replace(/\D/g, "") || null : null,
-              data_documento:
-                d.data && /^\d{4}-\d{2}-\d{2}/.test(d.data) ? d.data.slice(0, 10) : null,
-              num_documento: d.documento ?? null,
-              valor_reembolsado: parseValorSenado(d.valorReembolsado),
-              detalhamento: sanitizarTextoPublico((d.detalhamento ?? "").slice(0, 500)) || null,
-              updated_at: new Date().toISOString(),
-            };
-          })
-          .filter((r): r is NonNullable<typeof r> => r !== null);
-
-        if (rows.length === 0) return { processados: 0, fim: false, custo };
-
-        const { error } = await supabaseAdmin.from("senado_despesas_cache").upsert(rows);
-        custo++;
-        if (error) {
-          return {
-            processados: 0,
-            fim: false,
-            custo,
-            interromper: reacaoAoErro(error).interromper,
-            erros: [`lote ${cursor}: ${error.message}`],
-          };
-        }
-
-        const errosPasso: string[] = [];
-        try {
-          await flagQA(
-            regrasSenadoCeaps(
-              rows.map((r) => ({
-                id: r.id,
-                valor_reembolsado: r.valor_reembolsado,
-                senador_id: r.senador_id,
-              })),
-            ),
-          );
-        } catch (e) {
-          // Não interrompe a ingestão, mas o erro de QA fica visível.
-          errosPasso.push(`qa lote ${cursor}: ${(e as Error).message}`);
-        }
-
-        return {
-          processados: rows.length,
-          fim: inicio + LOTE >= lista.length,
-          custo,
-          erros: errosPasso,
-        };
-      },
-    });
-
-    erros.push(...rodada.erros);
-
-    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
-    const avisoHistorico = await registrarRodadaImportacao(
-      {
-        fonte: "senado_ceaps",
-        ano: data.ano,
-        mes: data.mes,
-        endpoint: `GET ${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano} (filtro mês=${data.mes})`,
-        unidade: "lotes",
-        userId: context.userId,
-        duracaoMs: Date.now() - inicioRodada,
-      },
-      rodada,
-    );
-    if (avisoHistorico) erros.push(avisoHistorico);
-
-    return {
-      importados: rodada.processados,
-      senadoresProcessados: senadoresNoMes,
-      erros,
-      varredura: {
-        haMais: !rodada.concluido,
-        cursor: rodada.cursorFinal,
-        totalSenadores: senadoresNoMes,
-        totalAcumulado: rodada.totalAcumulado,
-        orcamentoEsgotado: rodada.orcamentoEsgotado,
-        custoEsgotado: rodada.custoEsgotado,
-      },
-    };
+    return rodadaCEAPSMes(data, context.userId);
   });
