@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef } from "react";
 import { listarConveniosCgu } from "@/lib/data/real/queries.functions";
 import { linksDoConvenio } from "@/lib/links-oficiais";
+import { ExplicadorFontes } from "@/components/ExplicadorFontes";
 import { listarTransferencias } from "@/lib/data/transferegov/queries.functions";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
@@ -115,25 +116,9 @@ function ConveniosPage() {
         <h1 className="font-display text-4xl mt-1">Convênios e Contratos de Repasse</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
           Instrumentos de cooperação — exigem plano de trabalho, contrapartida e prestação de
-          contas, com aplicação vinculada ao objeto pactuado. Os convênios nascem no{" "}
-          <strong>Transferegov</strong> (ex-SICONV), mas esse sistema ainda não publica API aberta
-          deles: todo o acervo abaixo chega pelo <strong>Portal da Transparência (CGU)</strong>, que
-          o espelha. O que você escolhe aqui não é a fonte — é o <strong>ângulo de leitura</strong>:
-          quem recebeu o dinheiro, ou como a União executou o repasse. O mesmo convênio pode
-          aparecer nos dois, com os mesmos valores e campos diferentes.
-        </p>
-        {/* "Contrato de repasse" tem a palavra contrato mas não é contrato
-            administrativo — e as duas páginas são vizinhas no menu. Sem esta
-            linha, quem procura um deles acaba no outro. */}
-        <p className="text-sm text-muted-foreground mt-2 max-w-3xl leading-relaxed">
-          <strong>Contrato de repasse não é contrato administrativo.</strong> É uma transferência
-          voluntária, como o convênio — a diferença é que uma instituição mandatária (em geral a
-          Caixa) opera o repasse no lugar do órgão. Os contratos em que o governo compra bens e
-          serviços de uma empresa estão em{" "}
-          <Link to="/contratos" className="text-accent underline">
-            Contratos
-          </Link>
-          .
+          contas, com aplicação vinculada ao objeto pactuado. Todo convênio tem duas pontas: um
+          órgão federal que concede e um ente que recebe. As duas abas abaixo mostram{" "}
+          <strong>os mesmos registros</strong> — o que muda é o ângulo de leitura.
         </p>
       </header>
 
@@ -145,6 +130,37 @@ function ConveniosPage() {
         valor={fonte}
         onChange={setFonte}
       />
+
+      <ExplicadorFontes resumo="De onde vêm estes dados? Por que duas abas se a fonte é uma só?">
+        <p>
+          <strong className="text-foreground">Quem opera é o Transferegov.</strong> É o sistema
+          (ex-SICONV) onde o ente propõe o projeto, assina, executa e presta contas — o balcão das
+          transferências voluntárias entre a União e estados/municípios.
+        </p>
+        <p>
+          <strong className="text-foreground">
+            Quem publica é o Portal da Transparência (CGU).
+          </strong>{" "}
+          Ele espelha o que o Transferegov registra, e é dele que importamos: o módulo do
+          Transferegov onde os convênios vivem ainda não tem API aberta (prevista para 2027). Por
+          isso as duas abas dizem "Portal CGU" — dizer outra coisa seria atribuir uma procedência
+          que não temos.
+        </p>
+        <p>
+          <strong className="text-foreground">As abas são ângulos, não acervos.</strong> Cada
+          registro traz as duas pontas juntas — concedente federal e ente convenente. A aba
+          "execução federal" organiza por quem paga; a "por ente", por quem recebe. E cada convênio
+          linka a ficha nos <strong>dois</strong> portais oficiais, quando há código SICONV.
+        </p>
+        <p>
+          Contraste com{" "}
+          <a href="/contratos" className="text-accent underline">
+            Contratos
+          </a>
+          , onde o seletor distingue fontes de verdade: Portal CGU e PNCP são sistemas distintos,
+          com coberturas diferentes.
+        </p>
+      </ExplicadorFontes>
 
       <AvisoMetodologico />
 

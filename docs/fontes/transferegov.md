@@ -34,6 +34,13 @@ Consequência de redação, para código e para tela: **nada no projeto pode diz
 que os convênios vêm da API do Transferegov**. Eles vêm da CGU, que espelha o
 Transferegov. Caminhos de saída estão no [ROADMAP.md](../../ROADMAP.md).
 
+## Quem é quem (para não confundir de novo)
+
+- **Transferegov** — sistema **operacional**: o balcão onde o ente propõe, assina, executa e presta contas das transferências voluntárias. O convênio _vive_ aqui.
+- **Portal da Transparência (CGU)** — sistema de **publicidade**: espelha o que os operacionais registram. É de onde _importamos_.
+- **Todo convênio tem as duas pontas** — órgão federal concedente e ente convenente — no MESMO registro. Amostra real de mai/2026: 9 de 9 itens do endpoint com código SICONV, órgão e convenente preenchidos juntos. Os dois "eixos" do site são ângulos de leitura do mesmo acervo, nunca dois conjuntos de convênios.
+- Contraste com **contratos**: lá as duas fontes (CGU × PNCP) são sistemas de origem genuinamente distintos, com coberturas diferentes — o seletor de `/contratos` distingue fontes; o de `/convenios` distingue ângulos.
+
 ## Relação com o Portal CGU (dois eixos)
 
 O endpoint `/convenios` do Portal CGU alimenta **dois lugares**, por decisão de projeto:

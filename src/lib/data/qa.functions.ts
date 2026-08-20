@@ -1232,3 +1232,71 @@ export const revalidarFindingCgu = createServerFn({ method: "POST" })
     // Lógica única compartilhada com a re-checagem em lote.
     return revalidarUmFindingCgu(p as FindingCguRow);
   });
+
+/**
+ * Findings agregados por PESSOA/ÓRGÃO, para o banner das fichas.
+ *
+ * Um finding é sempre de um registro (um contrato, uma nota de despesa) — a
+ * ficha de fornecedor, órgão, deputado ou senador precisa dos findings de
+ * TODOS os seus registros. Contratos são resolvidos por CNPJ/código no cache;
+ * despesas parlamentares já carregam o parlamentar em `detalhes`.
+ */
+export const findingsPorAgregado = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        agregado: z.enum(["fornecedor", "orgao", "deputado", "senador"]),
+        id: z.string().min(1).max(200),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const SELECT =
+      "id,fonte,entidade_tipo,entidade_id,regra,tipo,severidade,origem,valor_armazenado,valor_esperado,status,reportado_em,reporte_canal,reporte_protocolo,detectado_em,revalidado_em,resolvido_em";
+    const STATUS_VIVOS = ["aberto", "confirmado", "reportado"];
+    const foraQualidade = `(${ORIGENS_FORA_QUALIDADE.map((o) => `"${o}"`).join(",")})`;
+
+    if (data.agregado === "deputado" || data.agregado === "senador") {
+      const fonte = data.agregado === "deputado" ? "camara_ceap" : "senado_ceaps";
+      const chave = data.agregado === "deputado" ? "deputado_id" : "senador_id";
+      const { data: rows, error } = await supabaseAdmin
+        .from("qa_findings")
+        .select(SELECT)
+        .eq("fonte", fonte)
+        .eq(`detalhes->>${chave}`, data.id)
+        .in("status", STATUS_VIVOS)
+        .not("origem", "in", foraQualidade)
+        .order("severidade", { ascending: true })
+        .limit(100);
+      if (error) throw new Error(error.message);
+      return (rows ?? []).map((r) => rowToAnomalia(r as FindingRow));
+    }
+
+    // fornecedor/órgão: registros do cache primeiro, findings depois. O teto
+    // de 500 contratos cobre a ficha típica; acima disso o banner ainda é
+    // honesto — mostra os sinais dos registros mais recentes.
+    const col = data.agregado === "fornecedor" ? "fornecedor_cnpj" : "orgao_cod";
+    const chaveNorm = data.agregado === "fornecedor" ? data.id.replace(/\D/g, "") : data.id.trim();
+    const { data: contratos, error: errC } = await supabaseAdmin
+      .from("contratos_cache")
+      .select("id")
+      .eq(col, chaveNorm)
+      .order("data_inicio_vigencia", { ascending: false, nullsFirst: false })
+      .limit(500);
+    if (errC) throw new Error(errC.message);
+    const ids = (contratos ?? []).map((c) => c.id);
+    if (ids.length === 0) return [];
+
+    const { data: rows, error } = await supabaseAdmin
+      .from("qa_findings")
+      .select(SELECT)
+      .eq("fonte", "cgu")
+      .eq("entidade_tipo", "contrato")
+      .in("entidade_id", ids)
+      .in("status", STATUS_VIVOS)
+      .not("origem", "in", foraQualidade)
+      .order("severidade", { ascending: true })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return (rows ?? []).map((r) => rowToAnomalia(r as FindingRow));
+  });

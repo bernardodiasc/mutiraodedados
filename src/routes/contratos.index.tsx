@@ -7,6 +7,7 @@ import { listarContratosPNCP } from "@/lib/data/pncp/queries.functions";
 import { ORGAOS_ENRIQUECIMENTO } from "@/lib/data/catalog";
 import { useData } from "@/lib/data-store";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { ExplicadorFontes } from "@/components/ExplicadorFontes";
 import { SeletorFonte } from "@/components/SeletorFonte";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { BotaoSalvarBusca } from "@/components/BotaoSalvarBusca";
@@ -147,6 +148,36 @@ function ContratosPage() {
         valor={fonte}
         onChange={setFonte}
       />
+
+      <ExplicadorFontes resumo="De onde vêm estes dados? Qual a diferença entre as duas fontes?">
+        <p>
+          <strong className="text-foreground">
+            Aqui as duas fontes são sistemas distintos de verdade
+          </strong>{" "}
+          — diferente de{" "}
+          <Link to="/convenios" className="text-accent underline">
+            Convênios
+          </Link>
+          , onde as abas são dois ângulos do mesmo acervo.
+        </p>
+        <p>
+          <strong className="text-foreground">Portal da Transparência (CGU)</strong> — espelho dos
+          sistemas administrativos internos do governo federal. Cobre apenas contratos de órgãos do{" "}
+          <strong>Executivo Federal</strong>, mas com histórico longo e campos de fornecedor e
+          vigência.
+        </p>
+        <p>
+          <strong className="text-foreground">PNCP</strong> — o local onde a Lei 14.133/2021 obriga
+          cada órgão a publicar suas contratações. Não é espelho: é publicação primária, e cobre{" "}
+          <strong>todos os entes</strong> — União, estados e municípios. Um contrato da sua
+          prefeitura só existe aqui.
+        </p>
+        <p>
+          Os conjuntos se sobrepõem em parte: contratos federais recentes, regidos pela lei nova,
+          podem aparecer nos dois — com campos diferentes, porque cada sistema registra o que lhe
+          cabe. Um contrato federal antigo existe só na CGU.
+        </p>
+      </ExplicadorFontes>
 
       <AvisoMetodologico />
 

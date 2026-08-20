@@ -1,5 +1,7 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { listarMunicipiosIbge } from "@/lib/data/ibge/ingest.functions";
 import { Button } from "@/components/ui/button";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
@@ -33,32 +35,52 @@ export function IbgeCombobox({
   const [municipios, setMunicipios] = useState<Ente[]>([]);
   const [loadingList, setLoadingList] = useState(false);
 
+  const listarCache = useServerFn(listarMunicipiosIbge);
+
   useEffect(() => {
     if (!open || municipios.length > 0 || loadingList) return;
     setLoadingList(true);
-    fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios")
-      .then((r) => r.json())
-      .then(
-        (
-          arr: Array<{
-            id: number;
-            nome: string;
-            microrregiao?: { mesorregiao?: { UF?: { sigla?: string } } };
-          }>,
-        ) => {
+    // Cadastro próprio primeiro (ibge_municipios_cache, alimentado pela
+    // importação IBGE); a API pública do IBGE fica de fallback para o cache
+    // ainda vazio — 5.570 registros baixados no navegador a cada uso era
+    // exatamente o que a fonte veio eliminar.
+    listarCache({})
+      .then((r) => {
+        if (r.municipios.length > 0) {
           setMunicipios(
-            arr.map((m) => ({
-              codigo: String(m.id),
+            r.municipios.map((m) => ({
+              codigo: m.codigo,
               nome: m.nome,
-              uf: m.microrregiao?.mesorregiao?.UF?.sigla,
+              uf: m.uf,
               tipo: "Município" as const,
             })),
           );
-        },
-      )
-      .catch(() => toast.error("Falha ao baixar lista de municípios do IBGE."))
+          return null;
+        }
+        return fetch("https://servicodados.ibge.gov.br/api/v1/localidades/municipios")
+          .then((res) => res.json())
+          .then(
+            (
+              arr: Array<{
+                id: number;
+                nome: string;
+                microrregiao?: { mesorregiao?: { UF?: { sigla?: string } } };
+              }>,
+            ) => {
+              setMunicipios(
+                arr.map((m) => ({
+                  codigo: String(m.id),
+                  nome: m.nome,
+                  uf: m.microrregiao?.mesorregiao?.UF?.sigla,
+                  tipo: "Município" as const,
+                })),
+              );
+            },
+          );
+      })
+      .catch(() => toast.error("Falha ao carregar a lista de municípios."))
       .finally(() => setLoadingList(false));
-  }, [open, municipios.length, loadingList]);
+  }, [open, municipios.length, loadingList, listarCache]);
 
   const all = useMemo<Ente[]>(() => [...UF_LIST, ...municipios], [municipios]);
   const selected = all.find((e) => e.codigo === value) ?? PRESETS.find((p) => p.codigo === value);

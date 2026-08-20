@@ -30,6 +30,7 @@ export const FONTE_LABEL: Record<string, string> = {
   senado_senadores: "Senado — Cadastro de senadores",
   orgaos_siafi: "Órgãos SIAFI",
   tse: "TSE",
+  ibge: "IBGE — municípios",
 };
 
 /**
@@ -55,6 +56,7 @@ export const FONTES_COM_HISTORICO = [
   "senado_senadores",
   "orgaos_siafi",
   "tse",
+  "ibge",
 ] as const;
 
 /** Ids cujo ingest consulta o Portal da Transparência (CGU). */

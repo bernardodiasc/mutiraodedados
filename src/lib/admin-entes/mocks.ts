@@ -29,6 +29,7 @@ const base: AdminEntesViewProps = {
   onImportSiconfi: noop,
   onImportSiconfiConjunto: noop,
   onImportTransferegov: noop,
+  onImportIbge: noop,
   conjunto: "ufs",
   setConjunto: noop,
   ufVarredura: "",

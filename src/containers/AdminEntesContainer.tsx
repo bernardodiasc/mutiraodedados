@@ -8,6 +8,7 @@ import {
   importarConjuntoSICONFI,
 } from "@/lib/data/siconfi/ingest.functions";
 import { importarConveniosTransferegov } from "@/lib/data/transferegov/ingest.functions";
+import { importarMunicipiosIBGE } from "@/lib/data/ibge/ingest.functions";
 import { varrerSiconfi } from "@/lib/data/siconfi/ingest.functions";
 import type { ConjuntoSiconfi } from "@/lib/data/siconfi/varredura";
 import {
@@ -43,6 +44,7 @@ export function AdminEntesContainer({
   const siconfi = useServerFn(importarRelatorioSICONFI);
   const siconfiConjunto = useServerFn(importarConjuntoSICONFI);
   const transf = useServerFn(importarConveniosTransferegov);
+  const ibgeMunicipios = useServerFn(importarMunicipiosIBGE);
   const varrer = useServerFn(varrerSiconfi);
 
   const [ibge, setIbge] = useState("");
@@ -282,6 +284,7 @@ export function AdminEntesContainer({
       onCancelarVarredura={() => {
         cancelados.current.add("Varredura SICONFI");
       }}
+      onImportIbge={() => runVarredura("IBGE", () => ibgeMunicipios({ data: {} }))}
       onImportTransferegov={() =>
         runVarredura("Transferegov", () =>
           transf({

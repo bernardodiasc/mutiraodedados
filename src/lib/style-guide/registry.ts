@@ -14,6 +14,8 @@
 import type { ComponentType } from "react";
 import { AdminEntesView } from "@/components/AdminEntesView";
 import { adminEntesVariants } from "@/lib/admin-entes/mocks";
+import { adminLacunasVariants } from "@/lib/admin-lacunas/mocks";
+import { AdminLacunasView } from "@/components/AdminLacunasView";
 import { AnomaliaInvestigacaoView } from "@/components/AnomaliaInvestigacaoView";
 import { anomaliaInvestigacaoVariants } from "@/lib/anomalia-investigacao/mocks";
 import { CoberturaMatrixView } from "@/components/CoberturaMatrixView";
@@ -92,6 +94,13 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
       "Aba Estados/Municípios do admin: varredura em massa do SICONFI, seleção de ente e importações avulsas (PNCP, Transferegov).",
     View: AdminEntesView,
     variants: adminEntesVariants,
+  },
+  {
+    name: "AdminLacunas",
+    description:
+      "Tela /admin/lacunas: curadoria de lacunas (criar, editar ciclo, publicar) e conversão de findings em linguagem cidadã.",
+    View: AdminLacunasView,
+    variants: adminLacunasVariants,
   },
   {
     name: "AnomaliaInvestigacao",

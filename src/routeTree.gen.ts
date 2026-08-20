@@ -98,6 +98,7 @@ import { Route as AuthenticatedAdminQualidadeRouteImport } from './routes/_authe
 import { Route as AuthenticatedAdminPromptsRouteImport } from './routes/_authenticated/admin_.prompts'
 import { Route as AuthenticatedAdminPerguntasRouteImport } from './routes/_authenticated/admin_.perguntas'
 import { Route as AuthenticatedAdminMarcacoesRouteImport } from './routes/_authenticated/admin_.marcacoes'
+import { Route as AuthenticatedAdminLacunasRouteImport } from './routes/_authenticated/admin_.lacunas'
 import { Route as AuthenticatedAdminDadosRouteImport } from './routes/_authenticated/admin_.dados'
 import { Route as AuthenticatedAdminArtigosRouteImport } from './routes/_authenticated/admin_.artigos'
 import { Route as AuthenticatedAdminAnalisesRouteImport } from './routes/_authenticated/admin_.analises'
@@ -555,6 +556,12 @@ const AuthenticatedAdminMarcacoesRoute =
     path: '/admin/marcacoes',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedAdminLacunasRoute =
+  AuthenticatedAdminLacunasRouteImport.update({
+    id: '/admin_/lacunas',
+    path: '/admin/lacunas',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedAdminDadosRoute = AuthenticatedAdminDadosRouteImport.update({
   id: '/admin_/dados',
   path: '/admin/dados',
@@ -645,6 +652,7 @@ export interface FileRoutesByFullPath {
   '/admin/analises': typeof AuthenticatedAdminAnalisesRoute
   '/admin/artigos': typeof AuthenticatedAdminArtigosRoute
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
+  '/admin/lacunas': typeof AuthenticatedAdminLacunasRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/admin/prompts': typeof AuthenticatedAdminPromptsRoute
@@ -738,6 +746,7 @@ export interface FileRoutesByTo {
   '/admin/analises': typeof AuthenticatedAdminAnalisesRoute
   '/admin/artigos': typeof AuthenticatedAdminArtigosRoute
   '/admin/dados': typeof AuthenticatedAdminDadosRoute
+  '/admin/lacunas': typeof AuthenticatedAdminLacunasRoute
   '/admin/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/admin/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/admin/prompts': typeof AuthenticatedAdminPromptsRoute
@@ -834,6 +843,7 @@ export interface FileRoutesById {
   '/_authenticated/admin_/analises': typeof AuthenticatedAdminAnalisesRoute
   '/_authenticated/admin_/artigos': typeof AuthenticatedAdminArtigosRoute
   '/_authenticated/admin_/dados': typeof AuthenticatedAdminDadosRoute
+  '/_authenticated/admin_/lacunas': typeof AuthenticatedAdminLacunasRoute
   '/_authenticated/admin_/marcacoes': typeof AuthenticatedAdminMarcacoesRoute
   '/_authenticated/admin_/perguntas': typeof AuthenticatedAdminPerguntasRoute
   '/_authenticated/admin_/prompts': typeof AuthenticatedAdminPromptsRoute
@@ -930,6 +940,7 @@ export interface FileRouteTypes {
     | '/admin/analises'
     | '/admin/artigos'
     | '/admin/dados'
+    | '/admin/lacunas'
     | '/admin/marcacoes'
     | '/admin/perguntas'
     | '/admin/prompts'
@@ -1023,6 +1034,7 @@ export interface FileRouteTypes {
     | '/admin/analises'
     | '/admin/artigos'
     | '/admin/dados'
+    | '/admin/lacunas'
     | '/admin/marcacoes'
     | '/admin/perguntas'
     | '/admin/prompts'
@@ -1118,6 +1130,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin_/analises'
     | '/_authenticated/admin_/artigos'
     | '/_authenticated/admin_/dados'
+    | '/_authenticated/admin_/lacunas'
     | '/_authenticated/admin_/marcacoes'
     | '/_authenticated/admin_/perguntas'
     | '/_authenticated/admin_/prompts'
@@ -1848,6 +1861,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminMarcacoesRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/admin_/lacunas': {
+      id: '/_authenticated/admin_/lacunas'
+      path: '/admin/lacunas'
+      fullPath: '/admin/lacunas'
+      preLoaderRoute: typeof AuthenticatedAdminLacunasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/admin_/dados': {
       id: '/_authenticated/admin_/dados'
       path: '/admin/dados'
@@ -1885,6 +1905,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedAdminAnalisesRoute: typeof AuthenticatedAdminAnalisesRoute
   AuthenticatedAdminArtigosRoute: typeof AuthenticatedAdminArtigosRoute
   AuthenticatedAdminDadosRoute: typeof AuthenticatedAdminDadosRoute
+  AuthenticatedAdminLacunasRoute: typeof AuthenticatedAdminLacunasRoute
   AuthenticatedAdminMarcacoesRoute: typeof AuthenticatedAdminMarcacoesRoute
   AuthenticatedAdminPerguntasRoute: typeof AuthenticatedAdminPerguntasRoute
   AuthenticatedAdminPromptsRoute: typeof AuthenticatedAdminPromptsRoute
@@ -1899,6 +1920,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedAdminAnalisesRoute: AuthenticatedAdminAnalisesRoute,
   AuthenticatedAdminArtigosRoute: AuthenticatedAdminArtigosRoute,
   AuthenticatedAdminDadosRoute: AuthenticatedAdminDadosRoute,
+  AuthenticatedAdminLacunasRoute: AuthenticatedAdminLacunasRoute,
   AuthenticatedAdminMarcacoesRoute: AuthenticatedAdminMarcacoesRoute,
   AuthenticatedAdminPerguntasRoute: AuthenticatedAdminPerguntasRoute,
   AuthenticatedAdminPromptsRoute: AuthenticatedAdminPromptsRoute,

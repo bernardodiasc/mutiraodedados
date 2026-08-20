@@ -23,6 +23,30 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.7.0 — 2026-08-20
+
+**Resumo:** completa a tríade importar → medir → curar. A `/cobertura` passa a mostrar toda fonte que grava rodada (três estavam fora), com teste-guarda de paridade; o IBGE vira fonte de primeira classe sob o contrato padrão; e o escopo de qualidade do plano original sai do papel — `/admin/lacunas` fecha o fluxo finding→lacuna e o banner de qualidade chega às fichas de fornecedor, órgão, deputado e senador.
+
+**Entregas**
+
+- **Catálogo de cobertura** (`cobertura-catalogo.ts`): módulo puro com toda fonte exibida em `/cobertura`, cruzado por teste-guarda com `FONTES_COM_HISTORICO` nas duas direções. Entram proposições da Câmara e matérias do Senado (as RPCs existiam; só o admin as consumia) e o catálogo de órgãos SIAFI.
+- **IBGE como fonte**: migration `ibge_municipios_cache` (GRANT + RLS, leitura pública), importação retomável (um passo = uma UF) com linha no Histórico, entrada na limpeza e na cobertura, seção própria no painel Estados/Municípios. O combobox de ente e a varredura de municípios do SICONFI passam a ler do cache — antes o navegador baixava 5.570 registros do IBGE a cada uso, e cada rodada da varredura repetia a consulta externa.
+- **`/admin/lacunas`**: UI para as server functions órfãs de lacunas — criar manual, mudar ciclo, publicar/despublicar, resolver, e converter findings em linguagem cidadã (candidatos já excluem os convertidos). No AdminNav e no style guide.
+- **Banner de qualidade agregado**: `findingsPorAgregado` resolve os findings de uma pessoa/órgão a partir dos seus registros — fornecedor e órgão via contratos por CNPJ/código; deputado e senador pelo `detalhes` do finding. Banner nas 4 fichas; o modo por entidade exata segue intacto.
+- **Explicador de fontes** (`ExplicadorFontes`): colapsível "de onde vêm estes dados?" em `/contratos` e `/convenios` — convênios explica sistema operacional (Transferegov) × portal de publicidade (CGU) e por que as abas são ângulos do mesmo acervo; contratos explica por que lá as fontes são duas de verdade e onde se sobrepõem.
+- Cabeçalho de `/convenios` corrigido: todo convênio tem duas pontas no mesmo registro (verificado contra o endpoint: 9 de 9 itens com código SICONV, órgão e convenente juntos); o texto anterior sugeria conjuntos que se cruzam.
+
+**Checks executados**
+
+- `bun run test` ✓ — 71 arquivos, 762 testes, todos verdes (guardas novos: catálogo×histórico, limpeza cobrindo `ibge_municipios_cache`).
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Migration com GRANT/RLS revisados em código; aplicação ocorre no deploy (pipeline gerenciado).
+- **Validação manual adiada por decisão do mantenedor** (2026-08-20): as releases v0.7.0–v0.11.0 fecham sem testes manuais individuais; uma rodada única de testes e ajustes acontece depois da v0.11.0, em versão própria. Roteiro desta release preservado em `.claude/roteiro-testes-v0.7.0.md`.
+
+**Plano:** docs/planos/v0.7.0-cobertura-ibge-qualidade.md
+
+**PR de sync público:** `sync v0.7.0`.
+
 ## v0.6.0 — 2026-08-20
 
 **Resumo:** padroniza a experiência de importação entre todas as fontes — histórico de rodada, retomada, classificação de resultado e recorte de escopo — e, no caminho, conserta seis fontes que estavam quebradas ou travando. Os testes manuais do mantenedor viraram a parte mais produtiva da release: cada log trazido revelou um defeito real, e todos foram corrigidos com teste.

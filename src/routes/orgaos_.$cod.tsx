@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useDataSource, useData } from "@/lib/data-store";
 import { ORGAOS_ENRIQUECIMENTO, ORGAOS_OUTRAS_ESFERAS } from "@/lib/data/catalog";
 import type { Orgao } from "@/lib/data/types";
@@ -176,6 +177,9 @@ function OrgaoDetail() {
           <h1 className="font-display text-4xl mt-1">{base.nome}</h1>
           <div className="font-mono text-sm text-muted-foreground mt-1">
             {base.sigla ? `${base.sigla} · ` : ""}cod. {base.cod}
+          </div>
+          <div className="mt-3">
+            <QualidadeBanner agregado="orgao" agregadoId={base.cod} />
           </div>
         </div>
         <BotaoFonteOficial

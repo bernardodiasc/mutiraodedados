@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useData, useDataSource } from "@/lib/data-store";
 import { EmptyState } from "@/components/EmptyState";
 import { SerieAnualChart } from "@/components/SerieAnualChart";
@@ -106,6 +107,9 @@ function FornecedorDetail() {
       </Link>
       <h1 className="font-display text-4xl mt-3">{f.nome}</h1>
       <div className="font-mono text-sm text-muted-foreground">CNPJ {f.cnpj}</div>
+      <div className="mt-3">
+        <QualidadeBanner agregado="fornecedor" agregadoId={f.cnpj} />
+      </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <BotaoCopiar
           obterTexto={() =>

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -158,6 +159,9 @@ function SenadorDetalhe() {
                 {senador.siglaPartido ?? "—"} · {senador.siglaUf ?? "—"}
               </span>
               {senador.situacao && <SituacaoBadge situacao={senador.situacao} />}
+            </div>
+            <div className="mt-3">
+              <QualidadeBanner agregado="senador" agregadoId={String(senador.id)} />
             </div>
             {senador.email && (
               <a
