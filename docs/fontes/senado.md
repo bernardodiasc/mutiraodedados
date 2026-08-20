@@ -5,23 +5,11 @@
 - **Janela**: CEAPS desde 2008, votações desde 2003.
 - **Documentação oficial**: <https://www12.senado.leg.br/dados-abertos>
 
-## ⚠ Matérias: endpoint em descontinuação
+## Matérias: servidas por `/processo`
 
-`materia/pesquisa/lista` **já passou da data de desativação anunciada pelo próprio serviço**. Os metadados da resposta, conferidos em 2026-08-20, dizem:
+Desde a v0.8.0 as matérias vêm de `legis.senado.leg.br/dadosabertos/processo?ano=&sigla=` — o substituto oficial do descontinuado `materia/pesquisa/lista` (desativação anunciada para 2026-02-01, formato quebrado uma vez sem aviso). Uma chamada devolve o ano inteiro de uma sigla; `identificacao` ("PL 8/2025") carrega sigla, número e ano, e `autoria` vem como texto único.
 
-| Campo                     | Valor                                               |
-| ------------------------- | --------------------------------------------------- |
-| `DataDepreciacao`         | 2025-03-18                                          |
-| `DataDesativacaoCompleta` | **2026-02-01**                                      |
-| `UrlServicoSubstituto`    | `https://legis.senado.leg.br/dadosabertos/processo` |
-
-Ele continua respondendo, mas **mudou o formato sem trocar de URL**: os itens vêm com campos planos (`Codigo`, `Sigla`, `Numero`, `Ano`, `Ementa`, `Autor`, `Data`) em vez do bloco `IdentificacaoMateria`. O ingest aceita as duas formas, mas isso é paliativo — a migração para `/processo` está no [ROADMAP.md](../../ROADMAP.md).
-
-Ao mexer aqui, confira os metadados da resposta antes de confiar no formato:
-
-```bash
-curl -s 'https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?ano=2025&sigla=PL' | head -c 600
-```
+Se um dia for preciso autoria estruturada (lista de autores com tipo e ordem), o detalhe `/processo/{id}` a expõe — ao custo de uma chamada por matéria.
 
 ## O que importamos
 

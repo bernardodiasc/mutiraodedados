@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { alertaDeDescarte } from "./materias.functions";
+import { alertaDeDescarte, parseIdentificacao } from "./materias.functions";
 
 /**
  * O caso real: a API passou a devolver campos planos, `numero` saiu 0 e as
@@ -27,5 +27,19 @@ describe("alertaDeDescarte", () => {
   it("o detalhe diz qual guarda barrou", () => {
     expect(alertaDeDescarte(0, { semCodigo: 3, semNumero: 0 })).toContain("3 sem código");
     expect(alertaDeDescarte(0, { semCodigo: 0, semNumero: 4 })).toContain("4 sem número");
+  });
+});
+
+describe("parseIdentificacao (/processo)", () => {
+  it("lê a identificação padrão", () => {
+    expect(parseIdentificacao("PL 8/2025")).toEqual({ sigla: "PL", numero: 8, ano: 2025 });
+    expect(parseIdentificacao("PEC 45/2019")).toEqual({ sigla: "PEC", numero: 45, ano: 2019 });
+  });
+
+  it("recusa formatos que não sabe ler — o descarte precisa ser contado", () => {
+    expect(parseIdentificacao("")).toBeNull();
+    expect(parseIdentificacao(null)).toBeNull();
+    expect(parseIdentificacao("PL 0/2025")).toBeNull();
+    expect(parseIdentificacao("PL 8")).toBeNull();
   });
 });

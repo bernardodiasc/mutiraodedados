@@ -56,39 +56,26 @@ async function ensureAdmin(userId: string) {
 }
 
 /**
- * Item da lista de matérias em DUAS formas.
+ * Item da lista de `/processo` — o serviço substituto oficial, adotado na
+ * v0.8.0. O antecessor (`materia/pesquisa/lista`) passou da própria data de
+ * desativação anunciada (2026-02-01) e mudou de formato sem avisar; este é
+ * JSON estável e devolve o ano inteiro de uma sigla numa chamada.
  *
- * A API mudou o formato sem trocar de URL: hoje ela devolve campos planos
- * (`Numero`, `Sigla`, `Ano`, `Ementa`, `Autor`, `Data`), e não mais o bloco
- * `IdentificacaoMateria`. Como o código só lia a forma antiga, `numero` saía
- * 0 e TODA matéria era descartada em silêncio — 902 itens percorridos, zero
- * importados, e o Histórico dizendo "consultado, sem dados".
- *
- * Os dois formatos ficam aceitos: o serviço está em descontinuação e não
- * queremos que uma reversão do lado deles nos quebre de novo.
+ * `identificacao` vem como "PL 8/2025" — sigla, número e ano saem dela, com
+ * os parâmetros da consulta de fallback. O detalhe por processo expõe autoria
+ * estruturada, mas custaria uma chamada por matéria; o campo `autoria` da
+ * lista cobre o que a tabela guarda.
  */
-type MateriaListItem = {
-  Codigo?: string | number;
-  // Forma nova (plana).
-  Sigla?: string;
-  Numero?: string | number;
-  Ano?: string | number;
-  Ementa?: string;
-  Autor?: string;
-  Data?: string;
-  IdentificacaoMateria?: {
-    CodigoMateria?: string | number;
-    SiglaSubtipoMateria?: string;
-    NumeroMateria?: string | number;
-    AnoMateria?: string | number;
-  };
-  EmentaMateria?: string;
-  DataApresentacao?: string;
-  Autoria?: { Autor?: { NomeAutor?: string } | Array<{ NomeAutor?: string }> };
-  AutoresPrincipais?: { AutorPrincipal?: { NomeAutor?: string } | Array<{ NomeAutor?: string }> };
-  SituacaoAtual?: {
-    Autuacoes?: { Autuacao?: { Situacao?: { DescricaoSituacao?: string; DataSituacao?: string } } };
-  };
+type ProcessoItem = {
+  id?: number;
+  codigoMateria?: number;
+  identificacao?: string;
+  ementa?: string;
+  autoria?: string;
+  dataApresentacao?: string;
+  situacaoAtual?: string;
+  dataSituacaoAtual?: string;
+  tramitando?: string;
 };
 
 /**
@@ -115,6 +102,20 @@ export function alertaDeDescarte(
     return `A origem devolveu ${total} matérias e nenhuma pôde ser lida (${detalhe}). Isso costuma indicar mudança no formato da resposta — não que o período esteja vazio.`;
   }
   return `info: ${total} matérias descartadas (${detalhe}).`;
+}
+
+/**
+ * "PL 8/2025" → { sigla, numero, ano }. Exportada para o teste fixar o
+ * contrato — foi um parse implícito que escondeu a última quebra de formato.
+ */
+export function parseIdentificacao(
+  v: string | null | undefined,
+): { sigla: string; numero: number; ano: number } | null {
+  const m = /^(\S+)\s+(\d+)\/(\d{4})$/.exec((v ?? "").trim());
+  if (!m) return null;
+  const numero = Number(m[2]);
+  if (!Number.isFinite(numero) || numero <= 0) return null;
+  return { sigla: m[1], numero, ano: Number(m[3]) };
 }
 
 /** ISO curto (YYYY-MM-DD) ou null — a API mistura formatos entre os campos. */
@@ -145,18 +146,15 @@ export const importarMaterias = createServerFn({ method: "POST" })
     // de subrequisições do Worker numa chamada única. O cursor é a matéria; a
     // lista é buscada uma vez por rodada e ordenada por código para a
     // retomada não pular nem repetir.
-    let listaRodada: MateriaListItem[] | null = null;
-    const carregarLista = async (): Promise<MateriaListItem[]> => {
+    let listaRodada: ProcessoItem[] | null = null;
+    const carregarLista = async (): Promise<ProcessoItem[]> => {
       if (listaRodada) return listaRodada;
-      const json = await senadoGet<{
-        PesquisaBasicaMateria?: {
-          Materias?: { Materia?: MateriaListItem | MateriaListItem[] };
-        };
-      }>(`/materia/pesquisa/lista?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`);
-      listaRodada = asArray(json.PesquisaBasicaMateria?.Materias?.Materia).sort(
-        (a, b) =>
-          Number(a.IdentificacaoMateria?.CodigoMateria ?? a.Codigo ?? 0) -
-          Number(b.IdentificacaoMateria?.CodigoMateria ?? b.Codigo ?? 0),
+      const json = await senadoGet<ProcessoItem[]>(
+        `/processo?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`,
+      );
+      // Ordem estável por código de matéria — o cursor da retomada depende dela.
+      listaRodada = asArray(json).sort(
+        (a, b) => Number(a.codigoMateria ?? 0) - Number(b.codigoMateria ?? 0),
       );
       return listaRodada;
     };
@@ -174,7 +172,7 @@ export const importarMaterias = createServerFn({ method: "POST" })
       maxPassos: 5000,
       passo: async (cursor) => {
         let custo = 0;
-        let arr: MateriaListItem[];
+        let arr: ProcessoItem[];
         try {
           const antes = listaRodada;
           arr = await carregarLista();
@@ -195,38 +193,31 @@ export const importarMaterias = createServerFn({ method: "POST" })
         const m = arr[cursor - 1];
 
         try {
-          const idMat = Number(m.IdentificacaoMateria?.CodigoMateria ?? m.Codigo);
+          const idMat = Number(m.codigoMateria ?? 0);
           if (!Number.isFinite(idMat) || idMat <= 0) {
             descartados.semCodigo++;
             return { processados: 0, fim: false, custo };
           }
 
-          // Descartar itens vazios da API (sem número de matéria) — viravam "PL 0/ano".
-          const numero = Number(m.IdentificacaoMateria?.NumeroMateria ?? m.Numero ?? 0);
-          if (!Number.isFinite(numero) || numero <= 0) {
+          // "PL 8/2025" → sigla, número, ano. Sem número legível o item é
+          // descartado E contado — descarte silencioso já escondeu uma
+          // mudança de formato uma vez.
+          const ident = parseIdentificacao(m.identificacao);
+          if (!ident) {
             descartados.semNumero++;
             return { processados: 0, fim: false, custo };
           }
 
-          const autorPrincipal =
-            asArray(m.AutoresPrincipais?.AutorPrincipal)[0]?.NomeAutor ??
-            asArray(m.Autoria?.Autor)[0]?.NomeAutor ??
-            m.Autor ??
-            null;
-          const sit = m.SituacaoAtual?.Autuacoes?.Autuacao?.Situacao;
-
           const row = {
             id: idMat,
-            sigla_subtipo: String(
-              m.IdentificacaoMateria?.SiglaSubtipoMateria ?? m.Sigla ?? data.sigla,
-            ),
-            numero,
-            ano: Number(m.IdentificacaoMateria?.AnoMateria ?? m.Ano ?? data.ano),
-            ementa: (m.EmentaMateria ?? m.Ementa ?? "").slice(0, 4000) || null,
-            data_apresentacao: apenasData(m.DataApresentacao ?? m.Data),
-            autor_principal: autorPrincipal,
-            ultima_situacao: sit?.DescricaoSituacao ?? null,
-            ultima_data: apenasData(sit?.DataSituacao),
+            sigla_subtipo: ident.sigla,
+            numero: ident.numero,
+            ano: ident.ano,
+            ementa: (m.ementa ?? "").slice(0, 4000) || null,
+            data_apresentacao: apenasData(m.dataApresentacao),
+            autor_principal: m.autoria ?? null,
+            ultima_situacao: m.situacaoAtual ?? null,
+            ultima_data: apenasData(m.dataSituacaoAtual),
             url_texto: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${idMat}`,
             updated_at: new Date().toISOString(),
           };
@@ -234,40 +225,26 @@ export const importarMaterias = createServerFn({ method: "POST" })
           custo++;
           if (e1) throw new Error(e1.message);
 
-          // Autores (lista combinada de principais + demais)
-          const autores = [
-            ...asArray(m.AutoresPrincipais?.AutorPrincipal).map((a, i) => ({
-              materia_id: idMat,
-              senador_id: null as number | null,
-              nome: (a.NomeAutor ?? "(sem nome)").slice(0, 240),
-              tipo: "Principal",
-              proponente: true,
-              ordem: i + 1,
-              updated_at: new Date().toISOString(),
-            })),
-            ...asArray(m.Autoria?.Autor).map((a, i) => ({
-              materia_id: idMat,
-              senador_id: null as number | null,
-              nome: (a.NomeAutor ?? "(sem nome)").slice(0, 240),
-              tipo: "Coautor",
-              proponente: false,
-              ordem: 100 + i,
-              updated_at: new Date().toISOString(),
-            })),
-          ];
-          if (autores.length > 0) {
-            // Limpa autores antigos desta matéria para upsert idempotente
+          if (m.autoria) {
+            // A lista traz a autoria como texto único ("Senador X", "Câmara
+            // dos Deputados", "Senador X e outros") — vira o autor Principal.
             await supabaseAdmin
               .from("senado_materias_autores_cache")
               .delete()
               .eq("materia_id", idMat);
             custo++;
-            const { error: e2 } = await supabaseAdmin
-              .from("senado_materias_autores_cache")
-              .insert(autores);
+            const { error: e2 } = await supabaseAdmin.from("senado_materias_autores_cache").insert({
+              materia_id: idMat,
+              senador_id: null,
+              nome: m.autoria.slice(0, 240),
+              tipo: "Principal",
+              proponente: true,
+              ordem: 1,
+              updated_at: new Date().toISOString(),
+            });
             custo++;
             if (e2) throw new Error(`autores: ${e2.message}`);
-            totalAutores += autores.length;
+            totalAutores += 1;
           }
           return { processados: 1, fim: false, custo };
         } catch (e) {
@@ -292,7 +269,7 @@ export const importarMaterias = createServerFn({ method: "POST" })
         fonte: "senado_mat",
         ano: data.ano,
         mes: 1, // fonte anual — âncora da matriz de cobertura
-        endpoint: `GET ${BASE}/materia/pesquisa/lista?ano=${data.ano}&sigla=${data.sigla} (+ autores por matéria)`,
+        endpoint: `GET ${BASE}/processo?ano=${data.ano}&sigla=${data.sigla}`,
         unidade: "matérias",
         userId: context.userId,
         duracaoMs: Date.now() - inicioRodada,
