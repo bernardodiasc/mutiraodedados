@@ -8,19 +8,11 @@ Estabilizar as funcionalidades existentes para **importar todos os dados histór
 
 ## Release em andamento
 
-Nenhuma — a próxima do backlog abre em seguida.
+Nenhuma. O backlog numerado foi entregue (v0.6.0–v0.11.0 em 2026-08-20); a próxima versão é a **rodada de testes manuais e ajustes do mantenedor**, que definirá o escopo seguinte.
 
 ## Backlog sequenciado
 
-Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.11.0 — Automação periódica das importações
-
-Não implementar antes das releases acima. Desenho já validado contra a infra:
-
-- Rota de servidor sem UI (server route do TanStack Start) que valida um segredo em header contra `process.env.CRON_SECRET` (secret gerenciado como os demais do projeto) e executa **uma rodada com orçamento** do runner da v0.3.0, retornando `{concluido, proximoCursor}`.
-- Agendador, em ordem de preferência: (a) `pg_cron` + `pg_net` no Supabase — extensões disponíveis no banco do projeto, habilitáveis por migration; (b) agendador externo (ex.: Make) chamando o mesmo endpoint com o mesmo segredo. Cron trigger nativo do Worker descartado como caminho principal (sem suporte documentado no pipeline de deploy gerenciado).
-- Requisitos: endpoint nunca aberto (segredo obrigatório, 401 sem detalhe); lock no banco contra concorrência com rodadas manuais do admin.
+Vazio no momento — os itens numerados foram entregues. Candidatos a entrar (da rodada de ajustes e do horizonte): rotação de SICONFI e CGU por órgão na automação, sinal espelho×origem, UI de automação no admin.
 
 ## Horizonte
 

@@ -52,102 +52,106 @@ function siglaDe(m: MunicipioIBGE): string | null {
   );
 }
 
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaMunicipiosIBGE(userId: string | null) {
+  const erros: string[] = [];
+  const inicioRodada = Date.now();
+  // Ordem estável por código — o cursor da retomada depende dela.
+  const ufs = [...UF_LIST].sort((a, b) => a.codigo.localeCompare(b.codigo));
+
+  const rodada = await rodarComOrcamento({
+    chave: "ibge#municipios",
+    checkpoint: checkpointImportacao,
+    orcamentoMs: JANELA_ORCAMENTO_MS,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    maxPassos: ufs.length,
+    passo: async (cursor) => {
+      if (cursor > ufs.length) return { processados: 0, fim: true };
+      const uf = ufs[cursor - 1];
+      let custo = 0;
+
+      let lista: MunicipioIBGE[];
+      try {
+        const res = await fetchComRetry(`${BASE}/estados/${uf.uf}/municipios`, {
+          headers: { "User-Agent": UA, Accept: "application/json" },
+        });
+        custo++;
+        if (!res.ok) throw new Error(`IBGE ${res.status} (${uf.uf})`);
+        lista = (await res.json()) as MunicipioIBGE[];
+      } catch (e) {
+        const r = reacaoAoErro(e);
+        return {
+          processados: 0,
+          fim: false,
+          custo: custo || 1,
+          interromper: r.interromper,
+          erros: [`${uf.uf}: ${(e as Error).message}`],
+        };
+      }
+
+      const rows = lista
+        .map((m) => ({
+          codigo: String(m.id ?? ""),
+          nome: m.nome ?? "",
+          uf: siglaDe(m) ?? uf.uf ?? "",
+          updated_at: new Date().toISOString(),
+        }))
+        .filter((r) => /^\d{7}$/.test(r.codigo) && r.nome.length > 0 && r.uf.length === 2);
+
+      for (let i = 0; i < rows.length; i += 500) {
+        const { error } = await supabaseAdmin
+          .from("ibge_municipios_cache")
+          .upsert(rows.slice(i, i + 500));
+        custo++;
+        if (error) {
+          const r = reacaoAoErro(new Error(error.message));
+          return {
+            processados: 0,
+            fim: false,
+            custo,
+            interromper: r.interromper,
+            erros: [`db ${uf.uf}: ${error.message}`],
+          };
+        }
+      }
+      return { processados: rows.length, fim: cursor === ufs.length, custo };
+    },
+  });
+
+  erros.push(...rodada.erros);
+
+  const avisoHistorico = await registrarRodadaImportacao(
+    {
+      fonte: "ibge",
+      escopo: "municípios",
+      endpoint: `GET ${BASE}/estados/{uf}/municipios`,
+      unidade: "UFs",
+      userId: userId,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    rodada,
+  );
+  if (avisoHistorico) erros.push(avisoHistorico);
+
+  return {
+    importados: rodada.processados,
+    erros,
+    varredura: {
+      haMais: !rodada.concluido,
+      cursor: rodada.cursorFinal,
+      totalAcumulado: rodada.totalAcumulado,
+      orcamentoEsgotado: rodada.orcamentoEsgotado,
+      custoEsgotado: rodada.custoEsgotado,
+    },
+  };
+}
+
 export const importarMunicipiosIBGE = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({}).parse(input ?? {}))
   .handler(async ({ context }) => {
     await ensureAdmin(context.userId);
-
-    const erros: string[] = [];
-    const inicioRodada = Date.now();
-    // Ordem estável por código — o cursor da retomada depende dela.
-    const ufs = [...UF_LIST].sort((a, b) => a.codigo.localeCompare(b.codigo));
-
-    const rodada = await rodarComOrcamento({
-      chave: "ibge#municipios",
-      checkpoint: checkpointImportacao,
-      orcamentoMs: JANELA_ORCAMENTO_MS,
-      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
-      maxPassos: ufs.length,
-      passo: async (cursor) => {
-        if (cursor > ufs.length) return { processados: 0, fim: true };
-        const uf = ufs[cursor - 1];
-        let custo = 0;
-
-        let lista: MunicipioIBGE[];
-        try {
-          const res = await fetchComRetry(`${BASE}/estados/${uf.uf}/municipios`, {
-            headers: { "User-Agent": UA, Accept: "application/json" },
-          });
-          custo++;
-          if (!res.ok) throw new Error(`IBGE ${res.status} (${uf.uf})`);
-          lista = (await res.json()) as MunicipioIBGE[];
-        } catch (e) {
-          const r = reacaoAoErro(e);
-          return {
-            processados: 0,
-            fim: false,
-            custo: custo || 1,
-            interromper: r.interromper,
-            erros: [`${uf.uf}: ${(e as Error).message}`],
-          };
-        }
-
-        const rows = lista
-          .map((m) => ({
-            codigo: String(m.id ?? ""),
-            nome: m.nome ?? "",
-            uf: siglaDe(m) ?? uf.uf ?? "",
-            updated_at: new Date().toISOString(),
-          }))
-          .filter((r) => /^\d{7}$/.test(r.codigo) && r.nome.length > 0 && r.uf.length === 2);
-
-        for (let i = 0; i < rows.length; i += 500) {
-          const { error } = await supabaseAdmin
-            .from("ibge_municipios_cache")
-            .upsert(rows.slice(i, i + 500));
-          custo++;
-          if (error) {
-            const r = reacaoAoErro(new Error(error.message));
-            return {
-              processados: 0,
-              fim: false,
-              custo,
-              interromper: r.interromper,
-              erros: [`db ${uf.uf}: ${error.message}`],
-            };
-          }
-        }
-        return { processados: rows.length, fim: cursor === ufs.length, custo };
-      },
-    });
-
-    erros.push(...rodada.erros);
-
-    const avisoHistorico = await registrarRodadaImportacao(
-      {
-        fonte: "ibge",
-        escopo: "municípios",
-        endpoint: `GET ${BASE}/estados/{uf}/municipios`,
-        unidade: "UFs",
-        userId: context.userId,
-        duracaoMs: Date.now() - inicioRodada,
-      },
-      rodada,
-    );
-    if (avisoHistorico) erros.push(avisoHistorico);
-
-    return {
-      importados: rodada.processados,
-      erros,
-      varredura: {
-        haMais: !rodada.concluido,
-        cursor: rodada.cursorFinal,
-        totalAcumulado: rodada.totalAcumulado,
-        orcamentoEsgotado: rodada.orcamentoEsgotado,
-        custoEsgotado: rodada.custoEsgotado,
-      },
-    };
+    return rodadaMunicipiosIBGE(context.userId);
   });
 
 /** Lista o cadastro de municípios do cache (leitura pública). */

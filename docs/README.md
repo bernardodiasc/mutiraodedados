@@ -11,6 +11,7 @@ Arquivos com sufixo `.ia.md` são referências técnicas mais densas, voltadas p
 - [Arquitetura](./arquitetura.md) — stack, organização de pastas, fluxo de página.
   - [`arquitetura.ia.md`](./arquitetura.ia.md) — server functions, auth, RLS, env vars, deploy.
 - [Pipeline de importação](./importacao.md) — como dados oficiais entram no banco.
+- [Automação periódica](./automacao.md) — o agendador que roda as mesmas rodadas sem operador.
   - [`importacao.ia.md`](./importacao.ia.md) — contratos de QA, portal-client, retries.
 - [Qualidade de dados](./qualidade-dados.md) — QA findings, severidades, fluxo cidadão de denúncia.
 - [Padrões de UI](./padroes-ui.md) — tokens, cards, badges, links externos/internos.

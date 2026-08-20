@@ -8,6 +8,60 @@ export type Database = {
   };
   public: {
     Tables: {
+      automacao_config: {
+        Row: {
+          ativo: boolean;
+          id: boolean;
+          segredo: string;
+          url: string;
+          updated_at: string;
+        };
+        Insert: {
+          ativo?: boolean;
+          id?: boolean;
+          segredo: string;
+          url: string;
+          updated_at?: string;
+        };
+        Update: {
+          ativo?: boolean;
+          id?: boolean;
+          segredo?: string;
+          url?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      automacao_tarefas: {
+        Row: {
+          ativo: boolean;
+          executando_desde: string | null;
+          id: string;
+          params: Json;
+          prioridade: number;
+          ultima_execucao: string | null;
+          ultimo_resultado: string | null;
+        };
+        Insert: {
+          ativo?: boolean;
+          executando_desde?: string | null;
+          id: string;
+          params?: Json;
+          prioridade?: number;
+          ultima_execucao?: string | null;
+          ultimo_resultado?: string | null;
+        };
+        Update: {
+          ativo?: boolean;
+          executando_desde?: string | null;
+          id?: string;
+          params?: Json;
+          prioridade?: number;
+          ultima_execucao?: string | null;
+          ultimo_resultado?: string | null;
+        };
+        Relationships: [];
+      };
       anotacoes: {
         Row: {
           conteudo_md: string;
@@ -2413,6 +2467,18 @@ export type Database = {
         Returns: {
           atualizados: number;
           sem_espelho: number;
+        }[];
+      };
+      automacao_reivindicar_tarefa: {
+        Args: never;
+        Returns: {
+          ativo: boolean;
+          executando_desde: string | null;
+          id: string;
+          params: Json;
+          prioridade: number;
+          ultima_execucao: string | null;
+          ultimo_resultado: string | null;
         }[];
       };
       cobertura_camara_ceap: {

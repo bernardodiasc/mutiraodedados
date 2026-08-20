@@ -174,6 +174,118 @@ async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo:
  * Agora um passo = uma votação. A lista da janela é buscada uma vez por
  * rodada e ordenada por id, para a retomada não pular nem repetir.
  */
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaVotacoesCamara(
+  data: { dataInicio: string; dataFim: string; maxPaginas: number },
+  userId: string | null,
+) {
+  let totalVotos = 0;
+  const erros: string[] = [];
+  const inicioRodada = Date.now();
+
+  let listaRodada: VotacaoItem[] | null = null;
+  let custoDaLista = 0;
+  const carregarLista = async (): Promise<VotacaoItem[]> => {
+    if (listaRodada) return listaRodada;
+    const acc: VotacaoItem[] = [];
+    let pagina = 1;
+    while (pagina <= data.maxPaginas) {
+      const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
+        dataInicio: data.dataInicio,
+        dataFim: data.dataFim,
+        itens: "100",
+        pagina: String(pagina),
+        ordem: "DESC",
+        ordenarPor: "dataHoraRegistro",
+      });
+      custoDaLista++;
+      const arr = json.dados ?? [];
+      if (arr.length === 0) break;
+      acc.push(...arr);
+      if (arr.length < 100) break;
+      pagina++;
+    }
+    // Ordem estável por id: a lista da Câmara vem por data/hora, que pode
+    // mudar entre rodadas se a Casa reprocessar uma sessão.
+    listaRodada = acc.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    return listaRodada;
+  };
+
+  const rodada = await rodarComOrcamento({
+    chave: `camara_vot#${data.dataInicio}#${data.dataFim}`,
+    checkpoint: checkpointImportacao,
+    orcamentoMs: JANELA_ORCAMENTO_MS,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    maxPassos: 5000,
+    passo: async (cursor) => {
+      let custo = 0;
+      let lista: VotacaoItem[];
+      try {
+        const antes = listaRodada;
+        lista = await carregarLista();
+        if (!antes) custo += custoDaLista;
+      } catch (e) {
+        // Sem a lista não há item a processar: passageiro refaz, definitivo
+        // encerra a rodada em vez de gastar centenas de tentativas inúteis.
+        const r = reacaoAoErroDeLista(e);
+        return {
+          processados: 0,
+          fim: r.fim,
+          custo: 1,
+          interromper: r.interromper,
+          erros: [`lista: ${(e as Error).message}`],
+        };
+      }
+      if (cursor > lista.length) return { processados: 0, fim: true, custo };
+
+      const v = lista[cursor - 1];
+      try {
+        const r = await processarVotacao(v);
+        totalVotos += r.votos;
+        return { processados: 1, fim: false, custo: custo + r.custo };
+      } catch (e) {
+        // Uma votação com problema não interrompe a varredura — segue para a
+        // seguinte, com o erro registrado.
+        return {
+          processados: 0,
+          fim: false,
+          custo: custo + 1,
+          erros: [`vot ${v.id}: ${(e as Error).message}`],
+        };
+      }
+    },
+  });
+
+  erros.push(...rodada.erros);
+
+  // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+  const avisoHistorico = await registrarRodadaImportacao(
+    {
+      fonte: "camara_vot",
+      ...anoMesDaJanela(data.dataInicio, data.dataFim),
+      endpoint: `GET ${BASE}/votacoes?dataInicio=${data.dataInicio}&dataFim=${data.dataFim} (+ detalhe e votos por votação)`,
+      unidade: "votações",
+      userId: userId,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    rodada,
+  );
+  if (avisoHistorico) erros.push(avisoHistorico);
+
+  return {
+    votacoes: rodada.processados,
+    votos: totalVotos,
+    erros,
+    varredura: {
+      haMais: !rodada.concluido,
+      cursor: rodada.cursorFinal,
+      totalAcumulado: rodada.totalAcumulado,
+      orcamentoEsgotado: rodada.orcamentoEsgotado,
+      custoEsgotado: rodada.custoEsgotado,
+    },
+  };
+}
+
 export const importarVotacoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -187,112 +299,7 @@ export const importarVotacoes = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-
-    let totalVotos = 0;
-    const erros: string[] = [];
-    const inicioRodada = Date.now();
-
-    let listaRodada: VotacaoItem[] | null = null;
-    let custoDaLista = 0;
-    const carregarLista = async (): Promise<VotacaoItem[]> => {
-      if (listaRodada) return listaRodada;
-      const acc: VotacaoItem[] = [];
-      let pagina = 1;
-      while (pagina <= data.maxPaginas) {
-        const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
-          dataInicio: data.dataInicio,
-          dataFim: data.dataFim,
-          itens: "100",
-          pagina: String(pagina),
-          ordem: "DESC",
-          ordenarPor: "dataHoraRegistro",
-        });
-        custoDaLista++;
-        const arr = json.dados ?? [];
-        if (arr.length === 0) break;
-        acc.push(...arr);
-        if (arr.length < 100) break;
-        pagina++;
-      }
-      // Ordem estável por id: a lista da Câmara vem por data/hora, que pode
-      // mudar entre rodadas se a Casa reprocessar uma sessão.
-      listaRodada = acc.sort((a, b) => String(a.id).localeCompare(String(b.id)));
-      return listaRodada;
-    };
-
-    const rodada = await rodarComOrcamento({
-      chave: `camara_vot#${data.dataInicio}#${data.dataFim}`,
-      checkpoint: checkpointImportacao,
-      orcamentoMs: JANELA_ORCAMENTO_MS,
-      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
-      maxPassos: 5000,
-      passo: async (cursor) => {
-        let custo = 0;
-        let lista: VotacaoItem[];
-        try {
-          const antes = listaRodada;
-          lista = await carregarLista();
-          if (!antes) custo += custoDaLista;
-        } catch (e) {
-          // Sem a lista não há item a processar: passageiro refaz, definitivo
-          // encerra a rodada em vez de gastar centenas de tentativas inúteis.
-          const r = reacaoAoErroDeLista(e);
-          return {
-            processados: 0,
-            fim: r.fim,
-            custo: 1,
-            interromper: r.interromper,
-            erros: [`lista: ${(e as Error).message}`],
-          };
-        }
-        if (cursor > lista.length) return { processados: 0, fim: true, custo };
-
-        const v = lista[cursor - 1];
-        try {
-          const r = await processarVotacao(v);
-          totalVotos += r.votos;
-          return { processados: 1, fim: false, custo: custo + r.custo };
-        } catch (e) {
-          // Uma votação com problema não interrompe a varredura — segue para a
-          // seguinte, com o erro registrado.
-          return {
-            processados: 0,
-            fim: false,
-            custo: custo + 1,
-            erros: [`vot ${v.id}: ${(e as Error).message}`],
-          };
-        }
-      },
-    });
-
-    erros.push(...rodada.erros);
-
-    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
-    const avisoHistorico = await registrarRodadaImportacao(
-      {
-        fonte: "camara_vot",
-        ...anoMesDaJanela(data.dataInicio, data.dataFim),
-        endpoint: `GET ${BASE}/votacoes?dataInicio=${data.dataInicio}&dataFim=${data.dataFim} (+ detalhe e votos por votação)`,
-        unidade: "votações",
-        userId: context.userId,
-        duracaoMs: Date.now() - inicioRodada,
-      },
-      rodada,
-    );
-    if (avisoHistorico) erros.push(avisoHistorico);
-
-    return {
-      votacoes: rodada.processados,
-      votos: totalVotos,
-      erros,
-      varredura: {
-        haMais: !rodada.concluido,
-        cursor: rodada.cursorFinal,
-        totalAcumulado: rodada.totalAcumulado,
-        orcamentoEsgotado: rodada.orcamentoEsgotado,
-        custoEsgotado: rodada.custoEsgotado,
-      },
-    };
+    return rodadaVotacoesCamara(data, context.userId);
   });
 
 // ===== QUERIES =====

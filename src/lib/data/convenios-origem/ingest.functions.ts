@@ -76,6 +76,129 @@ async function* linhasDoCsvZip(): AsyncGenerator<string> {
   if (resto.trim()) yield resto;
 }
 
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaConveniosOrigem(userId: string | null) {
+  const erros: string[] = [];
+  const inicioRodada = Date.now();
+  let atualizados = 0;
+  let semEspelho = 0;
+
+  // O gerador é aberto UMA vez por rodada e avança em ordem; o runner pede
+  // lotes sequenciais, então pular até o cursor acontece naturalmente.
+  let gerador: AsyncGenerator<string> | null = null;
+  let cols: ColunasOrigem | null = null;
+  let linhasLidas = 0; // linhas de DADOS já entregues pelo gerador nesta rodada
+  let custoDownload = 0;
+
+  const proximoLote = async (aPartirDe: number): Promise<RegistroOrigem[] | null> => {
+    if (!gerador) {
+      gerador = linhasDoCsvZip();
+      custoDownload = 2; // cabeçalho + payload
+      const cab = await gerador.next();
+      if (cab.done) return null;
+      cols = resolverColunas(cab.value);
+      if (!cols) throw new Error("origem: cabeçalho do CSV não tem NR_CONVENIO — formato mudou");
+    }
+    // Pula linhas anteriores ao cursor (rodada retomada).
+    while (linhasLidas < aPartirDe) {
+      const r = await gerador.next();
+      if (r.done) return null;
+      linhasLidas++;
+    }
+    const lote: RegistroOrigem[] = [];
+    while (lote.length < TAM_LOTE) {
+      const r = await gerador.next();
+      if (r.done) break;
+      linhasLidas++;
+      const reg = mapearLinhaOrigem(r.value, cols!);
+      if (reg) lote.push(reg);
+    }
+    return lote.length > 0 ? lote : null;
+  };
+
+  const rodada = await rodarComOrcamento({
+    chave: "convenios_origem#csv",
+    checkpoint: checkpointImportacao,
+    orcamentoMs: JANELA_ORCAMENTO_MS,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    maxPassos: 5000,
+    passo: async (cursor) => {
+      let custo = 0;
+      let lote: RegistroOrigem[] | null;
+      try {
+        lote = await proximoLote((cursor - 1) * TAM_LOTE);
+        if (custoDownload > 0) {
+          custo += custoDownload;
+          custoDownload = 0;
+        }
+      } catch (e) {
+        const r = reacaoAoErroDeLista(e);
+        return {
+          processados: 0,
+          fim: r.fim,
+          custo: custo + 1,
+          interromper: r.interromper,
+          erros: [`csv: ${(e as Error).message}`],
+        };
+      }
+      if (!lote) return { processados: 0, fim: true, custo };
+
+      const { data: res, error } = await supabaseAdmin.rpc("enriquecer_convenios_origem", {
+        _itens: lote as unknown as never,
+      });
+      custo++;
+      if (error) {
+        const r = reacaoAoErroDeLista(new Error(error.message));
+        return {
+          processados: 0,
+          fim: r.fim,
+          custo,
+          interromper: r.interromper,
+          erros: [`db lote ${cursor}: ${error.message}`],
+        };
+      }
+      const linha = Array.isArray(res) ? res[0] : res;
+      atualizados += linha?.atualizados ?? 0;
+      semEspelho += linha?.sem_espelho ?? 0;
+      return { processados: linha?.atualizados ?? 0, fim: false, custo };
+    },
+  });
+
+  erros.push(...rodada.erros);
+  if (semEspelho > 0) {
+    erros.push(
+      `info: ${semEspelho.toLocaleString("pt-BR")} convênios da origem ainda sem espelho no site nesta rodada — o acervo completo da origem depende do join com as propostas (horizonte).`,
+    );
+  }
+
+  const avisoHistorico = await registrarRodadaImportacao(
+    {
+      fonte: "convenios_origem",
+      escopo: "enriquecimento",
+      endpoint: `GET ${URL_ZIP}`,
+      unidade: "lotes",
+      userId: userId,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    rodada,
+  );
+  if (avisoHistorico) erros.push(avisoHistorico);
+
+  return {
+    importados: rodada.processados,
+    atualizados,
+    semEspelho,
+    erros,
+    varredura: {
+      haMais: !rodada.concluido,
+      cursor: rodada.cursorFinal,
+      totalAcumulado: rodada.totalAcumulado,
+      orcamentoEsgotado: rodada.orcamentoEsgotado,
+      custoEsgotado: rodada.custoEsgotado,
+    },
+  };
+}
+
 export const importarConveniosOrigem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) => z.object({}).parse(input ?? {}))
@@ -87,124 +210,5 @@ export const importarConveniosOrigem = createServerFn({ method: "POST" })
       .eq("role", "admin")
       .maybeSingle();
     if (role?.role !== "admin") throw new Error("Acesso restrito.");
-
-    const erros: string[] = [];
-    const inicioRodada = Date.now();
-    let atualizados = 0;
-    let semEspelho = 0;
-
-    // O gerador é aberto UMA vez por rodada e avança em ordem; o runner pede
-    // lotes sequenciais, então pular até o cursor acontece naturalmente.
-    let gerador: AsyncGenerator<string> | null = null;
-    let cols: ColunasOrigem | null = null;
-    let linhasLidas = 0; // linhas de DADOS já entregues pelo gerador nesta rodada
-    let custoDownload = 0;
-
-    const proximoLote = async (aPartirDe: number): Promise<RegistroOrigem[] | null> => {
-      if (!gerador) {
-        gerador = linhasDoCsvZip();
-        custoDownload = 2; // cabeçalho + payload
-        const cab = await gerador.next();
-        if (cab.done) return null;
-        cols = resolverColunas(cab.value);
-        if (!cols) throw new Error("origem: cabeçalho do CSV não tem NR_CONVENIO — formato mudou");
-      }
-      // Pula linhas anteriores ao cursor (rodada retomada).
-      while (linhasLidas < aPartirDe) {
-        const r = await gerador.next();
-        if (r.done) return null;
-        linhasLidas++;
-      }
-      const lote: RegistroOrigem[] = [];
-      while (lote.length < TAM_LOTE) {
-        const r = await gerador.next();
-        if (r.done) break;
-        linhasLidas++;
-        const reg = mapearLinhaOrigem(r.value, cols!);
-        if (reg) lote.push(reg);
-      }
-      return lote.length > 0 ? lote : null;
-    };
-
-    const rodada = await rodarComOrcamento({
-      chave: "convenios_origem#csv",
-      checkpoint: checkpointImportacao,
-      orcamentoMs: JANELA_ORCAMENTO_MS,
-      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
-      maxPassos: 5000,
-      passo: async (cursor) => {
-        let custo = 0;
-        let lote: RegistroOrigem[] | null;
-        try {
-          lote = await proximoLote((cursor - 1) * TAM_LOTE);
-          if (custoDownload > 0) {
-            custo += custoDownload;
-            custoDownload = 0;
-          }
-        } catch (e) {
-          const r = reacaoAoErroDeLista(e);
-          return {
-            processados: 0,
-            fim: r.fim,
-            custo: custo + 1,
-            interromper: r.interromper,
-            erros: [`csv: ${(e as Error).message}`],
-          };
-        }
-        if (!lote) return { processados: 0, fim: true, custo };
-
-        const { data: res, error } = await supabaseAdmin.rpc("enriquecer_convenios_origem", {
-          _itens: lote as unknown as never,
-        });
-        custo++;
-        if (error) {
-          const r = reacaoAoErroDeLista(new Error(error.message));
-          return {
-            processados: 0,
-            fim: r.fim,
-            custo,
-            interromper: r.interromper,
-            erros: [`db lote ${cursor}: ${error.message}`],
-          };
-        }
-        const linha = Array.isArray(res) ? res[0] : res;
-        atualizados += linha?.atualizados ?? 0;
-        semEspelho += linha?.sem_espelho ?? 0;
-        return { processados: linha?.atualizados ?? 0, fim: false, custo };
-      },
-    });
-
-    erros.push(...rodada.erros);
-    if (semEspelho > 0) {
-      erros.push(
-        `info: ${semEspelho.toLocaleString("pt-BR")} convênios da origem ainda sem espelho no site nesta rodada — o acervo completo da origem depende do join com as propostas (horizonte).`,
-      );
-    }
-
-    const avisoHistorico = await registrarRodadaImportacao(
-      {
-        fonte: "convenios_origem",
-        escopo: "enriquecimento",
-        endpoint: `GET ${URL_ZIP}`,
-        unidade: "lotes",
-        userId: context.userId,
-        duracaoMs: Date.now() - inicioRodada,
-      },
-      rodada,
-    );
-    if (avisoHistorico) erros.push(avisoHistorico);
-
-    return {
-      importados: rodada.processados,
-      atualizados,
-      semEspelho,
-      erros,
-      varredura: {
-        haMais: !rodada.concluido,
-        cursor: rodada.cursorFinal,
-        totalAcumulado: rodada.totalAcumulado,
-        orcamentoEsgotado: rodada.orcamentoEsgotado,
-        custoEsgotado: rodada.custoEsgotado,
-      },
-    };
+    return rodadaConveniosOrigem(context.userId);
   });

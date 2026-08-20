@@ -124,6 +124,163 @@ function apenasData(v: string | null | undefined): string | null {
 }
 
 /** Importa matérias do Senado por ano + sigla (PL, PEC, MPV, PLP...). */
+/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
+export async function rodadaMaterias(data: { ano: number; sigla: string }, userId: string | null) {
+  let totalAutores = 0;
+  const erros: string[] = [];
+  const inicioRodada = Date.now();
+
+  // A lista do ano+sigla vem numa chamada só (a API não pagina), mas cada
+  // matéria custa ~3 operações de banco — centenas delas estouram o limite
+  // de subrequisições do Worker numa chamada única. O cursor é a matéria; a
+  // lista é buscada uma vez por rodada e ordenada por código para a
+  // retomada não pular nem repetir.
+  let listaRodada: ProcessoItem[] | null = null;
+  const carregarLista = async (): Promise<ProcessoItem[]> => {
+    if (listaRodada) return listaRodada;
+    const json = await senadoGet<ProcessoItem[]>(
+      `/processo?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`,
+    );
+    // Ordem estável por código de matéria — o cursor da retomada depende dela.
+    listaRodada = asArray(json).sort(
+      (a, b) => Number(a.codigoMateria ?? 0) - Number(b.codigoMateria ?? 0),
+    );
+    return listaRodada;
+  };
+
+  // Item que a API devolve mas não conseguimos ler. Contá-los é o que
+  // separa "o ano não teve matérias" de "não entendemos a resposta" — a
+  // segunda hipótese passou despercebida por não ter contador nenhum.
+  const descartados = { semCodigo: 0, semNumero: 0 };
+
+  const rodada = await rodarComOrcamento({
+    chave: `senado_mat#${data.ano}#${data.sigla}`,
+    checkpoint: checkpointImportacao,
+    orcamentoMs: JANELA_ORCAMENTO_MS,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    maxPassos: 5000,
+    passo: async (cursor) => {
+      let custo = 0;
+      let arr: ProcessoItem[];
+      try {
+        const antes = listaRodada;
+        arr = await carregarLista();
+        if (!antes) custo++;
+      } catch (e) {
+        // Sem a lista não há item a processar: passageiro refaz, definitivo
+        // encerra a rodada em vez de gastar centenas de tentativas inúteis.
+        const r = reacaoAoErroDeLista(e);
+        return {
+          processados: 0,
+          fim: r.fim,
+          custo: 1,
+          interromper: r.interromper,
+          erros: [`lista: ${(e as Error).message}`],
+        };
+      }
+      if (cursor > arr.length) return { processados: 0, fim: true, custo };
+      const m = arr[cursor - 1];
+
+      try {
+        const idMat = Number(m.codigoMateria ?? 0);
+        if (!Number.isFinite(idMat) || idMat <= 0) {
+          descartados.semCodigo++;
+          return { processados: 0, fim: false, custo };
+        }
+
+        // "PL 8/2025" → sigla, número, ano. Sem número legível o item é
+        // descartado E contado — descarte silencioso já escondeu uma
+        // mudança de formato uma vez.
+        const ident = parseIdentificacao(m.identificacao);
+        if (!ident) {
+          descartados.semNumero++;
+          return { processados: 0, fim: false, custo };
+        }
+
+        const row = {
+          id: idMat,
+          sigla_subtipo: ident.sigla,
+          numero: ident.numero,
+          ano: ident.ano,
+          ementa: (m.ementa ?? "").slice(0, 4000) || null,
+          data_apresentacao: apenasData(m.dataApresentacao),
+          autor_principal: m.autoria ?? null,
+          ultima_situacao: m.situacaoAtual ?? null,
+          ultima_data: apenasData(m.dataSituacaoAtual),
+          url_texto: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${idMat}`,
+          updated_at: new Date().toISOString(),
+        };
+        const { error: e1 } = await supabaseAdmin.from("senado_materias_cache").upsert(row);
+        custo++;
+        if (e1) throw new Error(e1.message);
+
+        if (m.autoria) {
+          // A lista traz a autoria como texto único ("Senador X", "Câmara
+          // dos Deputados", "Senador X e outros") — vira o autor Principal.
+          await supabaseAdmin
+            .from("senado_materias_autores_cache")
+            .delete()
+            .eq("materia_id", idMat);
+          custo++;
+          const { error: e2 } = await supabaseAdmin.from("senado_materias_autores_cache").insert({
+            materia_id: idMat,
+            senador_id: null,
+            nome: m.autoria.slice(0, 240),
+            tipo: "Principal",
+            proponente: true,
+            ordem: 1,
+            updated_at: new Date().toISOString(),
+          });
+          custo++;
+          if (e2) throw new Error(`autores: ${e2.message}`);
+          totalAutores += 1;
+        }
+        return { processados: 1, fim: false, custo };
+      } catch (e) {
+        // Uma matéria com problema não interrompe a varredura — segue para a
+        // seguinte, com o erro registrado.
+        return { processados: 0, fim: false, custo, erros: [`mat: ${(e as Error).message}`] };
+      }
+    },
+  });
+
+  erros.push(...rodada.erros);
+
+  // Zero importados COM itens descartados não é ausência de dado: é resposta
+  // que não soubemos ler. Vira erro (não "info:") de propósito, para o
+  // Histórico classificar como falha nossa em vez de "consultado, vazio".
+  const alerta = alertaDeDescarte(rodada.processados, descartados);
+  if (alerta) erros.push(alerta);
+
+  // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+  const avisoHistorico = await registrarRodadaImportacao(
+    {
+      fonte: "senado_mat",
+      ano: data.ano,
+      mes: 1, // fonte anual — âncora da matriz de cobertura
+      endpoint: `GET ${BASE}/processo?ano=${data.ano}&sigla=${data.sigla}`,
+      unidade: "matérias",
+      userId: userId,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    rodada,
+  );
+  if (avisoHistorico) erros.push(avisoHistorico);
+
+  return {
+    importados: rodada.processados,
+    autores: totalAutores,
+    erros,
+    varredura: {
+      haMais: !rodada.concluido,
+      cursor: rodada.cursorFinal,
+      totalAcumulado: rodada.totalAcumulado,
+      orcamentoEsgotado: rodada.orcamentoEsgotado,
+      custoEsgotado: rodada.custoEsgotado,
+    },
+  };
+}
+
 export const importarMaterias = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -136,160 +293,7 @@ export const importarMaterias = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-
-    let totalAutores = 0;
-    const erros: string[] = [];
-    const inicioRodada = Date.now();
-
-    // A lista do ano+sigla vem numa chamada só (a API não pagina), mas cada
-    // matéria custa ~3 operações de banco — centenas delas estouram o limite
-    // de subrequisições do Worker numa chamada única. O cursor é a matéria; a
-    // lista é buscada uma vez por rodada e ordenada por código para a
-    // retomada não pular nem repetir.
-    let listaRodada: ProcessoItem[] | null = null;
-    const carregarLista = async (): Promise<ProcessoItem[]> => {
-      if (listaRodada) return listaRodada;
-      const json = await senadoGet<ProcessoItem[]>(
-        `/processo?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`,
-      );
-      // Ordem estável por código de matéria — o cursor da retomada depende dela.
-      listaRodada = asArray(json).sort(
-        (a, b) => Number(a.codigoMateria ?? 0) - Number(b.codigoMateria ?? 0),
-      );
-      return listaRodada;
-    };
-
-    // Item que a API devolve mas não conseguimos ler. Contá-los é o que
-    // separa "o ano não teve matérias" de "não entendemos a resposta" — a
-    // segunda hipótese passou despercebida por não ter contador nenhum.
-    const descartados = { semCodigo: 0, semNumero: 0 };
-
-    const rodada = await rodarComOrcamento({
-      chave: `senado_mat#${data.ano}#${data.sigla}`,
-      checkpoint: checkpointImportacao,
-      orcamentoMs: JANELA_ORCAMENTO_MS,
-      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
-      maxPassos: 5000,
-      passo: async (cursor) => {
-        let custo = 0;
-        let arr: ProcessoItem[];
-        try {
-          const antes = listaRodada;
-          arr = await carregarLista();
-          if (!antes) custo++;
-        } catch (e) {
-          // Sem a lista não há item a processar: passageiro refaz, definitivo
-          // encerra a rodada em vez de gastar centenas de tentativas inúteis.
-          const r = reacaoAoErroDeLista(e);
-          return {
-            processados: 0,
-            fim: r.fim,
-            custo: 1,
-            interromper: r.interromper,
-            erros: [`lista: ${(e as Error).message}`],
-          };
-        }
-        if (cursor > arr.length) return { processados: 0, fim: true, custo };
-        const m = arr[cursor - 1];
-
-        try {
-          const idMat = Number(m.codigoMateria ?? 0);
-          if (!Number.isFinite(idMat) || idMat <= 0) {
-            descartados.semCodigo++;
-            return { processados: 0, fim: false, custo };
-          }
-
-          // "PL 8/2025" → sigla, número, ano. Sem número legível o item é
-          // descartado E contado — descarte silencioso já escondeu uma
-          // mudança de formato uma vez.
-          const ident = parseIdentificacao(m.identificacao);
-          if (!ident) {
-            descartados.semNumero++;
-            return { processados: 0, fim: false, custo };
-          }
-
-          const row = {
-            id: idMat,
-            sigla_subtipo: ident.sigla,
-            numero: ident.numero,
-            ano: ident.ano,
-            ementa: (m.ementa ?? "").slice(0, 4000) || null,
-            data_apresentacao: apenasData(m.dataApresentacao),
-            autor_principal: m.autoria ?? null,
-            ultima_situacao: m.situacaoAtual ?? null,
-            ultima_data: apenasData(m.dataSituacaoAtual),
-            url_texto: `https://www25.senado.leg.br/web/atividade/materias/-/materia/${idMat}`,
-            updated_at: new Date().toISOString(),
-          };
-          const { error: e1 } = await supabaseAdmin.from("senado_materias_cache").upsert(row);
-          custo++;
-          if (e1) throw new Error(e1.message);
-
-          if (m.autoria) {
-            // A lista traz a autoria como texto único ("Senador X", "Câmara
-            // dos Deputados", "Senador X e outros") — vira o autor Principal.
-            await supabaseAdmin
-              .from("senado_materias_autores_cache")
-              .delete()
-              .eq("materia_id", idMat);
-            custo++;
-            const { error: e2 } = await supabaseAdmin.from("senado_materias_autores_cache").insert({
-              materia_id: idMat,
-              senador_id: null,
-              nome: m.autoria.slice(0, 240),
-              tipo: "Principal",
-              proponente: true,
-              ordem: 1,
-              updated_at: new Date().toISOString(),
-            });
-            custo++;
-            if (e2) throw new Error(`autores: ${e2.message}`);
-            totalAutores += 1;
-          }
-          return { processados: 1, fim: false, custo };
-        } catch (e) {
-          // Uma matéria com problema não interrompe a varredura — segue para a
-          // seguinte, com o erro registrado.
-          return { processados: 0, fim: false, custo, erros: [`mat: ${(e as Error).message}`] };
-        }
-      },
-    });
-
-    erros.push(...rodada.erros);
-
-    // Zero importados COM itens descartados não é ausência de dado: é resposta
-    // que não soubemos ler. Vira erro (não "info:") de propósito, para o
-    // Histórico classificar como falha nossa em vez de "consultado, vazio".
-    const alerta = alertaDeDescarte(rodada.processados, descartados);
-    if (alerta) erros.push(alerta);
-
-    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
-    const avisoHistorico = await registrarRodadaImportacao(
-      {
-        fonte: "senado_mat",
-        ano: data.ano,
-        mes: 1, // fonte anual — âncora da matriz de cobertura
-        endpoint: `GET ${BASE}/processo?ano=${data.ano}&sigla=${data.sigla}`,
-        unidade: "matérias",
-        userId: context.userId,
-        duracaoMs: Date.now() - inicioRodada,
-      },
-      rodada,
-    );
-    if (avisoHistorico) erros.push(avisoHistorico);
-
-    return {
-      importados: rodada.processados,
-      autores: totalAutores,
-      erros,
-      varredura: {
-        haMais: !rodada.concluido,
-        cursor: rodada.cursorFinal,
-        totalAcumulado: rodada.totalAcumulado,
-        orcamentoEsgotado: rodada.orcamentoEsgotado,
-        custoEsgotado: rodada.custoEsgotado,
-      },
-    };
+    return rodadaMaterias(data, context.userId);
   });
 
 export const listarMaterias = createServerFn({ method: "GET" })

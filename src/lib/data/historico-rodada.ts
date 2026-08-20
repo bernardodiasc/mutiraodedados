@@ -26,7 +26,7 @@ export type LinhaRodada = {
   importados: number;
   erros: string[];
   endpoint: string;
-  user_id: string;
+  user_id: string | null;
   /** Como ler o `importados` desta rodada (ver `resultado-rodada.ts`). */
   resultado: ResultadoClassificado;
 };
@@ -85,7 +85,8 @@ export type MetaRodada = {
   endpoint: string;
   /** O que a varredura percorre (ex.: "deputados", "páginas", "matérias"). */
   unidade: string;
-  userId: string;
+  /** null = execução do agendador (sem sessão) — a coluna no banco é anulável. */
+  userId: string | null;
   duracaoMs?: number;
   /** Período anterior ao início da fonte (`janelas.ts`) — zero é esperado. */
   foraDaJanela?: boolean;
