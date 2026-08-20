@@ -7,6 +7,7 @@ import { listarContratosPNCP } from "@/lib/data/pncp/queries.functions";
 import { ORGAOS_ENRIQUECIMENTO } from "@/lib/data/catalog";
 import { useData } from "@/lib/data-store";
 import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { SeletorFonte } from "@/components/SeletorFonte";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { BotaoSalvarBusca } from "@/components/BotaoSalvarBusca";
 import { fmtBRL } from "@/lib/fmt";
@@ -125,45 +126,32 @@ function ContratosPage() {
           fornecedor e vigência) e o PNCP (Lei 14.133, todos os entes — União, estados e
           municípios).
         </p>
+        {/* Contrato de repasse leva "contrato" no nome e NÃO está aqui —
+            é transferência voluntária. Ver o aviso recíproco em /convenios. */}
+        <p className="text-sm text-muted-foreground mt-2 max-w-3xl leading-relaxed">
+          Procurando <strong>contrato de repasse</strong>? Ele não está aqui: apesar do nome, é uma
+          transferência voluntária da União a um ente, operada por instituição mandatária. Fica em{" "}
+          <Link to="/convenios" className="text-accent underline">
+            Convênios
+          </Link>
+          .
+        </p>
       </header>
 
-      {/* Seletor de fonte — o "tipo" Contratos coincide em duas fontes. */}
-      <div className="flex flex-wrap gap-2">
-        <FonteBtn ativo={fonte === "cgu"} onClick={() => setFonte("cgu")}>
-          Executivo Federal · Portal CGU
-        </FonteBtn>
-        <FonteBtn ativo={fonte === "pncp"} onClick={() => setFonte("pncp")}>
-          Todos os entes · PNCP
-        </FonteBtn>
-      </div>
+      {/* O "tipo" Contratos coincide em duas fontes — ver SeletorFonte. */}
+      <SeletorFonte
+        opcoes={[
+          { id: "cgu", recorte: "Executivo Federal", fonte: "Portal CGU" },
+          { id: "pncp", recorte: "Todos os entes", fonte: "PNCP" },
+        ]}
+        valor={fonte}
+        onChange={setFonte}
+      />
 
       <AvisoMetodologico />
 
       {fonte === "cgu" ? <ContratosCGU /> : <ContratosPNCP />}
     </div>
-  );
-}
-
-function FonteBtn({
-  ativo,
-  onClick,
-  children,
-}: {
-  ativo: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-        ativo
-          ? "border-accent bg-accent/10 text-foreground"
-          : "border-border text-muted-foreground hover:bg-muted"
-      }`}
-    >
-      {children}
-    </button>
   );
 }
 

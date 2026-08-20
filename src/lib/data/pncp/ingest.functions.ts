@@ -6,6 +6,9 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasPncp, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { anoMesDaJanela } from "@/lib/data/historico-rodada";
 import {
   chaveVarreduraJanela,
   JANELA_ORCAMENTO_MS,
@@ -90,8 +93,8 @@ type ContratoPNCP = {
   dataAssinatura?: string;
   dataVigenciaInicio?: string;
   dataVigenciaFim?: string;
-  modalidadeNome?: string;
-  situacaoContratoNome?: string;
+  tipoContrato?: { id?: number; nome?: string };
+  categoriaProcesso?: { id?: number; nome?: string };
 };
 
 function esferaLabel(id?: string): string | null {
@@ -123,7 +126,8 @@ function poderLabel(id?: string): string | null {
 
 /**
  * Importa contratos publicados em um intervalo de datas no PNCP.
- * Endpoint: /v1/contratos/publicacao
+ * Endpoint: /v1/contratos (o /v1/contratos/publicacao usado até a v0.6.0
+ * não existe — devolvia 404 e toda importação de PNCP voltava vazia)
  * Limite: 500 registros por página, 30 req/min.
  */
 export const importarContratosPNCP = createServerFn({ method: "POST" })
@@ -134,6 +138,11 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
         dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
         uf: z.string().length(2).optional(),
+        /** Código IBGE de 7 dígitos — filtra pelo município da unidade. */
+        municipioIbge: z
+          .string()
+          .regex(/^\d{7}$/)
+          .optional(),
         cnpjOrgao: z.string().optional(),
         maxPaginas: z.number().int().min(1).max(2000).default(2000),
       })
@@ -149,9 +158,11 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
     // Um passo = uma página. Antes o laço ia até 2000 páginas numa chamada só,
     // sem orçamento nem retomada, e um erro de banco derrubava a rodada
     // inteira — o que na prática obrigava a UI a limitar a 3 páginas.
+    const inicioRodada = Date.now();
     const rodada = await rodarComOrcamento({
       chave: chaveVarreduraJanela("pncp", data.dataInicial, data.dataFinal, {
         uf: data.uf,
+        ibge: data.municipioIbge,
         cnpj: data.cnpjOrgao,
       }),
       checkpoint: checkpointImportacao,
@@ -175,15 +186,17 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
             data?: ContratoPNCP[];
             totalPaginas?: number;
             totalRegistros?: number;
-          }>("/v1/contratos/publicacao", params);
+          }>("/v1/contratos", params);
           custo++;
         } catch (e) {
-          // Falha na origem: a próxima rodada refaz esta página.
+          // A página É a lista desta rodada: passageiro refaz, definitivo
+          // encerra — se a página 1 dá 404, as 2000 seguintes também dão.
+          const r = reacaoAoErroDeLista(e);
           return {
             processados: 0,
-            fim: false,
+            fim: r.fim,
             custo: 1,
-            interromper: true,
+            interromper: r.interromper,
             erros: [`p${pagina}: ${(e as Error).message}`],
           };
         }
@@ -191,9 +204,15 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
         const lista = json.data ?? [];
         if (lista.length === 0) return { processados: 0, fim: true, custo };
 
-        const filtrados = data.uf
-          ? lista.filter((c) => c.unidadeOrgao?.ufSigla?.toUpperCase() === data.uf!.toUpperCase())
-          : lista;
+        // O endpoint não aceita filtro geográfico, então recortamos aqui pelo
+        // ente escolhido — UF pela sigla, município pelo código IBGE.
+        const filtrados = lista.filter((c) => {
+          if (data.municipioIbge && String(c.unidadeOrgao?.codigoIbge ?? "") !== data.municipioIbge)
+            return false;
+          if (data.uf && c.unidadeOrgao?.ufSigla?.toUpperCase() !== data.uf.toUpperCase())
+            return false;
+          return true;
+        });
 
         const rows = filtrados
           .map((c) => {
@@ -214,8 +233,12 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
               municipio_nome: c.unidadeOrgao?.municipioNome ?? null,
               numero_contrato: c.numeroContratoEmpenho ?? null,
               objeto: sanitizarTextoPublico((c.objetoContrato ?? "").slice(0, 1000)) || null,
-              modalidade: c.modalidadeNome ?? null,
-              situacao: c.situacaoContratoNome ?? null,
+              // A API de contratos do PNCP não expõe modalidade de licitação
+              // (isso é da COMPRA, ligada por numeroControlePncpCompra) nem
+              // status do contrato. O que ela dá é o tipo do instrumento e a
+              // categoria do processo — é o que gravamos, em vez de null.
+              modalidade: c.tipoContrato?.nome ?? null,
+              situacao: c.categoriaProcesso?.nome ?? null,
               fornecedor_cnpj_cpf: c.niFornecedor ?? null,
               fornecedor_nome:
                 sanitizarTextoPublico((c.nomeRazaoSocialFornecedor ?? "").slice(0, 240)) || null,
@@ -235,14 +258,14 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
             .from("pncp_contratos_cache")
             .upsert(rows.slice(i, i + 200));
           custo++;
-          // Antes isto lançava e perdia a rodada inteira. Agora interrompe sem
-          // avançar o cursor: a próxima refaz esta página.
+          // Falha de banco passageira refaz o item; definitiva registra e
+          // segue, para um erro permanente não travar a varredura.
           if (error) {
             return {
               processados: 0,
               fim: false,
               custo,
-              interromper: true,
+              interromper: reacaoAoErro(error).interromper,
               erros: [`db p${pagina}: ${error.message}`],
             };
           }
@@ -270,6 +293,20 @@ export const importarContratosPNCP = createServerFn({ method: "POST" })
     });
 
     erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "pncp",
+        ...anoMesDaJanela(data.dataInicial, data.dataFinal),
+        endpoint: `GET ${BASE}/v1/contratos?dataInicial=${di}&dataFinal=${df}`,
+        unidade: "páginas",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
 
     return {
       importados: rodada.processados,

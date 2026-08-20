@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { chaveVarreduraCeap, parlamentarNoCursor } from "./ceap-varredura";
+import { chaveVarreduraCeap, parlamentarNoCursor, legislaturaDoAno } from "./ceap-varredura";
 
 describe("ceap-varredura/chave", () => {
   it("separa casa, ano e mês", () => {
@@ -52,5 +52,23 @@ describe("ceap-varredura/cursor", () => {
   it("retomar do meio continua de onde parou", () => {
     // Rodada anterior parou no cursor 1; esta começa no 2.
     expect(parlamentarNoCursor(ids, 2).id).toBe(20);
+  });
+});
+
+describe("legislaturaDoAno", () => {
+  it("mapeia os anos de cada legislatura de 4 em 4", () => {
+    // 52 = 2003–2006 é a âncora usada pelo ingest do cadastro.
+    expect(legislaturaDoAno(2003)).toBe(52);
+    expect(legislaturaDoAno(2006)).toBe(52);
+    expect(legislaturaDoAno(2007)).toBe(53);
+    expect(legislaturaDoAno(2023)).toBe(57);
+    expect(legislaturaDoAno(2026)).toBe(57);
+    expect(legislaturaDoAno(2027)).toBe(58);
+  });
+
+  it("a virada acontece no primeiro ano do mandato, não no meio", () => {
+    for (const ano of [2023, 2024, 2025, 2026]) {
+      expect(legislaturaDoAno(ano), `ano ${ano}`).toBe(57);
+    }
   });
 });

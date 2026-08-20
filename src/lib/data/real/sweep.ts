@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { portalGet, PORTAL_BASE } from "@/lib/data/real/portal-client";
 import { flagQA, type QaFinding } from "@/lib/data/qa";
 import { AVISO_SEM_RETOMADA, rodarComOrcamento, type Checkpoint } from "@/lib/data/runner";
+import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 
 /**
  * Maquinaria compartilhada de varredura do Portal da Transparência (CGU).
@@ -295,14 +296,24 @@ export async function varrerPaginado<TRaw, TRow>(
       } catch (e) {
         const msg = (e as Error).message;
         // JSON inválido/não-JSON é transitório no Portal: pula a página (o
-        // cursor avança) e segue. Qualquer outro erro interrompe a rodada sem
-        // avançar, para a próxima refazer esta página.
+        // cursor avança) e segue.
         const pular = msg.includes("JSON inválido") || msg.includes("não-JSON");
         if (pular && delayMs > 0) await sleep(delayMs);
+        if (pular) {
+          return { processados: 0, fim: false, interromper: false, erros: [`p${pagina}: ${msg}`] };
+        }
+        // Nos demais, a página É a lista da rodada. Passageiro (5xx, 429,
+        // rede) refaz sem avançar; DEFINITIVO encerra a rodada.
+        //
+        // Antes, todo erro interrompia sem avançar — e um 400 permanente
+        // ("o período deve ser de no máximo 1 mês") virava rodada após rodada
+        // de `haMais: true`, com o painel mandando "continue para baixar o
+        // restante". Continuar nunca ia funcionar.
+        const r = reacaoAoErroDeLista(e);
         return {
           processados: 0,
-          fim: false,
-          interromper: !pular,
+          fim: r.fim,
+          interromper: r.interromper,
           erros: [`p${pagina}: ${msg}`],
         };
       }

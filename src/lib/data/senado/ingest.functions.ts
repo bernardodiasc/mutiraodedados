@@ -6,6 +6,9 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
+import { reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import {
   CEAP_ORCAMENTO_MS,
   CEAP_TETO_SUBREQUISICOES,
@@ -15,6 +18,11 @@ import {
 import { parseValorSenado } from "@/lib/data/senado/parsers";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
+/**
+ * Portal administrativo do Senado — fonte atual do CEAPS. A API antiga em
+ * `legis` devolve 404 para esse recurso desde antes da v0.6.0.
+ */
+const BASE_ADM = "https://adm.senado.gov.br/adm-dadosabertos";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -493,6 +501,20 @@ type DespesaRaw = {
  * Importa CEAPS (cota dos senadores) de um ano/mês para TODOS os senadores em cache.
  * Endpoint: /senador/{cod}/despesas/{ano} (filtra mês client-side).
  */
+/**
+ * CEAPS — despesas de gabinete dos senadores.
+ *
+ * A API antiga (`legis.senado.leg.br/dadosabertos/senador/{id}/despesas/{ano}`)
+ * saiu do ar: responde 404 para qualquer senador, e por isso toda importação
+ * de CEAPS voltava vazia. A fonte atual é o portal administrativo, que entrega
+ * o **ano inteiro numa chamada só** — não é mais preciso percorrer senador a
+ * senador, e some a dependência do cadastro em cache.
+ *
+ * Um ano tem ~20 mil registros (~9 MB); um mês, ~1.900. Como o painel e a
+ * matriz de cobertura trabalham por mês, a rodada filtra o mês pedido e grava
+ * em lotes — o cursor do runner é o LOTE, o que mantém o teto de
+ * subrequisições respeitado mesmo num mês atípico.
+ */
 export const importarCEAPSMes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -507,134 +529,169 @@ export const importarCEAPSMes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    // A ordem precisa ser a MESMA a cada rodada, senão a retomada pula ou
-    // repete senador — daí o `order("id")`.
-    let senadorIds: number[] = [];
-    if (data.senadorId) {
-      senadorIds = [data.senadorId];
-    } else {
-      const { data: sens, error } = await supabaseAdmin
-        .from("senado_senadores_cache")
-        .select("id")
-        .order("id");
-      if (error) throw new Error(`db: ${error.message}`);
-      senadorIds = (sens ?? []).map((s) => s.id as number);
-    }
-    if (senadorIds.length === 0) {
-      throw new Error("Nenhum senador em cache. Importe o cadastro primeiro.");
-    }
+    type DespesaCeaps = {
+      id?: number;
+      tipoDocumento?: string;
+      ano?: number;
+      mes?: number;
+      codSenador?: number;
+      nomeSenador?: string;
+      tipoDespesa?: string;
+      cpfCnpj?: string;
+      fornecedor?: string;
+      documento?: string;
+      data?: string;
+      detalhamento?: string | null;
+      valorReembolsado?: number | string;
+    };
 
     const erros: string[] = [];
-    let senadoresProcessados = 0;
+    const inicioRodada = Date.now();
+    const LOTE = 200;
 
-    // Um passo = um senador. Rodada limitada por tempo E por subrequisições;
-    // o painel admin repete até `haMais` ficar falso.
+    // O ano é buscado UMA vez por rodada e reaproveitado entre os passos.
+    let doMes: DespesaCeaps[] | null = null;
+    let senadoresNoMes = 0;
+    const carregarMes = async (): Promise<DespesaCeaps[]> => {
+      if (doMes) return doMes;
+      const res = await fetchComRetry(`${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok) {
+        throw new Error(
+          ehStatusTransitorio(res.status)
+            ? `TRANSIENT: Senado ${res.status} (CEAPS ${data.ano} indisponível)`
+            : `Senado API ${res.status} ao buscar CEAPS ${data.ano}`,
+        );
+      }
+      const ano = (await res.json()) as DespesaCeaps[];
+      doMes = (Array.isArray(ano) ? ano : []).filter(
+        (d) =>
+          Number(d.mes) === data.mes &&
+          (!data.senadorId || Number(d.codSenador) === data.senadorId),
+      );
+      senadoresNoMes = new Set(doMes.map((d) => d.codSenador)).size;
+      return doMes;
+    };
+
     const rodada = await rodarComOrcamento({
       chave: chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId),
       checkpoint: checkpointImportacao,
       orcamentoMs: CEAP_ORCAMENTO_MS,
       orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
-      maxPassos: senadorIds.length,
+      maxPassos: 500,
       passo: async (cursor) => {
-        const { id: senId, fim } = parlamentarNoCursor(senadorIds, cursor);
-        if (fim || senId == null) return { processados: 0, fim: true };
-
         let custo = 0;
+        let lista: DespesaCeaps[];
         try {
-          const json = await senadoGet<{
-            DespesasParlamentares?: {
-              Senador?: {
-                Despesas?: { Despesa?: DespesaRaw | DespesaRaw[] };
-              };
-            };
-          }>(`/senador/${senId}/despesas/${data.ano}`);
-          custo++;
-          senadoresProcessados++;
+          const antes = doMes;
+          lista = await carregarMes();
+          if (!antes) custo++;
+        } catch (e) {
+          // Sem a lista não há o que gravar: passageiro refaz, definitivo encerra.
+          const r = reacaoAoErroDeLista(e);
+          return {
+            processados: 0,
+            fim: r.fim,
+            custo: 1,
+            interromper: r.interromper,
+            erros: [`ceaps ${data.ano}: ${(e as Error).message}`],
+          };
+        }
 
-          const lista = asArray(json.DespesasParlamentares?.Senador?.Despesas?.Despesa);
-          const doMes = lista.filter((d) => Number(d.Mes) === data.mes);
-          if (doMes.length === 0) return { processados: 0, fim: false, custo };
+        const inicio = (cursor - 1) * LOTE;
+        if (inicio >= lista.length) return { processados: 0, fim: true, custo };
+        const fatia = lista.slice(inicio, inicio + LOTE);
 
-          const rows = doMes.map((d, idx) => {
-            const cod = d.CodigoDocumento ?? d.Documento ?? `${idx}`;
+        const rows = fatia
+          .map((d) => {
+            const id = d.id != null ? String(d.id) : null;
+            const senId = Number(d.codSenador);
+            if (!id || !Number.isFinite(senId)) return null;
             return {
-              id: `${senId}-${data.ano}-${data.mes}-${cod}`,
+              id,
               senador_id: senId,
-              ano: Number(d.Ano ?? data.ano),
-              mes: Number(d.Mes ?? data.mes),
+              ano: Number(d.ano ?? data.ano),
+              mes: Number(d.mes ?? data.mes),
               tipo_despesa:
-                sanitizarTextoPublico((d.TipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
-              fornecedor_nome: sanitizarTextoPublico((d.Fornecedor ?? "").slice(0, 240)) || null,
-              fornecedor_cnpj: d.CnpjCpfFornecedor ?? null,
+                sanitizarTextoPublico((d.tipoDespesa ?? "").slice(0, 200)) || "(sem tipo)",
+              fornecedor_nome: sanitizarTextoPublico((d.fornecedor ?? "").slice(0, 240)) || null,
+              // A origem manda o CNPJ formatado; guardamos só os dígitos.
+              fornecedor_cnpj: d.cpfCnpj ? d.cpfCnpj.replace(/\D/g, "") || null : null,
               data_documento:
-                d.DataDocumento && /^\d{4}-\d{2}-\d{2}/.test(d.DataDocumento)
-                  ? d.DataDocumento.slice(0, 10)
-                  : null,
-              num_documento: d.Documento ?? null,
-              valor_reembolsado: parseValorSenado(d.ValorReembolsado),
-              detalhamento: sanitizarTextoPublico((d.Detalhamento ?? "").slice(0, 500)) || null,
+                d.data && /^\d{4}-\d{2}-\d{2}/.test(d.data) ? d.data.slice(0, 10) : null,
+              num_documento: d.documento ?? null,
+              valor_reembolsado: parseValorSenado(d.valorReembolsado),
+              detalhamento: sanitizarTextoPublico((d.detalhamento ?? "").slice(0, 500)) || null,
               updated_at: new Date().toISOString(),
             };
-          });
+          })
+          .filter((r): r is NonNullable<typeof r> => r !== null);
 
-          for (let i = 0; i < rows.length; i += 200) {
-            const { error } = await supabaseAdmin
-              .from("senado_despesas_cache")
-              .upsert(rows.slice(i, i + 200));
-            custo++;
-            // Erro de banco interrompe a rodada sem avançar o cursor: a
-            // próxima refaz este senador em vez de dá-lo por importado.
-            if (error) {
-              return {
-                processados: 0,
-                fim: false,
-                custo,
-                interromper: true,
-                erros: [`sen ${senId}: ${error.message}`],
-              };
-            }
-          }
+        if (rows.length === 0) return { processados: 0, fim: false, custo };
 
-          const errosPasso: string[] = [];
-          try {
-            await flagQA(
-              regrasSenadoCeaps(
-                rows.map((r) => ({
-                  id: r.id,
-                  valor_reembolsado: r.valor_reembolsado,
-                  senador_id: r.senador_id,
-                })),
-              ),
-            );
-          } catch (e) {
-            // Não interrompe a ingestão, mas o erro de QA fica visível.
-            errosPasso.push(`qa sen ${senId}: ${(e as Error).message}`);
-          }
-
-          return { processados: rows.length, fim: false, custo, erros: errosPasso };
-        } catch (e) {
-          // Falha de rede na origem: a próxima rodada refaz este senador.
+        const { error } = await supabaseAdmin.from("senado_despesas_cache").upsert(rows);
+        custo++;
+        if (error) {
           return {
             processados: 0,
             fim: false,
             custo,
-            interromper: true,
-            erros: [`sen ${senId}: ${(e as Error).message}`],
+            interromper: reacaoAoErro(error).interromper,
+            erros: [`lote ${cursor}: ${error.message}`],
           };
         }
+
+        const errosPasso: string[] = [];
+        try {
+          await flagQA(
+            regrasSenadoCeaps(
+              rows.map((r) => ({
+                id: r.id,
+                valor_reembolsado: r.valor_reembolsado,
+                senador_id: r.senador_id,
+              })),
+            ),
+          );
+        } catch (e) {
+          // Não interrompe a ingestão, mas o erro de QA fica visível.
+          errosPasso.push(`qa lote ${cursor}: ${(e as Error).message}`);
+        }
+
+        return {
+          processados: rows.length,
+          fim: inicio + LOTE >= lista.length,
+          custo,
+          erros: errosPasso,
+        };
       },
     });
 
     erros.push(...rodada.erros);
 
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "senado_ceaps",
+        ano: data.ano,
+        mes: data.mes,
+        endpoint: `GET ${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano} (filtro mês=${data.mes})`,
+        unidade: "lotes",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
+
     return {
       importados: rodada.processados,
-      senadoresProcessados,
+      senadoresProcessados: senadoresNoMes,
       erros,
       varredura: {
         haMais: !rodada.concluido,
         cursor: rodada.cursorFinal,
-        totalSenadores: senadorIds.length,
+        totalSenadores: senadoresNoMes,
         totalAcumulado: rodada.totalAcumulado,
         orcamentoEsgotado: rodada.orcamentoEsgotado,
         custoEsgotado: rodada.custoEsgotado,

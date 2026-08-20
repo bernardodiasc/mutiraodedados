@@ -6,16 +6,25 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasTransferegov, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { anoMesDaJanela } from "@/lib/data/historico-rodada";
 import {
   chaveVarreduraJanela,
   JANELA_ORCAMENTO_MS,
   JANELA_TETO_SUBREQUISICOES,
 } from "@/lib/data/janela-varredura";
 import { parseValorPortal, portalGet } from "@/lib/data/real/portal-client";
+import { linkConvenioTransferegov } from "@/lib/links-oficiais";
 
 /**
- * Transferegov / Convênios — usa o endpoint /convenios do Portal da
- * Transparência (CGU). Toda a parte de HTTP, parser de valor e
+ * Convênios pelo ângulo do ente beneficiário — usa o endpoint /convenios do
+ * Portal da Transparência (CGU). NÃO é a API do Transferegov: o módulo
+ * Discricionárias e Legais, onde convênios e contratos de repasse vivem, só
+ * publica CSV (API prevista entre nov/2026 e fev/2027). Cuidado: o módulo
+ * "Gestão de Parcerias" TEM API e o nome engana — ele cobre fundo a fundo,
+ * renúncia fiscal e contrato de gestão, e a palavra "convênio" não aparece no
+ * spec dele. Tabela de módulos em docs/fontes/transferegov.md. Toda a parte de HTTP, parser de valor e
  * verificação-por-detalhe vive em `portal-client.ts`, compartilhada
  * com o ingest de contratos. Aqui ficam só os shapes de convênio e o
  * mapeamento → linhas do cache.
@@ -113,6 +122,7 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
     // Um passo = uma página. Antes o laço ia até 2000 páginas numa chamada só,
     // sem orçamento nem retomada, e um erro de banco derrubava a rodada
     // inteira — o que na prática obrigava a UI a limitar a 3 páginas.
+    const inicioRodada = Date.now();
     const rodada = await rodarComOrcamento({
       chave: chaveVarreduraJanela("transferegov", data.dataInicial, data.dataFinal, {
         ibge: data.codigoIbgeMunicipio,
@@ -137,12 +147,14 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
           json = (await portalGet("/convenios", params)) as Convenio[];
           custo++;
         } catch (e) {
-          // Falha na origem: a próxima rodada refaz esta página.
+          // A página É a lista desta rodada: passageiro refaz, definitivo
+          // encerra — se a página 1 dá 404, as 2000 seguintes também dão.
+          const r = reacaoAoErroDeLista(e);
           return {
             processados: 0,
-            fim: false,
+            fim: r.fim,
             custo: 1,
-            interromper: true,
+            interromper: r.interromper,
             erros: [`p${pagina}: ${(e as Error).message}`],
           };
         }
@@ -212,9 +224,8 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
                   : null),
               data_assinatura: dataAssin,
               url_transferegov: c.id
-                ? c.dimConvenio?.codigo
-                  ? `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c.dimConvenio.codigo)}`
-                  : `https://portaldatransparencia.gov.br/convenios/${c.id}`
+                ? (linkConvenioTransferegov(c.dimConvenio?.codigo) ??
+                  `https://portaldatransparencia.gov.br/convenios/${c.id}`)
                 : null,
               updated_at: new Date().toISOString(),
             };
@@ -231,14 +242,14 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             .from("transferegov_instrumentos_cache")
             .upsert(rowsFinais.slice(i, i + 200));
           custo++;
-          // Antes isto lançava e perdia a rodada inteira. Agora interrompe sem
-          // avançar o cursor: a próxima refaz esta página.
+          // Falha de banco passageira refaz o item; definitiva registra e
+          // segue, para um erro permanente não travar a varredura.
           if (error) {
             return {
               processados: 0,
               fim: false,
               custo,
-              interromper: true,
+              interromper: reacaoAoErro(error).interromper,
               erros: [`db p${pagina}: ${error.message}`],
             };
           }
@@ -270,6 +281,20 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
     });
 
     erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "transferegov",
+        ...anoMesDaJanela(data.dataInicial, data.dataFinal),
+        endpoint: `GET https://api.portaldatransparencia.gov.br/api-de-dados/convenios?dataInicial=${brDate(data.dataInicial)}&dataFinal=${brDate(data.dataFinal)}`,
+        unidade: "páginas",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
 
     return {
       importados: rodada.processados,

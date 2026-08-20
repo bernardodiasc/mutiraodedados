@@ -87,6 +87,19 @@ Em uso hoje: despesas de gabinete (`ceap-varredura.ts`) processam **um parlament
 
 Chaves de varredura: `chaveVarreduraCeap` (casa, ano, mês) e `chaveVarreduraJanela` (fonte, janela de datas, filtros). A chave precisa distinguir tudo que muda o conjunto de resultados — duas importações da mesma janela com filtros diferentes são varreduras diferentes, e se compartilhassem chave a segunda retomaria do cursor da primeira e pularia páginas que nunca leu.
 
+## Contrato de fonte
+
+Toda fonte importável cumpre o mesmo contrato — é o que garante a mesma experiência de operação independente da API de origem. Checklist (o detalhe de cada item está nas seções acima):
+
+1. **HTTP com a política única de retry** (`fetchComRetry`), mensagens com prefixo `TRANSIENT:` nos erros passageiros.
+2. **Retomada com orçamento** (`rodarComOrcamento`): orçamento de tempo E de subrequisições; checkpoint em `importacao_varredura` (fontes novas) e retorno com `varredura: { haMais, ... }` para o painel repetir rodadas.
+3. **Linha de rodada no Histórico, gravada pelo servidor** (`registrarRodadaImportacao`): contagens, ano/mês para a matriz de cobertura, motivo de parada, duração — **inclusive consulta vazia** (linha com zero = "consultado, sem dados").
+4. **Sinais de qualidade** pós-upsert (`flagQA` com regras da fonte, catalogadas em `sinais-catalogo.ts`).
+5. **Entrada em `FONTES_LIMPEZA`** — o teste-guarda `limpeza.test.ts` quebra se uma tabela `*_cache` nova ficar sem controle de limpeza.
+6. **Janela em `janelas.ts`** com justificativa em comentário.
+
+Matriz de paridade auditada e exceções justificadas: [`docs/planos/v0.6.0-padronizacao-importacao.md`](./planos/v0.6.0-padronizacao-importacao.md). Exceções vigentes: votações da Câmara importam por item pelo cliente (linha de rodada por votação seria ruído — o log de job pelo cliente permanece só para ela); SICONFI dispensa retomada (chamadas curtas) e grava o próprio histórico; sinais de proposições/votações/matérias estão no backlog (trabalho editorial, não de infraestrutura).
+
 ## Upsert
 
 - Lotes de 200 registros via `supabaseAdmin.from('<cache>').upsert(rows)`.

@@ -49,7 +49,7 @@ export const FONTE_SINAL_LABEL: Record<string, string> = {
   pncp: "PNCP",
   camara_ceap: "Câmara (CEAP)",
   senado_ceaps: "Senado (CEAPS)",
-  transferegov: "Transferegov",
+  transferegov: "Convênios por ente (CGU)",
   siconfi: "SICONFI",
   tse: "TSE",
   "tse-cruzamento": "TSE (cruzamentos)",

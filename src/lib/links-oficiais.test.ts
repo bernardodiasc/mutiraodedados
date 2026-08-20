@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { linkDivulgaCandidato } from "./links-oficiais";
+import {
+  linkDivulgaCandidato,
+  linkConvenioTransferegov,
+  portalDoLink,
+  linksDoConvenio,
+} from "./links-oficiais";
 
 const BASE = "https://divulgacandcontas.tse.jus.br/divulga/#";
 
@@ -52,5 +57,55 @@ describe("linkDivulgaCandidato", () => {
     // Antigo: #/candidato/<ano>/<id>/<UE>/<sq> — começava pelo ano.
     const url = linkDivulgaCandidato({ ano: 2022, uf: "AC", ue: "AC", sqCandidato: "10001635783" });
     expect(url).not.toContain("/candidato/2022/");
+  });
+});
+
+describe("links de convênio nos dois portais", () => {
+  it("monta a ficha do Transferegov a partir do código SICONV", () => {
+    const u = linkConvenioTransferegov("123456");
+    expect(u).toContain("discricionarias.transferegov.sistema.gov.br");
+    expect(u).toContain("sequencialConvenio=123456");
+  });
+
+  it("sem código SICONV não inventa ficha", () => {
+    expect(linkConvenioTransferegov(null)).toBeNull();
+    expect(linkConvenioTransferegov("  ")).toBeNull();
+  });
+
+  it("nomeia o portal pelo host — o rótulo não pode mentir", () => {
+    expect(portalDoLink("https://discricionarias.transferegov.sistema.gov.br/x")).toBe(
+      "Transferegov",
+    );
+    expect(portalDoLink("https://portaldatransparencia.gov.br/convenios/9")).toBe(
+      "Portal da Transparência",
+    );
+    expect(portalDoLink(null)).toBeNull();
+  });
+});
+
+describe("linksDoConvenio", () => {
+  it("id numérico rende a ficha direta no Portal, não a busca", () => {
+    const [portal] = linksDoConvenio({ id: "912345", numero: "812345/2024" });
+    expect(portal.portal).toBe("Portal da Transparência");
+    expect(portal.url).toBe("https://portaldatransparencia.gov.br/convenios/912345");
+  });
+
+  it("id sintético cai na consulta por número", () => {
+    const [portal] = linksDoConvenio({ id: "num-812345", numero: "812345/2024" });
+    expect(portal.url).toContain("/convenios/consulta?nrConvenio=");
+  });
+
+  it("com código SICONV entrega os DOIS portais, Portal primeiro", () => {
+    const l = linksDoConvenio({ id: "912345", numero: "812345", codigoSiconv: "777" });
+    expect(l.map((x) => x.portal)).toEqual(["Portal da Transparência", "Transferegov"]);
+  });
+
+  it("sem código SICONV entrega só o Portal", () => {
+    const l = linksDoConvenio({ id: "912345", numero: "812345" });
+    expect(l).toHaveLength(1);
+  });
+
+  it("sem id nem número não inventa link nenhum", () => {
+    expect(linksDoConvenio({})).toEqual([]);
   });
 });

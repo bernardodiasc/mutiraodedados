@@ -305,3 +305,52 @@ describe("runner/orçamento de custo", () => {
     expect(r.custoEsgotado).toBe(false);
   });
 });
+
+describe("sondagem do fim não ocupa posição", () => {
+  it("varredura de N alvos termina com cursorFinal = N, não N+1", async () => {
+    const { cp } = checkpointFake();
+    const TOTAL = 10;
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 50,
+      // Espelha o passo do SICONFI: fora do intervalo, devolve fim sem custo.
+      passo: async (cursor) =>
+        cursor > TOTAL ? { processados: 0, fim: true } : { processados: 3, fim: false },
+      agora: () => 0,
+    });
+    expect(r.concluido).toBe(true);
+    expect(r.cursorFinal).toBe(TOTAL);
+    expect(r.processados).toBe(TOTAL * 3);
+  });
+
+  it("último passo que processa E termina ocupa a posição", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 50,
+      // Última página parcial: veio com dados e já anuncia o fim.
+      passo: async (cursor) => ({ processados: 5, fim: cursor === 3 }),
+      agora: () => 0,
+    });
+    expect(r.cursorFinal).toBe(3);
+  });
+
+  it("passo vazio no MEIO da varredura avança — senão trava", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 50,
+      // Consulta sem dados é rotina no SICONFI: 0 processados, mas não é fim.
+      passo: async (cursor) => ({ processados: 0, fim: cursor > 4 }),
+      agora: () => 0,
+    });
+    expect(r.cursorFinal).toBe(4);
+    expect(r.concluido).toBe(true);
+  });
+});

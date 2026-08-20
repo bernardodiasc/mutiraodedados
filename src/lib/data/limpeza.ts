@@ -194,8 +194,9 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
   },
   {
     id: "transferegov",
-    label: "Transferegov — convênios",
-    descricao: "Instrumentos de repasse União ↔ entes (espelho CGU).",
+    label: "Convênios por ente (Portal CGU)",
+    descricao:
+      "Convênios e contratos de repasse União ↔ entes, pelo ângulo de quem recebe. Vem do Portal CGU, que espelha o Transferegov.",
     table: "transferegov_instrumentos_cache",
     dateCol: "data_assinatura",
     tentativaFonte: "transferegov",

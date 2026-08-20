@@ -84,3 +84,11 @@ Regras:
 
 UI components do shadcn (`src/components/ui/*`) já são stateless e não
 entram neste padrão — são primitivas usadas pelas Views.
+
+## Mesmo tipo de dado em mais de uma fonte
+
+Vários tipos de dado existem em fontes diferentes — contratos no Portal CGU **e** no PNCP; convênios no Portal CGU **e** no Transferegov. A regra é **uma página por tipo de dado**, com a fonte escolhida no [`SeletorFonte`](../../src/components/SeletorFonte.tsx) e refletida na URL (`?fonte=`), o que mantém a busca compartilhável e "salvável" no caderno. A fonte histórica do projeto (CGU) é o default e não aparece na URL.
+
+Junto do seletor, o texto da página **explica por que existem duas fontes** e o que distingue cada uma — em contratos, "Portal CGU, só Executivo Federal" contra "PNCP, Lei 14.133, todos os entes"; em convênios, "Transferegov, onde os convênios nascem, por ente beneficiário" contra "CGU, espelho do Executivo Federal com recorte de execução orçamentária". O recorte de cada fonte é **informação cívica**: é o que explica ao visitante por que os números diferem sem que nenhum esteja errado.
+
+Não crie rota nova por fonte. Foi o que fez os 747 convênios do Transferegov ficarem invisíveis até a v0.6.0: existiam no banco, mas a página de convênios lia só a tabela da CGU e devolvia o visitante para a página da fonte, num laço.

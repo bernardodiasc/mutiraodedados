@@ -56,6 +56,68 @@ export function linkConsultaConvenioPortal(numero: string | null | undefined): s
 }
 
 /**
+ * Ficha do convênio no Transferegov (ex-SICONV), a partir do código SICONV.
+ *
+ * O mesmo convênio tem ficha em DOIS portais: a consulta do Portal da
+ * Transparência e a ficha do sistema onde ele nasceu. Não são fontes
+ * diferentes — são dois endereços do mesmo instrumento, e o cidadão que quer
+ * conferir merece os dois. Sem o código SICONV não há ficha, e aí é `null`.
+ */
+export function linkConvenioTransferegov(codigoSiconv: string | null | undefined): string | null {
+  const c = (codigoSiconv ?? "").trim();
+  if (!c) return null;
+  return `https://discricionarias.transferegov.sistema.gov.br/voluntarias/ConsultarProposta/ResultadoDaConsultaDeConvenioSelecionarConvenio.do?sequencialConvenio=${encodeURIComponent(c)}`;
+}
+
+/**
+ * Todos os endereços oficiais de um convênio, na ordem em que fazem sentido
+ * ao cidadão que quer conferir.
+ *
+ * O mesmo instrumento tem ficha em dois portais: o Portal da Transparência
+ * (que é de onde importamos) e o Transferegov, sistema onde ele nasceu. Isso
+ * não faz deles dois registros — faz deles um registro com dois endereços.
+ * Enquanto cada lista montava o seu link à mão, a aba por execução caía numa
+ * URL de BUSCA e a aba por ente escondia o Portal; ambas tinham em mãos os
+ * campos para oferecer os dois. Esta função é a única fonte desses links.
+ */
+export type LinkOficialConvenio = { portal: string; url: string };
+
+export function linksDoConvenio(c: {
+  id?: string | null;
+  numero?: string | null;
+  codigoSiconv?: string | null;
+}): LinkOficialConvenio[] {
+  const links: LinkOficialConvenio[] = [];
+  const id = (c.id ?? "").trim();
+  // Ficha direta só existe para o id numérico do Portal. Ids sintéticos
+  // ("num-1234", gerados por nós quando a listagem vem sem id) não resolvem
+  // lá — nesses casos a consulta por número é o melhor que há.
+  const noPortal = /^\d+$/.test(id)
+    ? `https://portaldatransparencia.gov.br/convenios/${id}`
+    : c.numero
+      ? linkConsultaConvenioPortal(c.numero)
+      : null;
+  if (noPortal) links.push({ portal: "Portal da Transparência", url: noPortal });
+
+  const noTransferegov = linkConvenioTransferegov(c.codigoSiconv);
+  if (noTransferegov) links.push({ portal: "Transferegov", url: noTransferegov });
+
+  return links;
+}
+
+/**
+ * Para onde um link oficial aponta, pelo host. O rótulo do link não pode
+ * mentir: a lista de convênios chegou a chamar de "Ver no Transferegov" uma
+ * URL que caía no Portal da Transparência sempre que faltava o código SICONV.
+ */
+export function portalDoLink(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes("transferegov.sistema.gov.br")) return "Transferegov";
+  if (url.includes("portaldatransparencia.gov.br")) return "Portal da Transparência";
+  return null;
+}
+
+/**
  * Página do favorecido no Portal da Transparência. Não há URL única canônica
  * para fornecedor: CNPJ (14 dígitos) tem página de pessoa jurídica direta;
  * CPF (pessoa física) é anonimizado, então caímos na busca por termo.

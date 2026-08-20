@@ -21,12 +21,17 @@ export const Route = createFileRoute("/transferegov")({
 
 const MODALIDADES: Array<{
   to: string;
+  search?: Record<string, string>;
   label: string;
   desc: string;
   count: (m: Map<string, number>) => number | null;
 }> = [
   {
+    // O acervo do Transferegov vive na página do TIPO de dado, sob a aba da
+    // fonte — mesmo padrão de /contratos. Sem o `?fonte=`, o visitante caía
+    // no recorte da CGU e via a página vazia.
     to: "/convenios",
+    search: { fonte: "transferegov" as const },
     label: "Convênios e contratos de repasse",
     desc: "Instrumentos clássicos (SICONV) com plano de trabalho, contrapartida e prestação de contas.",
     count: (m) => m.get("transferegov") ?? null,
@@ -75,6 +80,7 @@ function TransferegovPage() {
             <Link
               key={m.to}
               to={m.to}
+              search={m.search}
               className="rounded-2xl border border-border bg-card p-5 hover:border-accent transition-colors"
             >
               <div className="flex items-center gap-2 font-medium">

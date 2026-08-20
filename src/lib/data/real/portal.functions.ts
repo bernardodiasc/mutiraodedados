@@ -1,10 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { RESULTADOS, type ResultadoClassificado } from "@/lib/data/resultado-rodada";
 import type { Contrato, Fornecedor, Orgao } from "../types";
 import { ORGAOS_BASE } from "../catalog";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
+import { FONTE_LABEL } from "@/lib/data/fonte-rotulos";
 import { FONTES_LIMPEZA, FONTE_IDS, type FonteLimpeza } from "@/lib/data/limpeza";
 import { funcaoRpcAusente } from "@/lib/data/erros-banco";
 import type { Database } from "@/integrations/supabase/types";
@@ -741,6 +743,11 @@ export const listarVarredurasIncompletas = createServerFn({ method: "GET" })
  * mesma tabela `importacoes`. Campos específicos do Portal CGU
  * (orgao_cod, data_inicial, data_final) ficam NULL para as demais.
  */
+/** Aceita só os valores que o classificador conhece — linhas antigas viram null. */
+function ehResultadoConhecido(v: string | null | undefined): boolean {
+  return typeof v === "string" && (RESULTADOS as readonly string[]).includes(v);
+}
+
 export type HistoricoEntrada = {
   id: string;
   fonte: string; // ex. "CGU", "PNCP", "Câmara CEAP"
@@ -752,20 +759,11 @@ export type HistoricoEntrada = {
   avisos: string[]; // notas informativas (ex.: correção automática)
   quando: string; // ISO
   endpoint: string | null; // URL/endpoint efetivamente consultado
-};
-
-const FONTE_LABEL: Record<string, string> = {
-  camara_ceap: "Câmara CEAP",
-  camara_vot: "Câmara votações",
-  senado_ceaps: "Senado CEAPS",
-  senado_vot: "Senado votações",
-  pncp: "PNCP",
-  transferegov: "Transferegov",
-  siconfi: "SICONFI",
-  cgu: "Portal CGU",
-  cgu_licitacoes: "Portal CGU — Licitações",
-  cgu_emendas: "Portal CGU — Emendas",
-  cgu_convenios: "Portal CGU — Convênios",
+  /**
+   * Como ler o `importados` (ver `resultado-rodada.ts`). `null` em linhas
+   * anteriores à v0.6.0 — não dá para apurar a classificação retroativamente.
+   */
+  resultado: ResultadoClassificado | null;
 };
 
 const MESES_CURTO = [
@@ -801,7 +799,7 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
     const { data: rows, error } = await supabaseAdmin
       .from("importacoes")
       .select(
-        "id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint",
+        "id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint,resultado",
       )
       // Exclui as linhas de REQUISIÇÃO da varredura por detalhe (uma por GET) —
       // elas inundariam o Histórico. Mantém as linhas de rodada (log_kind NULL).
@@ -854,6 +852,9 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
         avisos,
         quando: r.consultado_em,
         endpoint: (r as { endpoint?: string | null }).endpoint ?? null,
+        resultado: ehResultadoConhecido((r as { resultado?: string | null }).resultado)
+          ? ((r as { resultado?: string | null }).resultado as ResultadoClassificado)
+          : null,
       };
     });
     return { entradas, hasMore };

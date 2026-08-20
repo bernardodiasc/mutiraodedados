@@ -56,3 +56,15 @@ export const CEAP_ORCAMENTO_MS = 150_000;
  * absorve as consultas de QA.
  */
 export const CEAP_TETO_SUBREQUISICOES = 45;
+
+/**
+ * Legislatura da Câmara que cobre um ano (52 = 2003–2006, +1 a cada 4 anos).
+ *
+ * Existe porque `camara_deputados_cache` acumula TODAS as legislaturas já
+ * importadas. Sem recortar por mandato, importar o CEAP de um mês consultava
+ * a API para cada deputado que já passou pela Casa — centenas de requisições
+ * garantidamente vazias, e uma varredura que parecia não terminar nunca.
+ */
+export function legislaturaDoAno(ano: number): number {
+  return 52 + Math.floor((ano - 2003) / 4);
+}

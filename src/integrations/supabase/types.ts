@@ -896,6 +896,7 @@ export type Database = {
           log_kind: string | null;
           mes: number | null;
           orgao_cod: string | null;
+          resultado: string | null;
           total_bruto: number;
           user_id: string | null;
         };
@@ -913,6 +914,7 @@ export type Database = {
           log_kind?: string | null;
           mes?: number | null;
           orgao_cod?: string | null;
+          resultado?: string | null;
           total_bruto?: number;
           user_id?: string | null;
         };
@@ -930,6 +932,7 @@ export type Database = {
           log_kind?: string | null;
           mes?: number | null;
           orgao_cod?: string | null;
+          resultado?: string | null;
           total_bruto?: number;
           user_id?: string | null;
         };

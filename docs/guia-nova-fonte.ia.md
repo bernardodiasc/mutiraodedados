@@ -16,11 +16,12 @@ src/lib/data/<fonte>/
 3. `await ensureAdmin(context.userId)`.
 4. Loop de paginação respeitando `dentroDaJanela` de `janelas.ts`.
 5. Cliente HTTP: reusar `portalGet` se a fonte for compatível CGU; senão criar wrapper próprio sobre `fetchComRetry` (`src/lib/data/http-retry.ts`) — a política de retry é única e não se reimplementa; o wrapper da fonte só monta URL/headers e traduz o erro (ver `## Retries` em `importacao.ia.md`).
-6. Parse: usar `parseValorPortal` para valores BR; datas via helper `isoDate`/`brDate`.
-7. Sanitização: `sanitizarTextoPublico` em todo campo livre antes do upsert.
-8. Upsert em lotes de 200 em `<fonte>_<entidade>_cache`.
-9. Log em `importacoes` (uma linha por requisição feita).
-10. `flagQA(regrasNovaFonte(rows))` ao final do lote.
+6. Cumprir o **Contrato de fonte** (`importacao.ia.md`, seção homônima): retomada com orçamento, linha de rodada server-side com consulta vazia, sinais, limpeza (o teste-guarda `limpeza.test.ts` cobra), janela justificada.
+7. Parse: usar `parseValorPortal` para valores BR; datas via helper `isoDate`/`brDate`.
+8. Sanitização: `sanitizarTextoPublico` em todo campo livre antes do upsert.
+9. Upsert em lotes de 200 em `<fonte>_<entidade>_cache`.
+10. Log em `importacoes` (uma linha por requisição feita).
+11. `flagQA(regrasNovaFonte(rows))` ao final do lote.
 
 ## Multi-entidade: uma fonte, várias entidades
 

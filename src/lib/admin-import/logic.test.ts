@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  janelasMensais,
   MONTHS,
   yearList,
   defaultMonth,
@@ -7,6 +8,7 @@ import {
   monthLabel,
   buildLimpezaPayload,
   resumirLimpeza,
+  precisaRenovarSessao,
 } from "./logic";
 
 describe("MONTHS", () => {
@@ -125,5 +127,75 @@ describe("resumirLimpeza", () => {
     });
     expect(r.titulo).toMatch(/^2 fontes falharam/);
     expect(r.detalhe).toContain("TSE — receitas de campanha");
+  });
+});
+
+describe("precisaRenovarSessao", () => {
+  const agora = 1_700_000_000_000; // ms
+
+  it("renova quando falta menos que a margem", () => {
+    const expiraEm60s = Math.floor(agora / 1000) + 60;
+    expect(precisaRenovarSessao(expiraEm60s, agora)).toBe(true);
+  });
+
+  it("não renova com folga", () => {
+    const expiraEm30min = Math.floor(agora / 1000) + 1800;
+    expect(precisaRenovarSessao(expiraEm30min, agora)).toBe(false);
+  });
+
+  it("sessão já expirada renova", () => {
+    const expirou = Math.floor(agora / 1000) - 10;
+    expect(precisaRenovarSessao(expirou, agora)).toBe(true);
+  });
+
+  it("sem expires_at legível, renova por precaução", () => {
+    expect(precisaRenovarSessao(null, agora)).toBe(true);
+    expect(precisaRenovarSessao(undefined, agora)).toBe(true);
+  });
+
+  it("margem é configurável", () => {
+    const expiraEm240s = Math.floor(agora / 1000) + 240;
+    expect(precisaRenovarSessao(expiraEm240s, agora, 120)).toBe(false);
+    expect(precisaRenovarSessao(expiraEm240s, agora, 300)).toBe(true);
+  });
+});
+
+describe("janelasMensais", () => {
+  it("janela dentro de um mês fica intacta", () => {
+    expect(janelasMensais("2024-03-05", "2024-03-20")).toEqual([
+      { ini: "2024-03-05", fim: "2024-03-20" },
+    ]);
+  });
+
+  it("preserva as bordas e fecha os meses do meio", () => {
+    expect(janelasMensais("2024-01-15", "2024-03-20")).toEqual([
+      { ini: "2024-01-15", fim: "2024-01-31" },
+      { ini: "2024-02-01", fim: "2024-02-29" }, // bissexto
+      { ini: "2024-03-01", fim: "2024-03-20" },
+    ]);
+  });
+
+  it("atravessa a virada do ano", () => {
+    expect(janelasMensais("2023-12-20", "2024-01-10")).toEqual([
+      { ini: "2023-12-20", fim: "2023-12-31" },
+      { ini: "2024-01-01", fim: "2024-01-10" },
+    ]);
+  });
+
+  it("mês inteiro rende uma janela só", () => {
+    expect(janelasMensais("2025-02-01", "2025-02-28")).toEqual([
+      { ini: "2025-02-01", fim: "2025-02-28" },
+    ]);
+  });
+
+  it("entrada inválida ou invertida não vira janela nenhuma", () => {
+    expect(janelasMensais("2024-03-20", "2024-03-05")).toEqual([]);
+    expect(janelasMensais("", "2024-03-05")).toEqual([]);
+  });
+
+  it("nenhuma janela ultrapassa um mês calendário", () => {
+    for (const j of janelasMensais("2020-01-01", "2022-12-31")) {
+      expect(j.ini.slice(0, 7), `${j.ini}→${j.fim}`).toBe(j.fim.slice(0, 7));
+    }
   });
 });

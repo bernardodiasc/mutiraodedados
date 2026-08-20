@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 export type TransferenciaRow = {
   id: string;
   numero: string;
+  codigo_siconv: string | null;
   modalidade: string | null;
   situacao: string | null;
   objeto: string | null;
@@ -36,11 +37,10 @@ export const listarTransferencias = createServerFn({ method: "POST" })
       .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
-    let q = supabaseAdmin
-      .from("transferegov_instrumentos_cache")
-      .select(
-        "id,numero,modalidade,situacao,objeto,orgao_concedente_nome,beneficiario_nome,uf_beneficiario,municipio_nome,valor_global,valor_repasse,data_assinatura,url_transferegov",
-      );
+    let q = supabaseAdmin.from("transferegov_instrumentos_cache").select(
+      // `codigo_siconv` monta a ficha no Transferegov; o Portal sai do id/número.
+      "id,numero,codigo_siconv,modalidade,situacao,objeto,orgao_concedente_nome,beneficiario_nome,uf_beneficiario,municipio_nome,valor_global,valor_repasse,data_assinatura,url_transferegov",
+    );
     if (data.sort === "valor_desc")
       q = q.order("valor_global", { ascending: false, nullsFirst: false });
     else if (data.sort === "repasse_desc")

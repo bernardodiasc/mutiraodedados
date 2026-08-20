@@ -46,9 +46,27 @@ import {
   monthRange,
   buildLimpezaPayload,
   resumirLimpeza,
+  precisaRenovarSessao,
+  janelasMensais,
 } from "@/lib/admin-import/logic";
 import { AdminImportView, type BatchProgress } from "@/components/AdminImportView";
 import type { CoberturaJob } from "@/components/CoberturaMatrix";
+
+/**
+ * Renova a sessão do Supabase quando o JWT está perto de expirar. Substitui o
+ * antigo "renovar a cada N jobs": getSession é leitura local (barata), então
+ * conferir antes de cada job custa nada e segue o relógio real do token.
+ */
+async function garantirSessaoValida(): Promise<void> {
+  try {
+    const { data } = await supabase.auth.getSession();
+    if (precisaRenovarSessao(data.session?.expires_at ?? null, Date.now())) {
+      await supabase.auth.refreshSession();
+    }
+  } catch {
+    /* tolerante — o job seguinte falha com 401 se a renovação não vingou */
+  }
+}
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = yearList(CURRENT_YEAR);
@@ -272,13 +290,7 @@ export function AdminImportContainer() {
       restantes = [];
       for (let i = 0; i < codsRodada.length; i++) {
         if (cancelRef.current) break;
-        if (i > 0 && i % 10 === 0) {
-          try {
-            await supabase.auth.refreshSession();
-          } catch {
-            /* tolerante */
-          }
-        }
+        await garantirSessaoValida();
         const cod = codsRodada[i];
         const o = ORGAOS_BASE.find((x) => x.cod === cod);
         const sigla = o ? o.sigla : cod;
@@ -363,45 +375,67 @@ export function AdminImportContainer() {
     null,
   );
   const MAX_RODADAS_ENTIDADE = 40;
+  type RodadaCgu = () => Promise<{
+    meta: {
+      importados: number;
+      erros: string[];
+      varredura?: { haMais: boolean; ultimaPagina: number };
+    };
+  }>;
+
+  /**
+   * Roda uma entidade do Portal CGU por JANELAS.
+   *
+   * Recebe uma janela por sub-período — licitações e convênios são recusados
+   * pela API acima de 1 mês — e, dentro de cada uma, repete rodadas até a
+   * varredura fechar. O operador escolhe o intervalo que quiser; o fatiamento
+   * é problema nosso.
+   */
   const rodarEntidadeCgu = async (
     entidade: "licitacoes" | "convenios" | "emendas",
     rotulo: string,
-    rodada: () => Promise<{
-      meta: {
-        importados: number;
-        erros: string[];
-        varredura?: { haMais: boolean; ultimaPagina: number };
-      };
-    }>,
+    janelas: RodadaCgu[],
   ) => {
     if (entidadeBusy || batch) {
       toast.error("Já existe uma importação em execução.");
+      return;
+    }
+    if (janelas.length === 0) {
+      toast.error(`${rotulo}: período inválido — confira as datas “de/até”.`);
       return;
     }
     setEntidadeBusy(entidade);
     cancelRef.current = false;
     let importados = 0;
     let erros = 0;
-    let rodadas = 0;
-    let haMais = true;
     let ultimaPagina = 0;
+    let incompletas = 0;
     try {
-      while (haMais && !cancelRef.current && rodadas < MAX_RODADAS_ENTIDADE) {
-        rodadas++;
-        const r = await rodada();
-        importados += r.meta.importados;
-        erros += r.meta.erros.length;
-        haMais = r.meta.varredura?.haMais ?? false;
-        ultimaPagina = r.meta.varredura?.ultimaPagina ?? ultimaPagina;
-        if (haMais) {
+      for (let j = 0; j < janelas.length; j++) {
+        if (cancelRef.current) break;
+        let haMais = true;
+        let rodadas = 0;
+        while (haMais && !cancelRef.current && rodadas < MAX_RODADAS_ENTIDADE) {
+          rodadas++;
+          const r = await janelas[j]();
+          importados += r.meta.importados;
+          erros += r.meta.erros.length;
+          haMais = r.meta.varredura?.haMais ?? false;
+          ultimaPagina = r.meta.varredura?.ultimaPagina ?? ultimaPagina;
+        }
+        if (haMais) incompletas++;
+        if (janelas.length > 1) {
           toast.message(
-            `${rotulo}: rodada ${rodadas} — ${importados} registros até a pág. ${ultimaPagina}; continuando…`,
+            `${rotulo}: janela ${j + 1}/${janelas.length} — ${importados} registros até aqui.`,
           );
         }
       }
-      if (haMais) {
+
+      if (cancelRef.current) {
+        toast.success(`${rotulo}: parado — ${importados} registros. Rode de novo para continuar.`);
+      } else if (incompletas > 0) {
         toast.warning(
-          `${rotulo}: varredura parcial (pág. ${ultimaPagina}) — rode novamente para continuar de onde parou.`,
+          `${rotulo}: ${incompletas} janela(s) incompleta(s) (última pág. ${ultimaPagina}) — rode novamente para continuar de onde parou.`,
         );
       } else {
         toast.success(`${rotulo}: concluído — ${importados} registros, ${erros} erro(s).`);
@@ -423,8 +457,14 @@ export function AdminImportContainer() {
       return;
     }
     const sigla = cobertos.find((x) => x.cod === orgao)?.sigla ?? orgao;
-    return rodarEntidadeCgu("licitacoes", `Licitações ${sigla} ${vigIni}→${vigFim}`, () =>
-      importLicFn({ data: { codigoOrgao: orgao, dataInicial: vigIni, dataFinal: vigFim } }),
+    // A API recusa período maior que 1 mês nestas entidades; fatiamos aqui.
+    return rodarEntidadeCgu(
+      "licitacoes",
+      `Licitações ${sigla} ${vigIni}→${vigFim}`,
+      janelasMensais(vigIni, vigFim).map(
+        (j) => () =>
+          importLicFn({ data: { codigoOrgao: orgao, dataInicial: j.ini, dataFinal: j.fim } }),
+      ),
     );
   };
 
@@ -435,13 +475,18 @@ export function AdminImportContainer() {
       );
       return;
     }
-    return rodarEntidadeCgu("convenios", `Convênios ${vigIni}→${vigFim}`, () =>
-      importConvFn({ data: { dataInicial: vigIni, dataFinal: vigFim } }),
+    return rodarEntidadeCgu(
+      "convenios",
+      `Convênios ${vigIni}→${vigFim}`,
+      janelasMensais(vigIni, vigFim).map(
+        (j) => () => importConvFn({ data: { dataInicial: j.ini, dataFinal: j.fim } }),
+      ),
     );
   };
 
   const onImportarEmendas = () => {
-    return rodarEntidadeCgu("emendas", `Emendas ${ano}`, () => importEmeFn({ data: { ano } }));
+    // Emendas filtram por ANO — não têm o limite de 1 mês, então é uma janela só.
+    return rodarEntidadeCgu("emendas", `Emendas ${ano}`, [() => importEmeFn({ data: { ano } })]);
   };
 
   const importarUnico = () => {
@@ -510,19 +555,17 @@ export function AdminImportContainer() {
     let importados = 0;
     let erros = 0;
     let errosTransitorios = 0;
+    // Jobs que falharam com erro transitório — re-tentados UMA vez ao fim do
+    // lote, quando a origem costuma já ter voltado. Antes, ficavam de fora até
+    // alguém rodar o lote de novo.
+    const transitoriosParaRetentar: CoberturaJob[] = [];
     const consecutivosPorFonte = new Map<string, number>();
     const fontesEmCircuito = new Set<string>();
     const fonteDoLabel = (label: string) => label.split(" · ")[0].trim();
     const PER_JOB_TIMEOUT_MS = 4 * 60 * 1000;
     for (let i = 0; i < jobs.length; i++) {
       if (cancelRef.current) break;
-      if (i > 0 && i % 10 === 0) {
-        try {
-          await supabase.auth.refreshSession();
-        } catch {
-          /* tolerante */
-        }
-      }
+      await garantirSessaoValida();
       const job = jobs[i];
       const fonte = fonteDoLabel(job.label);
       if (fontesEmCircuito.has(fonte)) continue;
@@ -547,6 +590,7 @@ export function AdminImportContainer() {
         const transitorio = msg.startsWith("TRANSIENT:") || msg.includes("timeout após");
         if (transitorio) {
           errosTransitorios += 1;
+          transitoriosParaRetentar.push(job);
           const n = (consecutivosPorFonte.get(fonte) ?? 0) + 1;
           consecutivosPorFonte.set(fonte, n);
           if (n >= 3) {
@@ -562,6 +606,41 @@ export function AdminImportContainer() {
         }
       }
     }
+    // Segunda chance: re-tenta uma vez os jobs com falha transitória (fora os
+    // de fontes em circuito aberto — essas continuam fora do ar).
+    let recuperados = 0;
+    let persistiram = 0;
+    if (!cancelRef.current && transitoriosParaRetentar.length > 0) {
+      for (const job of transitoriosParaRetentar) {
+        if (cancelRef.current) break;
+        if (fontesEmCircuito.has(fonteDoLabel(job.label))) continue;
+        await garantirSessaoValida();
+        setBatch({
+          total: jobs.length,
+          done: jobs.length,
+          current: `re-tentando: ${job.label}`,
+          importados,
+          erros,
+        });
+        try {
+          importados += job.noTimeout
+            ? await job.run()
+            : await Promise.race<number>([
+                job.run(),
+                new Promise<number>((_, reject) =>
+                  setTimeout(
+                    () =>
+                      reject(new Error(`timeout após ${Math.round(PER_JOB_TIMEOUT_MS / 1000)}s`)),
+                    PER_JOB_TIMEOUT_MS,
+                  ),
+                ),
+              ]);
+          recuperados += 1;
+        } catch {
+          persistiram += 1;
+        }
+      }
+    }
     setBatch({
       total: jobs.length,
       done: jobs.length,
@@ -571,7 +650,10 @@ export function AdminImportContainer() {
     });
     const partes = [`${importados} ${unidade}`];
     if (erros > 0) partes.push(`${erros} erros`);
-    if (errosTransitorios > 0) partes.push(`${errosTransitorios} indisponíveis (retomáveis)`);
+    if (recuperados > 0) partes.push(`${recuperados} recuperados na re-tentativa`);
+    if (persistiram > 0) partes.push(`${persistiram} seguem indisponíveis (retomáveis)`);
+    else if (errosTransitorios > 0 && recuperados === 0)
+      partes.push(`${errosTransitorios} indisponíveis (retomáveis)`);
     toast.success(`${title}: ${partes.join(" · ")}`);
     setTimeout(() => setBatch(null), 4000);
   };
@@ -681,10 +763,25 @@ export function AdminImportContainer() {
   const onImportarVotsCamara = async () => {
     setCamaraBusy("vots");
     try {
-      const r = await importarVotsFn({
-        data: { dataInicio: votIni, dataFim: votFim, maxPaginas: 3 },
-      });
-      toast.success(`${r.votacoes} votações, ${r.votos} votos nominais.`);
+      // Varredura retomável por votação — repete rodadas até completar. Antes
+      // era uma chamada só, com `maxPaginas: 3` de trava: uma pauta de mês
+      // estourava o limite do Worker e voltava sem nada e sem log.
+      const MAX_RODADAS = 200;
+      let votacoes = 0;
+      let votos = 0;
+      let completou = false;
+      for (let i = 0; i < MAX_RODADAS; i++) {
+        const res = await importarVotsFn({ data: { dataInicio: votIni, dataFim: votFim } });
+        votacoes += res.votacoes;
+        votos += res.votos;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
+      toast.success(
+        `${votacoes} votações, ${votos} votos nominais${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -744,8 +841,23 @@ export function AdminImportContainer() {
   const onImportarMatSenado = async () => {
     setSenadoBusy("mat");
     try {
-      const r = await importarMatSenFn({ data: { ano, sigla: "PL" } });
-      toast.success(`Matérias PL/${ano}: ${r.importados} (${r.autores} autores).`);
+      // Varredura retomável por matéria — repete rodadas até completar.
+      const MAX_RODADAS = 500;
+      let mats = 0;
+      let autores = 0;
+      let completou = false;
+      for (let r = 0; r < MAX_RODADAS; r++) {
+        const res = await importarMatSenFn({ data: { ano, sigla: "PL" } });
+        mats += res.importados;
+        autores += res.autores;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
+      toast.success(
+        `Matérias PL/${ano}: ${mats} (${autores} autores)${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
+      );
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -756,9 +868,22 @@ export function AdminImportContainer() {
     setSenadoBusy("vot");
     try {
       const r = monthRange(ano, mes);
-      const res = await importarVotSenFn({ data: { dataInicio: r.ini, dataFim: r.fim } });
+      // Varredura retomável por votação — repete rodadas até completar.
+      const MAX_RODADAS = 200;
+      let sessoes = 0;
+      let votos = 0;
+      let completou = false;
+      for (let i = 0; i < MAX_RODADAS; i++) {
+        const res = await importarVotSenFn({ data: { dataInicio: r.ini, dataFim: r.fim } });
+        sessoes += res.votacoes;
+        votos += res.votos;
+        if (!res.varredura.haMais) {
+          completou = true;
+          break;
+        }
+      }
       toast.success(
-        `Votações ${MONTHS[mes - 1]}/${ano}: ${res.votacoes} sessões, ${res.votos} votos.`,
+        `Votações ${MONTHS[mes - 1]}/${ano}: ${sessoes} sessões, ${votos} votos${completou ? "" : " (parcial — rode de novo para continuar)"}.`,
       );
     } catch (e) {
       toast.error((e as Error).message);

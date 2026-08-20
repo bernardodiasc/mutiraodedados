@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { precisaRenovarSessao } from "@/lib/admin-import/logic";
 import {
   listarProgressoTse,
   sincronizarTseBens,
@@ -106,12 +107,13 @@ export function TseImportPanelContainer() {
           }
         } while (!cancelRef.current);
         if (cancelRef.current) break;
-        if (i % 5 === 4) {
-          try {
+        try {
+          const { data: sess } = await supabase.auth.getSession();
+          if (precisaRenovarSessao(sess.session?.expires_at ?? null, Date.now())) {
             await supabase.auth.refreshSession();
-          } catch {
-            /* tolerante */
           }
+        } catch {
+          /* tolerante */
         }
       }
       toast.success(

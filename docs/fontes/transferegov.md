@@ -1,9 +1,38 @@
 # Transferegov
 
 - **URL base (convênios)**: via Portal CGU `/convenios` — usa o mesmo cliente do [Portal CGU](./portal-cgu.md).
-- **URL base (emendas Pix)**: API direta do Transferegov (`discricionarias.transferegov.sistema.gov.br`).
+- **URL base (emendas Pix)**: API aberta do Transferegov — `api.transferegov.dth.api.gov.br/transferenciasespeciais/plano_acao_especial`. (`discricionarias.transferegov.sistema.gov.br` é o site de consulta, usado só como link de saída.)
 - **Janela**: convênios desde 2017 (consistência consolidada); emendas Pix desde 2020.
 - **Documentação oficial**: <https://www.gov.br/transferegov/pt-br>
+
+## Por que os convênios não vêm da API do Transferegov
+
+Porque a API deles não existe. Verificado contra o portal e contra os specs em
+**2026-08-20** — refazer o teste antes de confiar nesta seção de novo.
+
+O portal <https://api-publica.transferegov.gestao.gov.br> separa três **APIs**
+de um **download**:
+
+| Módulo                                  | Acesso           | Base                                                 |
+| --------------------------------------- | ---------------- | ---------------------------------------------------- |
+| Transferências Especiais                | API              | `api-publica.transferegov.gestao.gov.br/especiais`   |
+| Gestão de Parcerias                     | API              | `api-publica.transferegov.gestao.gov.br/parcerias`   |
+| Transferências Fundo a Fundo            | API              | `api-publica.transferegov.gestao.gov.br/fundoafundo` |
+| Transferências Discricionárias e Legais | **arquivos CSV** | `api-publica.transferegov.gestao.gov.br/downloads`   |
+
+**Convênios e contratos de repasse vivem no último** — o próprio portal os
+nomeia ali. Só CSV; a API está em cronograma oficial, com "Instrumentos"
+previsto entre nov/2026 e fev/2027.
+
+**Cuidado com o nome "Gestão de Parcerias".** Parece cobrir convênios e não
+cobre: a palavra "convênio" não aparece nenhuma vez no OpenAPI dessa API (18
+rotas), e os `tp_instrumento` reais de `/programa` são fundo a fundo, PRONON/
+PRONAS, contrato de gestão, multa ambiental e incentivo à reciclagem. A
+colisão de vocabulário já produziu a conclusão errada uma vez.
+
+Consequência de redação, para código e para tela: **nada no projeto pode dizer
+que os convênios vêm da API do Transferegov**. Eles vêm da CGU, que espelha o
+Transferegov. Caminhos de saída estão no [ROADMAP.md](../../ROADMAP.md).
 
 ## Relação com o Portal CGU (dois eixos)
 
