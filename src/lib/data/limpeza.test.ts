@@ -21,6 +21,7 @@ const TABELAS_CACHE_DO_BANCO = [
   "cgu_transferegov_emendas_cache",
   "contratos_cache",
   "fornecedores_cache",
+  "ibge_municipios_cache",
   "orgaos_cache",
   "pncp_contratos_cache",
   "senado_despesas_cache",

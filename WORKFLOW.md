@@ -103,6 +103,7 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** nenhuma. A próxima a abrir é a **v0.7.0** — `/cobertura` completa e legível + IBGE como fonte ([ROADMAP.md](./ROADMAP.md)).
-- **Última release fechada:** v0.6.0, em 2026-08-20 ([RELEASES.md](./RELEASES.md)) — experiência de importação padronizada, validada com testes manuais do mantenedor.
+- **Modo autônomo autorizado (2026-08-20):** o mantenedor autorizou fechar as releases v0.7.0–v0.11.0 com o workflow completo (fechamento, sync, PR, merge, tags, GitHub Release) **sem confirmação individual**; os testes manuais acontecem numa rodada única após a v0.11.0.
+- **Release em andamento:** nenhuma — v0.8.0 (matérias do Senado → `/processo`) abre em seguida.
+- **Última release fechada:** v0.7.0, em 2026-08-20 ([RELEASES.md](./RELEASES.md)).
 - **Pendências conhecidas:** decisão de endurecimento aguardando o mantenedor em `.claude/decisoes-pendentes.md`. Os 16 warnings de lint são o padrão shadcn/ui e não bloqueiam.

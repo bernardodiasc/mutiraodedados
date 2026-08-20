@@ -857,6 +857,27 @@ export type Database = {
         };
         Relationships: [];
       };
+      ibge_municipios_cache: {
+        Row: {
+          codigo: string;
+          nome: string;
+          uf: string;
+          updated_at: string;
+        };
+        Insert: {
+          codigo: string;
+          nome: string;
+          uf: string;
+          updated_at?: string;
+        };
+        Update: {
+          codigo?: string;
+          nome?: string;
+          uf?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       importacao_varredura: {
         Row: {
           atualizado_em: string;

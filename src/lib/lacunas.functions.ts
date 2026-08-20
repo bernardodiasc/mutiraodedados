@@ -202,3 +202,41 @@ export const converterFindingEmLacuna = createServerFn({ method: "POST" })
     }
     return row as Lacuna;
   });
+
+const listarAdminSchema = z
+  .object({
+    tipo: z.enum(LACUNA_TIPOS).optional(),
+    ciclo: z.enum(LACUNA_CICLOS).optional(),
+    publicada: z.boolean().optional(),
+    limit: z.number().int().min(1).max(500).optional(),
+  })
+  .optional();
+
+/**
+ * Listagem completa para `/admin/lacunas` — inclui as não publicadas, que a
+ * listagem pública nunca devolve. Service role após checagem de admin, como
+ * nas demais listagens administrativas.
+ */
+export const listarLacunasAdmin = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: unknown) => listarAdminSchema.parse(data))
+  .handler(async ({ context, data }) => {
+    const { supabase, userId } = context;
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (!isAdmin) throw new Error("Apenas administradores podem listar todas as lacunas.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let q = supabaseAdmin
+      .from("lacunas")
+      .select(COLS)
+      .order("created_at", { ascending: false })
+      .limit(data?.limit ?? 200);
+    if (data?.tipo) q = q.eq("tipo", data.tipo);
+    if (data?.ciclo) q = q.eq("ciclo", data.ciclo);
+    if (data?.publicada !== undefined) q = q.eq("publicada", data.publicada);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(`Falha ao listar lacunas: ${error.message}`);
+    return (rows ?? []) as Lacuna[];
+  });

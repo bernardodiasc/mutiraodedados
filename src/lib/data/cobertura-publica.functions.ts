@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { entradaCatalogoCobertura } from "@/lib/data/cobertura-catalogo";
 
 export type FonteCobertura = {
   id: string;
@@ -136,6 +137,14 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countTseReceitas,
       countTseDespesas,
       updTse,
+      camProps,
+      senMat,
+      countCamProps,
+      countSenMat,
+      countOrgaos,
+      updOrgaos,
+      countIbge,
+      updIbge,
     ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
       supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
@@ -168,6 +177,14 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       countOf("tse_receitas_campanha_cache"),
       countOf("tse_despesas_campanha_cache"),
       maxUpdated("tse_candidatos_cache"),
+      supabaseAdmin.rpc("cobertura_camara_proposicoes"),
+      supabaseAdmin.rpc("cobertura_senado_materias"),
+      countOf("camara_proposicoes_cache"),
+      countOf("senado_materias_cache"),
+      countOf("orgaos_cache"),
+      maxUpdated("orgaos_cache"),
+      countOf("ibge_municipios_cache"),
+      maxUpdated("ibge_municipios_cache"),
     ]);
 
     const cguRows = ((cgu.data as RpcRowOrgao[] | null) ?? []).map((r) => ({
@@ -220,6 +237,14 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       ...r,
       qtd: Number(r.qtd),
     }));
+    const camPropsRows = ((camProps.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
+    const senMatRows = ((senMat.data as RpcRow[] | null) ?? []).map((r) => ({
+      ...r,
+      qtd: Number(r.qtd),
+    }));
 
     const ultimo = (rows: { ultimo: string | null }[]): string | null => {
       let max: string | null = null;
@@ -229,21 +254,22 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       return max;
     };
 
+    // Título, descrição, rota e granularidade vêm do catálogo — o teste-guarda
+    // cruza o catálogo com FONTES_COM_HISTORICO, então fonte nova sem entrada
+    // lá quebra a suíte antes de sumir da página.
     const mkFonte = (
       id: string,
-      titulo: string,
-      descricao: string,
       rows: { ano: number; mes: number; qtd: number; ultimo: string | null }[],
       total: number,
-      rota: string | undefined,
-      granularidade: FonteCobertura["granularidade"] = "mes",
+      descricaoExtra?: string,
     ): FonteCobertura => {
+      const meta = entradaCatalogoCobertura(id);
       const { primeira, ultima } = rangeDeAnoMes(rows);
       return {
         id,
-        titulo,
-        descricao,
-        granularidade,
+        titulo: meta.titulo,
+        descricao: descricaoExtra ? `${meta.descricao} ${descricaoExtra}` : meta.descricao,
+        granularidade: meta.granularidade,
         totalRegistros: total,
         ultimaAtualizacao: ultimo(rows),
         primeiraData: primeira,
@@ -253,140 +279,55 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
           .filter((r) => r.ano && r.mes && r.qtd > 0)
           .map((r) => ({ ano: r.ano, mes: r.mes, qtd: r.qtd })),
         mesesAnoCorrente: mesesPresentes(rows, anoCorrente),
-        rota,
+        rota: meta.rota ?? undefined,
+      };
+    };
+
+    /** Cadastro vigente: sem série — contagem e última atualização. */
+    const mkCadastro = (id: string, total: number, upd: string | null): FonteCobertura => {
+      const meta = entradaCatalogoCobertura(id);
+      return {
+        id,
+        titulo: meta.titulo,
+        descricao: meta.descricao,
+        granularidade: "cadastro",
+        totalRegistros: total,
+        ultimaAtualizacao: upd,
+        primeiraData: null,
+        ultimaData: null,
+        porAno: [],
+        porAnoMes: [],
+        mesesAnoCorrente: [],
+        rota: meta.rota ?? undefined,
       };
     };
 
     const fontes: FonteCobertura[] = [
-      mkFonte(
-        "cgu",
-        "Portal CGU — contratos do Executivo",
-        "Contratos publicados pelo Portal da Transparência para órgãos do Executivo federal.",
-        cguRows,
-        countCgu,
-        "/orgaos",
-      ),
-      mkFonte(
-        "cgu_licitacoes",
-        "Portal CGU — licitações do Executivo",
-        "Licitações publicadas pelo Portal da Transparência para órgãos do Executivo federal.",
-        cguLicRows,
-        countCguLic,
-        "/licitacoes",
-      ),
-      mkFonte(
-        "cgu_emendas",
-        "Portal CGU — emendas parlamentares",
-        "Emendas parlamentares (empenho, liquidação e pagamento) publicadas pelo Portal da Transparência, por ano.",
-        cguEmeRows,
-        countCguEme,
-        "/emendas",
-        "ano",
-      ),
-      mkFonte(
-        "cgu_convenios",
-        "Portal CGU — convênios",
-        "Convênios e contratos de repasse da União, pelo endpoint /convenios do Portal da Transparência.",
-        cguConvRows,
-        countCguConv,
-        "/convenios",
-      ),
-      mkFonte(
-        "pncp",
-        "PNCP — contratos públicos",
-        "Contratos publicados no Portal Nacional de Contratações Públicas (União, Estados, Municípios).",
-        pncpRows,
-        countPncp,
-        "/pncp",
-      ),
-      mkFonte(
-        "transferegov",
-        "Convênios por ente (Portal CGU)",
-        "Convênios e contratos de repasse União ↔ Estados/Municípios, pelo ângulo de quem recebe. O Transferegov é o sistema de origem; a consulta é ao Portal da Transparência.",
-        transfRows,
-        countTransf,
-        "/transferegov",
-      ),
-      mkFonte(
-        "siconfi",
-        "SICONFI — relatórios fiscais",
-        "RREO/RGF/DCA por exercício e período (granularidade por período do ano).",
-        siconfiRows,
-        countSiconfi,
-        "/relatorios-fiscais",
-        "periodo",
-      ),
-      mkFonte(
-        "camara_ceap",
-        "Câmara — CEAP (cota parlamentar)",
-        "Notas fiscais de cota parlamentar dos ~513 deputados federais.",
-        camCeapRows,
-        countCamCeap,
-        "/camara/deputados",
-      ),
-      mkFonte(
-        "camara_vot",
-        "Câmara — votações nominais",
-        "Votações registradas em plenário e comissões da Câmara.",
-        camVotRows,
-        countCamVot,
-        "/camara/votacoes",
-      ),
-      mkFonte(
-        "senado_ceaps",
-        "Senado — CEAPS (cota parlamentar)",
-        "Notas fiscais de cota parlamentar dos 81 senadores.",
-        senCeapsRows,
-        countSenCeaps,
-        "/senado/senadores",
-      ),
-      mkFonte(
-        "senado_vot",
-        "Senado — votações",
-        "Votações registradas no Senado Federal.",
-        senVotRows,
-        countSenVot,
-        "/senado/votacoes",
-      ),
-      {
-        id: "camara_deputados",
-        titulo: "Câmara — cadastro de deputados",
-        descricao: "Cadastro vigente de parlamentares da Câmara dos Deputados.",
-        granularidade: "cadastro",
-        totalRegistros: countDeputados,
-        ultimaAtualizacao: updDeputados,
-        primeiraData: null,
-        ultimaData: null,
-        porAno: [],
-        porAnoMes: [],
-        mesesAnoCorrente: [],
-        rota: "/camara/deputados",
-      },
+      mkFonte("cgu", cguRows, countCgu),
+      mkFonte("cgu_licitacoes", cguLicRows, countCguLic),
+      mkFonte("cgu_emendas", cguEmeRows, countCguEme),
+      mkFonte("cgu_convenios", cguConvRows, countCguConv),
+      mkFonte("pncp", pncpRows, countPncp),
+      mkFonte("transferegov", transfRows, countTransf),
+      mkFonte("siconfi", siconfiRows, countSiconfi),
+      mkFonte("camara_ceap", camCeapRows, countCamCeap),
+      mkFonte("camara_vot", camVotRows, countCamVot),
+      mkFonte("camara_props", camPropsRows, countCamProps),
+      mkCadastro("camara_deputados", countDeputados, updDeputados),
+      mkFonte("senado_ceaps", senCeapsRows, countSenCeaps),
+      mkFonte("senado_vot", senVotRows, countSenVot),
+      mkFonte("senado_mat", senMatRows, countSenMat),
+      mkCadastro("senado_senadores", countSenadores, updSenadores),
+      mkCadastro("orgaos_siafi", countOrgaos, updOrgaos),
+      mkCadastro("ibge", countIbge, updIbge),
       mkFonte(
         "tse",
-        "TSE — eleições (candidatos, bens, votos e contas)",
-        `Dados abertos eleitorais de 1998 em diante (bens a partir de 2006, contas a partir de 2012). Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
         ((tseContagem.data as { ano_eleicao: number; candidatos: number }[] | null) ?? []).map(
           (r) => ({ ano: r.ano_eleicao, mes: 1, qtd: Number(r.candidatos), ultimo: updTse }),
         ),
         countTseCandidatos,
-        "/eleicoes",
-        "ano",
+        `Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
       ),
-      {
-        id: "senado_senadores",
-        titulo: "Senado — cadastro de senadores",
-        descricao: "Cadastro vigente de parlamentares do Senado Federal.",
-        granularidade: "cadastro",
-        totalRegistros: countSenadores,
-        ultimaAtualizacao: updSenadores,
-        primeiraData: null,
-        ultimaData: null,
-        porAno: [],
-        porAnoMes: [],
-        mesesAnoCorrente: [],
-        rota: "/senado/senadores",
-      },
     ];
 
     return { geradoEm: new Date().toISOString(), anoCorrente, fontes };

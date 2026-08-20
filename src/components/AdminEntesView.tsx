@@ -63,6 +63,7 @@ export type AdminEntesViewProps = {
   onImportSiconfi: () => void;
   onImportSiconfiConjunto: () => void;
   onImportTransferegov: () => void;
+  onImportIbge: () => void;
   // Varredura em massa do SICONFI
   conjunto: ConjuntoSiconfi;
   setConjunto: (v: ConjuntoSiconfi) => void;
@@ -211,6 +212,7 @@ export function AdminEntesView(props: AdminEntesViewProps) {
     onImportSiconfi,
     onImportSiconfiConjunto,
     onImportTransferegov,
+    onImportIbge,
     conjunto,
     setConjunto,
     ufVarredura,
@@ -559,6 +561,27 @@ export function AdminEntesView(props: AdminEntesViewProps) {
           progresso={progressoFontes["Transferegov"] ?? null}
           rodando={busy("Transferegov")}
           onParar={() => onCancelarFonte("Transferegov")}
+        />
+      </Secao>
+
+      <Secao
+        icone={<Database className="size-4 text-accent" />}
+        titulo="5. IBGE — cadastro de municípios"
+        descricao={
+          <>
+            Os 5.570 municípios (código IBGE, nome e UF) que alimentam o seletor de ente acima e as
+            varreduras por município. Cadastro vigente — reimportar atualiza; não depende do mês
+            selecionado.
+          </>
+        }
+      >
+        <Button disabled={busy("IBGE")} onClick={onImportIbge}>
+          {busy("IBGE") ? <Loader2 className="size-4 animate-spin" /> : "Importar cadastro"}
+        </Button>
+        <ProgressoPaginado
+          progresso={progressoFontes["IBGE"] ?? null}
+          rodando={busy("IBGE")}
+          onParar={() => onCancelarFonte("IBGE")}
         />
       </Secao>
     </div>

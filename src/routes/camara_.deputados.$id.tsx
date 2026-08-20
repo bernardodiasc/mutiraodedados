@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
@@ -94,6 +95,9 @@ function DeputadoDetalhe() {
                 {deputado.idLegislatura ? ` · Legislatura ${deputado.idLegislatura}` : ""}
               </span>
               {deputado.situacao && <SituacaoBadge situacao={deputado.situacao} />}
+            </div>
+            <div className="mt-3">
+              <QualidadeBanner agregado="deputado" agregadoId={String(deputado.id)} />
             </div>
             {deputado.email && (
               <a

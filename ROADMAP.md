@@ -8,21 +8,11 @@ Estabilizar as funcionalidades existentes para **importar todos os dados histór
 
 ## Release em andamento
 
-Nenhuma. A próxima a abrir é a **v0.7.0** do backlog abaixo.
+Nenhuma — a próxima do backlog abre em seguida.
 
 ## Backlog sequenciado
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
-
-### v0.7.0 — `/cobertura` completa e legível + IBGE como fonte
-
-Duas frentes que se encontram na mesma tela.
-
-**`/cobertura` organizada.** Após os testes manuais da v0.6.0 o mantenedor apontou fontes e dados faltando. Levantar, antes de mexer: quais dos 17 ids que gravam rodada em `importacoes` (lista em `src/lib/data/fonte-rotulos.ts`) têm linha na cobertura, e quais não têm; se cada um usa a granularidade certa (mês, ano, período fiscal); e se as RPCs de cobertura cobrem todas as tabelas `*_cache`. O teste-guarda de paridade deve valer aqui como já vale para limpeza e sinais — uma lista-espelho que falha quando uma fonte nova não aparece na cobertura.
-
-**IBGE vira fonte de dados de primeira classe**, com o mesmo tratamento das demais: tabela de cache dos entes federativos, importação retomável, entrada em `FONTES_LIMPEZA`, cobertura e janela. Hoje a lista de municípios é buscada no navegador a cada uso e a de UFs é constante no código — nenhuma das duas passa pelo contrato de fonte.
-
-Aceite: toda fonte que grava rodada aparece em `/cobertura`, com teste-guarda; IBGE sob o contrato de fonte.
 
 ### v0.8.0 — Matérias do Senado migram para `/processo`
 
@@ -55,7 +45,19 @@ Dois caminhos, e o primeiro não depende de esperar:
 
 Em qualquer um dos dois, `transferegov_instrumentos_cache` passa a ser alimentada pela origem e o seletor de `/convenios` volta a distinguir **fontes**, não só ângulos de leitura.
 
-### v0.11.0 — Fontes novas que a API do Transferegov já expõe
+### v0.11.0 — Automação periódica das importações
+
+Não implementar antes das releases acima. Desenho já validado contra a infra:
+
+- Rota de servidor sem UI (server route do TanStack Start) que valida um segredo em header contra `process.env.CRON_SECRET` (secret gerenciado como os demais do projeto) e executa **uma rodada com orçamento** do runner da v0.3.0, retornando `{concluido, proximoCursor}`.
+- Agendador, em ordem de preferência: (a) `pg_cron` + `pg_net` no Supabase — extensões disponíveis no banco do projeto, habilitáveis por migration; (b) agendador externo (ex.: Make) chamando o mesmo endpoint com o mesmo segredo. Cron trigger nativo do Worker descartado como caminho principal (sem suporte documentado no pipeline de deploy gerenciado).
+- Requisitos: endpoint nunca aberto (segredo obrigatório, 401 sem detalhe); lock no banco contra concorrência com rodadas manuais do admin.
+
+## Horizonte
+
+Sem números de versão — a ordem aqui muda com frequência; só marcos MAJOR são versionados.
+
+### Fontes novas que a API do Transferegov já expõe
 
 O levantamento de 2026-08-20 achou dois módulos com API aberta que o projeto **não** cobre, ambos com dinheiro que hoje escapa da plataforma:
 
@@ -64,28 +66,11 @@ O levantamento de 2026-08-20 achou dois módulos com API aberta que o projeto **
 
 Avaliar valor cívico antes de priorizar: nenhum dos dois é convênio, e o nome "parcerias" não deve ser lido como tal.
 
-### v0.12.0 — Qualidade visível
+### Carga histórica em massa (operação, não engenharia)
 
-- Criar `/admin/lacunas` — UI para `converterFindingEmLacuna`/`criarLacuna`/`atualizarLacuna` (`src/lib/lacunas.functions.ts`), fechando o fluxo descrito em `docs/dominios/laboratorio-civico.md`.
-- `QualidadeBanner` nas fichas de fornecedor, órgão, deputado e senador.
-
-Aceite: fluxo finding→lacuna ponta a ponta pela UI; banners nas 4 superfícies; checklist de feature de `docs/padroes/desenvolvimento.md` cumprido.
-
-### v0.13.0 — Carga histórica em massa
-
-Release operacional: importar, fonte a fonte, a janela histórica máxima suportada (CGU, TSE, Câmara/Senado, PNCP, Transferegov, SICONFI), com plano próprio em `docs/planos/v0.13.0-carga-historica.md` definindo janela-alvo, ordem e estimativas por fonte.
+A **capacidade** já foi entregue nas v0.3.0–v0.7.0 (varredura em massa, retomada, orçamento, histórico, classificação de resultado). O que resta é a **operação**: rodar, fonte a fonte, a janela histórica máxima suportada (CGU, TSE, Câmara/Senado, PNCP, SICONFI) — trabalho de operador no site, que combina com a rodada de testes manuais do mantenedor. Plano operacional próprio em `docs/planos/carga-historica.md` quando for começar, definindo janela-alvo, ordem e estimativas por fonte.
 
 Aceite: cobertura-alvo por fonte atingida e registrada em `/admin/dados`; findings triados ou convertidos em lacunas; nenhuma varredura travada; RELEASES.md documenta a cobertura final.
-
-## Horizonte
-
-### v0.14.0 — Automação periódica das importações
-
-Não implementar antes das releases acima. Desenho já validado contra a infra:
-
-- Rota de servidor sem UI (server route do TanStack Start) que valida um segredo em header contra `process.env.CRON_SECRET` (secret gerenciado como os demais do projeto) e executa **uma rodada com orçamento** do runner da v0.3.0, retornando `{concluido, proximoCursor}`.
-- Agendador, em ordem de preferência: (a) `pg_cron` + `pg_net` no Supabase — extensões disponíveis no banco do projeto, habilitáveis por migration; (b) agendador externo (ex.: Make) chamando o mesmo endpoint com o mesmo segredo. Cron trigger nativo do Worker descartado como caminho principal (sem suporte documentado no pipeline de deploy gerenciado).
-- Requisitos: endpoint nunca aberto (segredo obrigatório, 401 sem detalhe); lock no banco contra concorrência com rodadas manuais do admin.
 
 ### v1.0.0 — Critérios de primeira versão estável
 

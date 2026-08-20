@@ -442,6 +442,18 @@ async function resolverEntes(
     return [{ codigo: codIbge, nome: codIbge, uf: uf ?? "" }];
   }
   if (!uf) throw new Error("Informe a UF para varrer os municípios.");
+  // Cadastro próprio primeiro (ibge_municipios_cache, v0.7.0) — cada rodada
+  // da varredura re-lia a lista na API do IBGE, uma dependência externa a
+  // mais para falhar no meio de uma carga longa. A API fica de fallback
+  // enquanto o cache não foi importado.
+  const { data: doCache } = await supabaseAdmin
+    .from("ibge_municipios_cache")
+    .select("codigo,nome")
+    .eq("uf", uf.toUpperCase())
+    .order("codigo");
+  if (doCache && doCache.length > 0) {
+    return doCache.map((m) => ({ codigo: m.codigo, nome: m.nome, uf }));
+  }
   const res = await fetchComRetry(
     `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(uf)}/municipios`,
     { headers: { accept: "application/json" } },

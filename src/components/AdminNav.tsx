@@ -9,12 +9,14 @@ import {
   ShieldCheck,
   HelpCircle,
   Sparkles,
+  CircleDashed,
   type LucideIcon,
 } from "lucide-react";
 
 export type AdminSection = {
   to:
     | "/admin/dados"
+    | "/admin/lacunas"
     | "/admin/qualidade"
     | "/admin/roadmap"
     | "/admin/artigos"
@@ -48,6 +50,12 @@ export const ADMIN_SECTIONS: AdminSection[] = [
     label: "Dados",
     description: "Ingestão multi-fonte, cobertura, governança e manutenção do banco.",
     icon: Database,
+  },
+  {
+    to: "/admin/lacunas",
+    label: "Lacunas",
+    description: "Camada curada sobre os findings: o que deveria existir e não é encontrado.",
+    icon: CircleDashed,
   },
   {
     to: "/admin/marcacoes",

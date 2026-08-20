@@ -202,6 +202,13 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     tentativaFonte: "transferegov",
   },
   {
+    id: "ibge",
+    label: "IBGE — municípios",
+    descricao: "Cadastro de municípios (código IBGE, nome, UF). Reimportável a qualquer momento.",
+    table: "ibge_municipios_cache",
+    tentativaFonte: "ibge",
+  },
+  {
     id: "tse_candidatos",
     label: "TSE — candidatos",
     descricao: "Catálogo eleitoral (candidaturas de 1998 em diante).",
