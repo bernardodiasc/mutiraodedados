@@ -14,12 +14,6 @@ Nenhuma — a próxima do backlog abre em seguida.
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
 
-### v0.8.0 — Matérias do Senado migram para `/processo`
-
-O endpoint `materia/pesquisa/lista` passou da data de desativação que ele mesmo anuncia (2026-02-01) e já mudou o formato uma vez sem avisar — o que fez a varredura descartar 902 matérias em silêncio e registrar "consultado, sem dados". O substituto oficial é `legis.senado.leg.br/dadosabertos/processo`.
-
-Aceite: `senado_materias_cache` alimentada pelo novo serviço, sob o mesmo contrato de fonte; o endpoint velho sai do código; `docs/fontes/senado.md` perde o aviso de descontinuação.
-
 ### v0.9.0 — Uma tabela para convênios, com coluna de fonte
 
 Hoje o mesmo convênio pode existir em `cgu_convenios_cache` **e** em `transferegov_instrumentos_cache`, vindo do mesmo endpoint e da mesma requisição. A comparação das duas (2026-08-20) mostra que a separação não guarda dados diferentes:

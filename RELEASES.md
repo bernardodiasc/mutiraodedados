@@ -23,6 +23,28 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.8.0 — 2026-08-20
+
+**Resumo:** as matérias do Senado saem do endpoint descontinuado `materia/pesquisa/lista` — que passou da data de desativação anunciada por ele mesmo (2026-02-01) e já quebrou o formato uma vez em silêncio — para o substituto oficial `/processo`, verificado contra a origem.
+
+**Entregas**
+
+- Ingest de matérias sobre `GET /processo?ano=&sigla=`: JSON estável, o ano inteiro de uma sigla numa chamada; runner, histórico e contagem de descartes idênticos aos anteriores.
+- `parseIdentificacao` ("PL 8/2025" → sigla, número, ano) exportada e testada — a última quebra de formato passou despercebida justamente por o parse ser implícito.
+- Autoria da lista alimenta `autor_principal` e a linha Principal de autores; a autoria estruturada do detalhe `/processo/{id}` foi avaliada e descartada (uma chamada por matéria), com o caminho documentado.
+- Endpoint velho removido do código; `docs/fontes/senado.md` atualizado.
+
+**Checks executados**
+
+- `bun run test` ✓ — 71 arquivos, 764 testes (2 novos do parser).
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- API `/processo` exercitada contra a origem em 2026-08-20 (879 itens de PL/2025, campos conferidos um a um).
+- Validação manual adiada — rodada única após a v0.11.0 (autorização registrada no WORKFLOW).
+
+**Plano:** sem plano dedicado — escopo no ROADMAP.
+
+**PR de sync público:** `sync v0.8.0`.
+
 ## v0.7.0 — 2026-08-20
 
 **Resumo:** completa a tríade importar → medir → curar. A `/cobertura` passa a mostrar toda fonte que grava rodada (três estavam fora), com teste-guarda de paridade; o IBGE vira fonte de primeira classe sob o contrato padrão; e o escopo de qualidade do plano original sai do papel — `/admin/lacunas` fecha o fluxo finding→lacuna e o banner de qualidade chega às fichas de fornecedor, órgão, deputado e senador.
