@@ -161,8 +161,10 @@ export const buscaGlobal = createServerFn({ method: "POST" })
       data_inicio_vigencia: string | null;
     }> = [];
     {
+      // Tabela única de convênios (v0.9.0) — a busca fazia DUAS consultas, uma
+      // por "eixo", sobre os mesmos registros, e devolvia grupos duplicados.
       let qConv = supabaseAdmin
-        .from("cgu_convenios_cache")
+        .from("convenios_cache")
         .select("id,numero,orgao_nome,convenente_nome,uf,municipio_nome,valor,data_inicio_vigencia")
         .order("data_inicio_vigencia", { ascending: false, nullsFirst: false })
         .limit(data.limit);
@@ -186,47 +188,10 @@ export const buscaGlobal = createServerFn({ method: "POST" })
           .join(" "),
         valor: Number(r.valor ?? 0),
         data: r.data_inicio_vigencia,
-        // Página interna de detalhe (lê cgu_convenios_cache — mesmo cache
-        // desta busca), com link para a fonte oficial lá dentro.
+        // Página interna de detalhe (lê a mesma convenios_cache desta busca),
+        // com links para as fontes oficiais lá dentro.
         href: `/convenios/${encodeURIComponent(r.id)}`,
       }));
-
-    // --- Transferegov / Convênios ---
-    let qTransf = supabaseAdmin
-      .from("transferegov_instrumentos_cache")
-      .select(
-        "id,numero,orgao_concedente_nome,beneficiario_nome,beneficiario_cnpj,uf_beneficiario,municipio_nome,objeto,valor_global,data_assinatura,url_transferegov",
-      )
-      .order("data_assinatura", { ascending: false, nullsFirst: false })
-      .limit(data.limit);
-
-    if (cnpj) {
-      qTransf = qTransf.eq("beneficiario_cnpj", cnpj);
-    } else {
-      const t = sanitizarTermoFiltro(termo);
-      qTransf = qTransf.or(
-        `beneficiario_nome.ilike.%${t}%,orgao_concedente_nome.ilike.%${t}%,objeto.ilike.%${t}%`,
-      );
-    }
-    const { data: transfRows, error: eTransf } = await qTransf;
-    if (eTransf) {
-      // tabela pode não ter coluna beneficiario_cnpj em todos os esquemas — degradar para vazio
-      return {
-        cnpjDetectado: cnpj,
-        pncp: (pncpRows ?? []).map((r) => ({
-          id: r.id,
-          titulo: r.orgao_nome,
-          subtitulo: [r.uf, r.municipio_nome, r.fornecedor_nome].filter(Boolean).join(" · "),
-          valor: Number(r.valor_global ?? 0),
-          data: r.data_assinatura,
-          href: r.url_pncp ?? "",
-        })),
-        licitacoes: mapLic(),
-        emendas: mapEme(),
-        convenios: mapConv(),
-        transferencias: [],
-      };
-    }
 
     return {
       cnpjDetectado: cnpj,
@@ -241,21 +206,8 @@ export const buscaGlobal = createServerFn({ method: "POST" })
       licitacoes: mapLic(),
       emendas: mapEme(),
       convenios: mapConv(),
-      transferencias: (transfRows ?? []).map((r) => ({
-        id: r.id,
-        titulo: `Convênio ${r.numero}`,
-        subtitulo: [
-          r.orgao_concedente_nome,
-          "→",
-          r.beneficiario_nome,
-          r.uf_beneficiario,
-          r.municipio_nome,
-        ]
-          .filter(Boolean)
-          .join(" "),
-        valor: Number(r.valor_global ?? 0),
-        data: r.data_assinatura,
-        href: r.url_transferegov ?? "",
-      })),
+      // Convênios têm um grupo só agora — "transferencias" fica vazio até a
+      // interface da busca aposentar a seção.
+      transferencias: [],
     };
   });

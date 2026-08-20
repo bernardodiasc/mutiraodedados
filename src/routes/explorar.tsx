@@ -109,7 +109,7 @@ function ExplorarPage() {
     return {
       contratos: contratos.length,
       contratado: contratos.reduce((s, c) => s + (c.valor_global ?? 0), 0),
-      transferidoTotal: transfers.reduce((s, t) => s + (t.valor_global ?? 0), 0),
+      transferidoTotal: transfers.reduce((s, t) => s + (t.valor ?? 0), 0),
       relatorios: siconfi.data?.relatorios.length ?? 0,
     };
   }, [pncp.data, siconfi.data, transf.data]);
@@ -311,7 +311,7 @@ function ExplorarPage() {
                       <div className="min-w-0">
                         <div className="text-sm font-medium">Convênio {t.numero}</div>
                         <div className="text-xs text-muted-foreground">
-                          {t.orgao_concedente_nome ?? "—"} → {t.beneficiario_nome ?? "—"}
+                          {t.orgao_nome ?? "—"} → {t.convenente_nome ?? "—"}
                         </div>
                         {t.objeto && (
                           <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
@@ -320,9 +320,9 @@ function ExplorarPage() {
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="font-medium">{fmtBRL(t.valor_global)}</div>
+                        <div className="font-medium">{fmtBRL(t.valor ?? 0)}</div>
                         <div className="text-xs text-muted-foreground">
-                          {t.data_assinatura ?? "—"}
+                          {t.data_assinatura ?? t.data_inicio_vigencia ?? "—"}
                         </div>
                       </div>
                     </div>

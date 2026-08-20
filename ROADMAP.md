@@ -14,20 +14,6 @@ Nenhuma — a próxima do backlog abre em seguida.
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
 
-### v0.9.0 — Uma tabela para convênios, com coluna de fonte
-
-Hoje o mesmo convênio pode existir em `cgu_convenios_cache` **e** em `transferegov_instrumentos_cache`, vindo do mesmo endpoint e da mesma requisição. A comparação das duas (2026-08-20) mostra que a separação não guarda dados diferentes:
-
-- **11 colunas idênticas** nas duas.
-- **9 pares que são o mesmo campo bruto com nome diferente** — `valor`/`valor_global` e `valor_liberado`/`valor_repasse` saem de `raw.valor` e `raw.valorLiberado`; `convenente_*`/`beneficiario_*` de `raw.convenente`; `tipo_instrumento`/`modalidade` caem no mesmo `tipoInstrumento.descricao`.
-- **Poucas colunas realmente exclusivas**, e todas presentes no payload que as duas recebem: a CGU mapeia `dataReferencia` (→ `ano`, `mes_referencia`) e `orgao`; a outra mapeia `dataAssinatura` e `unidadeGestora.orgaoVinculado`. Cada lado deixou de mapear o que o outro mapeou — não houve dado a mais em lugar nenhum.
-
-O custo dessa duplicação é concreto: dois pipelines de QA, duas entradas de limpeza, duas RPCs de cobertura, dois conjuntos de sinais e a chance permanente de os dois divergirem sem ninguém notar — foi assim que os links oficiais e os rótulos de fonte divergiram.
-
-**Desenho alvo:** uma tabela do tipo de dado (`convenios_cache`) com o superconjunto de colunas e uma coluna **`fonte`**. Os dois "ângulos" viram consultas sobre ela, e quando a origem do Transferegov entrar (v0.10.0) ela ocupa a mesma tabela com `fonte` própria — aí a distinção volta a ser real e o modelo já a comporta.
-
-**Não é patch.** Exige migration com movimentação de dados, deduplicação por id (os ids sintéticos `num-XXXX` de um lado não batem com os do outro), e rewire de QA, limpeza, cobertura, sinais e status. Merece plano próprio em `docs/planos/`.
-
 ### v0.10.0 — Convênios pela origem (Transferegov), por um dos dois caminhos
 
 Hoje os dois ângulos de `/convenios` saem do mesmo endpoint `/convenios` do Portal CGU. Não é preferência: o módulo **Transferências Discricionárias e Legais** do Transferegov — onde ficam convênios e contratos de repasse — não tem API. Verificado em 2026-08-20; a tabela de módulos e o método do teste estão em [docs/fontes/transferegov.md](./docs/fontes/transferegov.md).

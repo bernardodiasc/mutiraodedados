@@ -24,8 +24,10 @@ describe("rótulos de fonte nomeiam a API consultada", () => {
 
   it("os rótulos de sinais e de limpeza também não", () => {
     expect(FONTE_SINAL_LABEL.transferegov).not.toMatch(/^Transferegov/);
-    const limpeza = FONTES_LIMPEZA.find((f) => f.id === "transferegov");
+    // v0.9.0: a tabela única tem uma entrada só de limpeza para convênios.
+    const limpeza = FONTES_LIMPEZA.find((f) => f.table === "convenios_cache");
     expect(limpeza?.label).not.toMatch(/^Transferegov/);
+    expect(limpeza?.tentativaFonte).toEqual(["cgu_convenios", "transferegov"]);
   });
 
   it("todo id de limpeza com rodada registrada tem rótulo no histórico", () => {

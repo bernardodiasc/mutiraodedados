@@ -197,7 +197,7 @@ export type ConvenioRow = {
 };
 
 const COLUNAS_CONVENIO =
-  "id,numero,codigo_siconv,objeto,orgao_cod,orgao_nome,orgao_cnpj,convenente_nome,convenente_cnpj,uf,municipio_ibge,municipio_nome,situacao,tipo_instrumento,valor,valor_liberado,valor_contrapartida,data_inicio_vigencia,data_fim_vigencia,data_publicacao,url_oficial";
+  "id,fonte,numero,codigo_siconv,objeto,orgao_cod,orgao_nome,orgao_cnpj,convenente_nome,convenente_cnpj,esfera_convenente,uf,municipio_ibge,municipio_nome,situacao,tipo_instrumento,valor,valor_liberado,valor_contrapartida,data_assinatura,data_inicio_vigencia,data_fim_vigencia,data_publicacao,url_oficial";
 
 export const listarConveniosCgu = createServerFn({ method: "POST" })
   .inputValidator((input) =>
@@ -215,7 +215,7 @@ export const listarConveniosCgu = createServerFn({ method: "POST" })
       .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
-    let q = supabaseAdmin.from("cgu_convenios_cache").select(COLUNAS_CONVENIO);
+    let q = supabaseAdmin.from("convenios_cache").select(COLUNAS_CONVENIO);
     if (data.sort === "valor_desc") q = q.order("valor", { ascending: false, nullsFirst: false });
     else q = q.order("data_inicio_vigencia", { ascending: false, nullsFirst: false });
     q = q.range(data.offset, data.offset + data.limit - 1);
@@ -238,7 +238,7 @@ export const getConvenioCguPorId = createServerFn({ method: "GET" })
   .inputValidator((input) => z.object({ id: z.string().min(1).max(200) }).parse(input))
   .handler(async ({ data }) => {
     const { data: row, error } = await supabaseAdmin
-      .from("cgu_convenios_cache")
+      .from("convenios_cache")
       .select(COLUNAS_CONVENIO)
       .eq("id", data.id)
       .maybeSingle();
