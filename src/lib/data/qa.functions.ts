@@ -365,7 +365,7 @@ export const listarQualidadePublico = createServerFn({ method: "POST" })
       .map((a) => a.entidade.id);
     if (instrIds.length > 0) {
       const { data: cs } = await supabaseAdmin
-        .from("transferegov_instrumentos_cache")
+        .from("convenios_cache")
         .select("id, numero, codigo_siconv")
         .in("id", instrIds);
       const byId = new Map(
@@ -585,23 +585,25 @@ export const listarQualidadeAdmin = createServerFn({ method: "POST" })
     >();
     if (instrIds.length > 0) {
       const { data: cs } = await supabaseAdmin
-        .from("transferegov_instrumentos_cache")
+        .from("convenios_cache")
         .select(
-          "id,numero,codigo_siconv,modalidade,beneficiario_nome,data_assinatura,valor_global,valor_repasse,valor_contrapartida,municipio_ibge,uf_beneficiario",
+          "id,numero,codigo_siconv,tipo_instrumento,convenente_nome,data_assinatura,valor,valor_liberado,valor_contrapartida,municipio_ibge,uf",
         )
         .in("id", instrIds);
       for (const c of cs ?? []) {
+        // Os nomes externos (contexto exibido ao admin) preservam o vocabulário
+        // por-ente; os internos vêm das colunas canônicas da tabela única.
         ctxInstr.set(c.id, {
           numero: c.numero ?? null,
           codigo_siconv: c.codigo_siconv ?? null,
-          modalidade: c.modalidade ?? null,
-          beneficiario_nome: c.beneficiario_nome ?? null,
+          modalidade: c.tipo_instrumento ?? null,
+          beneficiario_nome: c.convenente_nome ?? null,
           data_assinatura: c.data_assinatura ?? null,
-          valor_global: c.valor_global ?? null,
-          valor_repasse: c.valor_repasse ?? null,
+          valor_global: c.valor ?? null,
+          valor_repasse: c.valor_liberado ?? null,
           valor_contrapartida: c.valor_contrapartida ?? null,
           municipio_ibge: c.municipio_ibge ?? null,
-          uf_beneficiario: c.uf_beneficiario ?? null,
+          uf_beneficiario: c.uf ?? null,
         });
       }
     }

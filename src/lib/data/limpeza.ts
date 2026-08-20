@@ -31,7 +31,8 @@ export type FonteLimpeza = {
    * de período), zerando as células "consultado, sem dados" da matriz e
    * permitindo reimportar do zero.
    */
-  tentativaFonte?: string;
+  /** Ids em `importacoes` a apagar junto — um ou vários (tabela unificada). */
+  tentativaFonte?: string | readonly string[];
   /** Filtro extra a aplicar (col = valor) quando várias modalidades compartilham a mesma tabela. */
   extraEq?: { col: string; value: string };
   /**
@@ -71,12 +72,13 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     tentativaFonte: "cgu_emendas",
   },
   {
-    id: "cgu_convenios",
-    label: "CGU — convênios",
-    descricao: "Convênios do Portal da Transparência (eixo tema).",
-    table: "cgu_convenios_cache",
+    id: "convenios",
+    label: "Convênios (tabela única)",
+    descricao:
+      "Convênios e contratos de repasse — os dois ângulos (execução federal e por ente) vivem na mesma tabela desde a v0.9.0. Limpar apaga o acervo e o histórico dos DOIS ids de importação.",
+    table: "convenios_cache",
     yearCol: "ano",
-    tentativaFonte: "cgu_convenios",
+    tentativaFonte: ["cgu_convenios", "transferegov"],
   },
   {
     id: "fornecedores",
@@ -191,15 +193,6 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "siconfi_relatorios_cache",
     yearCol: "exercicio",
     tentativaFonte: "siconfi",
-  },
-  {
-    id: "transferegov",
-    label: "Convênios por ente (Portal CGU)",
-    descricao:
-      "Convênios e contratos de repasse União ↔ entes, pelo ângulo de quem recebe. Vem do Portal CGU, que espelha o Transferegov.",
-    table: "transferegov_instrumentos_cache",
-    dateCol: "data_assinatura",
-    tentativaFonte: "transferegov",
   },
   {
     id: "ibge",

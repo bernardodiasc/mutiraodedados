@@ -23,6 +23,28 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.9.0 — 2026-08-20
+
+**Resumo:** convênios passam a viver numa tabela única (`convenios_cache`) com coluna de fonte. As duas tabelas antigas guardavam o mesmo registro do mesmo endpoint, mapeado por dois códigos que divergiam em silêncio — foi a causa raiz dos rótulos e links errados corrigidos na v0.6.0.
+
+**Entregas**
+
+- Migration: `convenios_cache` (superconjunto de colunas, nomes canônicos, `fonte` default `cgu`), dados migrados com merge por id, tabelas antigas removidas, RPCs de cobertura recriadas sobre a tabela única (calendário de referência × calendário de assinatura), allowlist `tabela_cache_limpavel` atualizada — incluindo a `ibge_municipios_cache` da v0.7.0, que ficara fora por engano.
+- Mapeador único `convenio-row.ts`, compartilhado pelos dois ingests; absorve os fallbacks que cada lado tinha e o outro não (município via convenente, CNPJ cru, objeto de 1000 caracteres, esfera pelo IBGE).
+- Consultas por ente re-escritas nos nomes canônicos; busca global faz uma consulta em vez de duas; limpeza vira entrada única que apaga acervo + histórico dos dois ids; poda de QA cobre as duas fontes de findings.
+- Os ids de importação `cgu_convenios` e `transferegov` continuam distintos no Histórico e na cobertura: descrevem qual varredura trouxe o dado, não onde ele mora.
+
+**Checks executados**
+
+- `bun run test` ✓ — 71 arquivos, 763 testes.
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Migração de dados validada contra o banco real antes de escrita: 23 linhas no ângulo por ente, 0 no outro, 0 conflitos de id; definições das RPCs e policies lidas do banco e recriadas equivalentes.
+- Validação manual adiada — rodada única após a v0.11.0.
+
+**Plano:** sem plano dedicado — desenho registrado no ROADMAP (v0.7.z→v0.9.0) desde a v0.6.0.
+
+**PR de sync público:** `sync v0.9.0`.
+
 ## v0.8.0 — 2026-08-20
 
 **Resumo:** as matérias do Senado saem do endpoint descontinuado `materia/pesquisa/lista` — que passou da data de desativação anunciada por ele mesmo (2026-02-01) e já quebrou o formato uma vez em silêncio — para o substituto oficial `/processo`, verificado contra a origem.

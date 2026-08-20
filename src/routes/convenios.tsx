@@ -566,23 +566,21 @@ function ConveniosTransferegov() {
                       {c.numero}
                     </span>
                     <span className="text-sm tabular-nums">
-                      {fmtBRL(c.valor_global)}
+                      {fmtBRL(c.valor ?? 0)}
                       <span className="text-muted-foreground">
                         {" "}
-                        · repasse {fmtBRL(c.valor_repasse)}
+                        · repasse {fmtBRL(c.valor_liberado ?? 0)}
                       </span>
                     </span>
                   </div>
                   <div className="text-xs text-muted-foreground">
-                    {c.beneficiario_nome ?? "Beneficiário não informado"}
+                    {c.convenente_nome ?? "Beneficiário não informado"}
                     {c.municipio_nome ? ` · ${c.municipio_nome}` : ""}
-                    {c.uf_beneficiario ? `/${c.uf_beneficiario}` : ""}
+                    {c.uf ? `/${c.uf}` : ""}
                     {c.data_assinatura ? ` · assinado em ${c.data_assinatura}` : ""}
                   </div>
-                  {c.orgao_concedente_nome && (
-                    <div className="text-xs text-muted-foreground">
-                      Concedente: {c.orgao_concedente_nome}
-                    </div>
+                  {c.orgao_nome && (
+                    <div className="text-xs text-muted-foreground">Concedente: {c.orgao_nome}</div>
                   )}
                   {c.objeto && (
                     <p className="text-sm text-muted-foreground line-clamp-2">{c.objeto}</p>

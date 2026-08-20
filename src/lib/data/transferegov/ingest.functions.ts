@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasTransferegov, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
@@ -14,8 +13,8 @@ import {
   JANELA_ORCAMENTO_MS,
   JANELA_TETO_SUBREQUISICOES,
 } from "@/lib/data/janela-varredura";
-import { parseValorPortal, portalGet } from "@/lib/data/real/portal-client";
-import { linkConvenioTransferegov } from "@/lib/links-oficiais";
+import { portalGet } from "@/lib/data/real/portal-client";
+import { mapearConvenioCache, type PortalConvenioRaw } from "@/lib/data/real/convenio-row";
 
 /**
  * Convênios pelo ângulo do ente beneficiário — usa o endpoint /convenios do
@@ -45,55 +44,6 @@ function brDate(iso: string): string {
   // YYYY-MM-DD -> DD/MM/YYYY
   const [y, m, d] = iso.split("-");
   return `${d}/${m}/${y}`;
-}
-function isoDate(br?: string | null): string | null {
-  if (!br) return null;
-  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-
-type Convenio = {
-  id?: number | string;
-  numero?: string;
-  numeroOriginal?: string;
-  objeto?: string;
-  situacao?: string;
-  modalidade?: string;
-  valor?: number;
-  valorLiberado?: number;
-  valorContrapartida?: number;
-  dataInicioVigencia?: string;
-  dataFinalVigencia?: string;
-  dataFimVigencia?: string;
-  dataAssinatura?: string;
-  dataPublicacao?: string;
-  dataReferencia?: string;
-  dimConvenio?: { numero?: string; objeto?: string; codigo?: string };
-  tipoInstrumento?: { descricao?: string };
-  convenente?: {
-    nome?: string;
-    cnpj?: string;
-    cnpjFormatado?: string;
-    codigoIBGE?: string | number;
-    municipio?: { nomeIBGE?: string; codigoIBGE?: string | number; uf?: { sigla?: string } };
-  };
-  municipioConvenente?: {
-    nomeIBGE?: string;
-    codigoIBGE?: string | number;
-    uf?: { sigla?: string; nome?: string };
-  };
-  unidadeGestora?: {
-    nome?: string;
-    descricaoPoder?: string;
-    orgaoVinculado?: { nome?: string; cnpj?: string; codigoSIAFI?: string };
-  };
-};
-
-function esferaFromIbge(ibge?: string | null): string | null {
-  if (!ibge) return null;
-  if (ibge.length === 2) return "estadual";
-  if (ibge.length === 7) return "municipal";
-  return null;
 }
 
 /**
@@ -142,9 +92,9 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
         if (data.codigoUF) params.codigoUFConvenente = data.codigoUF;
 
         let custo = 0;
-        let json: Convenio[];
+        let json: PortalConvenioRaw[];
         try {
-          json = (await portalGet("/convenios", params)) as Convenio[];
+          json = (await portalGet("/convenios", params)) as PortalConvenioRaw[];
           custo++;
         } catch (e) {
           // A página É a lista desta rodada: passageiro refaz, definitivo
@@ -161,76 +111,8 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
         if (!Array.isArray(json) || json.length === 0) return { processados: 0, fim: true, custo };
 
         const rows = json
-          .map((c) => {
-            const numero = c.numero ?? c.numeroOriginal ?? c.dimConvenio?.numero ?? null;
-            const id = c.id ? String(c.id) : numero ? `num-${numero}` : null;
-            if (!id) return null;
-            const muni = c.municipioConvenente ?? c.convenente?.municipio;
-            const ibge = muni?.codigoIBGE
-              ? String(muni.codigoIBGE)
-              : c.convenente?.codigoIBGE
-                ? String(c.convenente.codigoIBGE)
-                : null;
-            // No Portal CGU não há "uf" como sigla pura; "uf.nome" traz a sigla
-            // ("RS") enquanto "uf.sigla" traz o nome longo. Pegamos a sigla curta.
-            const ufSigla =
-              (muni?.uf as { sigla?: string; nome?: string } | undefined)?.nome ??
-              (muni?.uf as { sigla?: string } | undefined)?.sigla ??
-              null;
-            // CNPJ vem formatado ("00.378.257/0001-81"); preferimos o cru.
-            const cnpjBenef =
-              c.convenente?.cnpj ?? (c.convenente?.cnpjFormatado ?? "").replace(/\D/g, "") ?? null;
-            const dataAssin =
-              isoDate(c.dataAssinatura) ??
-              isoDate(c.dataPublicacao) ??
-              (c.dataReferencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataReferencia)
-                ? c.dataReferencia.slice(0, 10)
-                : null) ??
-              (c.dataInicioVigencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataInicioVigencia)
-                ? c.dataInicioVigencia.slice(0, 10)
-                : isoDate(c.dataInicioVigencia));
-            return {
-              id,
-              numero: numero ?? id,
-              codigo_siconv: c.dimConvenio?.codigo ?? null,
-              modalidade: c.modalidade ?? c.tipoInstrumento?.descricao ?? null,
-              situacao: c.situacao ?? null,
-              objeto:
-                sanitizarTextoPublico((c.objeto ?? c.dimConvenio?.objeto ?? "").slice(0, 1000)) ||
-                null,
-              orgao_concedente_nome:
-                c.unidadeGestora?.orgaoVinculado?.nome ?? c.unidadeGestora?.nome ?? null,
-              orgao_concedente_cnpj: c.unidadeGestora?.orgaoVinculado?.cnpj ?? null,
-              beneficiario_nome:
-                sanitizarTextoPublico((c.convenente?.nome ?? "").slice(0, 240)) || null,
-              beneficiario_cnpj: cnpjBenef || null,
-              esfera_beneficiario: esferaFromIbge(ibge),
-              uf_beneficiario: ufSigla,
-              municipio_ibge: ibge,
-              municipio_nome: muni?.nomeIBGE ?? null,
-              valor_global: parseValorPortal(c.valor ?? 0),
-              valor_repasse: parseValorPortal(c.valorLiberado ?? 0),
-              valor_contrapartida: parseValorPortal(c.valorContrapartida ?? 0),
-              data_inicio_vigencia:
-                isoDate(c.dataInicioVigencia) ??
-                (c.dataInicioVigencia && /^\d{4}-\d{2}-\d{2}/.test(c.dataInicioVigencia)
-                  ? c.dataInicioVigencia.slice(0, 10)
-                  : null),
-              data_fim_vigencia:
-                isoDate(c.dataFinalVigencia ?? c.dataFimVigencia) ??
-                ((c.dataFinalVigencia ?? c.dataFimVigencia) &&
-                /^\d{4}-\d{2}-\d{2}/.test(c.dataFinalVigencia ?? c.dataFimVigencia ?? "")
-                  ? (c.dataFinalVigencia ?? c.dataFimVigencia ?? "").slice(0, 10)
-                  : null),
-              data_assinatura: dataAssin,
-              url_transferegov: c.id
-                ? (linkConvenioTransferegov(c.dimConvenio?.codigo) ??
-                  `https://portaldatransparencia.gov.br/convenios/${c.id}`)
-                : null,
-              updated_at: new Date().toISOString(),
-            };
-          })
-          .filter((r): r is NonNullable<typeof r> => r !== null);
+          .map((c) => mapearConvenioCache(c))
+          .filter((r): r is NonNullable<ReturnType<typeof mapearConvenioCache>> => r !== null);
 
         // Valores são gravados exatamente como vieram da listagem do Portal.
         // Não consultamos /convenios/id pra "corrigir" — discrepâncias são
@@ -239,7 +121,7 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
 
         for (let i = 0; i < rowsFinais.length; i += 200) {
           const { error } = await supabaseAdmin
-            .from("transferegov_instrumentos_cache")
+            .from("convenios_cache")
             .upsert(rowsFinais.slice(i, i + 200));
           custo++;
           // Falha de banco passageira refaz o item; definitiva registra e
@@ -260,8 +142,8 @@ export const importarConveniosTransferegov = createServerFn({ method: "POST" })
             regrasTransferegov(
               rowsFinais.map((r) => ({
                 id: r.id,
-                valor_repasse: r.valor_repasse,
-                valor_global: r.valor_global,
+                valor_repasse: r.valor_liberado,
+                valor_global: r.valor,
               })),
             ),
           );

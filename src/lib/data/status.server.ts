@@ -15,7 +15,7 @@ import type { StatusFonte, StatusFontesResult } from "./status.functions";
 type TabelaComUpdatedAt =
   | "pncp_contratos_cache"
   | "siconfi_relatorios_cache"
-  | "transferegov_instrumentos_cache"
+  | "convenios_cache"
   | "camara_deputados_cache"
   | "senado_senadores_cache";
 
@@ -43,7 +43,7 @@ export async function codigosComDados(): Promise<string[]> {
   const [contratos, licitacoes, convenios] = await Promise.all([
     supabaseAdmin.from("contratos_cache").select("orgao_cod").limit(50000),
     supabaseAdmin.from("cgu_licitacoes_cache").select("orgao_cod").limit(50000),
-    supabaseAdmin.from("cgu_convenios_cache").select("orgao_cod").limit(50000),
+    supabaseAdmin.from("convenios_cache").select("orgao_cod").limit(50000),
   ]);
   const set = new Set<string>();
   for (const r of [
@@ -61,7 +61,7 @@ export async function coletarStatusFontes(): Promise<StatusFontesResult> {
   const [pncp, siconfi, transferegov, camara, senado, contratos] = await Promise.all([
     aggOne("pncp_contratos_cache"),
     aggOne("siconfi_relatorios_cache"),
-    aggOne("transferegov_instrumentos_cache"),
+    aggOne("convenios_cache"),
     aggOne("camara_deputados_cache"),
     aggOne("senado_senadores_cache"),
     supabaseAdmin

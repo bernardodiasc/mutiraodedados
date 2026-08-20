@@ -41,14 +41,11 @@ Transferegov. Caminhos de saída estão no [ROADMAP.md](../../ROADMAP.md).
 - **Todo convênio tem as duas pontas** — órgão federal concedente e ente convenente — no MESMO registro. Amostra real de mai/2026: 9 de 9 itens do endpoint com código SICONV, órgão e convenente preenchidos juntos. Os dois "eixos" do site são ângulos de leitura do mesmo acervo, nunca dois conjuntos de convênios.
 - Contraste com **contratos**: lá as duas fontes (CGU × PNCP) são sistemas de origem genuinamente distintos, com coberturas diferentes — o seletor de `/contratos` distingue fontes; o de `/convenios` distingue ângulos.
 
-## Relação com o Portal CGU (dois eixos)
+## Relação com o Portal CGU (tabela única desde a v0.9.0)
 
-O endpoint `/convenios` do Portal CGU alimenta **dois lugares**, por decisão de projeto:
+O endpoint `/convenios` do Portal CGU alimenta **uma tabela só**: `convenios_cache`, com coluna `fonte` (`cgu` hoje; `transferegov` quando a API nativa existir). Os dois "eixos" do site — página-tema por execução federal e ângulo por ente — são consultas sobre ela.
 
-- **Eixo "Por fonte" (esta página)**: `transferegov_instrumentos_cache` + `transferegov_emendas_cache` (EC 105). O Transferegov é a fonte nativa dos instrumentos e das emendas Pix.
-- **Eixo "Por tema"**: `cgu_convenios_cache` / `cgu_emendas_cache` (tabelas separadas, pipelines de QA/cobertura/limpeza próprios), exibido nas páginas-tópico [Convênios](../dominios/convenios-e-transferencias.md) e Emendas.
-
-Há **sobreposição deliberada**: o mesmo `/convenios` e `/emendas` são ingeridos nas duas tabelas para isolar os dois eixos. A entidade-tópico **Transferências** (endpoint `/transferencias`) é **doc-only** — ver [sanções e preços](./sancoes-precos-referencia.md) (403 + sobreposição com EC 105).
+Até a v0.9.0 eram duas tabelas (`cgu_convenios_cache` e `transferegov_instrumentos_cache`) com os mesmos registros mapeados por dois códigos diferentes — que divergiram em silêncio (links oficiais, rótulos de fonte). O mapeador único vive em `src/lib/data/real/convenio-row.ts`; os ids de importação `cgu_convenios` e `transferegov` continuam distintos no Histórico e na cobertura, porque descrevem **qual varredura** trouxe o dado, não onde ele mora.
 
 ## O que importamos
 

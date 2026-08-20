@@ -888,16 +888,16 @@ export const clearImportData = createServerFn({ method: "POST" })
       const periodoAtivo = typeof anoIni === "number" && typeof anoFim === "number";
       // Mapeia id da fonte de limpeza → valor de `fonte` na tabela
       // qa_findings. Só fontes que têm regras de qualidade aparecem aqui.
-      const QA_FONTE_MAP: Record<string, string> = {
-        cgu: "cgu",
-        cgu_licitacoes: "cgu_licitacoes",
-        cgu_emendas: "cgu_emendas",
-        cgu_convenios: "cgu_convenios",
-        camara_ceap: "camara_ceap",
-        senado_ceaps: "senado_ceaps",
-        pncp: "pncp",
-        siconfi: "siconfi",
-        transferegov: "transferegov",
+      const QA_FONTE_MAP: Record<string, readonly string[]> = {
+        cgu: ["cgu"],
+        cgu_licitacoes: ["cgu_licitacoes"],
+        cgu_emendas: ["cgu_emendas"],
+        // A tabela única de convênios carrega findings dos dois ids.
+        convenios: ["cgu_convenios", "transferegov"],
+        camara_ceap: ["camara_ceap"],
+        senado_ceaps: ["senado_ceaps"],
+        pncp: ["pncp"],
+        siconfi: ["siconfi"],
       };
       /** Caches que a fonte TSE alimenta — usados para decidir se ela zerou. */
       const TABELAS_CACHE_TSE = [
@@ -1198,20 +1198,22 @@ export const clearImportData = createServerFn({ method: "POST" })
           // e o usuário pode reimportar do zero. Após a unificação, todos
           // os logs (CGU e demais fontes) ficam em `importacoes`.
           if (fonte.tentativaFonte) {
+            const fontesTentativa = Array.isArray(fonte.tentativaFonte)
+              ? fonte.tentativaFonte
+              : [fonte.tentativaFonte];
             let tq = supabaseAdmin
               .from("importacoes")
               .delete({ count: "exact" })
-              .eq("fonte", fonte.tentativaFonte);
+              .in("fonte", fontesTentativa as string[]);
             if (periodoAtivo) tq = tq.gte("ano", anoIni!).lte("ano", anoFim!);
             const tr = await tq;
             if (tr.error)
-              throw new Error(`importacoes(${fonte.tentativaFonte}): ${tr.error.message}`);
-            removed[`importacoes:${fonte.tentativaFonte}`] = tr.count ?? 0;
+              throw new Error(`importacoes(${fontesTentativa.join(",")}): ${tr.error.message}`);
+            removed[`importacoes:${fontesTentativa.join(",")}`] = tr.count ?? 0;
           }
 
           // Remove suspeitas de qualidade órfãs dessa fonte.
-          const qaFonte = QA_FONTE_MAP[fid];
-          if (qaFonte) {
+          for (const qaFonte of QA_FONTE_MAP[fid] ?? []) {
             await pruneQaFindings(qaFonte, tName);
           }
 
@@ -1326,7 +1328,7 @@ export const clearImportData = createServerFn({ method: "POST" })
           | "senado_votos_cache"
           | "pncp_contratos_cache"
           | "siconfi_relatorios_cache"
-          | "transferegov_instrumentos_cache";
+          | "convenios_cache";
         key: string;
       }> = [
         { table: "camara_despesas_cache", key: "id" },
@@ -1337,7 +1339,7 @@ export const clearImportData = createServerFn({ method: "POST" })
         { table: "senado_votos_cache", key: "votacao_id" },
         { table: "pncp_contratos_cache", key: "id" },
         { table: "siconfi_relatorios_cache", key: "id" },
-        { table: "transferegov_instrumentos_cache", key: "id" },
+        { table: "convenios_cache", key: "id" },
       ];
       for (const { table, key } of extras) {
         const r = await supabaseAdmin.from(table).delete({ count: "exact" }).not(key, "is", null);
