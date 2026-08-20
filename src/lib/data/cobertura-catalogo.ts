@@ -154,6 +154,14 @@ export const CATALOGO_COBERTURA: EntradaCatalogoCobertura[] = [
     rota: null,
   },
   {
+    id: "convenios_origem",
+    titulo: "Transferegov — enriquecimento pela origem",
+    descricao:
+      "Situação e execução financeira (empenhado, desembolsado) lidas do CSV oficial do SICONV e aplicadas aos convênios por código — o que só a origem publica.",
+    granularidade: "cadastro",
+    rota: "/convenios",
+  },
+  {
     id: "tse",
     titulo: "TSE — eleições (candidatos, bens, votos e contas)",
     descricao:

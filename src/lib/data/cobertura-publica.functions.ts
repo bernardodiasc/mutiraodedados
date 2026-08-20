@@ -145,6 +145,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       updOrgaos,
       countIbge,
       updIbge,
+      origemConv,
     ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
       supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
@@ -185,6 +186,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       maxUpdated("orgaos_cache"),
       countOf("ibge_municipios_cache"),
       maxUpdated("ibge_municipios_cache"),
+      supabaseAdmin.rpc("cobertura_convenios_origem"),
     ]);
 
     const cguRows = ((cgu.data as RpcRowOrgao[] | null) ?? []).map((r) => ({
@@ -320,6 +322,13 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       mkCadastro("senado_senadores", countSenadores, updSenadores),
       mkCadastro("orgaos_siafi", countOrgaos, updOrgaos),
       mkCadastro("ibge", countIbge, updIbge),
+      mkCadastro(
+        "convenios_origem",
+        Number(
+          (origemConv.data as { total: number; ultimo: string | null }[] | null)?.[0]?.total ?? 0,
+        ),
+        (origemConv.data as { total: number; ultimo: string | null }[] | null)?.[0]?.ultimo ?? null,
+      ),
       mkFonte(
         "tse",
         ((tseContagem.data as { ano_eleicao: number; candidatos: number }[] | null) ?? []).map(

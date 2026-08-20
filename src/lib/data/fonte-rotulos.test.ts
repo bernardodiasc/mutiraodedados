@@ -17,7 +17,12 @@ describe("rótulos de fonte nomeiam a API consultada", () => {
   });
 
   it("nenhum rótulo do histórico atribui convênios ao Transferegov", () => {
+    // Única exceção legítima: o enriquecimento pela origem LÊ do Transferegov
+    // de verdade (CSV de api-publica.transferegov.gestao.gov.br) — a regra é
+    // "o rótulo nomeia a API consultada", e ali a API consultada é ele mesmo.
+    const CONSULTAM_TRANSFEREGOV = new Set(["convenios_origem"]);
     for (const [id, label] of Object.entries(FONTE_LABEL)) {
+      if (CONSULTAM_TRANSFEREGOV.has(id)) continue;
       expect(label, `rótulo de ${id}`).not.toMatch(/^Transferegov/);
     }
   });

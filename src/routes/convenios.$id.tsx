@@ -135,6 +135,42 @@ function ConvenioDetalhe() {
         <Field label="Publicação" value={c.data_publicacao} />
       </dl>
 
+      {c.atualizado_origem_em && (
+        // Enriquecimento pela ORIGEM (CSV oficial do SICONV, v0.10.0): o
+        // espelho da CGU não publica execução financeira, e a situação dele
+        // pode estar defasada — houve caso real de convênio rescindido que o
+        // espelho mostrava "em execução". Quando as situações divergem, as
+        // duas aparecem lado a lado: a divergência é informação, não ruído.
+        <section className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+          <h2 className="text-sm font-medium">
+            Na origem (SICONV/Transferegov)
+            <span className="text-xs text-muted-foreground font-normal">
+              {" "}
+              · lida em {new Date(c.atualizado_origem_em).toLocaleDateString("pt-BR")}
+            </span>
+          </h2>
+          <dl className="grid sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+            <Field label="Situação na origem" value={c.situacao_origem} />
+            <Field
+              label="Valor empenhado"
+              value={c.valor_empenhado != null ? fmtBRL(c.valor_empenhado) : null}
+            />
+            <Field
+              label="Valor desembolsado"
+              value={c.valor_desembolsado != null ? fmtBRL(c.valor_desembolsado) : null}
+            />
+          </dl>
+          {c.situacao_origem &&
+            c.situacao &&
+            c.situacao_origem.toLowerCase() !== c.situacao.toLowerCase() && (
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                A situação na origem difere da situação no espelho da CGU ("{c.situacao}"). O
+                sistema onde o convênio vive costuma refletir mudanças primeiro.
+              </p>
+            )}
+        </section>
+      )}
+
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
         Dados do endpoint <code>/convenios</code> do Portal da Transparência (CGU). Para a fonte
         nativa do instrumento (Transferegov), veja{" "}

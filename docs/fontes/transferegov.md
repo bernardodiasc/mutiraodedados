@@ -41,6 +41,16 @@ Transferegov. Caminhos de saída estão no [ROADMAP.md](../../ROADMAP.md).
 - **Todo convênio tem as duas pontas** — órgão federal concedente e ente convenente — no MESMO registro. Amostra real de mai/2026: 9 de 9 itens do endpoint com código SICONV, órgão e convenente preenchidos juntos. Os dois "eixos" do site são ângulos de leitura do mesmo acervo, nunca dois conjuntos de convênios.
 - Contraste com **contratos**: lá as duas fontes (CGU × PNCP) são sistemas de origem genuinamente distintos, com coberturas diferentes — o seletor de `/contratos` distingue fontes; o de `/convenios` distingue ângulos.
 
+## O espelho é completo? Verificado (2026-08-20)
+
+Amostra estratificada de 30 códigos do CSV oficial da origem (`siconv_convenio.zip`, 286.945 linhas) consultados um a um no espelho via `GET /api-de-dados/convenios/numero?numero=<codigo_siconv>` (o parâmetro `numero` recebe o CÓDIGO SICONV, não o nº formatado):
+
+- **Universo: completo para convênios celebrados.** 15/15 assinados (2009–2025), 5/5 com prestação de contas aprovada e 2/2 anulados/rescindidos assinados estão no espelho. Só ficam fora propostas nunca assinadas (0/5) e cancelamentos pré-assinatura (0/2) — pipeline, não instrumento.
+- **Campos: incompleto.** O espelho não publica execução financeira (`VL_EMPENHADO_CONV`, `VL_DESEMBOLSADO_CONV`).
+- **Situação: pode estar DEFASADA no espelho.** Caso real: convênio 906502 — origem "Convênio Rescindido", espelho "EM EXECUÇÃO". E o vocabulário do espelho é mais pobre ("NORMAL" onde a origem diz "Prestação de Contas Concluída").
+
+Consequência (v0.10.0): a origem **enriquece, não substitui** — colunas próprias (`situacao_origem`, `valor_empenhado`, `valor_desembolsado`) aplicadas por `codigo_siconv`, espelho jamais sobrescrito, divergência de situação exibida lado a lado na ficha.
+
 ## Relação com o Portal CGU (tabela única desde a v0.9.0)
 
 O endpoint `/convenios` do Portal CGU alimenta **uma tabela só**: `convenios_cache`, com coluna `fonte` (`cgu` hoje; `transferegov` quando a API nativa existir). Os dois "eixos" do site — página-tema por execução federal e ângulo por ente — são consultas sobre ela.

@@ -761,6 +761,7 @@ export type Database = {
       convenios_cache: {
         Row: {
           ano: number;
+          atualizado_origem_em: string | null;
           codigo_siconv: string | null;
           convenente_cnpj: string | null;
           convenente_nome: string | null;
@@ -780,16 +781,20 @@ export type Database = {
           orgao_cod: string | null;
           orgao_nome: string | null;
           situacao: string | null;
+          situacao_origem: string | null;
           tipo_instrumento: string | null;
           uf: string | null;
           updated_at: string;
           url_oficial: string | null;
           valor: number | null;
           valor_contrapartida: number | null;
+          valor_desembolsado: number | null;
+          valor_empenhado: number | null;
           valor_liberado: number | null;
         };
         Insert: {
           ano: number;
+          atualizado_origem_em?: string | null;
           codigo_siconv?: string | null;
           convenente_cnpj?: string | null;
           convenente_nome?: string | null;
@@ -809,16 +814,20 @@ export type Database = {
           orgao_cod?: string | null;
           orgao_nome?: string | null;
           situacao?: string | null;
+          situacao_origem?: string | null;
           tipo_instrumento?: string | null;
           uf?: string | null;
           updated_at?: string;
           url_oficial?: string | null;
           valor?: number | null;
           valor_contrapartida?: number | null;
+          valor_desembolsado?: number | null;
+          valor_empenhado?: number | null;
           valor_liberado?: number | null;
         };
         Update: {
           ano?: number;
+          atualizado_origem_em?: string | null;
           codigo_siconv?: string | null;
           convenente_cnpj?: string | null;
           convenente_nome?: string | null;
@@ -838,12 +847,15 @@ export type Database = {
           orgao_cod?: string | null;
           orgao_nome?: string | null;
           situacao?: string | null;
+          situacao_origem?: string | null;
           tipo_instrumento?: string | null;
           uf?: string | null;
           updated_at?: string;
           url_oficial?: string | null;
           valor?: number | null;
           valor_contrapartida?: number | null;
+          valor_desembolsado?: number | null;
+          valor_empenhado?: number | null;
           valor_liberado?: number | null;
         };
         Relationships: [];
@@ -2389,6 +2401,20 @@ export type Database = {
     };
     Functions: {
       camara_gasto_total: { Args: never; Returns: number };
+      cobertura_convenios_origem: {
+        Args: never;
+        Returns: {
+          total: number;
+          ultimo: string;
+        }[];
+      };
+      enriquecer_convenios_origem: {
+        Args: { _itens: Json };
+        Returns: {
+          atualizados: number;
+          sem_espelho: number;
+        }[];
+      };
       cobertura_camara_ceap: {
         Args: never;
         Returns: {

@@ -64,6 +64,7 @@ export type AdminEntesViewProps = {
   onImportSiconfiConjunto: () => void;
   onImportTransferegov: () => void;
   onImportIbge: () => void;
+  onEnriquecerOrigem: () => void;
   // Varredura em massa do SICONFI
   conjunto: ConjuntoSiconfi;
   setConjunto: (v: ConjuntoSiconfi) => void;
@@ -213,6 +214,7 @@ export function AdminEntesView(props: AdminEntesViewProps) {
     onImportSiconfiConjunto,
     onImportTransferegov,
     onImportIbge,
+    onEnriquecerOrigem,
     conjunto,
     setConjunto,
     ufVarredura,
@@ -561,6 +563,26 @@ export function AdminEntesView(props: AdminEntesViewProps) {
           progresso={progressoFontes["Transferegov"] ?? null}
           rodando={busy("Transferegov")}
           onParar={() => onCancelarFonte("Transferegov")}
+        />
+        {/* v0.10.0: o CSV oficial do SICONV traz o que o espelho não publica —
+            situação corrente e execução financeira. Enriquece por código,
+            nunca sobrescreve o que veio do espelho. */}
+        <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+          <Button variant="outline" disabled={busy("Origem SICONV")} onClick={onEnriquecerOrigem}>
+            {busy("Origem SICONV") ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              "Enriquecer pela origem (CSV do SICONV)"
+            )}
+          </Button>
+          <span className="text-xs text-muted-foreground">
+            ~287 mil convênios; retomável, várias rodadas.
+          </span>
+        </div>
+        <ProgressoPaginado
+          progresso={progressoFontes["Origem SICONV"] ?? null}
+          rodando={busy("Origem SICONV")}
+          onParar={() => onCancelarFonte("Origem SICONV")}
         />
       </Secao>
 
