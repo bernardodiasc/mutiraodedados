@@ -2,6 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { anoMesDaJanela } from "@/lib/data/historico-rodada";
+import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -76,16 +82,20 @@ type VotoItem = {
 
 /**
  * Processa UMA votação: busca detalhe + votos paginados e faz upsert.
- * Extraído para ser reutilizado por `importarVotacoes` (mês inteiro num
- * único worker call) e `importarVotacaoUnica` (uma chamada por votação,
- * usado pelos lotes longos para não bater no limite de subrequests).
+ *
+ * Devolve também o CUSTO em subrequisições — é o que permite ao runner
+ * fechar a rodada antes do limite do Worker. Uma votação custa de 3 a ~13
+ * chamadas (1 detalhe + até 10 páginas de votos + upserts), e uma pauta cheia
+ * multiplicava isso por centenas dentro de uma única invocação.
  */
-async function processarVotacao(v: VotacaoItem): Promise<number> {
+async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo: number }> {
+  let custo = 0;
   type Detalhe = VotacaoItem & {
     descricaoResultado?: string;
     ultimaApresentacaoProposicao?: { idProposicao?: number; descricao?: string };
   };
   const det = await camaraGet<Env<Detalhe>>(`/votacoes/${v.id}`);
+  custo++;
   const d = det.dados;
 
   const votos: VotoItem[] = [];
@@ -95,6 +105,7 @@ async function processarVotacao(v: VotacaoItem): Promise<number> {
       itens: "200",
       pagina: String(p),
     });
+    custo++;
     const arr = json.dados ?? [];
     if (arr.length === 0) break;
     votos.push(...arr);
@@ -127,6 +138,7 @@ async function processarVotacao(v: VotacaoItem): Promise<number> {
     updated_at: new Date().toISOString(),
   };
   const { error: e1 } = await supabaseAdmin.from("camara_votacoes_cache").upsert(row);
+  custo++;
   if (e1) throw new Error(e1.message);
 
   const votoRows = votos
@@ -144,65 +156,24 @@ async function processarVotacao(v: VotacaoItem): Promise<number> {
     const { error: e2 } = await supabaseAdmin
       .from("camara_votos_cache")
       .upsert(votoRows.slice(i, i + 500));
+    custo++;
     if (e2) throw new Error(`votos: ${e2.message}`);
   }
-  return votoRows.length;
+  return { votos: votoRows.length, custo };
 }
 
 /**
- * Apenas lista IDs+meta básica de votações num intervalo de datas.
- * Chamada barata (1–N requests à Câmara, sem buscar votos), usada pelos
- * lotes longos para descobrir o universo de trabalho antes de despachar
- * uma chamada por votação.
+ * Importa as votações de uma janela — RETOMÁVEL.
+ *
+ * Era o último ingest do projeto sem orçamento nem checkpoint: carregava a
+ * lista inteira e processava TODAS as votações numa única invocação, cada uma
+ * custando de 3 a ~13 subrequisições. Uma pauta de mês estourava o limite do
+ * Worker sem devolver nada — e, como também não registrava rodada, o
+ * mantenedor ficava com o botão girando, sem log nenhum para diagnosticar.
+ *
+ * Agora um passo = uma votação. A lista da janela é buscada uma vez por
+ * rodada e ordenada por id, para a retomada não pular nem repetir.
  */
-export const listarVotacoesPeriodo = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        maxPaginas: z.number().int().min(1).max(2000).default(2000),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await ensureAdmin(context.userId);
-    const ids: string[] = [];
-    let pagina = 1;
-    while (pagina <= data.maxPaginas) {
-      const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
-        dataInicio: data.dataInicio,
-        dataFim: data.dataFim,
-        itens: "100",
-        pagina: String(pagina),
-        ordem: "DESC",
-        ordenarPor: "dataHoraRegistro",
-      });
-      const arr = json.dados ?? [];
-      if (arr.length === 0) break;
-      for (const v of arr) ids.push(v.id);
-      if (arr.length < 100) break;
-      pagina++;
-    }
-    return { ids };
-  });
-
-/**
- * Importa UMA votação (detalhe + votos + upsert). Cada chamada faz no
- * máximo ~11 subrequests à Câmara — bem abaixo de qualquer limite do
- * worker. Pensada para ser chamada repetidamente pelo cliente.
- */
-export const importarVotacaoUnica = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().min(1).max(40) }).parse(input))
-  .handler(async ({ data, context }) => {
-    await ensureAdmin(context.userId);
-    const votos = await processarVotacao({ id: data.id });
-    return { votos };
-  });
-
-/** Importa votações em um intervalo de datas; depois, votos de cada votação. */
 export const importarVotacoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input) =>
@@ -217,38 +188,111 @@ export const importarVotacoes = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    // 1) Lista de votações
-    const votacoes: VotacaoItem[] = [];
-    let pagina = 1;
-    while (pagina <= data.maxPaginas) {
-      const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
-        dataInicio: data.dataInicio,
-        dataFim: data.dataFim,
-        itens: "100",
-        pagina: String(pagina),
-        ordem: "DESC",
-        ordenarPor: "dataHoraRegistro",
-      });
-      const arr = json.dados ?? [];
-      if (arr.length === 0) break;
-      votacoes.push(...arr);
-      if (arr.length < 100) break;
-      pagina++;
-    }
-    if (votacoes.length === 0) return { votacoes: 0, votos: 0 };
-
     let totalVotos = 0;
     const erros: string[] = [];
+    const inicioRodada = Date.now();
 
-    for (const v of votacoes) {
-      try {
-        totalVotos += await processarVotacao(v);
-      } catch (e) {
-        erros.push(`vot ${v.id}: ${(e as Error).message}`);
+    let listaRodada: VotacaoItem[] | null = null;
+    let custoDaLista = 0;
+    const carregarLista = async (): Promise<VotacaoItem[]> => {
+      if (listaRodada) return listaRodada;
+      const acc: VotacaoItem[] = [];
+      let pagina = 1;
+      while (pagina <= data.maxPaginas) {
+        const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
+          dataInicio: data.dataInicio,
+          dataFim: data.dataFim,
+          itens: "100",
+          pagina: String(pagina),
+          ordem: "DESC",
+          ordenarPor: "dataHoraRegistro",
+        });
+        custoDaLista++;
+        const arr = json.dados ?? [];
+        if (arr.length === 0) break;
+        acc.push(...arr);
+        if (arr.length < 100) break;
+        pagina++;
       }
-    }
+      // Ordem estável por id: a lista da Câmara vem por data/hora, que pode
+      // mudar entre rodadas se a Casa reprocessar uma sessão.
+      listaRodada = acc.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+      return listaRodada;
+    };
 
-    return { votacoes: votacoes.length, votos: totalVotos, erros };
+    const rodada = await rodarComOrcamento({
+      chave: `camara_vot#${data.dataInicio}#${data.dataFim}`,
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: 5000,
+      passo: async (cursor) => {
+        let custo = 0;
+        let lista: VotacaoItem[];
+        try {
+          const antes = listaRodada;
+          lista = await carregarLista();
+          if (!antes) custo += custoDaLista;
+        } catch (e) {
+          // Sem a lista não há item a processar: passageiro refaz, definitivo
+          // encerra a rodada em vez de gastar centenas de tentativas inúteis.
+          const r = reacaoAoErroDeLista(e);
+          return {
+            processados: 0,
+            fim: r.fim,
+            custo: 1,
+            interromper: r.interromper,
+            erros: [`lista: ${(e as Error).message}`],
+          };
+        }
+        if (cursor > lista.length) return { processados: 0, fim: true, custo };
+
+        const v = lista[cursor - 1];
+        try {
+          const r = await processarVotacao(v);
+          totalVotos += r.votos;
+          return { processados: 1, fim: false, custo: custo + r.custo };
+        } catch (e) {
+          // Uma votação com problema não interrompe a varredura — segue para a
+          // seguinte, com o erro registrado.
+          return {
+            processados: 0,
+            fim: false,
+            custo: custo + 1,
+            erros: [`vot ${v.id}: ${(e as Error).message}`],
+          };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "camara_vot",
+        ...anoMesDaJanela(data.dataInicio, data.dataFim),
+        endpoint: `GET ${BASE}/votacoes?dataInicio=${data.dataInicio}&dataFim=${data.dataFim} (+ detalhe e votos por votação)`,
+        unidade: "votações",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
+
+    return {
+      votacoes: rodada.processados,
+      votos: totalVotos,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });
 
 // ===== QUERIES =====

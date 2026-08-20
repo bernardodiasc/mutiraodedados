@@ -4,7 +4,7 @@ import { useData } from "@/lib/data-store";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { registrarTentativa, type Fonte, FONTES_ANUAIS } from "@/lib/data/cobertura.functions";
 import { importarCEAPMes } from "@/lib/data/camara/ingest.functions";
-import { listarVotacoesPeriodo, importarVotacaoUnica } from "@/lib/data/camara/votacoes.functions";
+import { importarVotacoes } from "@/lib/data/camara/votacoes.functions";
 import { importarProposicoes } from "@/lib/data/camara/proposicoes.functions";
 import { importarCEAPSMes } from "@/lib/data/senado/ingest.functions";
 import { importarVotacoesSenado } from "@/lib/data/senado/votacoes.functions";
@@ -31,14 +31,23 @@ const MESES_CURTO = [
   "Dez",
 ];
 
-// Fontes da CGU que gravam o PRÓPRIO registro de rodada em `importacoes`
-// (via fetchPortalOrgao/varrerPaginado, com data_inicial/data_final/orgao_cod).
-// Para essas, o wrapper de job NÃO deve duplicar o log via registrarTentativa.
-const FONTES_CGU_AUTO_LOG = new Set<string>([
+// Fontes que gravam o PRÓPRIO registro de rodada em `importacoes` no servidor
+// (varrerPaginado ou registrarRodadaImportacao). Para essas, o wrapper de job
+// NÃO deve duplicar o log via registrarTentativa. Fora do conjunto hoje: só
+// as votações da Câmara (importação por item; uma linha por votação seria
+// ruído no Histórico) — exceção documentada no contrato de fonte.
+const FONTES_AUTO_LOG = new Set<string>([
   "cgu",
   "cgu_licitacoes",
   "cgu_emendas",
   "cgu_convenios",
+  "camara_ceap",
+  "camara_props",
+  "senado_ceaps",
+  "pncp",
+  "transferegov",
+  "senado_mat",
+  "senado_vot",
 ]);
 
 function monthRange(year: number, month: number) {
@@ -78,7 +87,7 @@ function endpointFor(
     case "camara_props":
       return `GET https://dadosabertos.camara.leg.br/api/v2/proposicoes?ano=${y}&siglaTipo={PL,PEC,PLP,MPV,PDL,PRC} (ano inteiro)`;
     case "senado_ceaps":
-      return `GET https://www6g.senado.leg.br/transparencia/sen/{id}/CEAPS/${y} (81 senadores, filtro mês=${m})`;
+      return `GET https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/${y} (ano inteiro, filtro mês=${m})`;
     case "senado_vot":
       return `GET https://legis.senado.leg.br/dadosabertos/plenario/lista/votacao/${ini}/${fim}`;
     case "senado_mat":
@@ -139,8 +148,7 @@ export function useCoberturaJobBuilder(): BuildJobFn {
   const { loadRealOrgao } = useData();
   const logTentativa = useServerFn(registrarTentativa);
   const importarCEAP = useServerFn(importarCEAPMes);
-  const listarVotsCam = useServerFn(listarVotacoesPeriodo);
-  const importarVotCamUnica = useServerFn(importarVotacaoUnica);
+  const importarVotsCam = useServerFn(importarVotacoes);
   const importarProps = useServerFn(importarProposicoes);
   const importarCEAPS = useServerFn(importarCEAPSMes);
   const importarVotsSen = useServerFn(importarVotacoesSenado);
@@ -187,15 +195,14 @@ export function useCoberturaJobBuilder(): BuildJobFn {
             const res = await run();
             const n = typeof res === "number" ? res : (res.importados ?? 0);
             const erro = typeof res === "number" ? null : (res.erro ?? null);
-            // CGU (contratos e licitações) já grava seu próprio registro em
-            // `importacoes` dentro do ingest/varredura (com data_inicial/
-            // data_final/orgao_cod). Não duplicar o log aqui.
-            if (!FONTES_CGU_AUTO_LOG.has(fonte)) await logar(n, erro ?? undefined);
+            // Fontes com auto-log já gravam a linha de rodada no servidor
+            // (inclusive consulta vazia). Não duplicar o log aqui.
+            if (!FONTES_AUTO_LOG.has(fonte)) await logar(n, erro ?? undefined);
             return n;
           } catch (err) {
             const msg = (err as Error).message;
             const transient = msg.startsWith("TRANSIENT:") || msg.includes("timeout após");
-            if (!transient && !FONTES_CGU_AUTO_LOG.has(fonte)) {
+            if (!transient && !FONTES_AUTO_LOG.has(fonte)) {
               await logar(0, msg.slice(0, 500));
             }
             throw err;
@@ -376,18 +383,28 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "camara_vot":
           return {
             label: `Câmara votações · ${tag}`,
+            noTimeout: true,
+            // Varredura retomável por votação. Antes este job listava os ids e
+            // chamava uma função por votação: funcionava, mas não gravava
+            // rodada no Histórico e engolia as falhas no console do navegador.
             run: wrap(async () => {
-              const { ids } = await listarVotsCam({
-                data: { dataInicio: ini, dataFim: fim, maxPaginas: 5 },
-              });
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 120;
               let total = 0;
-              for (const id of ids) {
-                try {
-                  const r = await importarVotCamUnica({ data: { id } });
-                  total += r.votos;
-                } catch (e) {
-                  console.error(`[camara_vot] votação ${id} falhou`, e);
-                }
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarVotsCam({ data: { dataInicio: ini, dataFim: fim } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.votos;
+                if (!res.varredura.haMais) break;
               }
               return total;
             }),
@@ -450,10 +467,29 @@ export function useCoberturaJobBuilder(): BuildJobFn {
         case "senado_vot":
           return {
             label: `Senado votações · ${tag}`,
-            run: wrap(
-              async () =>
-                (await importarVotsSen({ data: { dataInicio: ini, dataFim: fim } })).votos,
-            ),
+            noTimeout: true,
+            // Varredura retomável — roda rodadas até completar.
+            run: wrap(async () => {
+              const RODADA_TIMEOUT_MS = 4 * 60 * 1000;
+              const MAX_RODADAS = 200;
+              let total = 0;
+              for (let r = 0; r < MAX_RODADAS; r++) {
+                if (cguSweepAbort) break;
+                const res = await Promise.race([
+                  importarVotsSen({ data: { dataInicio: ini, dataFim: fim } }),
+                  new Promise<never>((_, reject) =>
+                    setTimeout(
+                      () =>
+                        reject(new Error(`timeout após ${Math.round(RODADA_TIMEOUT_MS / 1000)}s`)),
+                      RODADA_TIMEOUT_MS,
+                    ),
+                  ),
+                ]);
+                total += res.votos;
+                if (!res.varredura.haMais) break;
+              }
+              return total;
+            }),
           };
         case "senado_mat":
           // Fonte anual — um job por ano (m=1 âncora). Itera os subtipos padrão.
@@ -463,10 +499,16 @@ export function useCoberturaJobBuilder(): BuildJobFn {
             run: wrap(async () => {
               const siglas = ["PL", "PLS", "PEC", "PLP", "PDL", "PRC", "MPV"];
               let total = 0;
+              const MAX_RODADAS = 500;
               for (const sigla of siglas) {
                 try {
-                  const r = await importarMat({ data: { ano: y, sigla } });
-                  total += r.importados;
+                  // Cada sigla é uma varredura própria e retomável.
+                  for (let r = 0; r < MAX_RODADAS; r++) {
+                    if (cguSweepAbort) break;
+                    const res = await importarMat({ data: { ano: y, sigla } });
+                    total += res.importados;
+                    if (!res.varredura.haMais) break;
+                  }
                 } catch (e) {
                   console.error(`[senado_mat] ${sigla}/${y} falhou`, e);
                 }
@@ -537,8 +579,7 @@ export function useCoberturaJobBuilder(): BuildJobFn {
       loadRealOrgao,
       logTentativa,
       importarCEAP,
-      listarVotsCam,
-      importarVotCamUnica,
+      importarVotsCam,
       importarProps,
       importarCEAPS,
       importarVotsSen,

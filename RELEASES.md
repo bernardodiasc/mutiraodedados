@@ -23,6 +23,53 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.6.0 — 2026-08-20
+
+**Resumo:** padroniza a experiência de importação entre todas as fontes — histórico de rodada, retomada, classificação de resultado e recorte de escopo — e, no caminho, conserta seis fontes que estavam quebradas ou travando. Os testes manuais do mantenedor viraram a parte mais produtiva da release: cada log trazido revelou um defeito real, e todos foram corrigidos com teste.
+
+**Entregas**
+
+_Padronização_
+
+- **Linha de rodada padronizada no Histórico**, gravada pelo servidor em todas as fontes: importados, ano/mês para a cobertura, motivo de parada (tempo, custo, fim), duração e consulta vazia. Os botões diretos do painel passaram a registrar de graça, e o job builder deixou de duplicar o log pelo cliente.
+- **Coluna Resultado** classificando cada rodada em `com_dados`, `sem_dados`, `nao_publicado`, `fora_da_janela`, `erro_origem` ou `erro_nosso`. Antes, um zero no Histórico não distinguia "o governo não publicou" de "a importação falhou".
+- **Retomada em todas as fontes**: matérias e votações do Senado, e votações da Câmara — esta última fora do diagnóstico original e o último ingest sem orçamento, checkpoint nem registro de rodada.
+- **Orquestrador**: renovação de sessão por proximidade da expiração do JWT, e re-tentativa única de job com falha transitória.
+- **Aba Estados/Municípios reorganizada** por ente e período, com varredura em massa do SICONFI (ente × exercício × relatório, retomável) e escopo compartilhado: as três fontes por ente passaram a usar o mesmo ente e a mesma janela. Antes cada uma tinha o seu recorte, e a tela chegava a _explicar_ a divergência.
+- **Fatiamento automático de janela** nas entidades do Portal CGU que a API limita a um mês.
+
+_Correções de importação_
+
+- **PNCP** consultava um endpoint inexistente (`/v1/contratos/publicacao`); passou para `/v1/contratos`, e os campos que não existem nessa API foram trocados pelos que existem.
+- **CEAPS** migrou para a fonte que está no ar, em `adm.senado.gov.br`.
+- **CEAP** varria o cache inteiro de deputados, que acumula todas as legislaturas — centenas de requisições garantidamente vazias por importação. Agora recorta pelo mandato do ano pedido.
+- **Matérias do Senado** vinham zeradas: a API mudou o formato sem trocar de URL e todas as matérias eram descartadas em silêncio. O ingest aceita os dois formatos, e descarte total agora vira erro explícito em vez de "consultado, sem dados".
+- **Convênios do Transferegov** não tinham onde aparecer no site; passaram a `/convenios` com seletor de recorte.
+- **Erro definitivo** deixou de travar varredura: no runner, no motor do Portal CGU e no laço do painel. Um 504 do PNCP fazia o botão girar por horas; um 400 permanente do Portal anunciava "continue para baixar o restante".
+
+_Precisão do que dizemos_
+
+- **Convênios não vêm do Transferegov.** Os dois ângulos de `/convenios` chamam o mesmo endpoint do Portal da Transparência. A página afirmava duas fontes distintas e que os números diferiam — nenhuma das duas coisas era verdade. Verificado contra o portal de APIs do Transferegov: o módulo onde os convênios vivem só publica CSV, com API prevista para 2027.
+- **Rótulo de fonte nomeia a API consultada**, não o sistema de origem, com teste-guarda. Seis fontes não tinham rótulo nenhum e vazavam o id cru no Histórico.
+- **Contrato de repasse não é contrato administrativo** — aviso recíproco entre `/convenios` e `/contratos`, que são vizinhos no menu.
+- Cada convênio mostra os **dois portais oficiais** em toda superfície, por uma função única.
+
+**Checks executados**
+
+- `bun run test` ✓ — 70 arquivos, 756 testes, todos verdes.
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- **Testes manuais do mantenedor** ✓ — importações reais por fonte em `/admin/dados`, conferindo Histórico, cobertura e retomada. Foram eles que revelaram as falhas de PNCP, CEAP, matérias do Senado, votações da Câmara e Portal CGU listadas acima.
+
+**Pendências conhecidas, registradas no ROADMAP**
+
+- `/cobertura` tem fontes e dados faltando (v0.7.0).
+- `materia/pesquisa/lista` do Senado já passou da data de desativação que o próprio serviço anuncia (v0.8.0).
+- Convênios ainda vivem em duas tabelas alimentadas pelo mesmo endpoint (v0.9.0).
+
+**Plano:** sem plano dedicado — escopo detalhado no ROADMAP.
+
+**PR de sync público:** `sync v0.6.0`.
+
 ## v0.5.0 — 2026-08-19
 
 **Resumo:** põe PNCP, Transferegov e as proposições da Câmara em condição de carga em massa. Nenhuma das três era retomável, e a interface contornava isso limitando a três páginas por rodada — o que impedia importar um ano inteiro.

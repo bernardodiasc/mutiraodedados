@@ -157,7 +157,14 @@ export async function rodarComOrcamento(opts: OpcoesRodada): Promise<ResultadoRo
     // refazer um passo que gravou metade das linhas não duplica nada.
     if (r.interromper) break;
 
-    cursor += 1;
+    // Passo que ANUNCIA o fim sem processar nada não ocupou posição nenhuma:
+    // é a sondagem que descobre o fim (o alvo 11 de uma varredura de 10, a
+    // página vazia depois da última cheia). Contá-lo fazia a tela dizer
+    // "11 de 10 consultas" e o Histórico registrar um passo que não existiu.
+    // Já um passo que processou E terminou (última página parcial) ocupou.
+    const sondagemDoFim = r.fim && r.processados === 0;
+    if (!sondagemDoFim) cursor += 1;
+
     const gravacao = await checkpoint.salvar(chave, {
       cursor,
       total: totalAcumulado,

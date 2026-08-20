@@ -301,8 +301,8 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       ),
       mkFonte(
         "transferegov",
-        "Transferegov — convênios",
-        "Convênios e contratos de repasse União ↔ Estados/Municípios.",
+        "Convênios por ente (Portal CGU)",
+        "Convênios e contratos de repasse União ↔ Estados/Municípios, pelo ângulo de quem recebe. O Transferegov é o sistema de origem; a consulta é ao Portal da Transparência.",
         transfRows,
         countTransf,
         "/transferegov",

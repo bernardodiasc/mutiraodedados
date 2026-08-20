@@ -12,6 +12,8 @@
 // Views (stateless) e mocks — NUNCA containers ou server-fns.
 
 import type { ComponentType } from "react";
+import { AdminEntesView } from "@/components/AdminEntesView";
+import { adminEntesVariants } from "@/lib/admin-entes/mocks";
 import { AnomaliaInvestigacaoView } from "@/components/AnomaliaInvestigacaoView";
 import { anomaliaInvestigacaoVariants } from "@/lib/anomalia-investigacao/mocks";
 import { CoberturaMatrixView } from "@/components/CoberturaMatrixView";
@@ -84,6 +86,13 @@ export type ComposicaoEntry<P = unknown> = {
 // Manter ordenado alfabeticamente por `name`.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- registro heterogêneo: cada entrada tem seu próprio tipo de props
 export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
+  {
+    name: "AdminEntes",
+    description:
+      "Aba Estados/Municípios do admin: varredura em massa do SICONFI, seleção de ente e importações avulsas (PNCP, Transferegov).",
+    View: AdminEntesView,
+    variants: adminEntesVariants,
+  },
   {
     name: "AnomaliaInvestigacao",
     description:

@@ -3,6 +3,23 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { ehErroTransitorio } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
+import { UF_LIST } from "@/lib/admin-entes/logic";
+import {
+  alvoNoCursor,
+  CAPITAIS,
+  chaveVarreduraSiconfi,
+  exerciciosDoIntervalo,
+  ROTULO_CONJUNTO,
+  rotuloAlvo,
+  totalDeConsultas,
+  type ConjuntoSiconfi,
+  type EnteSiconfi,
+} from "@/lib/data/siconfi/varredura";
 
 /**
  * SICONFI — Tesouro Nacional
@@ -279,3 +296,159 @@ export const importarConjuntoSICONFI = createServerFn({ method: "POST" })
     }
     return { importados, consultas: alvos.length, erros };
   });
+
+/**
+ * Varredura em massa do SICONFI: percorre (ente × exercício × relatório) numa
+ * sequência retomável.
+ *
+ * Importar o histórico ente a ente pela tela é inviável — só as 27 UFs em 14
+ * exercícios já são 3.780 consultas. Aqui a varredura roda em rodadas
+ * limitadas por tempo e por subrequisições, grava onde parou e o painel
+ * continua até terminar.
+ *
+ * Consulta sem dados NÃO é erro: o SICONFI legitimamente não tem todo
+ * relatório de todo ente em todo exercício. Ela conta como consultada e a
+ * varredura segue.
+ */
+export const varrerSiconfi = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) =>
+    z
+      .object({
+        conjunto: z.enum(["ufs", "capitais", "municipios", "ente"]),
+        exercicioInicial: z.number().int().min(2010).max(2100),
+        exercicioFinal: z.number().int().min(2010).max(2100),
+        /** Obrigatório quando conjunto = "municipios". */
+        uf: z.string().length(2).optional(),
+        /** Obrigatório quando conjunto = "ente". */
+        codIbge: z
+          .string()
+          .regex(/^\d{2}$|^\d{7}$/)
+          .optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+
+    const exercicios = exerciciosDoIntervalo(data.exercicioInicial, data.exercicioFinal);
+    if (exercicios.length === 0) {
+      throw new Error("Intervalo de exercícios inválido: o final é anterior ao inicial.");
+    }
+
+    const entes = await resolverEntes(data.conjunto, data.uf, data.codIbge);
+    if (entes.length === 0) {
+      throw new Error("Nenhum ente no conjunto escolhido.");
+    }
+
+    const erros: string[] = [];
+    let semDados = 0;
+    const inicioRodada = Date.now();
+
+    const rodada = await rodarComOrcamento({
+      chave: chaveVarreduraSiconfi(
+        data.conjunto,
+        data.exercicioInicial,
+        data.exercicioFinal,
+        data.conjunto === "municipios" ? (data.uf ?? null) : (data.codIbge ?? null),
+      ),
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: totalDeConsultas(entes.length, exercicios.length),
+      passo: async (cursor) => {
+        const { posicao, fim } = alvoNoCursor(entes, exercicios, cursor);
+        if (fim || !posicao) return { processados: 0, fim: true };
+
+        const { ente, exercicio, alvo } = posicao;
+        try {
+          const r = await ingerirRelatorioSiconfi({
+            codIbge: ente.codigo,
+            exercicio,
+            periodo: alvo.periodo,
+            tipoRelatorio: alvo.tipoRelatorio,
+            userId: context.userId,
+          });
+          if (r.importados === 0) semDados++;
+          // 1 consulta à API + as gravações em lote (~1 por 200 linhas).
+          return { processados: r.importados, fim: false, custo: 2 };
+        } catch (e) {
+          const msg = (e as Error).message;
+          const rotulo = `${ente.nome}/${exercicio} ${rotuloAlvo(alvo)}`;
+          // Falha passageira da origem interrompe sem avançar: a próxima rodada
+          // refaz esta consulta. Erro definitivo é registrado e a varredura
+          // segue — um relatório indisponível não pode travar 3.780 consultas.
+          if (ehErroTransitorio(e)) {
+            return {
+              processados: 0,
+              fim: false,
+              custo: 2,
+              interromper: true,
+              erros: [`${rotulo}: ${msg}`],
+            };
+          }
+          return { processados: 0, fim: false, custo: 2, erros: [`${rotulo}: ${msg}`] };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "siconfi",
+        escopo: data.conjunto === "ente" ? (data.codIbge ?? "") : data.conjunto,
+        endpoint: `GET ${BASE}/{rreo,rgf,dca} (varredura ${ROTULO_CONJUNTO[data.conjunto]}, exercícios ${data.exercicioInicial}–${data.exercicioFinal})`,
+        unidade: "consultas",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
+
+    return {
+      importados: rodada.processados,
+      consultas: rodada.cursorFinal - rodada.cursorInicial + 1,
+      semDados,
+      totalConsultas: totalDeConsultas(entes.length, exercicios.length),
+      entes: entes.length,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
+  });
+
+/**
+ * Lista de entes do conjunto escolhido. UFs e capitais são estáticas; a lista
+ * de municípios de uma UF vem do IBGE (uma requisição por rodada).
+ */
+async function resolverEntes(
+  conjunto: ConjuntoSiconfi,
+  uf?: string,
+  codIbge?: string,
+): Promise<EnteSiconfi[]> {
+  if (conjunto === "ufs") {
+    return UF_LIST.map((u) => ({ codigo: u.codigo, nome: u.nome, uf: u.uf ?? "" }));
+  }
+  if (conjunto === "capitais") return [...CAPITAIS];
+  if (conjunto === "ente") {
+    if (!codIbge) throw new Error("Informe o código IBGE do ente.");
+    return [{ codigo: codIbge, nome: codIbge, uf: uf ?? "" }];
+  }
+  if (!uf) throw new Error("Informe a UF para varrer os municípios.");
+  const res = await fetchComRetry(
+    `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${encodeURIComponent(uf)}/municipios`,
+    { headers: { accept: "application/json" } },
+  );
+  if (!res.ok) throw new Error(`TRANSIENT: IBGE ${res.status} ao listar municípios de ${uf}`);
+  const lista = (await res.json()) as Array<{ id: number; nome: string }>;
+  return lista
+    .map((m) => ({ codigo: String(m.id), nome: m.nome, uf }))
+    .sort((a, b) => a.codigo.localeCompare(b.codigo));
+}

@@ -128,3 +128,65 @@ export function resumirLimpeza(res: ResultadoLimpeza): ResumoLimpeza {
 export function fontesLimpezaIds(): string[] {
   return FONTES_LIMPEZA.map((f) => f.id);
 }
+
+/**
+ * Decide se a sessão deve ser renovada antes do próximo job.
+ *
+ * Antes da v0.6.0 a renovação era "a cada N jobs" — um chute que renovava
+ * demais em lotes rápidos e de menos em rodadas longas (um job de varredura
+ * pode levar 4 minutos; 10 deles passam de meia hora). Renovar por
+ * proximidade da expiração segue o relógio real do JWT.
+ *
+ * `expiresAtS` é o `expires_at` da sessão do Supabase (epoch em SEGUNDOS).
+ * Sem sessão legível (null), renova por precaução.
+ */
+export function precisaRenovarSessao(
+  expiresAtS: number | null | undefined,
+  agoraMs: number,
+  margemS = 120,
+): boolean {
+  if (expiresAtS == null) return true;
+  return expiresAtS * 1000 - agoraMs <= margemS * 1000;
+}
+
+/**
+ * Fatia uma janela livre em janelas de no máximo um mês CALENDÁRIO.
+ *
+ * A API do Portal recusa períodos maiores em licitações e convênios — "o
+ * período deve ser de no máximo 1 mês" — e devolve 400. Pedir ao operador que
+ * importe mês a mês é a mesma armadilha que a varredura do SICONFI resolveu:
+ * quem quer carga histórica escolhe um intervalo grande, e a ferramenta é que
+ * deve saber quebrá-lo.
+ *
+ * As bordas são preservadas: um pedido de 15/jan a 20/mar rende 15–31/jan,
+ * 1–29/fev e 1–20/mar.
+ */
+export function janelasMensais(
+  dataInicial: string,
+  dataFinal: string,
+): Array<{ ini: string; fim: string }> {
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  if (!iso.test(dataInicial) || !iso.test(dataFinal) || dataFinal < dataInicial) return [];
+
+  const janelas: Array<{ ini: string; fim: string }> = [];
+  let ano = Number(dataInicial.slice(0, 4));
+  let mes = Number(dataInicial.slice(5, 7));
+  let ini = dataInicial;
+
+  // Teto de segurança: 100 anos de meses. Sem ele, uma data absurda vinda de
+  // um input livre giraria para sempre.
+  for (let i = 0; i < 1200; i++) {
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const fimDoMes = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+    const fim = fimDoMes < dataFinal ? fimDoMes : dataFinal;
+    janelas.push({ ini, fim });
+    if (fim >= dataFinal) break;
+    mes += 1;
+    if (mes > 12) {
+      mes = 1;
+      ano += 1;
+    }
+    ini = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  }
+  return janelas;
+}

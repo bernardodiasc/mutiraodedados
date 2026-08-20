@@ -4,6 +4,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
@@ -126,6 +128,7 @@ export const importarProposicoes = createServerFn({ method: "POST" })
     // única busca de listagem por rodada em vez de uma por proposição.
     const paginasCache = new Map<number, ProposicaoListItem[]>();
 
+    const inicioRodada = Date.now();
     const rodada = await rodarComOrcamento({
       chave: `camara_props#${data.ano}#${data.siglaTipo}`,
       checkpoint: checkpointImportacao,
@@ -152,11 +155,14 @@ export const importarProposicoes = createServerFn({ method: "POST" })
             arr = json.dados ?? [];
             paginasCache.set(pagina, arr);
           } catch (e) {
+            // Sem a lista não há item a processar: passageiro refaz, definitivo
+            // encerra a rodada em vez de gastar centenas de tentativas inúteis.
+            const r = reacaoAoErroDeLista(e);
             return {
               processados: 0,
-              fim: false,
+              fim: r.fim,
               custo: 1,
-              interromper: true,
+              interromper: r.interromper,
               erros: [`lista p${pagina}: ${(e as Error).message}`],
             };
           }
@@ -234,6 +240,21 @@ export const importarProposicoes = createServerFn({ method: "POST" })
     });
 
     erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "camara_props",
+        ano: data.ano,
+        mes: 1, // fonte anual — âncora da matriz de cobertura
+        endpoint: `GET https://dadosabertos.camara.leg.br/api/v2/proposicoes?ano=${data.ano}&siglaTipo=${data.siglaTipo} (+ detalhe e autores por proposição)`,
+        unidade: "proposições",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
 
     return {
       importados: rodada.processados,

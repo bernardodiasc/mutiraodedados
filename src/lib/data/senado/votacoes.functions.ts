@@ -2,6 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { rodarComOrcamento } from "@/lib/data/runner";
+import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { anoMesDaJanela } from "@/lib/data/historico-rodada";
+import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -92,81 +98,160 @@ export const importarVotacoesSenado = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
 
-    const json = await senadoGet<{
-      ListaVotacoes?: { Votacoes?: { Votacao?: VotacaoItem | VotacaoItem[] } };
-    }>(`/plenario/lista/votacao/${ymd(data.dataInicio)}/${ymd(data.dataFim)}`);
-
-    const votacoes = asArray(json.ListaVotacoes?.Votacoes?.Votacao);
-    if (votacoes.length === 0) return { votacoes: 0, votos: 0 };
-
     let totalVotos = 0;
     const erros: string[] = [];
+    const inicioRodada = Date.now();
 
-    for (const v of votacoes) {
-      try {
-        const codSessao = v.CodigoSessaoVotacao ?? v.CodigoSessao ?? v.SessaoPlenaria?.CodigoSessao;
-        if (!codSessao) continue;
-        const id = String(codSessao);
+    // A lista da janela vem numa chamada só, mas cada votação custa ~3
+    // operações de banco (upsert + limpeza + insert dos votos) — uma pauta
+    // cheia estoura o limite de subrequisições do Worker numa chamada única.
+    // O cursor é a votação; a lista é buscada uma vez por rodada e ordenada
+    // por código de sessão para a retomada não pular nem repetir.
+    let listaRodada: VotacaoItem[] | null = null;
+    const carregarLista = async (): Promise<VotacaoItem[]> => {
+      if (listaRodada) return listaRodada;
+      const json = await senadoGet<{
+        ListaVotacoes?: { Votacoes?: { Votacao?: VotacaoItem | VotacaoItem[] } };
+      }>(`/plenario/lista/votacao/${ymd(data.dataInicio)}/${ymd(data.dataFim)}`);
+      listaRodada = asArray(json.ListaVotacoes?.Votacoes?.Votacao).sort((a, b) => {
+        const ca = String(
+          a.CodigoSessaoVotacao ?? a.CodigoSessao ?? a.SessaoPlenaria?.CodigoSessao ?? "",
+        );
+        const cb = String(
+          b.CodigoSessaoVotacao ?? b.CodigoSessao ?? b.SessaoPlenaria?.CodigoSessao ?? "",
+        );
+        return ca.localeCompare(cb);
+      });
+      return listaRodada;
+    };
 
-        const votos = asArray(v.Votos?.VotoParlamentar);
-        const tally = { sim: 0, nao: 0, outros: 0 };
-        for (const x of votos) {
-          const t = (x.Voto ?? "").toLowerCase().trim();
-          if (t === "sim" || t.startsWith("sim")) tally.sim++;
-          else if (t === "não" || t === "nao" || t.startsWith("nã") || t.startsWith("na"))
-            tally.nao++;
-          else tally.outros++;
+    const rodada = await rodarComOrcamento({
+      chave: `senado_vot#${data.dataInicio}#${data.dataFim}`,
+      checkpoint: checkpointImportacao,
+      orcamentoMs: JANELA_ORCAMENTO_MS,
+      orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+      maxPassos: 5000,
+      passo: async (cursor) => {
+        let custo = 0;
+        let lista: VotacaoItem[];
+        try {
+          const antes = listaRodada;
+          lista = await carregarLista();
+          if (!antes) custo++;
+        } catch (e) {
+          // Sem a lista não há item a processar: passageiro refaz, definitivo
+          // encerra a rodada em vez de gastar centenas de tentativas inúteis.
+          const r = reacaoAoErroDeLista(e);
+          return {
+            processados: 0,
+            fim: r.fim,
+            custo: 1,
+            interromper: r.interromper,
+            erros: [`lista: ${(e as Error).message}`],
+          };
         }
+        if (cursor > lista.length) return { processados: 0, fim: true, custo };
+        const v = lista[cursor - 1];
 
-        const row = {
-          id,
-          data:
-            v.DataSessao && /^\d{4}-\d{2}-\d{2}/.test(v.DataSessao)
-              ? v.DataSessao.slice(0, 10)
-              : null,
-          descricao: (v.DescricaoVotacao ?? "").slice(0, 2000) || null,
-          resultado: v.Resultado ?? null,
-          materia_id: v.Materia?.CodigoMateria ? Number(v.Materia.CodigoMateria) : null,
-          materia_titulo:
-            v.Materia?.DescricaoIdentificacao ??
-            (v.Materia?.SiglaMateria ? String(v.Materia.SiglaMateria) : null),
-          sigla_orgao: "SF",
-          votos_sim: tally.sim,
-          votos_nao: tally.nao,
-          votos_outros: tally.outros,
-          updated_at: new Date().toISOString(),
-        };
-        const { error: e1 } = await supabaseAdmin.from("senado_votacoes_cache").upsert(row);
-        if (e1) throw new Error(e1.message);
+        try {
+          const codSessao =
+            v.CodigoSessaoVotacao ?? v.CodigoSessao ?? v.SessaoPlenaria?.CodigoSessao;
+          if (!codSessao) return { processados: 0, fim: false, custo };
+          const id = String(codSessao);
 
-        const votoRows = votos
-          .filter((x) => x.CodigoParlamentar)
-          .map((x) => ({
-            votacao_id: id,
-            senador_id: Number(x.CodigoParlamentar),
-            tipo_voto: (x.Voto ?? "—").slice(0, 40),
-            sigla_partido: x.SiglaPartido ?? null,
-            sigla_uf: x.SiglaUF ?? null,
-            updated_at: new Date().toISOString(),
-          }));
-
-        if (votoRows.length > 0) {
-          // limpa votos antigos desta votação para upsert idempotente (PK composta inexistente)
-          await supabaseAdmin.from("senado_votos_cache").delete().eq("votacao_id", id);
-          for (let i = 0; i < votoRows.length; i += 500) {
-            const { error: e2 } = await supabaseAdmin
-              .from("senado_votos_cache")
-              .insert(votoRows.slice(i, i + 500));
-            if (e2) throw new Error(`votos: ${e2.message}`);
+          const votos = asArray(v.Votos?.VotoParlamentar);
+          const tally = { sim: 0, nao: 0, outros: 0 };
+          for (const x of votos) {
+            const t = (x.Voto ?? "").toLowerCase().trim();
+            if (t === "sim" || t.startsWith("sim")) tally.sim++;
+            else if (t === "não" || t === "nao" || t.startsWith("nã") || t.startsWith("na"))
+              tally.nao++;
+            else tally.outros++;
           }
-          totalVotos += votoRows.length;
-        }
-      } catch (e) {
-        erros.push(`vot: ${(e as Error).message}`);
-      }
-    }
 
-    return { votacoes: votacoes.length, votos: totalVotos, erros };
+          const row = {
+            id,
+            data:
+              v.DataSessao && /^\d{4}-\d{2}-\d{2}/.test(v.DataSessao)
+                ? v.DataSessao.slice(0, 10)
+                : null,
+            descricao: (v.DescricaoVotacao ?? "").slice(0, 2000) || null,
+            resultado: v.Resultado ?? null,
+            materia_id: v.Materia?.CodigoMateria ? Number(v.Materia.CodigoMateria) : null,
+            materia_titulo:
+              v.Materia?.DescricaoIdentificacao ??
+              (v.Materia?.SiglaMateria ? String(v.Materia.SiglaMateria) : null),
+            sigla_orgao: "SF",
+            votos_sim: tally.sim,
+            votos_nao: tally.nao,
+            votos_outros: tally.outros,
+            updated_at: new Date().toISOString(),
+          };
+          const { error: e1 } = await supabaseAdmin.from("senado_votacoes_cache").upsert(row);
+          custo++;
+          if (e1) throw new Error(e1.message);
+
+          const votoRows = votos
+            .filter((x) => x.CodigoParlamentar)
+            .map((x) => ({
+              votacao_id: id,
+              senador_id: Number(x.CodigoParlamentar),
+              tipo_voto: (x.Voto ?? "—").slice(0, 40),
+              sigla_partido: x.SiglaPartido ?? null,
+              sigla_uf: x.SiglaUF ?? null,
+              updated_at: new Date().toISOString(),
+            }));
+
+          if (votoRows.length > 0) {
+            // limpa votos antigos desta votação para upsert idempotente (PK composta inexistente)
+            await supabaseAdmin.from("senado_votos_cache").delete().eq("votacao_id", id);
+            custo++;
+            for (let i = 0; i < votoRows.length; i += 500) {
+              const { error: e2 } = await supabaseAdmin
+                .from("senado_votos_cache")
+                .insert(votoRows.slice(i, i + 500));
+              custo++;
+              if (e2) throw new Error(`votos: ${e2.message}`);
+            }
+            totalVotos += votoRows.length;
+          }
+          return { processados: 1, fim: false, custo };
+        } catch (e) {
+          // Uma votação com problema não interrompe a varredura — segue para a
+          // seguinte, com o erro registrado.
+          return { processados: 0, fim: false, custo, erros: [`vot: ${(e as Error).message}`] };
+        }
+      },
+    });
+
+    erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "senado_vot",
+        ...anoMesDaJanela(data.dataInicio, data.dataFim),
+        endpoint: `GET ${BASE}/plenario/lista/votacao/${ymd(data.dataInicio)}/${ymd(data.dataFim)}`,
+        unidade: "votações",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
+
+    return {
+      votacoes: rodada.processados,
+      votos: totalVotos,
+      erros,
+      varredura: {
+        haMais: !rodada.concluido,
+        cursor: rodada.cursorFinal,
+        totalAcumulado: rodada.totalAcumulado,
+        orcamentoEsgotado: rodada.orcamentoEsgotado,
+        custoEsgotado: rodada.custoEsgotado,
+      },
+    };
   });
 
 export const listarVotacoesSenado = createServerFn({ method: "GET" })

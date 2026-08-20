@@ -354,8 +354,9 @@ export const statusCobertura = createServerFn({ method: "GET" })
         },
         {
           fonte: "transferegov",
-          titulo: "Transferegov — convênios",
-          descricao: "Convênios e contratos de repasse União ↔ Estados/Municípios.",
+          titulo: "Convênios por ente (Portal CGU)",
+          descricao:
+            "Convênios e contratos de repasse União ↔ Estados/Municípios, pelo ângulo de quem recebe.",
           granularidade: "mes",
           linhas: linhaUnica(transf.data as RpcRow[] | null, "transferegov", "Convênios"),
         },

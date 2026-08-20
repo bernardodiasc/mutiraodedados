@@ -35,6 +35,12 @@ import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { FONTES_LIMPEZA } from "@/lib/data/limpeza";
 import { MONTHS } from "@/lib/admin-import/logic";
 import type { HistoricoEntrada } from "@/lib/data/real/portal.functions";
+import {
+  EXPLICACAO_RESULTADO,
+  ROTULO_RESULTADO,
+  exigeAtencao,
+  type ResultadoClassificado,
+} from "@/lib/data/resultado-rodada";
 
 export type BatchProgress = {
   total: number;
@@ -585,6 +591,38 @@ function DiagnosticoEndpointPanel({
         </div>
       )}
     </section>
+  );
+}
+
+/**
+ * Como ler o número de importados. Sem isso, um zero podia ser erro nosso,
+ * falha da origem, ausência legítima ou período ainda não publicado — e o
+ * Histórico mostrava os quatro do mesmo jeito.
+ */
+function ResultadoBadge({ resultado }: { resultado: ResultadoClassificado | null }) {
+  if (!resultado) return <span className="text-muted-foreground">—</span>;
+  const cor: Record<ResultadoClassificado, string> = {
+    com_dados: "bg-accent/15 text-accent border-accent/30",
+    sem_dados: "bg-muted text-muted-foreground border-border",
+    nao_publicado: "bg-muted text-muted-foreground border-border",
+    fora_da_janela: "bg-muted text-muted-foreground border-border",
+    erro_origem: "bg-destructive/10 text-destructive border-destructive/30",
+    erro_nosso: "bg-destructive/15 text-destructive border-destructive/40",
+  };
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span
+          className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap cursor-help ${cor[resultado]}`}
+        >
+          {exigeAtencao(resultado) && <span aria-hidden>⚠</span>}
+          {ROTULO_RESULTADO[resultado]}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs">
+        {EXPLICACAO_RESULTADO[resultado]}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -1145,7 +1183,14 @@ export function AdminImportView(p: AdminImportViewProps) {
         </TabsContent>
 
         <TabsContent value="entes" className="space-y-4 mt-4">
-          <EntesPanel ano={p.ano} mes={p.mes} />
+          <EntesPanel
+            ano={p.ano}
+            mes={p.mes}
+            setAno={p.setAno}
+            setMes={p.setMes}
+            anos={p.years}
+            meses={MONTHS}
+          />
         </TabsContent>
 
         <TabsContent value="tse" className="space-y-4 mt-4">
@@ -1199,6 +1244,19 @@ export function AdminImportView(p: AdminImportViewProps) {
                           <TooltipContent className="max-w-xs text-xs">
                             Registros efetivamente persistidos no banco após filtros, sanitização e
                             deduplicação. Pode ser menor que o Bruto.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="text-left p-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 uppercase tracking-wider cursor-help transition-colors hover:text-destructive">
+                              Resultado <Info className="size-3 opacity-60" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md text-xs">
+                            Como ler o número de importados: se o zero é erro, ausência legítima,
+                            período ainda não publicado ou anterior ao início da fonte.
                           </TooltipContent>
                         </Tooltip>
                       </th>
@@ -1258,6 +1316,9 @@ export function AdminImportView(p: AdminImportViewProps) {
                           ) : (
                             h.importados.toLocaleString("pt-BR")
                           )}
+                        </td>
+                        <td className="p-3 whitespace-nowrap">
+                          <ResultadoBadge resultado={h.resultado} />
                         </td>
                         <td className="p-3 text-xs min-w-[18rem] max-w-md space-y-1">
                           {h.erros.length === 0 && h.avisos.length === 0 ? (

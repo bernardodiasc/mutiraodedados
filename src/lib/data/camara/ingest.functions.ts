@@ -6,10 +6,13 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasCamaraCeap, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
+import { reacaoAoErro } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import {
   CEAP_ORCAMENTO_MS,
   CEAP_TETO_SUBREQUISICOES,
   chaveVarreduraCeap,
+  legislaturaDoAno,
   parlamentarNoCursor,
 } from "@/lib/data/ceap-varredura";
 
@@ -152,9 +155,9 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-/** Legislatura corrente (52 = 2003–2007, +1 a cada 4 anos). 2023–2027 = 57. */
+/** Legislatura corrente. 2023–2026 = 57. */
 export function legislaturaAtualCamara(): number {
-  return 52 + Math.floor((new Date().getFullYear() - 2003) / 4);
+  return legislaturaDoAno(new Date().getFullYear());
 }
 function anoInicioLegislatura(n: number): number {
   return 2003 + (n - 52) * 4;
@@ -409,29 +412,60 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
       urlDocumento?: string;
     };
 
+    const erros: string[] = [];
+
     // A ordem precisa ser a MESMA a cada rodada, senão a retomada pula ou
-    // repete deputado — daí o `order("id")`.
+    // repete deputado — daí o `order` em todas as consultas abaixo.
+    //
+    // E o recorte por MANDATO é obrigatório: o cache acumula todas as
+    // legislaturas já importadas, então varrer a tabela inteira consultava a
+    // API para deputados que não estavam na Casa no mês pedido. Cada um deles
+    // é uma requisição garantidamente vazia, e eram centenas — a varredura
+    // avançava 45 por rodada e não terminava nunca.
     let deputadoIds: number[] = [];
     if (data.deputadoId) {
       deputadoIds = [data.deputadoId];
     } else {
-      const { data: deps, error } = await supabaseAdmin
-        .from("camara_deputados_cache")
-        .select("id")
-        .order("id");
-      if (error) throw new Error(`db: ${error.message}`);
-      deputadoIds = (deps ?? []).map((d) => d.id as number);
+      const leg = legislaturaDoAno(data.ano);
+
+      // Histórico de mandatos: a fonte precisa dessa resposta.
+      const { data: mandatos, error: errMandatos } = await supabaseAdmin
+        .from("camara_deputado_legislaturas")
+        .select("deputado_id")
+        .eq("id_legislatura", leg)
+        .order("deputado_id");
+      if (errMandatos) throw new Error(`db: ${errMandatos.message}`);
+      deputadoIds = [...new Set((mandatos ?? []).map((m) => m.deputado_id as number))];
+
+      if (deputadoIds.length === 0) {
+        // Sem histórico de mandatos importado, o cadastro ainda carrega a
+        // legislatura em que cada deputado entrou no cache.
+        const { data: deps, error } = await supabaseAdmin
+          .from("camara_deputados_cache")
+          .select("id")
+          .eq("id_legislatura", leg)
+          .order("id");
+        if (error) throw new Error(`db: ${error.message}`);
+        deputadoIds = (deps ?? []).map((d) => d.id as number);
+        if (deputadoIds.length > 0) {
+          erros.push(
+            `info: sem histórico de mandatos da legislatura ${leg} — usei a legislatura registrada no cadastro. Importe o cadastro da legislatura ${leg} para o recorte ficar exato.`,
+          );
+        }
+      }
+
+      if (deputadoIds.length === 0) {
+        throw new Error(
+          `Nenhum deputado da legislatura ${leg} em cache. Importe o cadastro dessa legislatura antes do CEAP de ${data.ano}.`,
+        );
+      }
     }
 
-    if (deputadoIds.length === 0) {
-      throw new Error("Nenhum deputado em cache. Importe o cadastro primeiro.");
-    }
-
-    const erros: string[] = [];
     let deputadosProcessados = 0;
 
     // Um passo = um deputado. Rodada limitada por tempo E por subrequisições;
     // o painel admin repete até `haMais` ficar falso.
+    const inicioRodada = Date.now();
     const rodada = await rodarComOrcamento({
       chave: chaveVarreduraCeap("camara_ceap", data.ano, data.mes, data.deputadoId),
       checkpoint: checkpointImportacao,
@@ -501,14 +535,14 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
               .from("camara_despesas_cache")
               .upsert(rows.slice(i, i + 200));
             custo++;
-            // Erro de banco interrompe a rodada sem avançar o cursor: a
-            // próxima refaz este deputado em vez de dá-lo por importado.
+            // Falha de banco passageira refaz o item; definitiva registra e
+            // segue, para um erro permanente não travar a varredura.
             if (error) {
               return {
                 processados: 0,
                 fim: false,
                 custo,
-                interromper: true,
+                interromper: reacaoAoErro(error).interromper,
                 erros: [`dep ${depId}: ${error.message}`],
               };
             }
@@ -533,12 +567,15 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
 
           return { processados: rows.length, fim: false, custo, erros: errosPasso };
         } catch (e) {
-          // Falha de rede na origem: a próxima rodada refaz este deputado.
+          // Passageiro (rede, 5xx) interrompe sem avançar, para a próxima
+          // rodada refazer este item. Definitivo (404) registra e segue —
+          // senão um item que nunca vai responder trava a varredura inteira.
+          const { interromper } = reacaoAoErro(e);
           return {
             processados: 0,
             fim: false,
             custo,
-            interromper: true,
+            interromper,
             erros: [`dep ${depId}: ${(e as Error).message}`],
           };
         }
@@ -546,6 +583,21 @@ export const importarCEAPMes = createServerFn({ method: "POST" })
     });
 
     erros.push(...rodada.erros);
+
+    // Linha de rodada no Histórico — inclui consulta vazia e motivo de parada.
+    const avisoHistorico = await registrarRodadaImportacao(
+      {
+        fonte: "camara_ceap",
+        ano: data.ano,
+        mes: data.mes,
+        endpoint: `GET ${BASE}/deputados/{id}/despesas?ano=${data.ano}&mes=${data.mes}`,
+        unidade: "deputados",
+        userId: context.userId,
+        duracaoMs: Date.now() - inicioRodada,
+      },
+      rodada,
+    );
+    if (avisoHistorico) erros.push(avisoHistorico);
 
     return {
       importados: rodada.processados,

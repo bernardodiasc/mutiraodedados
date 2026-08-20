@@ -5,6 +5,7 @@ import { ArrowLeft, ExternalLink } from "lucide-react";
 import { getConvenioCguPorId } from "@/lib/data/real/queries.functions";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
+import { linksDoConvenio } from "@/lib/links-oficiais";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
@@ -72,11 +73,17 @@ function ConvenioDetalhe() {
           nº {c.numero ?? "—"}
           {c.codigo_siconv ? ` · SICONV ${c.codigo_siconv}` : ""}
         </p>
-        {c.url_oficial && (
-          <div className="mt-2">
-            <BotaoFonteOficial href={c.url_oficial} />
-          </div>
-        )}
+        {/* Os dois portais do mesmo convênio — o Transferegov costuma ter o
+            detalhe de execução que o Portal não mostra. */}
+        <div className="mt-2 flex flex-wrap gap-2">
+          {linksDoConvenio({
+            id: c.id,
+            numero: c.numero,
+            codigoSiconv: c.codigo_siconv,
+          }).map((l) => (
+            <BotaoFonteOficial key={l.portal} href={l.url} rotulo={`Ver no ${l.portal}`} />
+          ))}
+        </div>
       </header>
 
       <div className="flex flex-wrap gap-2">

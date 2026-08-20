@@ -103,6 +103,6 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** v0.6.0 — orquestrador robusto ([escopo](./ROADMAP.md)).
-- **Última release fechada:** v0.5.0, em 2026-08-19 ([RELEASES.md](./RELEASES.md)).
-- **Pendências conhecidas:** as importações reais das v0.3.0, v0.4.0 e v0.5.0 seguem por verificar — os refactors foram validados por testes, build, revisão e checagem da RLS contra o banco, mas ainda não por uma importação de ponta a ponta em `/admin/dados`. Há uma decisão de endurecimento aguardando o mantenedor em `.claude/decisoes-pendentes.md`. Os 16 warnings de lint são o padrão shadcn/ui e não bloqueiam.
+- **Release em andamento:** nenhuma. A próxima a abrir é a **v0.7.0** — `/cobertura` completa e legível + IBGE como fonte ([ROADMAP.md](./ROADMAP.md)).
+- **Última release fechada:** v0.6.0, em 2026-08-20 ([RELEASES.md](./RELEASES.md)) — experiência de importação padronizada, validada com testes manuais do mantenedor.
+- **Pendências conhecidas:** decisão de endurecimento aguardando o mantenedor em `.claude/decisoes-pendentes.md`. Os 16 warnings de lint são o padrão shadcn/ui e não bloqueiam.
