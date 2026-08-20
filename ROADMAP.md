@@ -14,17 +14,6 @@ Nenhuma — a próxima do backlog abre em seguida.
 
 Ordem por dependência técnica rumo à carga histórica. Cada release fecha conforme o [WORKFLOW.md](./WORKFLOW.md).
 
-### v0.10.0 — Convênios pela origem (Transferegov), por um dos dois caminhos
-
-Hoje os dois ângulos de `/convenios` saem do mesmo endpoint `/convenios` do Portal CGU. Não é preferência: o módulo **Transferências Discricionárias e Legais** do Transferegov — onde ficam convênios e contratos de repasse — não tem API. Verificado em 2026-08-20; a tabela de módulos e o método do teste estão em [docs/fontes/transferegov.md](./docs/fontes/transferegov.md).
-
-Dois caminhos, e o primeiro não depende de esperar:
-
-- **(a) CSV do módulo Discricionárias e Legais** — disponível hoje. Exige um contrato de fonte diferente do resto do projeto: arquivo inteiro versionado em vez de paginação por janela, então a retomada passa a ser por bloco de linhas e a cobertura por data de publicação do arquivo. É a via para ter o dado na origem antes de 2027.
-- **(b) API nativa, quando sair** — cronograma oficial prevê "Instrumentos" entre nov/2026 e fev/2027. Encaixa direto no contrato de fonte atual.
-
-Em qualquer um dos dois, `transferegov_instrumentos_cache` passa a ser alimentada pela origem e o seletor de `/convenios` volta a distinguir **fontes**, não só ângulos de leitura.
-
 ### v0.11.0 — Automação periódica das importações
 
 Não implementar antes das releases acima. Desenho já validado contra a infra:
@@ -45,6 +34,10 @@ O levantamento de 2026-08-20 achou dois módulos com API aberta que o projeto **
 - **Gestão de Parcerias** (`/parcerias`) — fundo a fundo da Saúde, PRONON/PRONAS, contratos de gestão, multas ambientais. Instrumentos que hoje não aparecem em lugar nenhum do site.
 
 Avaliar valor cívico antes de priorizar: nenhum dos dois é convênio, e o nome "parcerias" não deve ser lido como tal.
+
+### Sinal de qualidade: situação espelho × origem
+
+O enriquecimento da v0.10.0 revelou espelho defasado (convênio rescindido exibido "em execução"). A ficha já mostra a divergência; falta promovê-la a regra do catálogo de sinais (finding automático por convênio divergente), entrando no fluxo finding→lacuna.
 
 ### Carga histórica em massa (operação, não engenharia)
 

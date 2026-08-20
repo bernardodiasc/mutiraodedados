@@ -194,10 +194,14 @@ export type ConvenioRow = {
   data_fim_vigencia: string | null;
   data_publicacao: string | null;
   url_oficial: string | null;
+  situacao_origem: string | null;
+  valor_empenhado: number | null;
+  valor_desembolsado: number | null;
+  atualizado_origem_em: string | null;
 };
 
 const COLUNAS_CONVENIO =
-  "id,fonte,numero,codigo_siconv,objeto,orgao_cod,orgao_nome,orgao_cnpj,convenente_nome,convenente_cnpj,esfera_convenente,uf,municipio_ibge,municipio_nome,situacao,tipo_instrumento,valor,valor_liberado,valor_contrapartida,data_assinatura,data_inicio_vigencia,data_fim_vigencia,data_publicacao,url_oficial";
+  "id,fonte,numero,codigo_siconv,objeto,orgao_cod,orgao_nome,orgao_cnpj,convenente_nome,convenente_cnpj,esfera_convenente,uf,municipio_ibge,municipio_nome,situacao,tipo_instrumento,valor,valor_liberado,valor_contrapartida,data_assinatura,data_inicio_vigencia,data_fim_vigencia,data_publicacao,url_oficial,situacao_origem,valor_empenhado,valor_desembolsado,atualizado_origem_em";
 
 export const listarConveniosCgu = createServerFn({ method: "POST" })
   .inputValidator((input) =>

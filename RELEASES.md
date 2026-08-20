@@ -23,6 +23,31 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.10.0 — 2026-08-20
+
+**Resumo:** a origem do SICONV passa a enriquecer os convênios com o que só ela publica — situação corrente, valor empenhado e valor desembolsado — lida do CSV oficial do módulo Discricionárias e Legais, por varredura retomável. O recorte foi decidido por medição, a pedido do mantenedor, que questionou a premissa da release.
+
+**Entregas**
+
+- **Verificação de completude do espelho** (amostra estratificada de 30 códigos da origem): universo completo para convênios celebrados; campos de execução financeira ausentes; situação defasada em caso real (convênio rescindido exibido "em execução"). Registrada em `docs/fontes/transferegov.md` com o método.
+- Ingest retomável de `siconv_convenio.zip` (18 MB, 287 mil linhas): Range sobre o payload deflate, streaming via `DecompressionStream`, cursor por lote de 500 linhas, um lote = uma chamada à RPC.
+- Migration: colunas `situacao_origem`, `valor_empenhado`, `valor_desembolsado`, `atualizado_origem_em`; RPC `enriquecer_convenios_origem` (update por `codigo_siconv`, devolve atualizados/sem espelho, EXECUTE só para service_role); RPC de cobertura do enriquecimento; índice por `codigo_siconv`.
+- **A origem enriquece, não corrige**: campos do espelho jamais sobrescritos; `data_assinatura` apenas preenchida quando falta.
+- Ficha do convênio ganha o bloco "Na origem", com a divergência de situação exibida lado a lado quando existe. Promover a divergência a sinal do catálogo ficou no horizonte.
+- Helpers de CSV puros e testados (BOM, `;`, datas BR, números em formato misto — vírgula e ponto decimais no mesmo arquivo).
+- Acervo completo da origem (com convenente/município) descartado nesta infra: exigiria join com `siconv_proposta.zip` (205 MB); registrado no horizonte com a API nativa.
+
+**Checks executados**
+
+- `bun run test` ✓ — 72 arquivos, 768 testes.
+- `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Formato do zip conferido contra o arquivo real (deflate, tamanhos no cabeçalho, Range 206); CSV real baixado e analisado (286.945 linhas).
+- Validação manual adiada — rodada única após a v0.11.0.
+
+**Plano:** sem plano dedicado — investigação e recorte registrados no ROADMAP e em docs/fontes/transferegov.md.
+
+**PR de sync público:** `sync v0.10.0`.
+
 ## v0.9.0 — 2026-08-20
 
 **Resumo:** convênios passam a viver numa tabela única (`convenios_cache`) com coluna de fonte. As duas tabelas antigas guardavam o mesmo registro do mesmo endpoint, mapeado por dois códigos que divergiam em silêncio — foi a causa raiz dos rótulos e links errados corrigidos na v0.6.0.

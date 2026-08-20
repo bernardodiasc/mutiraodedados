@@ -31,6 +31,7 @@ export const FONTE_LABEL: Record<string, string> = {
   orgaos_siafi: "Órgãos SIAFI",
   tse: "TSE",
   ibge: "IBGE — municípios",
+  convenios_origem: "Transferegov — origem (CSV)",
 };
 
 /**
@@ -57,6 +58,7 @@ export const FONTES_COM_HISTORICO = [
   "orgaos_siafi",
   "tse",
   "ibge",
+  "convenios_origem",
 ] as const;
 
 /** Ids cujo ingest consulta o Portal da Transparência (CGU). */
