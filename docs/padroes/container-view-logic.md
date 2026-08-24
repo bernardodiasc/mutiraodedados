@@ -13,7 +13,7 @@ Sempre que um componente tiver pelo menos um dos itens abaixo:
 - `toast.*`
 - Handlers que recebem dados de fora (props) e disparam efeitos
 
-Componentes 100% apresentacionais (cards, banners, blocos estáticos) NÃO precisam virar Container/View. Exemplo: `BlocoLacuna`, `BlocoRastreabilidade`, `RodapeInvestigativo`.
+Componentes 100% apresentacionais (cards, banners, blocos estáticos) NÃO precisam virar Container/View. Exemplo: `BlocoLacuna`, `BlocoRastreabilidade`, `Cartao`.
 
 ## Template canônico
 
@@ -204,5 +204,5 @@ Toast pertence ao Container. View só renderiza o que recebe.
 
 ## Casos legítimos de View com `useState`
 
-- Estado transiente de UI primitiva (tab selecionada de uma tablist, abrir/fechar collapse local sem persistência). Exemplo aceitável: `PainelModosLeitura` (tab local sem efeito de fora).
+- Estado transiente de UI primitiva (tab selecionada de uma tablist, abrir/fechar collapse local sem persistência). Exemplo aceitável: `PainelExplicar` (abrir/fechar local sem efeito de fora).
 - Se o estado vira semântica do produto (escolha do usuário que dispara fetch, salva, navega), promova para Container.

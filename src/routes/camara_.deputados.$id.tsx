@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getDeputadoDetalhe } from "@/lib/data/camara/queries.functions";
 import { proposicoesDoDeputado } from "@/lib/data/camara/proposicoes.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { SituacaoBadge, Trajetoria } from "@/components/Trajetoria";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { fmtBRL } from "@/lib/fmt";
@@ -294,8 +293,6 @@ function DeputadoDetalhe() {
         </section>
       )}
 
-      <AvisoMetodologico compacto />
-
       {despesas.length > 0 && (
         <section className="flex flex-wrap items-end gap-3">
           <div>
@@ -349,8 +346,8 @@ function DeputadoDetalhe() {
 
       {despesas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-          Sem despesas CEAP em cache para este deputado. Um administrador precisa importar um
-          período no painel admin.
+          Ainda não carregamos despesas de cota (CEAP) deste deputado. Os dados vêm da Câmara dos
+          Deputados e entram no acervo aos poucos — volte em breve.
         </div>
       ) : (
         <>

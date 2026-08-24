@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { notFound } from "@tanstack/react-router";
 import { CandidatosListaContainer } from "@/containers/CandidatosListaContainer";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { TSE_ANOS_ELEICAO, TSE_UFS } from "@/lib/data/tse/client-ckan";
 import { rotuloEleicao } from "@/lib/eleicoes-hub/logic";
 
@@ -71,15 +72,10 @@ function EleicaoUfPage() {
   }
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
-      <nav className="text-sm text-muted-foreground mb-4">
-        <Link to="/eleicoes" className="hover:text-accent">
-          Eleições
-        </Link>
-        {" / "}
-        {rotuloEleicao(ano)}
-        {" / "}
-        {uf}
-      </nav>
+      <TrilhaDeNavegacao
+        className="mb-4"
+        itens={[{ label: "Eleições", to: "/eleicoes" }, { label: `${rotuloEleicao(ano)} · ${uf}` }]}
+      />
       <h1 className="font-display text-4xl">
         {rotuloEleicao(ano)} — {uf}
       </h1>

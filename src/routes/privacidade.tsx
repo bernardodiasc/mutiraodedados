@@ -24,7 +24,8 @@ function PrivacidadePage() {
       </span>
       <h1 className="font-display text-5xl leading-[0.95] mt-2">Política de Privacidade</h1>
       <p className="mt-4 text-sm text-muted-foreground">
-        Última atualização: maio de 2026 — versão experimental, sujeita a revisão jurídica.
+        Última atualização: maio de 2026. Este texto pode ser atualizado — a versão vigente é sempre
+        a desta página.
       </p>
 
       <p className="mt-6 text-lg text-muted-foreground">

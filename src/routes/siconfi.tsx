@@ -9,7 +9,7 @@ export const Route = createFileRoute("/siconfi")({
   component: SICONFIPage,
   head: () => ({
     meta: [
-      { title: "SICONFI (Tesouro Nacional) — Mutirão de Dados" },
+      { title: "Sistema de Informações Contábeis e Fiscais (SICONFI) — Mutirão de Dados" },
       {
         name: "description",
         content:
@@ -31,7 +31,9 @@ function SICONFIPage() {
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
           Por fonte de dados
         </div>
-        <h1 className="font-display text-4xl mt-1">SICONFI (Tesouro Nacional)</h1>
+        <h1 className="font-display text-4xl mt-1">
+          Sistema de Informações Contábeis e Fiscais (SICONFI)
+        </h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
           Sistema de Informações Contábeis e Fiscais do Setor Público Brasileiro, mantido pela
           Secretaria do Tesouro Nacional (STN). Nasceu para operacionalizar a Lei de
@@ -62,7 +64,7 @@ function SICONFIPage() {
             período. Abre a listagem com filtros e exportação CSV.
           </p>
           <div className="text-xs text-muted-foreground mt-3">
-            {total != null ? `${total.toLocaleString("pt-BR")} registros em cache` : "—"}
+            {total != null ? `${total.toLocaleString("pt-BR")} registros no acervo` : "—"}
           </div>
         </Link>
       </section>
@@ -87,15 +89,15 @@ function SICONFIPage() {
         <div className="rounded-2xl border border-border bg-card p-5 space-y-2">
           <h3 className="font-medium">Reatar a "fratura Fundo a Fundo"</h3>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Nos repasses Fundo a Fundo (SUS/SUAS, sem convênio) a trilha automática entre as APIs
+            Nos repasses Fundo a Fundo (SUS/SUAS, sem convênio) a trilha automática entre as bases
             federais se quebra. O saldo contábil que o município declara no SICONFI (RREO){" "}
-            <strong>deve bater</strong> com o somatório de Ordens Bancárias do endpoint{" "}
+            <strong>deve bater</strong> com o somatório dos pagamentos registrados em{" "}
             <Link to="/transferencias" className="text-accent underline">
-              /transferencias
-            </Link>{" "}
-            do Portal. O SICONFI valida o macro — confronte com o que falta em{" "}
+              Transferências
+            </Link>
+            . O SICONFI valida o macro — confronte com o que falta em{" "}
             <Link to="/lacunas" className="text-accent underline">
-              /lacunas
+              Informação que falta
             </Link>
             .
           </p>
@@ -122,10 +124,13 @@ function SICONFIPage() {
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
         Cobertura por período em{" "}
         <Link to="/cobertura" className="text-accent underline">
-          /cobertura
+          Cobertura dos dados
         </Link>
-        . Detalhes em <code>docs/conceitos/siconfi-e-relatorios-fiscais.md</code>,{" "}
-        <code>docs/fontes/siconfi.md</code> e <code>docs/dominios/financas-publicas.md</code>.
+        ; como tratamos cada fonte, na{" "}
+        <Link to="/metodologia" className="text-accent underline">
+          metodologia
+        </Link>
+        .
       </p>
     </div>
   );

@@ -1,6 +1,5 @@
 import { Link } from "@tanstack/react-router";
 import { HandCoins, Loader2 } from "lucide-react";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { fmtBRL } from "@/lib/fmt";
 import type { DoacaoItem, Estado } from "@/lib/doacoes-eleitorais/logic";
 
@@ -36,7 +35,10 @@ export function DoacoesEleitoraisView({ estado, itens, total }: DoacoesEleitorai
             Este CNPJ aparece como <strong>doador de campanha</strong> nas prestações de contas do
             TSE — <span className="font-mono">{fmtBRL(total)}</span> no total listado abaixo.
           </p>
-          <AvisoMetodologico compacto />
+          <p className="text-xs text-muted-foreground">
+            Doar para campanha é legal e registrado. A coincidência entre doador e fornecedor não
+            indica, por si, irregularidade — é um ponto de partida para checagem, não uma acusação.
+          </p>
           <ul className="grid gap-1 text-sm">
             {itens.map((d, i) => (
               <li key={i} className="flex justify-between gap-3 border-b border-border/60 py-1.5">

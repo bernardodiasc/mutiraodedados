@@ -296,6 +296,31 @@ export const importarMaterias = createServerFn({ method: "POST" })
     return rodadaMaterias(data, context.userId);
   });
 
+// Contrato de listagem (kit src/lib/listagem): filtros + `ordem`
+// ("campo-direcao") + `ate` (corte de estabilidade) + limit/offset; resposta
+// `{ linhas, total, corteSugerido }` com `total` real (count com os mesmos
+// filtros). O corte usa a DATA DE APRESENTAÇÃO (data de domínio) — registros
+// sem a data ficam fora quando há corte (determinístico).
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+
+const ateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
+
+function ordenar<Q extends { order: (c: string, o: object) => Q }>(
+  q: Q,
+  ordem: string,
+  colunas: Record<string, string>,
+  padrao: string,
+): Q {
+  const [campo, dir] = ordem.includes("-")
+    ? [ordem.slice(0, ordem.lastIndexOf("-")), ordem.slice(ordem.lastIndexOf("-") + 1)]
+    : [ordem, "desc"];
+  const coluna = colunas[campo] ?? colunas[padrao];
+  return q.order(coluna, { ascending: dir === "asc", nullsFirst: false });
+}
+
 export const listarMaterias = createServerFn({ method: "GET" })
   .inputValidator((input) =>
     z
@@ -303,7 +328,10 @@ export const listarMaterias = createServerFn({ method: "GET" })
         ano: z.number().int().optional(),
         sigla: z.string().optional(),
         termo: z.string().max(120).optional(),
-        limit: z.number().int().min(1).max(500).default(200),
+        ordem: z.enum(["data-desc", "data-asc"]).default("data-desc"),
+        ate: ateSchema,
+        limit: z.number().int().min(1).max(500).default(100),
+        offset: z.number().int().min(0).max(100000).default(0),
       })
       .parse(input ?? {}),
   )
@@ -312,15 +340,17 @@ export const listarMaterias = createServerFn({ method: "GET" })
       .from("senado_materias_cache")
       .select(
         "id,sigla_subtipo,numero,ano,ementa,data_apresentacao,autor_principal,ultima_situacao",
-      )
-      .order("data_apresentacao", { ascending: false, nullsFirst: false })
-      .limit(data.limit);
+        { count: "exact" },
+      );
+    q = ordenar(q, data.ordem, { data: "data_apresentacao" }, "data");
+    q = q.range(data.offset, data.offset + data.limit - 1);
+    if (data.ate) q = q.lte("data_apresentacao", data.ate);
     if (data.ano) q = q.eq("ano", data.ano);
     if (data.sigla) q = q.eq("sigla_subtipo", data.sigla);
     if (data.termo) q = q.ilike("ementa", `%${data.termo}%`);
-    const { data: rows, error } = await q;
+    const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => ({
+    const linhas = (rows ?? []).map((r) => ({
       id: r.id as number,
       siglaSubtipo: r.sigla_subtipo as string,
       numero: r.numero as number,
@@ -330,6 +360,7 @@ export const listarMaterias = createServerFn({ method: "GET" })
       autorPrincipal: r.autor_principal as string | null,
       ultimaSituacao: r.ultima_situacao as string | null,
     }));
+    return { linhas, total: count ?? 0, corteSugerido: hojeISO() };
   });
 
 export const getMateriaDetalhe = createServerFn({ method: "GET" })

@@ -12,6 +12,7 @@ export type CandidatoFichaViewProps = {
   urlOficial: string;
   /** Seções compostas pelo Container. */
   vinculoParlamentar?: ReactNode;
+  contas?: ReactNode;
   historico?: ReactNode;
   comparador?: ReactNode;
 };
@@ -21,6 +22,7 @@ export function CandidatoFichaView({
   detalhe,
   urlOficial,
   vinculoParlamentar,
+  contas,
   historico,
   comparador,
 }: CandidatoFichaViewProps) {
@@ -188,6 +190,7 @@ export function CandidatoFichaView({
         )}
       </section>
 
+      {contas}
       {historico}
       {comparador}
     </div>

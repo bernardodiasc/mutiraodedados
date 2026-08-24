@@ -1,16 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { formatarCnpj, soDigitos } from "@/lib/cnpj";
 
 /**
  * Busca global unificada.
  * Pesquisa CNPJ (14 dígitos numéricos), CPF parcial ou termo livre nas
- * principais tabelas de cache: contratos PNCP, transferências e convênios.
+ * principais tabelas do acervo: contratos (CGU e PNCP), licitações, emendas,
+ * convênios, fornecedores e candidatos.
  */
-
-function soDigitos(s: string) {
-  return s.replace(/\D+/g, "");
-}
 
 // Remove caracteres com significado especial em filtros PostgREST (`.or=`)
 // e no padrão LIKE para evitar injeção de condições adicionais no query string.
@@ -25,18 +23,23 @@ type ItemBusca = {
   id: string;
   titulo: string;
   subtitulo: string;
-  valor: number;
+  /** null quando não faz sentido exibir valor (fornecedor, candidato). */
+  valor: number | null;
   data: string | null;
   href: string;
+  /** true quando o href sai da plataforma (portal oficial); false = rota interna. */
+  externo: boolean;
 };
 
 export type ResultadoBusca = {
   cnpjDetectado: string | null;
+  contratos: ItemBusca[];
   pncp: ItemBusca[];
   licitacoes: ItemBusca[];
   emendas: ItemBusca[];
   convenios: ItemBusca[];
-  transferencias: ItemBusca[];
+  fornecedores: ItemBusca[];
+  candidatos: ItemBusca[];
 };
 
 export const buscaGlobal = createServerFn({ method: "POST" })
@@ -69,16 +72,109 @@ export const buscaGlobal = createServerFn({ method: "POST" })
       if (!t)
         return {
           cnpjDetectado: null,
+          contratos: [],
           pncp: [],
           licitacoes: [],
           emendas: [],
           convenios: [],
-          transferencias: [],
+          fornecedores: [],
+          candidatos: [],
         };
       qPncp = qPncp.or(`orgao_nome.ilike.%${t}%,fornecedor_nome.ilike.%${t}%,objeto.ilike.%${t}%`);
     }
     const { data: pncpRows, error: ePncp } = await qPncp;
     if (ePncp) throw new Error(ePncp.message);
+
+    // --- CGU contratos (contratos_cache guarda o CNPJ FORMATADO) ---
+    let cguRows: Array<{
+      id: string;
+      numero: string | null;
+      objeto: string | null;
+      modalidade: string | null;
+      valor: number | null;
+      data_assinatura: string | null;
+      fornecedor_cnpj: string | null;
+    }> = [];
+    {
+      let qCgu = supabaseAdmin
+        .from("contratos_cache")
+        .select("id,numero,objeto,modalidade,valor,data_assinatura,fornecedor_cnpj")
+        .order("data_assinatura", { ascending: false, nullsFirst: false })
+        .limit(data.limit);
+      if (cnpj) {
+        qCgu = qCgu.eq("fornecedor_cnpj", formatarCnpj(cnpj));
+      } else {
+        const t = sanitizarTermoFiltro(termo);
+        qCgu = qCgu.or(`objeto.ilike.%${t}%,numero.ilike.%${t}%`);
+      }
+      const { data: rows, error } = await qCgu;
+      if (!error) cguRows = rows ?? [];
+    }
+    const mapCgu = (): ItemBusca[] =>
+      cguRows.map((r) => ({
+        id: r.id,
+        titulo: `Contrato ${r.numero ?? r.id}`,
+        subtitulo: [r.modalidade, r.objeto ?? undefined].filter(Boolean).join(" · ").slice(0, 160),
+        valor: Number(r.valor ?? 0),
+        data: r.data_assinatura,
+        href: `/contratos/${encodeURIComponent(r.id)}`,
+        externo: false,
+      }));
+
+    // --- Fornecedores (cadastro derivado dos contratos CGU) ---
+    let fornRows: Array<{ cnpj: string; nome: string | null }> = [];
+    {
+      let qForn = supabaseAdmin.from("fornecedores_cache").select("cnpj,nome").limit(data.limit);
+      if (cnpj) {
+        qForn = qForn.eq("cnpj", formatarCnpj(cnpj));
+      } else {
+        const t = sanitizarTermoFiltro(termo);
+        qForn = qForn.ilike("nome", `%${t}%`);
+      }
+      const { data: rows, error } = await qForn;
+      if (!error) fornRows = rows ?? [];
+    }
+    const mapForn = (): ItemBusca[] =>
+      fornRows.map((r) => ({
+        id: r.cnpj,
+        titulo: r.nome ?? r.cnpj,
+        subtitulo: r.cnpj,
+        valor: null,
+        data: null,
+        href: `/fornecedores/${encodeURIComponent(r.cnpj)}`,
+        externo: false,
+      }));
+
+    // --- Candidatos (TSE) — só por nome; CNPJ não identifica candidatura ---
+    let candRows: Array<{
+      sq_candidato: string;
+      nome_urna: string | null;
+      nome_completo: string | null;
+      cargo_nome: string | null;
+      partido_sigla: string | null;
+      uf: string | null;
+      ano_eleicao: number;
+    }> = [];
+    if (!cnpj) {
+      const t = sanitizarTermoFiltro(termo);
+      const { data: rows, error } = await supabaseAdmin
+        .from("tse_candidatos_cache")
+        .select("sq_candidato,nome_urna,nome_completo,cargo_nome,partido_sigla,uf,ano_eleicao")
+        .or(`nome_urna.ilike.%${t}%,nome_completo.ilike.%${t}%`)
+        .order("ano_eleicao", { ascending: false })
+        .limit(data.limit);
+      if (!error) candRows = rows ?? [];
+    }
+    const mapCand = (): ItemBusca[] =>
+      candRows.map((r) => ({
+        id: r.sq_candidato,
+        titulo: r.nome_urna ?? r.nome_completo ?? r.sq_candidato,
+        subtitulo: [r.cargo_nome, r.partido_sigla, r.uf].filter(Boolean).join(" · "),
+        valor: null,
+        data: String(r.ano_eleicao),
+        href: `/eleicoes/candidatos/${encodeURIComponent(r.sq_candidato)}`,
+        externo: false,
+      }));
 
     // --- CGU licitações ---
     // CGU é por órgão (não por fornecedor): por CNPJ casamos o órgão; por termo,
@@ -118,6 +214,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         valor: Number(r.valor ?? 0),
         data: r.data_abertura,
         href: `/licitacoes/${r.id}`,
+        externo: false,
       }));
 
     // --- CGU emendas (por termo: autor/localidade/função/código) ---
@@ -147,6 +244,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         valor: Number(r.valor_pago ?? 0),
         data: r.ano ? String(r.ano) : null,
         href: `/emendas/${r.id}`,
+        externo: false,
       }));
 
     // --- CGU convênios (por CNPJ do convenente/órgão ou termo) ---
@@ -191,23 +289,26 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         // Página interna de detalhe (lê a mesma convenios_cache desta busca),
         // com links para as fontes oficiais lá dentro.
         href: `/convenios/${encodeURIComponent(r.id)}`,
+        externo: false,
       }));
 
     return {
       cnpjDetectado: cnpj,
+      contratos: mapCgu(),
+      fornecedores: mapForn(),
+      candidatos: mapCand(),
       pncp: (pncpRows ?? []).map((r) => ({
         id: r.id,
         titulo: r.orgao_nome,
         subtitulo: [r.uf, r.municipio_nome, r.fornecedor_nome].filter(Boolean).join(" · "),
         valor: Number(r.valor_global ?? 0),
         data: r.data_assinatura,
-        href: r.url_pncp ?? "",
+        // Detalhe interno (a página /contratos/$id resolve CGU e PNCP).
+        href: `/contratos/${encodeURIComponent(r.id)}`,
+        externo: false,
       })),
       licitacoes: mapLic(),
       emendas: mapEme(),
       convenios: mapConv(),
-      // Convênios têm um grupo só agora — "transferencias" fica vazio até a
-      // interface da busca aposentar a seção.
-      transferencias: [],
     };
   });

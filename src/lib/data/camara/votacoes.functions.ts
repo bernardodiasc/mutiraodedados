@@ -304,12 +304,40 @@ export const importarVotacoes = createServerFn({ method: "POST" })
 
 // ===== QUERIES =====
 
+// Contrato de listagem (kit src/lib/listagem): filtros + `ordem`
+// ("campo-direcao") + `ate` (corte de estabilidade) + limit/offset; resposta
+// `{ linhas, total, corteSugerido }` com `total` real (count com os mesmos
+// filtros). O corte usa a DATA DA VOTAÇÃO (data de domínio) — registros sem a
+// data ficam fora quando há corte (determinístico).
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+
+const ateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
+
+function ordenar<Q extends { order: (c: string, o: object) => Q }>(
+  q: Q,
+  ordem: string,
+  colunas: Record<string, string>,
+  padrao: string,
+): Q {
+  const [campo, dir] = ordem.includes("-")
+    ? [ordem.slice(0, ordem.lastIndexOf("-")), ordem.slice(ordem.lastIndexOf("-") + 1)]
+    : [ordem, "desc"];
+  const coluna = colunas[campo] ?? colunas[padrao];
+  return q.order(coluna, { ascending: dir === "asc", nullsFirst: false });
+}
+
 export const listarVotacoes = createServerFn({ method: "GET" })
   .inputValidator((input) =>
     z
       .object({
         termo: z.string().max(120).optional(),
-        limit: z.number().int().min(1).max(500).default(200),
+        ordem: z.enum(["data-desc", "data-asc"]).default("data-desc"),
+        ate: ateSchema,
+        limit: z.number().int().min(1).max(500).default(100),
+        offset: z.number().int().min(0).max(100000).default(0),
       })
       .parse(input ?? {}),
   )
@@ -318,13 +346,15 @@ export const listarVotacoes = createServerFn({ method: "GET" })
       .from("camara_votacoes_cache")
       .select(
         "id,data,sigla_orgao,descricao,aprovacao,descricao_resultado,proposicao_id,proposicao_titulo,votos_sim,votos_nao,votos_outros",
-      )
-      .order("data", { ascending: false, nullsFirst: false })
-      .limit(data.limit);
+        { count: "exact" },
+      );
+    q = ordenar(q, data.ordem, { data: "data" }, "data");
+    q = q.range(data.offset, data.offset + data.limit - 1);
+    if (data.ate) q = q.lte("data", data.ate);
     if (data.termo) q = q.ilike("descricao", `%${data.termo}%`);
-    const { data: rows, error } = await q;
+    const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
-    return (rows ?? []).map((r) => ({
+    const linhas = (rows ?? []).map((r) => ({
       id: r.id as string,
       data: r.data as string | null,
       siglaOrgao: r.sigla_orgao as string | null,
@@ -337,6 +367,7 @@ export const listarVotacoes = createServerFn({ method: "GET" })
       votosNao: r.votos_nao as number,
       votosOutros: r.votos_outros as number,
     }));
+    return { linhas, total: count ?? 0, corteSugerido: hojeISO() };
   });
 
 export const getVotacaoDetalhe = createServerFn({ method: "GET" })

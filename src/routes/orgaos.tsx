@@ -168,7 +168,7 @@ function OrgaosList() {
                     {o.naoCatalogado && (
                       <span
                         className="text-[10px] text-muted-foreground border border-border rounded px-1.5 py-0.5"
-                        title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI."
+                        title="Órgão citado nos dados, mas ainda sem cadastro completo no acervo."
                       >
                         Não catalogado
                       </span>
@@ -238,7 +238,7 @@ function renderBadge(st: StatusFonte | null): { label: string; tone: string; tit
     return {
       label: "Sem contratos",
       tone: "text-muted-foreground border-border",
-      title: "Nenhum contrato em cache para este órgão (pode ter licitações ou convênios).",
+      title: "Nenhum contrato no acervo para este órgão (pode ter licitações ou convênios).",
     };
   }
   const rel = formatRelative(st.updatedAt);

@@ -46,7 +46,7 @@ Taxonomia normativa em [`qualidade-dados.md`](./qualidade-dados.md) (cruzamento 
 
 - **Qualidade** — fonte simples: `regras<NovaFonte>(rows)` em `src/lib/data/qa.ts` retornando `QaFinding[]`. Fonte com catálogo completo: `src/lib/data/<fonte>/qualidade.ts`. Padrões: valores zerados/negativos onde não deveriam; datas absurdas (futuro > 5 anos, passado < 1988); inconsistência entre campos relacionados (ex: valor_global < valor_repasse); sentinelas não tratadas; duplicatas do lote.
 - **Lacunas** — `src/lib/data/<fonte>/lacunas.ts`, rodando pós-importação (a ausência só é detectável com o conjunto no cache). Findings com `tipo='lacuna'`; promoção à curadoria via `converterFindingEmLacuna`.
-- **Investigativos** — `src/lib/data/<fonte>/investigativos.ts` (nunca em arquivo "qa"). Findings com `tipo='investigativo'`, severidade `aviso`, e `AvisoMetodologico` obrigatório na exposição pública. Teste automatizado garantindo que cruzamento nunca grava `tipo='qualidade'`.
+- **Investigativos** — `src/lib/data/<fonte>/investigativos.ts` (nunca em arquivo "qa"). Findings com `tipo='investigativo'`, severidade `aviso`, e o aviso de sinais (`PainelExplicar avisoSinais`) obrigatório na exposição pública. Teste automatizado garantindo que cruzamento nunca grava `tipo='qualidade'`.
 
 ## Janela
 

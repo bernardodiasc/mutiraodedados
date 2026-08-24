@@ -1,7 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Loader2, Users } from "lucide-react";
+import { ControlePaginacao } from "@/components/ControlePaginacao";
 import { EmptyState } from "@/components/EmptyState";
-import { fmtBRL, fmtNum } from "@/lib/fmt";
+import { SeletorItensPorPagina } from "@/components/SeletorItensPorPagina";
+import { SeletorOrdenacao } from "@/components/SeletorOrdenacao";
+import { fmtBRL } from "@/lib/fmt";
+import type { OpcaoOrdem } from "@/lib/listagem/logic";
 import type { CandidatoItem, Estado } from "@/lib/candidatos-lista/logic";
 import { classeSituacao } from "@/lib/candidatos-lista/logic";
 
@@ -10,6 +14,7 @@ export type CandidatosListaFiltros = {
   anos: number[];
   uf: string;
   ufs: string[];
+  partido: string;
   q: string;
 };
 
@@ -18,10 +23,18 @@ export type CandidatosListaViewProps = {
   itens: CandidatoItem[];
   total: number;
   filtros: CandidatosListaFiltros;
-  onAlterarFiltro: (patch: Partial<Pick<CandidatosListaFiltros, "ano" | "uf" | "q">>) => void;
-  onCarregarMais: () => void;
-  temMais: boolean;
-  carregandoMais: boolean;
+  ordem: string;
+  ordens: ReadonlyArray<OpcaoOrdem>;
+  pagina: number;
+  itensPorPagina: number;
+  /** Search completo de uma página — preserva filtros; links compartilháveis. */
+  montarSearch: (pagina: number) => Record<string, unknown>;
+  onAlterarFiltro: (
+    patch: Partial<Pick<CandidatosListaFiltros, "ano" | "uf" | "partido" | "q">> & {
+      ordem?: string;
+      itensPorPagina?: number;
+    },
+  ) => void;
 };
 
 const CLASSE_BADGE: Record<ReturnType<typeof classeSituacao>, string> = {
@@ -35,10 +48,12 @@ export function CandidatosListaView({
   itens,
   total,
   filtros,
+  ordem,
+  ordens,
+  pagina,
+  itensPorPagina,
+  montarSearch,
   onAlterarFiltro,
-  onCarregarMais,
-  temMais,
-  carregandoMais,
 }: CandidatosListaViewProps) {
   return (
     <div className="grid gap-4">
@@ -72,6 +87,15 @@ export function CandidatosListaView({
             ))}
           </select>
         </label>
+        <label className="text-sm grid gap-1 w-24">
+          <span className="text-muted-foreground">Partido</span>
+          <input
+            className="border border-border rounded-md bg-background px-2 py-1.5"
+            placeholder="Sigla"
+            value={filtros.partido}
+            onChange={(e) => onAlterarFiltro({ partido: e.target.value })}
+          />
+        </label>
         <label className="text-sm grid gap-1 grow max-w-xs">
           <span className="text-muted-foreground">Nome</span>
           <input
@@ -81,12 +105,27 @@ export function CandidatosListaView({
             onChange={(e) => onAlterarFiltro({ q: e.target.value })}
           />
         </label>
-        {estado === "pronto" && (
-          <span className="text-sm text-muted-foreground font-mono ml-auto">
-            {fmtNum(total)} candidaturas
-          </span>
-        )}
+        <label className="text-sm grid gap-1">
+          <span className="text-muted-foreground">Ordenar por</span>
+          <SeletorOrdenacao
+            opcoes={ordens}
+            valor={ordem}
+            aoMudar={(v) => onAlterarFiltro({ ordem: v })}
+          />
+        </label>
+        <SeletorItensPorPagina
+          valor={itensPorPagina}
+          aoMudar={(n) => onAlterarFiltro({ itensPorPagina: n })}
+        />
       </div>
+
+      <ControlePaginacao
+        pagina={pagina}
+        itens={itensPorPagina}
+        total={estado === "pronto" ? total : 0}
+        to="/eleicoes/candidatos"
+        montarSearch={montarSearch}
+      />
 
       {estado === "carregando" && (
         <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
@@ -101,7 +140,7 @@ export function CandidatosListaView({
       {estado === "vazio" && (
         <EmptyState
           title="Nenhum candidato para esses filtros"
-          hint="Mude o ano, a UF ou o nome buscado. Se a eleição ainda não foi importada, ela não aparece aqui."
+          hint="Mude o ano, a UF, o partido ou o nome buscado. Os dados de cada eleição entram no acervo aos poucos."
         />
       )}
 
@@ -124,7 +163,15 @@ export function CandidatosListaView({
                     )}
                   </Link>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {c.cargo} · {c.uf} · {c.partido} · {c.ano}
+                    {c.cargo} · {c.uf} ·{" "}
+                    <Link
+                      to="/eleicoes/partidos/$sigla"
+                      params={{ sigla: c.partido }}
+                      className="hover:text-accent underline-offset-2 hover:underline"
+                    >
+                      {c.partido}
+                    </Link>{" "}
+                    · {c.ano}
                   </p>
                 </div>
                 <div className="text-right grid gap-1 justify-items-end">
@@ -147,15 +194,14 @@ export function CandidatosListaView({
         </ul>
       )}
 
-      {estado === "pronto" && temMais && (
-        <button
-          type="button"
-          onClick={onCarregarMais}
-          disabled={carregandoMais}
-          className="border border-border rounded-md px-4 py-2 text-sm hover:bg-muted disabled:opacity-50 justify-self-center"
-        >
-          {carregandoMais ? "Carregando…" : "Carregar mais"}
-        </button>
+      {estado === "pronto" && (
+        <ControlePaginacao
+          pagina={pagina}
+          itens={itensPorPagina}
+          total={total}
+          to="/eleicoes/candidatos"
+          montarSearch={montarSearch}
+        />
       )}
     </div>
   );

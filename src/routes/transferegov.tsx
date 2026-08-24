@@ -88,7 +88,7 @@ function TransferegovPage() {
               </div>
               <p className="text-sm text-muted-foreground mt-1">{m.desc}</p>
               <div className="text-xs text-muted-foreground mt-3">
-                {total != null ? `${total.toLocaleString("pt-BR")} registros em cache` : "—"}
+                {total != null ? `${total.toLocaleString("pt-BR")} registros no acervo` : "—"}
               </div>
             </Link>
           );
@@ -97,11 +97,19 @@ function TransferegovPage() {
 
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
         As emendas Pix têm baixa rastreabilidade do uso final — ponto crítico de fiscalização da EC
-        105. Cobertura por mês em{" "}
-        <Link to="/cobertura" className="text-accent underline">
-          /cobertura
+        105. A camada de execução, pagamento a pagamento, está em{" "}
+        <Link to="/transferencias" className="text-accent underline">
+          Transferências
         </Link>
-        . Detalhes em <code>docs/fontes/transferegov.md</code>.
+        . Cobertura por mês em{" "}
+        <Link to="/cobertura" className="text-accent underline">
+          Cobertura dos dados
+        </Link>
+        ; como tratamos cada fonte, na{" "}
+        <Link to="/metodologia" className="text-accent underline">
+          metodologia
+        </Link>
+        .
       </p>
     </div>
   );

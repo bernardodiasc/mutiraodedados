@@ -71,6 +71,28 @@ import { SecaoEleicaoView } from "@/components/SecaoEleicaoView";
 import { secaoEleicaoVariants } from "@/lib/secao-eleicao/mocks";
 import { DoacoesEleitoraisView } from "@/components/DoacoesEleitoraisView";
 import { doacoesEleitoraisVariants } from "@/lib/doacoes-eleitorais/mocks";
+import { BarraDeFiltros } from "@/components/BarraDeFiltros";
+import { ControlePaginacao } from "@/components/ControlePaginacao";
+import { SeletorItensPorPagina } from "@/components/SeletorItensPorPagina";
+import { SeletorOrdenacao } from "@/components/SeletorOrdenacao";
+import {
+  barraDeFiltrosVariants,
+  controlePaginacaoVariants,
+  seletorItensPorPaginaVariants,
+  seletorOrdenacaoVariants,
+} from "@/lib/listagem/mocks";
+import { CampoDado, Cartao, Estatistica } from "@/components/Cartao";
+import { ContasDeCampanhaView } from "@/components/ContasDeCampanhaView";
+import { contasDeCampanhaVariants } from "@/lib/contas-campanha/mocks";
+import { campoDadoVariants, cartaoVariants, estatisticaVariants } from "@/lib/cartao/mocks";
+import { PainelExplicar } from "@/components/PainelExplicar";
+import { painelExplicarVariants } from "@/lib/painel-explicar/mocks";
+import { PainelInvestigarView } from "@/components/PainelInvestigarView";
+import { painelInvestigarVariants } from "@/lib/painel-investigar/mocks";
+import { SecaoVinculos } from "@/components/SecaoVinculos";
+import { secaoVinculosVariants } from "@/lib/secao-vinculos/mocks";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
+import { trilhaDeNavegacaoVariants } from "@/lib/trilha-de-navegacao/mocks";
 
 export type ViewVariant<P> = { label: string; props: P };
 export type ViewVariants<P> = ReadonlyArray<ViewVariant<P>>;
@@ -293,5 +315,85 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
       "Aba TSE do admin: importação por (arquivo, ano, UF) com auto-continuar e progresso das varreduras.",
     View: TseImportPanelView,
     variants: tseImportPanelVariants,
+  },
+  {
+    name: "BarraDeFiltros",
+    description:
+      "Faixa padronizada de filtros das listagens (abas p/ recorte, select p/ enum, input p/ texto).",
+    View: BarraDeFiltros,
+    variants: barraDeFiltrosVariants,
+  },
+  {
+    name: "CampoDado",
+    description: 'Par rótulo/valor das fichas de detalhe (idiom "Field").',
+    View: CampoDado,
+    variants: campoDadoVariants,
+  },
+  {
+    name: "Cartao",
+    description:
+      "Cartão padrão do site (border/rounded-xl/p-5/bg-card) — substitui as function Card locais.",
+    View: Cartao,
+    variants: cartaoVariants,
+  },
+  {
+    name: "ContasDeCampanha",
+    description:
+      "Contas de campanha na ficha do candidato: top doadores e fornecedores, com CNPJ cruzável com a ficha de fornecedor.",
+    View: ContasDeCampanhaView,
+    variants: contasDeCampanhaVariants,
+  },
+  {
+    name: "ControlePaginacao",
+    description:
+      "Navegação numérica das listagens, com links compartilháveis que preservam filtros e o corte `ate`.",
+    View: ControlePaginacao,
+    variants: controlePaginacaoVariants,
+  },
+  {
+    name: "Estatistica",
+    description: 'Número de destaque com rótulo (idiom "Stat") dos cabeçalhos de detalhe.',
+    View: Estatistica,
+    variants: estatisticaVariants,
+  },
+  {
+    name: "PainelExplicar",
+    description:
+      'Painel "Explicar": collapsible fechado no fluxo para explicação que não cabe na abertura; opcionalmente com o aviso de sinais.',
+    View: PainelExplicar,
+    variants: painelExplicarVariants,
+  },
+  {
+    name: "PainelInvestigar",
+    description:
+      'Painel "Investigar": Sheet lateral com roteiro cidadão passo a passo e prompts do banco quando há mapa vinculado.',
+    View: PainelInvestigarView,
+    variants: painelInvestigarVariants,
+    iframe: true,
+  },
+  {
+    name: "SecaoVinculos",
+    description:
+      "Seção padronizada de vínculos entre fontes — itens com link interno/externo, valor e aviso de match deduzido.",
+    View: SecaoVinculos,
+    variants: secaoVinculosVariants,
+  },
+  {
+    name: "SeletorItensPorPagina",
+    description: "Itens por página (25/50/100; checkbox libera 250/500).",
+    View: SeletorItensPorPagina,
+    variants: seletorItensPorPaginaVariants,
+  },
+  {
+    name: "SeletorOrdenacao",
+    description: "Select padrão de ordenação (campo-direção) das listagens.",
+    View: SeletorOrdenacao,
+    variants: seletorOrdenacaoVariants,
+  },
+  {
+    name: "TrilhaDeNavegacao",
+    description: "Breadcrumb canônico da página — hierarquia da rota, com os rótulos da nav.",
+    View: TrilhaDeNavegacao,
+    variants: trilhaDeNavegacaoVariants,
   },
 ];

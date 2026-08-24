@@ -98,8 +98,8 @@ function LacunasPage() {
           descricao={
             <p>
               Há duas camadas nesta página. A <strong>detecção automática</strong>: regras que rodam
-              após cada importação e registram ausências que <em>deveriam ser impossíveis</em>{" "}
-              (tabela abaixo) — esses achados aparecem em{" "}
+              a cada atualização do acervo e registram ausências que{" "}
+              <em>deveriam ser impossíveis</em> (tabela abaixo) — esses achados aparecem em{" "}
               <Link to="/qualidade" className="text-accent underline">
                 /qualidade
               </Link>{" "}
@@ -190,11 +190,6 @@ function LacunasPage() {
           Perguntas relacionadas <ArrowRight className="size-3.5" />
         </Link>
       </div>
-
-      <p className="text-xs text-muted-foreground mt-8 leading-relaxed max-w-3xl">
-        Página inicial do mapa de lacunas. Em breve, cada lacuna terá registro próprio, vínculo com
-        perguntas e entidades, e ciclo de vida visível.
-      </p>
     </div>
   );
 }

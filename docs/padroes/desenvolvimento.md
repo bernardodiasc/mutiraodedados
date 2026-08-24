@@ -34,7 +34,7 @@ Este documento descreve os padrões gerais do projeto para roteamento, estiliza�
   - Link externo para o portal oficial com o rótulo "Ver na fonte oficial".
   - Badges de QA finding e severidade quando aplicável.
 - **Empty States**: Use sempre o componente `EmptyState` em `src/components/EmptyState.tsx`, detalhando por que os dados estão vazios e como resolver.
-- **Aviso Metodológico**: Insira `AvisoMetodologico` em páginas públicas que agrupam ou agregam dados para esclarecer limites metodológicos daquela fonte.
+- **Painéis padrão**: explicação fora do fluxo vai no `PainelExplicar` (collapsible fechado; ressalvas de sinais via prop `avisoSinais`); instrução de investigação vai no `PainelInvestigar` (Sheet lateral, prompts sempre do banco); vínculos entre fontes usam `SecaoVinculos`; breadcrumb usa `TrilhaDeNavegacao`; cards/estatísticas/campos usam `Cartao`/`Estatistica`/`CampoDado`; listagens usam o kit de src/lib/listagem (paginação numérica com corte de estabilidade, filtros na URL, totais reais).
 
 ## 3. Vocabulário Cidadão (pt-BR)
 

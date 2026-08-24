@@ -4,6 +4,7 @@ import { fmtBRL } from "@/lib/fmt";
 import type { EleicoesParlamentar } from "@/lib/data/tse/queries.functions";
 import type { Estado } from "@/lib/secao-eleicao/logic";
 import { foiEleito, vinculoPrecisaAviso } from "@/lib/secao-eleicao/logic";
+import { vinculoDeCnpj } from "@/lib/secao-vinculos/logic";
 
 export type SecaoEleicaoViewProps = {
   estado: Estado;
@@ -46,9 +47,9 @@ export function SecaoEleicaoView({ estado, dados }: SecaoEleicaoViewProps) {
           <Vote className="size-5 text-accent" /> Eleições
         </h2>
         <p className="text-sm text-muted-foreground mt-3">
-          Ainda não há candidaturas vinculadas a este parlamentar. O vínculo é criado pela
-          importação do TSE (admin) — quando existir, o histórico eleitoral e as contas de campanha
-          aparecem aqui.
+          Ainda não há candidaturas vinculadas a este parlamentar. O cruzamento com os dados do TSE
+          é refeito a cada atualização do acervo — quando o vínculo existir, o histórico eleitoral e
+          as contas de campanha aparecem aqui.
         </p>
       </section>
     );
@@ -133,9 +134,7 @@ export function SecaoEleicaoView({ estado, dados }: SecaoEleicaoViewProps) {
                     key={d.documento}
                     className="flex justify-between gap-3 border-b border-border/60 py-1"
                   >
-                    <span className="truncate" title={d.nome}>
-                      {d.nome}
-                    </span>
+                    <NomeComVinculo documento={d.documento} nome={d.nome} />
                     <span className="font-mono shrink-0">{fmtBRL(d.total)}</span>
                   </li>
                 ))}
@@ -162,9 +161,7 @@ export function SecaoEleicaoView({ estado, dados }: SecaoEleicaoViewProps) {
                     key={f.documento}
                     className="flex justify-between gap-3 border-b border-border/60 py-1"
                   >
-                    <span className="truncate" title={f.nome}>
-                      {f.nome}
-                    </span>
+                    <NomeComVinculo documento={f.documento} nome={f.nome} />
                     <span className="font-mono shrink-0">{fmtBRL(f.total)}</span>
                   </li>
                 ))}
@@ -177,3 +174,29 @@ export function SecaoEleicaoView({ estado, dados }: SecaoEleicaoViewProps) {
   );
 }
 SecaoEleicaoView.displayName = "SecaoEleicaoView";
+
+/**
+ * CNPJ vira link para a ficha de fornecedor do site (o cruzamento
+ * doador↔fornecedor é tese central do projeto); CPF — inclusive mascarado
+ * pela origem — fica texto puro.
+ */
+function NomeComVinculo({ documento, nome }: { documento: string; nome: string }) {
+  const vinculo = vinculoDeCnpj(documento, nome);
+  if (!vinculo) {
+    return (
+      <span className="truncate" title={nome}>
+        {nome}
+      </span>
+    );
+  }
+  return (
+    <Link
+      to="/fornecedores/$cnpj"
+      params={{ cnpj: vinculo.params!.cnpj }}
+      className="truncate text-left hover:text-accent underline-offset-2 hover:underline"
+      title={`${nome} — ver ficha do fornecedor`}
+    >
+      {nome}
+    </Link>
+  );
+}

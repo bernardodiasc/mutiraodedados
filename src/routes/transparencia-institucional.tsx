@@ -104,7 +104,7 @@ function TransparenciaPage() {
         <div className="mt-10">
           <EmptyState
             title="Sem dados carregados"
-            hint="A importação de contratos é feita pela equipe administrativa. O índice é calculado assim que houver dados de pelo menos um órgão."
+            hint="O índice é calculado assim que houver contratos de pelo menos um órgão no acervo — os dados entram aos poucos."
           />
         </div>
       ) : (

@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { getConvenioCguPorId } from "@/lib/data/real/queries.functions";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
@@ -33,15 +35,13 @@ function ConvenioDetalhe() {
   if (!c)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <Link
-          to="/convenios"
-          className="text-xs text-muted-foreground inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="size-3.5" /> voltar
-        </Link>
+        <TrilhaDeNavegacao
+          itens={[{ label: "Convênios", to: "/convenios" }, { label: "Convênio" }]}
+        />
         <h1 className="font-display text-3xl mt-3">Convênio não encontrado</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          O id <code>{id}</code> não está no cache local. Tente buscar no Portal da Transparência.
+          Não encontramos o registro <code>{id}</code> no acervo do site. Tente buscar no Portal da
+          Transparência.
         </p>
         <a
           href="https://portaldatransparencia.gov.br/convenios"
@@ -56,12 +56,12 @@ function ConvenioDetalhe() {
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-10 space-y-6">
-      <Link
-        to="/convenios"
-        className="text-xs text-muted-foreground inline-flex items-center gap-1"
-      >
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
+      <TrilhaDeNavegacao
+        itens={[
+          { label: "Convênios", to: "/convenios" },
+          { label: `Convênio ${c.numero ?? c.id}` },
+        ]}
+      />
       <header>
         <div className="text-xs uppercase tracking-wider text-accent">
           {c.tipo_instrumento ?? "Convênio / instrumento"}
@@ -171,14 +171,14 @@ function ConvenioDetalhe() {
         </section>
       )}
 
-      <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
-        Dados do endpoint <code>/convenios</code> do Portal da Transparência (CGU). Para a fonte
-        nativa do instrumento (Transferegov), veja{" "}
-        <Link to="/transferegov" className="text-accent underline">
-          Transferegov
-        </Link>
-        .
-      </p>
+      <BlocoRastreabilidade
+        fontes={linksDoConvenio({
+          id: c.id,
+          numero: c.numero,
+          codigoSiconv: c.codigo_siconv,
+        }).map((l) => ({ label: l.portal, href: l.url, origem: "registro oficial do convênio" }))}
+        observacao="Os dados desta ficha vêm do Portal da Transparência (CGU), que espelha o Transferegov — o sistema onde o convênio vive. Quando há código SICONV, a execução financeira vem da própria origem."
+      />
     </article>
   );
 }

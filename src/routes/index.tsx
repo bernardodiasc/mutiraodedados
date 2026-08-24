@@ -13,7 +13,6 @@ import {
   Bookmark,
   MessageSquareWarning,
   HeartHandshake,
-  Image as ImageIcon,
   GitBranch,
   Check,
   X,
@@ -292,7 +291,6 @@ function PaginaEmRefatoracao() {
               </div>
             </div>
             <ImagePlaceholder
-              kind="Diagrama"
               icon={<Layers className="size-8" />}
               titulo="Do dado bruto à pergunta"
               alt="Uma planilha de dados públicos brutos se transformando, passo a passo, em uma pergunta compreensível por qualquer cidadão."
@@ -306,7 +304,6 @@ function PaginaEmRefatoracao() {
       <section className="mx-auto max-w-7xl px-4 mt-20">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <ImagePlaceholder
-            kind="Diagrama"
             icon={<LineChart className="size-8" />}
             titulo="Um número ganhando contexto"
             alt="Um valor isolado em reais ganhando camadas — série histórica, comparação entre órgãos parecidos e método — até se tornar uma pergunta investigável."
@@ -369,7 +366,6 @@ function PaginaEmRefatoracao() {
         </div>
         <div className="mt-6">
           <ImagePlaceholder
-            kind="Screenshot"
             icon={<Flame className="size-8" />}
             titulo="Tela de Sinais investigativos"
             alt="Tela de Sinais investigativos do Mutirão de Dados listando padrões estatísticos detectados, com tipo, severidade e órgão."
@@ -472,7 +468,6 @@ function PaginaEmRefatoracao() {
             </div>
           </div>
           <ImagePlaceholder
-            kind="Screenshot"
             icon={<LineChart className="size-8" />}
             titulo="Página de um órgão federal"
             alt="Página de um órgão federal no Mutirão de Dados com série histórica de gastos e principais fornecedores."
@@ -513,7 +508,6 @@ function PaginaEmRefatoracao() {
         </div>
         <div className="mt-6">
           <ImagePlaceholder
-            kind="Diagrama"
             icon={<GitBranch className="size-8" />}
             titulo="Como os dados se conectam"
             alt="Diagrama em rede conectando o CNPJ de um fornecedor a um órgão, a uma emenda parlamentar e a um contrato pelas chaves de cruzamento."
@@ -556,7 +550,6 @@ function PaginaEmRefatoracao() {
             </ul>
           </div>
           <ImagePlaceholder
-            kind="Screenshot"
             icon={<RouteIcon className="size-8" />}
             titulo="Uma trilha investigativa"
             alt="Uma trilha investigativa do Mutirão de Dados apresentada passo a passo."
@@ -569,7 +562,6 @@ function PaginaEmRefatoracao() {
       <section className="mx-auto max-w-7xl px-4 mt-24">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
           <ImagePlaceholder
-            kind="Screenshot"
             icon={<Bookmark className="size-8" />}
             titulo="Seu caderno de investigação"
             alt="O caderno pessoal de investigação do Mutirão de Dados com itens salvos, contratos anexados e anotações."
@@ -685,15 +677,16 @@ function SectionHeading({
   );
 }
 
+// Painel ilustrativo dos blocos de scrollytelling. Quando as imagens/prints
+// forem produzidos, importar de "@/assets/…" e trocar por <img src alt/> como
+// em orgaos.tsx — o briefing de cada asset está no comentário do topo.
 function ImagePlaceholder({
-  kind,
   icon,
   titulo,
   alt,
   ratio = "aspect-video",
   className = "",
 }: {
-  kind: "Diagrama" | "Screenshot";
   icon: ReactNode;
   titulo: string;
   alt: string;
@@ -702,13 +695,10 @@ function ImagePlaceholder({
 }) {
   return (
     <figure
-      className={`${ratio} ${className} w-full rounded-2xl border border-dashed border-border bg-muted/40 flex flex-col items-center justify-center text-center p-6 overflow-hidden`}
+      className={`${ratio} ${className} w-full rounded-2xl border border-border bg-muted/40 flex flex-col items-center justify-center text-center p-6 overflow-hidden`}
       aria-label={alt}
     >
-      <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-        <ImageIcon className="size-3.5" /> {kind} · a produzir
-      </span>
-      <div className="mt-4 text-accent/70">{icon}</div>
+      <div className="text-accent/70">{icon}</div>
       <figcaption className="mt-3 font-display text-lg text-foreground/80">{titulo}</figcaption>
       <p className="mt-2 max-w-sm text-xs text-muted-foreground leading-relaxed">{alt}</p>
     </figure>

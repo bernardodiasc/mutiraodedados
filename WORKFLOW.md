@@ -103,7 +103,7 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** nenhuma. O ciclo autônomo v0.7.0–v0.11.0 foi entregue e publicado em 2026-08-20; o modo autônomo autorizado pelo mantenedor **encerrou** com a v0.11.0.
-- **Próximo passo:** rodada única de testes manuais e ajustes do mantenedor (roteiros em `.claude/roteiro-testes-v0.7.0.md` e nas entregas das releases seguintes), que abrirá a próxima versão.
-- **Última release fechada:** v0.11.0, em 2026-08-20 ([RELEASES.md](./RELEASES.md)).
-- **Pendências conhecidas:** ativação da automação (CRON_SECRET + linha de config — papel do mantenedor, ver docs/automacao.md); decisão de endurecimento em `.claude/decisoes-pendentes.md`; 16 warnings de lint do padrão shadcn/ui.
+- **Release em andamento:** nenhuma. A v0.12.0 (revisão das páginas públicas do Explorar) foi fechada em 2026-08-24, com validação em staging e confirmação do mantenedor.
+- **Próximo passo:** rodada única de testes manuais e ajustes do mantenedor (roteiros em `.claude/roteiro-testes-v0.7.0.md` e nas entregas das releases seguintes), agora cobrindo também os fluxos revistos na v0.12.0.
+- **Última release fechada:** v0.12.0, em 2026-08-24 ([RELEASES.md](./RELEASES.md)).
+- **Pendências conhecidas:** ativação da automação (CRON_SECRET + linha de config — papel do mantenedor, ver docs/automacao.md); decisão de endurecimento em `.claude/decisoes-pendentes.md`; 17 warnings de lint do padrão shadcn/ui.

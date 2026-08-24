@@ -139,8 +139,8 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         label: "Ferramentas",
         links: [
-          { to: "/buscar", label: "Busca unificada", icon: Search, mode: "explorar" },
-          { to: "/explorar", label: "Explorar por ente", icon: MapPinned, mode: "explorar" },
+          { to: "/buscar", label: "Buscar", icon: Search, mode: "explorar" },
+          { to: "/explorar", label: "Por estado ou município", icon: MapPinned, mode: "explorar" },
           { to: "/orgaos", label: "Órgãos federais", icon: Building2, mode: "explorar" },
         ],
       },
@@ -187,6 +187,7 @@ export const NAV_GROUPS: NavGroup[] = [
         links: [
           { to: "/contratos", label: "Contratos", icon: ScrollText, mode: "explorar" },
           { to: "/licitacoes", label: "Licitações", icon: Scale, mode: "explorar" },
+          { to: "/fornecedores", label: "Fornecedores", icon: Building2, mode: "explorar" },
           { to: "/convenios", label: "Convênios", icon: FileSignature, mode: "explorar" },
           { to: "/emendas", label: "Emendas parlamentares", icon: HandCoins, mode: "explorar" },
           { to: "/eleicoes", label: "Eleições", icon: Megaphone, mode: "explorar" },

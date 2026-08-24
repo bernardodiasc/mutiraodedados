@@ -1,8 +1,13 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft } from "lucide-react";
 import { getEmendaPorId } from "@/lib/data/real/queries.functions";
+import { casarAutorParlamentar } from "@/lib/data/parlamentar-match.functions";
+import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
+import { SecaoVinculos } from "@/components/SecaoVinculos";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
+import type { VinculoItem } from "@/lib/secao-vinculos/logic";
+import { Landmark } from "lucide-react";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
@@ -23,6 +28,16 @@ function EmendaDetalhe() {
     queryFn: () => fetchFn({ data: { id } }),
   });
 
+  // Autor da emenda → ficha do parlamentar (match por nome, sempre "inferido").
+  const casar = useServerFn(casarAutorParlamentar);
+  const autor = data?.emenda?.autor ?? null;
+  const { data: autorMatch } = useQuery({
+    queryKey: ["emenda-autor", autor],
+    enabled: !!autor && autor.length >= 3,
+    staleTime: 5 * 60_000,
+    queryFn: () => casar({ data: { nome: autor! } }),
+  });
+
   if (isLoading)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">Carregando…</div>
@@ -31,24 +46,24 @@ function EmendaDetalhe() {
   if (!e)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <Link
-          to="/emendas"
-          className="text-xs text-muted-foreground inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="size-3.5" /> voltar
-        </Link>
+        <TrilhaDeNavegacao
+          itens={[{ label: "Emendas parlamentares", to: "/emendas" }, { label: "Emenda" }]}
+        />
         <h1 className="font-display text-3xl mt-3">Emenda não encontrada</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          O código <code>{id}</code> não está no cache local.
+          Não encontramos a emenda <code>{id}</code> no acervo do site.
         </p>
       </div>
     );
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-10 space-y-6">
-      <Link to="/emendas" className="text-xs text-muted-foreground inline-flex items-center gap-1">
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
+      <TrilhaDeNavegacao
+        itens={[
+          { label: "Emendas parlamentares", to: "/emendas" },
+          { label: `Emenda ${e.numero_emenda ?? e.id}` },
+        ]}
+      />
       <header>
         <div className="text-xs uppercase tracking-wider text-accent">
           {e.tipo_emenda ?? "Emenda parlamentar"}
@@ -105,6 +120,27 @@ function EmendaDetalhe() {
         <Field label="Restos cancelados" value={fmtBRL(e.valor_resto_cancelado)} />
       </dl>
 
+      <SecaoVinculos
+        titulo="Autor da emenda no Parlamento"
+        icone={Landmark}
+        descricao="O nome do autor bate com uma ficha de parlamentar no site — cota, votações e histórico eleitoral."
+        itens={(autorMatch?.parlamentares ?? []).map(
+          (p): VinculoItem => ({
+            chave: `${p.tipo}-${p.id}`,
+            titulo: p.nome,
+            subtitulo: [
+              p.tipo === "deputado" ? "Deputado federal · Câmara" : "Senador · Senado",
+              [p.partido, p.uf].filter(Boolean).join(" · "),
+            ]
+              .filter(Boolean)
+              .join(" · "),
+            to: p.tipo === "deputado" ? "/camara/deputados/$id" : "/senado/senadores/$id",
+            params: { id: p.id },
+            inferido: true,
+          }),
+        )}
+      />
+
       {/* Detalhe de execução das Transferências Especiais (EC 105), vindo da API
           do Transferegov e juntado na ingestão. Só aparece quando há plano de ação. */}
       {e.planos_acao_count != null && (
@@ -127,12 +163,19 @@ function EmendaDetalhe() {
         </section>
       )}
 
-      <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
-        Dados do endpoint <code>/emendas</code> do Portal da Transparência (CGU). Um valor empenhado
-        é apenas uma reserva; só o pagamento prova que o dinheiro saiu do caixa público. O detalhe
-        do plano de ação das Transferências Especiais vem da API do Transferegov, juntado pelo
-        código da emenda na ingestão.
-      </p>
+      <BlocoRastreabilidade
+        fontes={[
+          {
+            label: "Portal da Transparência (CGU)",
+            href: e.url_oficial ?? undefined,
+            origem: "registro oficial da emenda",
+          },
+          ...(e.planos_acao_count != null
+            ? [{ label: "Transferegov", origem: "plano de ação da Transferência Especial" }]
+            : []),
+        ]}
+        observacao="Um valor empenhado é apenas uma reserva; só o pagamento prova que o dinheiro saiu do caixa público."
+      />
     </article>
   );
 }

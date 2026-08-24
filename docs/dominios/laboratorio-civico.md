@@ -78,8 +78,8 @@ arquivada ──[autor reabrir]──▶ privada
 - `BotaoCopiar` / `BotaoBaixarCsv` / `BotaoFonteOficial` — primitivos contextuais (ver style guide, grupo Primitivos → "Botões de ação (Kit)").
 - `KitInvestigacao` — painel lateral dos mapas (procedimento + prompts).
 - `AnotacoesCaderno` — CRUD de anotações em markdown (reaproveita `RichTextEditor`).
-- `BlocoLacuna` / `BlocoRastreabilidade` / `RodapeInvestigativo` — blocos de página de detalhe.
-- `PainelModosLeitura` — leituras alternativas curadas (causal, epistemológica, etc.).
+- `BlocoLacuna` / `BlocoRastreabilidade` — blocos de página de detalhe.
+- `PainelExplicar` / `PainelInvestigar` — painéis padrão de explicação (collapsible no fluxo) e de investigação (Sheet lateral) das páginas públicas.
 
 ## Server functions
 

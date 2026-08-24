@@ -5,7 +5,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getSenadorDetalhe } from "@/lib/data/senado/queries.functions";
 import { SecaoEleicaoContainer as SecaoEleicao } from "@/containers/SecaoEleicaoContainer";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { SituacaoBadge, Trajetoria, type ItemTrajetoria } from "@/components/Trajetoria";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { fmtBRL } from "@/lib/fmt";
@@ -375,8 +374,6 @@ function SenadorDetalhe() {
         </section>
       )}
 
-      <AvisoMetodologico compacto />
-
       {despesas.length > 0 && (
         <section className="flex flex-wrap items-end gap-3">
           <div>
@@ -430,8 +427,8 @@ function SenadorDetalhe() {
 
       {despesas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border p-6 text-sm text-muted-foreground">
-          Sem despesas CEAPS em cache para este senador. Um administrador precisa importar um
-          período no painel admin.
+          Ainda não carregamos despesas de cota (CEAPS) deste senador. Os dados vêm do Senado
+          Federal e entram no acervo aos poucos — volte em breve.
         </div>
       ) : (
         <>

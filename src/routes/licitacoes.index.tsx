@@ -1,14 +1,23 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef } from "react";
 import { listarLicitacoes } from "@/lib/data/real/queries.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { BarraDeFiltros } from "@/components/BarraDeFiltros";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 import { BotaoSalvarBusca } from "@/components/BotaoSalvarBusca";
+import { ControlePaginacao } from "@/components/ControlePaginacao";
 import { FontesDoTema } from "@/components/FontesDoTema";
+import { SeletorItensPorPagina } from "@/components/SeletorItensPorPagina";
+import { SeletorOrdenacao } from "@/components/SeletorOrdenacao";
+import {
+  ITENS_PADRAO,
+  offsetDaPagina,
+  parseSearchListagem,
+  type OpcaoOrdem,
+  type SearchListagem,
+} from "@/lib/listagem/logic";
 import { fmtBRL } from "@/lib/fmt";
-import { ExternalLink, Gavel, Loader2 } from "lucide-react";
+import { ExternalLink, Gavel } from "lucide-react";
 import { linkBuscaPncp } from "@/lib/links-oficiais";
 
 const UFS = [
@@ -48,42 +57,45 @@ const VALORES_MIN = [
   { v: 1_000_000, label: "≥ R$ 1 mi" },
   { v: 10_000_000, label: "≥ R$ 10 mi" },
 ];
-const ORDENS = [
-  { v: "data_desc", label: "Mais recentes" },
-  { v: "valor_desc", label: "Maior valor" },
-] as const;
-const PAGE = 40;
-type Ordem = (typeof ORDENS)[number]["v"];
+const ORDENS: OpcaoOrdem[] = [
+  { valor: "data-desc", label: "Mais recentes" },
+  { valor: "data-asc", label: "Mais antigas" },
+  { valor: "valor-desc", label: "Maior valor" },
+  { valor: "valor-asc", label: "Menor valor" },
+];
+const ORDEM_PADRAO = "data-desc";
 
-// Filtros na URL: permite compartilhar e "salvar esta busca" no caderno.
-type LicitacoesSearch = {
+// Filtros e paginação na URL: compartilhável, "salvar esta busca" e página
+// estável no tempo (corte `ate` — ver src/lib/listagem/logic.ts).
+type LicitacoesSearch = SearchListagem & {
   uf?: string;
+  orgao?: string;
   ano?: number;
   modalidade?: string;
   situacao?: string;
   valorMin?: number;
-  sort?: Ordem;
   q?: string;
 };
 
 export const Route = createFileRoute("/licitacoes/")({
   validateSearch: (s: Record<string, unknown>): LicitacoesSearch => ({
+    ...parseSearchListagem(s, { ordens: ORDENS, ordemPadrao: ORDEM_PADRAO }),
     uf: typeof s.uf === "string" && s.uf ? s.uf : undefined,
+    orgao: typeof s.orgao === "string" && s.orgao ? s.orgao : undefined,
     ano: Number(s.ano) || undefined,
     modalidade: typeof s.modalidade === "string" && s.modalidade ? s.modalidade : undefined,
     situacao: typeof s.situacao === "string" && s.situacao ? s.situacao : undefined,
     valorMin: Number(s.valorMin) || undefined,
-    sort: ORDENS.some((o) => o.v === s.sort) ? (s.sort as Ordem) : undefined,
     q: typeof s.q === "string" && s.q ? s.q : undefined,
   }),
   component: LicitacoesPage,
   head: () => ({
     meta: [
-      { title: "Licitações do Executivo federal — Mutirão de Dados" },
+      { title: "Licitações — Mutirão de Dados" },
       {
         name: "description",
         content:
-          "Licitações de órgãos do Executivo federal publicadas no Portal da Transparência (CGU), endpoint /licitacoes.",
+          "Licitações de órgãos do Executivo federal publicadas no Portal da Transparência (CGU).",
       },
     ],
   }),
@@ -94,51 +106,66 @@ function LicitacoesPage() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const uf = search.uf ?? "";
+  const orgao = search.orgao ?? "";
   const ano = search.ano ?? 0;
   const modalidade = search.modalidade ?? "";
   const situacao = search.situacao ?? "";
   const valorMin = search.valorMin ?? 0;
-  const sort: Ordem = search.sort ?? "data_desc";
   const q = search.q ?? "";
-  const setFiltro = (patch: Partial<LicitacoesSearch>) =>
-    navigate({ search: (prev: LicitacoesSearch) => ({ ...prev, ...patch }), replace: true });
+  const pagina = search.pagina ?? 1;
+  const itens = search.itens ?? ITENS_PADRAO;
+  const ordem = search.ordem ?? ORDEM_PADRAO;
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["licitacoes", uf, ano, modalidade, situacao, valorMin, sort, q],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) =>
+  // Mudar filtro/ordenação/itens volta para a página 1.
+  const setFiltro = (patch: Partial<LicitacoesSearch>) =>
+    navigate({
+      search: (prev: LicitacoesSearch) => ({ ...prev, ...patch, pagina: undefined }),
+      replace: true,
+    });
+
+  const { data, isLoading } = useQuery({
+    queryKey: [
+      "licitacoes",
+      uf,
+      orgao,
+      ano,
+      modalidade,
+      situacao,
+      valorMin,
+      ordem,
+      q,
+      pagina,
+      itens,
+      search.ate,
+    ],
+    placeholderData: keepPreviousData,
+    queryFn: () =>
       buscar({
         data: {
           uf: uf || undefined,
+          orgaoCod: orgao || undefined,
           ano: ano || undefined,
           modalidade: modalidade || undefined,
           situacao: situacao || undefined,
           valorMin: valorMin || undefined,
-          sort,
+          ordem: ordem as "data-desc",
+          ate: search.ate,
           q: q || undefined,
-          limit: PAGE,
-          offset: pageParam as number,
+          limit: itens,
+          offset: offsetDaPagina(pagina, itens),
         },
       }),
-    getNextPageParam: (last, pages) =>
-      (last.licitacoes?.length ?? 0) < PAGE ? undefined : pages.length * PAGE,
   });
 
-  const lista = (data?.pages ?? []).flatMap((p) => p.licitacoes);
-
-  const sentinel = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    const el = sentinel.current;
-    if (!el) return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) fetchNextPage();
-      },
-      { rootMargin: "400px" },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+  const lista = data?.licitacoes ?? [];
+  const total = data?.total ?? 0;
+  // Fixa o corte nos links de página: a mesma URL mostra sempre os mesmos registros.
+  const corte = search.ate ?? data?.corteSugerido;
+  const montarSearch = (p: number): Record<string, unknown> => ({
+    ...search,
+    pagina: p > 1 ? p : undefined,
+    ate: corte,
+  });
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
@@ -148,10 +175,10 @@ function LicitacoesPage() {
         </div>
         <h1 className="font-display text-4xl mt-1">Licitações</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
-          O processo de disputa pública pelo qual o governo escolhe quem contratar. Fonte: Portal da
-          Transparência (CGU), endpoint <code>/licitacoes</code>. Os documentos completos (edital,
-          termo de referência, atas de lances) ficam no PNCP — use o link de busca em cada
-          licitação.
+          O processo de disputa pública pelo qual o governo escolhe quem contratar. Os dados vêm do
+          Portal da Transparência (CGU) e cobrem órgãos do Executivo federal. Os documentos
+          completos (edital, termo de referência, atas de lances) ficam no PNCP — use o link de
+          busca em cada licitação.
         </p>
       </header>
 
@@ -165,106 +192,125 @@ function LicitacoesPage() {
         ]}
       />
 
-      <AvisoMetodologico />
+      <BarraDeFiltros
+        acoes={
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <SeletorOrdenacao
+                opcoes={ORDENS}
+                valor={ordem}
+                aoMudar={(v) => setFiltro({ ordem: v !== ORDEM_PADRAO ? v : undefined })}
+              />
+              <SeletorItensPorPagina
+                valor={itens}
+                aoMudar={(n) => setFiltro({ itens: n !== ITENS_PADRAO ? n : undefined })}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <BotaoSalvarBusca
+                path="/licitacoes"
+                search={search}
+                titulo="Licitações"
+                filtros={[
+                  ["UF", uf],
+                  ["ano", ano],
+                  ["modalidade", modalidade],
+                  ["situação", situacao],
+                  ["valor mín.", valorMin],
+                  ["busca", q],
+                ]}
+              />
+              {lista.length > 0 && (
+                <BotaoBaixarCsv
+                  filename={`licitacoes_${uf || "todos"}`}
+                  obterLinhas={() => lista}
+                  rotulo={`Exportar CSV (${lista.length})`}
+                />
+              )}
+            </div>
+          </>
+        }
+      >
+        <select
+          value={uf}
+          onChange={(e) => setFiltro({ uf: e.target.value || undefined })}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {UFS.map((u) => (
+            <option key={u} value={u}>
+              {u || "Todas UFs"}
+            </option>
+          ))}
+        </select>
+        <select
+          value={ano}
+          onChange={(e) => setFiltro({ ano: Number(e.target.value) || undefined })}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {ANOS.map((a) => (
+            <option key={a} value={a}>
+              {a || "Todos os anos"}
+            </option>
+          ))}
+        </select>
+        <input
+          value={modalidade}
+          onChange={(e) => setFiltro({ modalidade: e.target.value || undefined })}
+          placeholder="Modalidade"
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <input
+          value={situacao}
+          onChange={(e) => setFiltro({ situacao: e.target.value || undefined })}
+          placeholder="Situação"
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          value={valorMin}
+          onChange={(e) => setFiltro({ valorMin: Number(e.target.value) || undefined })}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {VALORES_MIN.map((o) => (
+            <option key={o.v} value={o.v}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <input
+          value={q}
+          onChange={(e) => setFiltro({ q: e.target.value || undefined })}
+          placeholder="Objeto, número, processo, unidade gestora…"
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        />
+      </BarraDeFiltros>
 
-      <section className="rounded-2xl border border-border bg-card p-4">
-        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          <select
-            value={uf}
-            onChange={(e) => setFiltro({ uf: e.target.value || undefined })}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
+      {orgao && (
+        <p className="text-xs text-muted-foreground -mt-4">
+          Filtrando pelo órgão <span className="font-mono">{orgao}</span> ·{" "}
+          <button
+            type="button"
+            onClick={() => setFiltro({ orgao: undefined })}
+            className="text-accent underline cursor-pointer"
           >
-            {UFS.map((u) => (
-              <option key={u} value={u}>
-                {u || "Todas UFs"}
-              </option>
-            ))}
-          </select>
-          <select
-            value={ano}
-            onChange={(e) => setFiltro({ ano: Number(e.target.value) || undefined })}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {ANOS.map((a) => (
-              <option key={a} value={a}>
-                {a || "Todos os anos"}
-              </option>
-            ))}
-          </select>
-          <input
-            value={modalidade}
-            onChange={(e) => setFiltro({ modalidade: e.target.value || undefined })}
-            placeholder="Modalidade"
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          />
-          <input
-            value={situacao}
-            onChange={(e) => setFiltro({ situacao: e.target.value || undefined })}
-            placeholder="Situação"
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          />
-          <select
-            value={valorMin}
-            onChange={(e) => setFiltro({ valorMin: Number(e.target.value) || undefined })}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {VALORES_MIN.map((o) => (
-              <option key={o.v} value={o.v}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={sort}
-            onChange={(e) => {
-              const v = e.target.value as Ordem;
-              setFiltro({ sort: v === "data_desc" ? undefined : v });
-            }}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {ORDENS.map((o) => (
-              <option key={o.v} value={o.v}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <input
-            value={q}
-            onChange={(e) => setFiltro({ q: e.target.value || undefined })}
-            placeholder="Objeto, número, processo, unidade gestora…"
-            className="rounded-md border bg-background px-3 py-2 text-sm sm:col-span-3 lg:col-span-6"
-          />
-        </div>
-      </section>
+            remover filtro
+          </button>
+        </p>
+      )}
 
-      <section>
+      <section className="space-y-3">
+        <ControlePaginacao
+          pagina={pagina}
+          itens={itens}
+          total={total}
+          to="/licitacoes"
+          montarSearch={montarSearch}
+        />
+
         {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
         {!isLoading && lista.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nenhuma licitação disponível para os filtros selecionados.
+            Nenhuma licitação no acervo para os filtros selecionados.
           </p>
-        )}
-        {lista.length > 0 && (
-          <div className="flex justify-end items-center gap-2 mb-2">
-            <BotaoSalvarBusca
-              path="/licitacoes"
-              search={search}
-              titulo="Licitações"
-              filtros={[
-                ["UF", uf],
-                ["ano", ano],
-                ["modalidade", modalidade],
-                ["situação", situacao],
-                ["valor mín.", valorMin],
-                ["busca", q],
-              ]}
-            />
-            <BotaoBaixarCsv
-              filename={`licitacoes_${uf || "todos"}`}
-              obterLinhas={() => lista}
-              rotulo={`Exportar CSV (${lista.length})`}
-            />
-          </div>
         )}
         <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
           {lista.map((l) => (
@@ -273,7 +319,9 @@ function LicitacoesPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 text-sm font-medium">
                     <Gavel className="size-4 text-muted-foreground" />
-                    Licitação {l.numero ?? "—"}
+                    <Link to="/licitacoes/$id" params={{ id: l.id }} className="hover:underline">
+                      Licitação {l.numero ?? "—"}
+                    </Link>
                   </div>
                   <div className="text-xs text-muted-foreground mt-0.5">
                     {l.unidade_gestora ?? "—"}
@@ -321,16 +369,14 @@ function LicitacoesPage() {
             </li>
           ))}
         </ul>
-        <div ref={sentinel} className="h-12 flex items-center justify-center">
-          {isFetchingNextPage && (
-            <span className="text-xs text-muted-foreground inline-flex items-center gap-2">
-              <Loader2 className="size-3.5 animate-spin" /> Carregando mais…
-            </span>
-          )}
-          {!hasNextPage && lista.length > 0 && (
-            <span className="text-xs text-muted-foreground">Fim dos resultados.</span>
-          )}
-        </div>
+
+        <ControlePaginacao
+          pagina={pagina}
+          itens={itens}
+          total={total}
+          to="/licitacoes"
+          montarSearch={montarSearch}
+        />
       </section>
     </div>
   );

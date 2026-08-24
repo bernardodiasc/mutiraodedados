@@ -30,7 +30,7 @@ O PNCP é a **fonte autoritativa da camada jurídica** das contratações: edita
 - **Portal CGU** = Executivo Federal, ampla cobertura desde 2013.
 - **PNCP** = todos os entes, mas só Lei 14.133 (a partir de 2021).
 
-Cobrem universos diferentes. O cidadão precisa dos dois para visão completa, e o site explica isso via `AvisoMetodologico`.
+Cobrem universos diferentes. O cidadão precisa dos dois para visão completa, e o site explica isso no painel "De onde vêm estes dados?" (`PainelExplicar`).
 
 ## Links externos esperados
 

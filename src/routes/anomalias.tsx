@@ -4,7 +4,6 @@ import { useDataSource } from "@/lib/data-store";
 import { EmptyState } from "@/components/EmptyState";
 import { AlertTriangle, Info } from "lucide-react";
 import { ChecklistInvestigacao } from "@/components/ChecklistInvestigacao";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
 import { SINAIS_CATALOGO, sinaisPorTipo } from "@/lib/sinais-catalogo";
 
@@ -72,10 +71,6 @@ function AnomaliasPage() {
             partida para checagem cidadã, jornalística ou institucional.
           </p>
         </div>
-      </div>
-
-      <div className="mt-6">
-        <AvisoMetodologico />
       </div>
 
       <div className="mt-6">
@@ -161,7 +156,7 @@ function AnomaliasPage() {
             title="Nenhuma anomalia para mostrar"
             hint={
               all.length === 0
-                ? "Carregue contratos reais pelo admin para que o detector tenha base de cálculo."
+                ? "Ainda não há contratos suficientes no acervo para o detector calcular padrões. Os dados entram aos poucos — volte em breve."
                 : "Nenhuma anomalia bate com os filtros selecionados."
             }
           />

@@ -1,7 +1,9 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { getLicitacaoPorId } from "@/lib/data/real/queries.functions";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
@@ -33,15 +35,13 @@ function LicitacaoDetalhe() {
   if (!l)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <Link
-          to="/licitacoes"
-          className="text-xs text-muted-foreground inline-flex items-center gap-1"
-        >
-          <ArrowLeft className="size-3.5" /> voltar
-        </Link>
+        <TrilhaDeNavegacao
+          itens={[{ label: "Licitações", to: "/licitacoes" }, { label: "Licitação" }]}
+        />
         <h1 className="font-display text-3xl mt-3">Licitação não encontrada</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          O id <code>{id}</code> não está no cache local. Tente buscar no Portal da Transparência.
+          Não encontramos o registro <code>{id}</code> no acervo do site. Tente buscar no Portal da
+          Transparência.
         </p>
         <a
           href="https://portaldatransparencia.gov.br/licitacoes"
@@ -58,12 +58,12 @@ function LicitacaoDetalhe() {
 
   return (
     <article className="mx-auto max-w-4xl px-4 py-10 space-y-6">
-      <Link
-        to="/licitacoes"
-        className="text-xs text-muted-foreground inline-flex items-center gap-1"
-      >
-        <ArrowLeft className="size-3.5" /> voltar
-      </Link>
+      <TrilhaDeNavegacao
+        itens={[
+          { label: "Licitações", to: "/licitacoes" },
+          { label: `Licitação ${l.numero ?? l.id}` },
+        ]}
+      />
       <header>
         <div className="text-xs uppercase tracking-wider text-accent">
           {l.modalidade ?? "Licitação"}
@@ -130,11 +130,17 @@ function LicitacaoDetalhe() {
         />
       </dl>
 
-      <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
-        Dados extraídos do endpoint <code>/licitacoes</code> do Portal da Transparência (CGU). O
-        edital, termo de referência e atas de lances ficam no PNCP — a API da CGU não traz a chave
-        de acoplamento, então o link para o PNCP é uma busca por órgão e número.
-      </p>
+      <BlocoRastreabilidade
+        fontes={[
+          {
+            label: "Portal da Transparência (CGU)",
+            href: l.url_oficial ?? undefined,
+            origem: "registro oficial da licitação",
+          },
+          { label: "PNCP", href: urlPncp, origem: "edital, termo de referência e atas" },
+        ]}
+        observacao="A fonte oficial não publica um vínculo direto entre os dois sistemas, então o link para o PNCP é uma busca por órgão e número do processo."
+      />
     </article>
   );
 }

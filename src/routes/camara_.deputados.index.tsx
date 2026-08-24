@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/camara/queries.functions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/EmptyState";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { SituacaoBadge, fmtData } from "@/components/Trajetoria";
 import { Input } from "@/components/ui/input";
 import { fmtBRL } from "@/lib/fmt";
@@ -92,8 +93,8 @@ function MovimentacoesLegislatura({ legislatura }: { legislatura: number }) {
           <p className="text-sm text-muted-foreground py-2">Carregando…</p>
         ) : data.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Nenhuma saída ou posse de suplente registrada nesta legislatura (importe a trajetória no
-            painel admin).
+            Nenhuma saída ou posse de suplente registrada nesta legislatura — ou a trajetória ainda
+            não entrou no acervo.
           </p>
         ) : (
           <ul className="divide-y divide-border">
@@ -352,12 +353,13 @@ function ListaDeputados() {
     <GastoContext.Provider value={gastoPorId}>
       <div className="mx-auto max-w-7xl px-4 py-10">
         <div>
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">
-            <Link to="/camara" className="hover:text-accent">
-              Câmara
-            </Link>{" "}
-            · Deputados
-          </div>
+          <TrilhaDeNavegacao
+            itens={[
+              { label: "Câmara dos Deputados", to: "/camara" },
+              { label: "Deputados federais" },
+            ]}
+            className="mb-2"
+          />
           <h1 className="font-display text-4xl mt-1">Deputados federais</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
             O mandato de um deputado dura <strong className="text-foreground">4 anos</strong> —
@@ -461,8 +463,8 @@ function ListaDeputados() {
         ) : !info || info.legislaturas.length === 0 ? (
           <div className="mt-10">
             <EmptyState
-              title="Nenhum deputado em cache"
-              hint="Um administrador precisa importar o cadastro de deputados a partir do painel admin."
+              title="Nenhum deputado no acervo ainda"
+              hint="Ainda não carregamos o cadastro de deputados. Os dados vêm da Câmara dos Deputados e entram no acervo aos poucos — volte em breve."
             />
           </div>
         ) : modoResultado ? (
