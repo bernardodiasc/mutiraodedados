@@ -4,14 +4,14 @@ import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink } from "lucide-react";
 import { coberturaPublica } from "@/lib/data/cobertura-publica.functions";
 import { sinaisDaFonteTse } from "@/lib/data/tse/queries.functions";
-import { BotaoCopiar } from "@/components/BotaoCopiar";
+import { PainelInvestigarView } from "@/components/PainelInvestigarView";
 import { iconFor } from "@/lib/nav-groups";
 
 export const Route = createFileRoute("/tse")({
   component: TsePage,
   head: () => ({
     meta: [
-      { title: "TSE — Dados Abertos Eleitorais — Mutirão de Dados" },
+      { title: "Tribunal Superior Eleitoral (TSE) — Mutirão de Dados" },
       {
         name: "description",
         content:
@@ -21,9 +21,9 @@ export const Route = createFileRoute("/tse")({
   }),
 });
 
-// Reprodução independente: a origem é o CKAN público do TSE.
+// Reprodução independente: a origem é o portal de dados abertos do TSE.
 const CURL_REPRODUCAO =
-  "curl -s \"https://dadosabertos.tse.jus.br/api/3/action/package_show?id=candidatos-2022\" | jq '.result.resources[] | {name, url}'";
+  'curl -s "https://dadosabertos.tse.jus.br/api/3/action/package_show?id=candidatos-2022"';
 
 function TsePage() {
   const fetchCob = useServerFn(coberturaPublica);
@@ -44,7 +44,7 @@ function TsePage() {
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
           Por fonte de dados
         </div>
-        <h1 className="font-display text-4xl mt-1">TSE — Dados Abertos Eleitorais</h1>
+        <h1 className="font-display text-4xl mt-1">Tribunal Superior Eleitoral (TSE)</h1>
         <p className="text-muted-foreground mt-3 max-w-3xl leading-relaxed">
           Quem se candidatou, o que declarou de bens, quantos votos recebeu e de quem veio o
           dinheiro da campanha. A carga em massa vem dos CSVs do portal de dados abertos do TSE
@@ -69,13 +69,13 @@ function TsePage() {
           </div>
           <p className="text-sm text-muted-foreground mt-1">
             {fonteTse
-              ? `${fonteTse.totalRegistros.toLocaleString("pt-BR")} candidaturas em cache · ${anos.length} eleição(ões)`
-              : "Nenhuma eleição importada ainda."}
+              ? `${fonteTse.totalRegistros.toLocaleString("pt-BR")} candidaturas no acervo · ${anos.length} eleição(ões)`
+              : "Nenhuma eleição no acervo ainda."}
           </p>
         </div>
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="text-xs uppercase tracking-wider text-muted-foreground">
-            Última importação
+            Última atualização
           </div>
           <div className="font-display text-2xl mt-1">
             {fonteTse?.ultimaAtualizacao
@@ -85,7 +85,7 @@ function TsePage() {
           <p className="text-sm text-muted-foreground mt-1">
             Cobertura detalhada em{" "}
             <Link to="/cobertura" className="text-accent underline">
-              /cobertura
+              Cobertura dos dados
             </Link>
             .
           </p>
@@ -102,7 +102,7 @@ function TsePage() {
           <p className="text-sm text-muted-foreground mt-1">
             {sinais
               ? `${sinais.porTipo.qualidade} de qualidade · ${sinais.porTipo.lacuna} lacunas · ${sinais.porTipo.investigativo} investigativos`
-              : "Contagens aparecem após a primeira importação."}
+              : "As contagens aparecem quando os primeiros dados entram no acervo."}
           </p>
         </div>
       </section>
@@ -152,17 +152,44 @@ function TsePage() {
 
       <section className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <h2 className="font-display text-xl">Reproduza esta fonte</h2>
-          <BotaoCopiar obterTexto={() => CURL_REPRODUCAO} rotulo="Copiar curl" />
+          <div>
+            <h2 className="font-display text-xl">Confira com as próprias mãos</h2>
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
+              Toda métrica desta fonte tem origem pública e reprodutível — dá para baixar os mesmos
+              arquivos que usamos e chegar aos mesmos números.
+            </p>
+          </div>
+          <PainelInvestigarView
+            titulo="Confira na fonte"
+            descricao="Roteiro para verificação independente — os dados vêm do portal de dados abertos do TSE."
+            rotuloGatilho="Ver o roteiro"
+            passos={[
+              {
+                icone: "busca",
+                titulo: "Abra o portal de dados abertos do TSE",
+                texto:
+                  "Os arquivos oficiais de candidatos, bens, votação e contas de campanha ficam em dadosabertos.tse.jus.br, organizados por eleição.",
+                link: "https://dadosabertos.tse.jus.br",
+                linkLabel: "Abrir dadosabertos.tse.jus.br",
+              },
+              {
+                icone: "terminal",
+                titulo: "Liste os arquivos por comando (opcional, para quem programa)",
+                texto:
+                  "O comando abaixo lista os arquivos oficiais do conjunto de candidatos de 2022 — troque o ano no fim do endereço para outras eleições.",
+                codigo: CURL_REPRODUCAO,
+              },
+              {
+                icone: "documento",
+                titulo: "Compare com o que mostramos",
+                texto:
+                  "Os critérios de cada sinal, com parâmetros e falsos-positivos conhecidos, estão na seção TSE da metodologia.",
+                link: "/metodologia",
+                linkLabel: "Abrir a metodologia",
+              },
+            ]}
+          />
         </div>
-        <p className="text-sm text-muted-foreground mt-2">
-          Toda métrica desta fonte tem origem pública e reprodutível. O comando abaixo lista os
-          arquivos oficiais do dataset de candidatos de 2022 direto no CKAN do TSE (troque o ano no
-          id do dataset):
-        </p>
-        <pre className="mt-3 text-xs bg-muted/40 border border-border rounded-md p-3 overflow-x-auto">
-          {CURL_REPRODUCAO}
-        </pre>
       </section>
 
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
@@ -190,7 +217,7 @@ function TsePage() {
         >
           nota de campo da integração
         </Link>
-        . Detalhes técnicos em <code>docs/fontes/tse.md</code>.
+        .
       </p>
     </div>
   );

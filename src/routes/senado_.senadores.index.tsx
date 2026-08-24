@@ -13,6 +13,7 @@ import {
 } from "@/lib/data/senado/queries.functions";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EmptyState } from "@/components/EmptyState";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { SituacaoBadge, fmtData } from "@/components/Trajetoria";
 import { Input } from "@/components/ui/input";
 import { fmtBRL } from "@/lib/fmt";
@@ -96,7 +97,8 @@ function AfastamentosLegislatura({ legislatura }: { legislatura: number }) {
           <p className="text-sm text-muted-foreground py-2">Carregando…</p>
         ) : data.length === 0 ? (
           <p className="text-sm text-muted-foreground py-2">
-            Nenhum afastamento registrado nesta legislatura (importe os mandatos no painel admin).
+            Nenhum afastamento registrado nesta legislatura — ou a trajetória de mandatos ainda não
+            entrou no acervo.
           </p>
         ) : (
           <ul className="divide-y divide-border">
@@ -354,12 +356,10 @@ function ListaSenadores() {
     <GastoContext.Provider value={gastoPorId}>
       <div className="mx-auto max-w-7xl px-4 py-10">
         <div>
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">
-            <Link to="/senado" className="hover:text-accent">
-              Senado
-            </Link>{" "}
-            · Senadores
-          </div>
+          <TrilhaDeNavegacao
+            itens={[{ label: "Senado Federal", to: "/senado" }, { label: "Senadores" }]}
+            className="mb-2"
+          />
           <h1 className="font-display text-4xl mt-1">Senadores</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl">
             O mandato de um senador dura <strong className="text-foreground">8 anos</strong> — duas
@@ -480,8 +480,8 @@ function ListaSenadores() {
         ) : !info || info.legislaturas.length === 0 ? (
           <div className="mt-10">
             <EmptyState
-              title="Nenhum senador em cache"
-              hint="Um administrador precisa importar o cadastro de senadores pelo painel admin."
+              title="Nenhum senador no acervo ainda"
+              hint="Ainda não carregamos o cadastro de senadores. Os dados vêm do Senado Federal e entram no acervo aos poucos — volte em breve."
             />
           </div>
         ) : modoResultado ? (

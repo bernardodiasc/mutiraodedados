@@ -23,6 +23,31 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.12.0 — 2026-08-24
+
+**Resumo:** revisão completa das páginas públicas do grupo Explorar, pedida antes da rodada de testes de importação. A auditoria achou registros de lista sem página própria, vínculos entre fontes que existiam só no banco, textos escritos para quem tem acesso ao admin, quatro mecanismos concorrentes de painel explicativo, divergências entre nome na navegação, H1 e título SEO, rotas órfãs e um bug que impedia dois detalhes de renderizar. Tudo isso foi corrigido em sete frentes, e a conexão entre fontes — funcionalidade central do projeto — passou a ser visível na interface.
+
+**Entregas**
+
+- **Consertos estruturais:** `/convenios/$id` e `/qualidade/$id` voltaram a renderizar (a rota-pai declarava filhas sem `<Outlet/>`; viraram pares `index.tsx`+`$id.tsx`); a lista de licitações e a de alertas de qualidade passaram a linkar o próprio detalhe; resultados internos da busca navegam pelo router.
+- **Padrões de UI novos, registrados em `/estilo`:** `PainelExplicar` (colapsável fechado no fluxo — absorveu o `ExplicadorFontes` e o banner fixo `AvisoMetodologico`, cujo aviso de sinais virou rodapé opcional do painel), `PainelInvestigar` (Sheet lateral com roteiro cidadão e prompts do banco), `SecaoVinculos` (padrão visual único de vínculo entre fontes, com aviso de homônimo em match deduzido), `TrilhaDeNavegacao` (breadcrumb canônico no lugar dos "← Voltar" ad-hoc), `Cartao`/`Estatistica`/`CampoDado` e o kit de listagem. `RodapeInvestigativo` e `PainelModosLeitura` removidos; `BlocoRastreabilidade` e `BlocoLacuna` adotados.
+- **Passada de conteúdo cidadã:** 12 estados vazios deixaram de instruir o visitante a importar dados pelo admin (um deles linkava `/admin/dados`); "em cache" virou "no acervo" em ~20 pontos; referências a arquivos `docs/*.md` e a nomes de endpoint saíram dos textos e das meta descriptions; a home perdeu os rótulos de placeholder de imagem; `/transferencias` virou prévia honesta sem o relato de erro HTTP; o bloco de comandos do TSE virou passo do painel Investigar.
+- **Padrão de listagem** em todas as listas do grupo: paginação numérica acima e abaixo, com página, filtros e ordenação na URL; **corte de estabilidade** (`ate`) fixado nos links de página, de modo que a mesma URL mostra sempre os mesmos registros mesmo depois de novas importações; totais exibidos passam a ser o `count` real com os mesmos filtros, nunca o tamanho da amostra; filtros novos (contratos por fornecedor, convênios por convenente, emendas por autor, candidatos por partido e UF).
+- **Vínculos entre fontes na interface:** busca unificada passou a cobrir contratos da CGU, fornecedores e candidatos; página do órgão mostra licitações e convênios do mesmo código; autor de emenda vira link para a ficha do parlamentar (match por nome, sempre sinalizado); CNPJs de doadores e fornecedores de campanha linkam a ficha de fornecedor nos dois sentidos, com a seção nova "Contas de campanha" na ficha do candidato.
+- **Páginas novas:** `/entes/$codigo` dá endereço próprio a cada estado e município (aceita sigla de UF ou código IBGE de 2 ou 7 dígitos), reunindo as três fontes que se conectam pelo código IBGE — e `/explorar` virou o seletor que leva até elas; `/fornecedores` virou porta de entrada do cadastro; contratos do PNCP ganharam página de detalhe (`/contratos/$id` resolve as duas fontes); a ficha do fornecedor passou a **degradar** em vez de dar 404 quando o CNPJ existe só em outra fonte; as duas rotas órfãs de eleições ganharam entrada.
+- **Nomenclatura e SEO:** regra canônica `título = H1 + " — Mutirão de Dados"` aplicada, com o rótulo da navegação igual ao nome da página; `head()` dinâmico nos três detalhes que herdavam o título do site; sitemap reescrito cobrindo as rotas públicas por grupo, incluindo as 27 páginas de estado.
+
+**Checks executados**
+
+- `bun run test` ✓ — 77 arquivos, 799 testes.
+- `bun run lint` ✓ 0 erros (17 warnings do padrão shadcn/ui) · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
+- Smoke em dev das 34 rotas públicas do grupo Explorar — todas HTTP 200; paginação, corte de estabilidade e totais conferidos no navegador (`/emendas` página 2 = "101–200 de 2.310"; `/contratos?fonte=pncp` = 17.077); ficha degradada verificada com CNPJ presente só no PNCP.
+- Sem migration: os vínculos usam índices, RPCs e a view `v_fornecedor_doador` que já existiam.
+
+**Plano:** docs/planos/v0.12.0-revisao-paginas-publicas.md
+
+**PR de sync público:** `sync v0.12.0`.
+
 ## v0.11.0 — 2026-08-20
 
 **Resumo:** automação periódica das importações — a promessa arquitetural mantida desde a v0.3.0 (runners chamáveis sem browser) vira produto. Nove fontes rodam sozinhas em rotação, pelo MESMO código do painel; o agendador nasce dormente e a ativação é uma decisão explícita do mantenedor.

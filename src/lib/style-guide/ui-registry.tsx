@@ -31,7 +31,6 @@ import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/EmptyState";
 import { ConstrucaoBanner } from "@/components/ConstrucaoBanner";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { MetodologiaPopover } from "@/components/MetodologiaPopover";
 import { BotaoCopiar } from "@/components/BotaoCopiar";
 import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
@@ -420,8 +419,6 @@ export const uiRegistry: UIEntry[] = [
           </div>
         ),
       },
-      { label: "AvisoMetodologico (completo)", render: () => <AvisoMetodologico /> },
-      { label: "AvisoMetodologico (compacto)", render: () => <AvisoMetodologico compacto /> },
     ],
   },
   {

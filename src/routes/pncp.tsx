@@ -8,7 +8,7 @@ export const Route = createFileRoute("/pncp")({
   component: PNCPPage,
   head: () => ({
     meta: [
-      { title: "PNCP — Portal Nacional de Contratações Públicas — Mutirão de Dados" },
+      { title: "Portal Nacional de Contratações Públicas (PNCP) — Mutirão de Dados" },
       {
         name: "description",
         content:
@@ -59,7 +59,7 @@ function PNCPPage() {
             Contratos de todos os entes federados. Abre em Contratos com a fonte PNCP selecionada.
           </p>
           <div className="text-xs text-muted-foreground mt-3">
-            {data ? `${data.total.toLocaleString("pt-BR")} contratos em cache` : "—"}
+            {data ? `${data.total.toLocaleString("pt-BR")} contratos no acervo` : "—"}
           </div>
         </Link>
 
@@ -71,19 +71,26 @@ function PNCPPage() {
             <Scale className="size-4 text-muted-foreground" /> Licitações / Editais
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            O PNCP hospeda os editais e atas. Hoje exibimos as licitações pelo Portal CGU; o
-            cross-link por órgão/número leva ao PNCP em cada licitação.
+            Os editais e atas ficam no PNCP. Nossa lista de licitações vem do Portal da
+            Transparência — e cada licitação traz um atalho para achar o edital correspondente no
+            PNCP.
           </p>
-          <div className="text-xs text-muted-foreground mt-3">via Portal CGU + busca no PNCP</div>
+          <div className="text-xs text-muted-foreground mt-3">
+            lista pelo Portal da Transparência · edital no PNCP
+          </div>
         </Link>
       </section>
 
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
         Cobertura por mês em{" "}
         <Link to="/cobertura" className="text-accent underline">
-          /cobertura
+          Cobertura dos dados
         </Link>
-        . Detalhes em <code>docs/fontes/pncp.md</code>.
+        ; como tratamos cada fonte, na{" "}
+        <Link to="/metodologia" className="text-accent underline">
+          metodologia
+        </Link>
+        .
       </p>
     </div>
   );

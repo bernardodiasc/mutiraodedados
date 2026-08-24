@@ -9,7 +9,33 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  * Os nomes de campo seguem os canônicos da tabela (valor, valor_liberado,
  * convenente_*), e a ordenação por data usa vigência com assinatura junto —
  * a listagem do Portal frequentemente vem sem `dataAssinatura`.
+ *
+ * Contrato de listagem (kit src/lib/listagem): filtros + `ordem`
+ * ("campo-direcao") + `ate` (corte de estabilidade) + limit/offset; resposta
+ * com `total` real (count com os mesmos filtros) e `corteSugerido`. O corte é
+ * aplicado sobre a data de domínio da tabela (início de vigência) — registros
+ * importados depois não deslocam páginas já compartilhadas.
  */
+
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+
+const ateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
+
+function ordenar<Q extends { order: (c: string, o: object) => Q }>(
+  q: Q,
+  ordem: string,
+  colunas: Record<string, string>,
+  padrao: string,
+): Q {
+  const [campo, dir] = ordem.includes("-")
+    ? [ordem.slice(0, ordem.lastIndexOf("-")), ordem.slice(ordem.lastIndexOf("-") + 1)]
+    : [ordem, "desc"];
+  const coluna = colunas[campo] ?? colunas[padrao];
+  return q.order(coluna, { ascending: dir === "asc", nullsFirst: false });
+}
 
 export type TransferenciaRow = {
   id: string;
@@ -44,24 +70,25 @@ export const listarTransferencias = createServerFn({ method: "POST" })
         modalidade: z.string().max(60).optional(),
         ano: z.number().int().min(2000).max(2100).optional(),
         valorMin: z.number().min(0).optional(),
-        sort: z.enum(["data_desc", "valor_desc", "repasse_desc"]).default("data_desc"),
+        ordem: z.enum(["data-desc", "data-asc", "valor-desc", "valor-asc"]).default("data-desc"),
+        ate: ateSchema,
         q: z.string().max(120).optional(),
-        limit: z.number().int().min(1).max(200).default(50),
-        offset: z.number().int().min(0).max(20000).default(0),
+        limit: z.number().int().min(1).max(500).default(100),
+        offset: z.number().int().min(0).max(100000).default(0),
       })
       .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
-    let q = supabaseAdmin.from("convenios_cache").select(COLS_LISTA);
-    if (data.sort === "valor_desc") q = q.order("valor", { ascending: false, nullsFirst: false });
-    else if (data.sort === "repasse_desc")
-      q = q.order("valor_liberado", { ascending: false, nullsFirst: false });
-    else
-      q = q
-        .order("data_inicio_vigencia", { ascending: false, nullsFirst: false })
-        .order("data_assinatura", { ascending: false, nullsFirst: false });
+    let q = supabaseAdmin.from("convenios_cache").select(COLS_LISTA, { count: "exact" });
+    q = ordenar(q, data.ordem, { data: "data_inicio_vigencia", valor: "valor" }, "data");
+    // Desempate por assinatura na mesma direção — a listagem do Portal
+    // frequentemente vem sem `dataAssinatura`, então a vigência lidera.
+    if (data.ordem.startsWith("data"))
+      q = q.order("data_assinatura", { ascending: data.ordem.endsWith("-asc"), nullsFirst: false });
     q = q.range(data.offset, data.offset + data.limit - 1);
 
+    // Corte de estabilidade pela data de domínio (ver src/lib/listagem).
+    if (data.ate) q = q.lte("data_inicio_vigencia", data.ate);
     if (data.uf) q = q.eq("uf", data.uf.toUpperCase());
     if (data.municipioIbge) q = q.eq("municipio_ibge", data.municipioIbge);
     if (data.situacao) q = q.ilike("situacao", `%${data.situacao}%`);
@@ -72,14 +99,17 @@ export const listarTransferencias = createServerFn({ method: "POST" })
     }
     if (data.valorMin != null) q = q.gte("valor", data.valorMin);
     if (data.q)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- `.or()` não aparece no tipo do builder após os filtros encadeados
-      q = (q as any).or(
+      q = (q as { or: (f: string) => typeof q }).or(
         `objeto.ilike.%${data.q}%,convenente_nome.ilike.%${data.q}%,orgao_nome.ilike.%${data.q}%,numero.ilike.%${data.q}%`,
       );
 
-    const { data: rows, error } = await q;
+    const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
-    return { transferencias: (rows ?? []) as TransferenciaRow[] };
+    return {
+      transferencias: (rows ?? []) as TransferenciaRow[],
+      total: count ?? 0,
+      corteSugerido: hojeISO(),
+    };
   });
 
 export type InstrumentoDetalhe = TransferenciaRow & {

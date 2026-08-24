@@ -6,6 +6,7 @@ const filtros = {
   anos: [2024, 2022, 2020, 2018, 2016, 2014],
   uf: "AC",
   ufs: ["AC", "SP", "RJ"],
+  partido: "",
   q: "",
 };
 
@@ -39,15 +40,20 @@ const base: CandidatosListaViewProps = {
   ],
   total: 2,
   filtros,
+  ordem: "nome-asc",
+  ordens: [
+    { valor: "nome-asc", label: "Nome (A→Z)" },
+    { valor: "bens-desc", label: "Maior patrimônio declarado" },
+  ],
+  pagina: 1,
+  itensPorPagina: 100,
+  montarSearch: (pagina) => ({ pagina }),
   onAlterarFiltro: () => {},
-  onCarregarMais: () => {},
-  temMais: false,
-  carregandoMais: false,
 };
 
 export const candidatosListaVariants: ViewVariants<CandidatosListaViewProps> = [
   { label: "com candidatos", props: base },
-  { label: "com mais páginas", props: { ...base, temMais: true, total: 236 } },
+  { label: "com mais páginas", props: { ...base, total: 236, pagina: 2 } },
   { label: "carregando", props: { ...base, estado: "carregando", itens: [] } },
   { label: "vazio", props: { ...base, estado: "vazio", itens: [], total: 0 } },
   { label: "erro", props: { ...base, estado: "erro", itens: [] } },

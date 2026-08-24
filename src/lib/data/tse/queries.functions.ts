@@ -7,7 +7,32 @@ import { chavesIdentidade, temIdentificador } from "@/lib/data/tse/identidade";
 /**
  * Leituras públicas da fonte TSE (cache read-only; sem gate de admin —
  * mesmo padrão das demais entidades-tópico em real/queries.functions.ts).
+ *
+ * A listagem de candidatos segue o contrato do kit src/lib/listagem: filtros +
+ * `ordem` ("campo-direcao") + `ate` (corte de estabilidade) + limit/offset;
+ * resposta com `total` real (count) e `corteSugerido`. O corte é aplicado
+ * sobre a data de domínio da lista — o ANO DA ELEIÇÃO (granularidade anual).
  */
+
+const hojeISO = () => new Date().toISOString().slice(0, 10);
+
+const ateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
+
+function ordenar<Q extends { order: (c: string, o: object) => Q }>(
+  q: Q,
+  ordem: string,
+  colunas: Record<string, string>,
+  padrao: string,
+): Q {
+  const [campo, dir] = ordem.includes("-")
+    ? [ordem.slice(0, ordem.lastIndexOf("-")), ordem.slice(ordem.lastIndexOf("-") + 1)]
+    : [ordem, "desc"];
+  const coluna = colunas[campo] ?? colunas[padrao];
+  return q.order(coluna, { ascending: dir === "asc", nullsFirst: false });
+}
 
 export type EleicaoResumo = {
   ano_eleicao: number;
@@ -48,11 +73,12 @@ export const listarCandidatosTse = createServerFn({ method: "POST" })
         ano: z.number().int().min(1998).max(2100),
         uf: z.string().length(2).or(z.literal("BR")).optional(),
         cargoCod: z.number().int().optional(),
+        partido: z.string().max(20).optional(),
         situacao: z.string().max(60).optional(),
         q: z.string().max(120).optional(),
-        sort: z.enum(["nome", "bens_desc"]).default("nome"),
-        limit: z.number().int().min(1).max(200).default(50),
-        offset: z.number().int().min(0).max(20000).default(0),
+        ordem: z.enum(["nome-asc", "nome-desc", "bens-desc", "bens-asc"]).default("nome-asc"),
+        limit: z.number().int().min(1).max(500).default(100),
+        offset: z.number().int().min(0).max(100000).default(0),
       })
       .parse(input),
   )
@@ -63,14 +89,14 @@ export const listarCandidatosTse = createServerFn({ method: "POST" })
       .eq("ano_eleicao", data.ano);
     if (data.uf) q = q.eq("uf", data.uf);
     if (data.cargoCod != null) q = q.eq("cargo_cod", data.cargoCod);
+    if (data.partido) q = q.eq("partido_sigla", data.partido.toUpperCase());
     if (data.situacao) q = q.ilike("situacao_totalizacao", `${data.situacao}%`);
     if (data.q) q = q.or(`nome_urna.ilike.%${data.q}%,nome_completo.ilike.%${data.q}%`);
-    q =
-      data.sort === "bens_desc"
-        ? q.order("bens_total_declarado", { ascending: false, nullsFirst: false })
-        : q.order("nome_urna", { ascending: true, nullsFirst: false });
+    q = ordenar(q, data.ordem, { nome: "nome_urna", bens: "bens_total_declarado" }, "nome");
     const { data: rows, count, error } = await q.range(data.offset, data.offset + data.limit - 1);
     if (error) throw new Error(`Falha ao listar candidatos: ${error.message}`);
+    // Sem corte `ate`: a lista já é recortada por eleição (ano obrigatório) —
+    // a carga por UF de um mesmo ano ainda pode acrescentar linhas.
     return { rows: (rows ?? []) as CandidatoListaRow[], total: count ?? 0 };
   });
 
@@ -597,6 +623,53 @@ export const eleicoesDoParlamentar = createServerFn({ method: "POST" })
 
     return {
       candidaturas,
+      topDoadores: agregarPorDocumento(linhasReceitas),
+      topFornecedores: agregarPorDocumento(linhasDespesas),
+      totalReceitas: linhasReceitas.reduce((s, l) => s + (l.valor ?? 0), 0),
+      totalDespesas: linhasDespesas.reduce((s, l) => s + (l.valor ?? 0), 0),
+    };
+  });
+
+/**
+ * Contas de campanha de UMA candidatura (ficha do candidato): top doadores e
+ * top fornecedores agregados por documento, com CNPJs cruzáveis com a ficha
+ * de fornecedor do site.
+ */
+export const contasDaCandidatura = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        sq: z.string().min(1).max(30),
+        ano: z.number().int().min(1998).max(2100),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const [receitas, despesas] = await Promise.all([
+      supabaseAdmin
+        .from("tse_receitas_campanha_cache")
+        .select("cpf_cnpj_doador, nome_doador, valor")
+        .eq("sq_candidato", data.sq)
+        .eq("ano_eleicao", data.ano)
+        .limit(5000),
+      supabaseAdmin
+        .from("tse_despesas_campanha_cache")
+        .select("cnpj_fornecedor, nome_fornecedor, valor")
+        .eq("sq_candidato", data.sq)
+        .eq("ano_eleicao", data.ano)
+        .limit(5000),
+    ]);
+    const linhasReceitas = (receitas.data ?? []).map((r) => ({
+      doc: r.cpf_cnpj_doador,
+      nome: r.nome_doador,
+      valor: r.valor == null ? null : Number(r.valor),
+    }));
+    const linhasDespesas = (despesas.data ?? []).map((d) => ({
+      doc: d.cnpj_fornecedor,
+      nome: d.nome_fornecedor,
+      valor: d.valor == null ? null : Number(d.valor),
+    }));
+    return {
       topDoadores: agregarPorDocumento(linhasReceitas),
       topFornecedores: agregarPorDocumento(linhasDespesas),
       totalReceitas: linhasReceitas.reduce((s, l) => s + (l.valor ?? 0), 0),

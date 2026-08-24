@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { Landmark, Loader2 } from "lucide-react";
 import { resumoPartidoTse } from "@/lib/data/tse/queries.functions";
 import { EmptyState } from "@/components/EmptyState";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
 import { capitalizarCargo, rotuloEleicao } from "@/lib/eleicoes-hub/logic";
 
@@ -58,13 +59,10 @@ function PartidoPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
-      <nav className="text-sm text-muted-foreground mb-4">
-        <Link to="/eleicoes" className="hover:text-accent">
-          Eleições
-        </Link>
-        {" / Partidos / "}
-        {siglaUpper}
-      </nav>
+      <TrilhaDeNavegacao
+        className="mb-4"
+        itens={[{ label: "Eleições", to: "/eleicoes" }, { label: `Partido ${siglaUpper}` }]}
+      />
       <h1 className="font-display text-4xl flex items-center gap-2">
         <Landmark className="size-7 text-accent" /> {siglaUpper} nas urnas
       </h1>
@@ -82,8 +80,8 @@ function PartidoPage() {
         {error && <p className="text-destructive py-10 text-center">Não consegui carregar.</p>}
         {!isLoading && !error && anos.length === 0 && (
           <EmptyState
-            title={`Nenhuma candidatura do ${siglaUpper} no cache`}
-            hint="Confira a sigla (partidos mudam de nome) ou aguarde a importação da eleição correspondente."
+            title={`Nenhuma candidatura do ${siglaUpper} no acervo`}
+            hint="Confira a sigla (partidos mudam de nome). Os dados de cada eleição entram no acervo aos poucos — a desta sigla pode ainda não ter chegado."
           />
         )}
         {anos.map((ano) => {

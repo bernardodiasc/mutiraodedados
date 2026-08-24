@@ -99,7 +99,7 @@ function PortalCguPage() {
               </div>
               <p className="text-sm text-muted-foreground mt-1">{t.desc}</p>
               <div className="text-xs text-muted-foreground mt-3">
-                {total != null ? `${total.toLocaleString("pt-BR")} registros em cache` : "—"}
+                {total != null ? `${total.toLocaleString("pt-BR")} registros no acervo` : "—"}
               </div>
             </Link>
           );
@@ -109,9 +109,13 @@ function PortalCguPage() {
       <p className="text-[11px] text-muted-foreground border-t border-border pt-4">
         Cobertura detalhada por órgão e mês em{" "}
         <Link to="/cobertura" className="text-accent underline">
-          /cobertura
+          Cobertura dos dados
         </Link>
-        . Detalhes técnicos da fonte em <code>docs/fontes/portal-cgu.md</code>.
+        ; como tratamos cada fonte, na{" "}
+        <Link to="/metodologia" className="text-accent underline">
+          metodologia
+        </Link>
+        .
       </p>
     </div>
   );

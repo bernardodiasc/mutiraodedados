@@ -147,7 +147,7 @@ const SECOES: Secao[] = [
         parametros:
           "Primeira aparição no histórico há menos de 1 ano e contrato unitário ≥ R$ 1 milhão.",
         limites:
-          "Usa data da primeira aparição nos dados carregados, não a data de constituição CNPJ real. A próxima fase integrará a Receita Federal.",
+          "Usa a data da primeira aparição nos dados carregados, não a data real de constituição do CNPJ.",
         falsosPositivos:
           "Empresas migrando de outra razão social; ingressantes legítimos em pregão.",
       },
@@ -302,11 +302,11 @@ const SECOES: Secao[] = [
         nome: "Eleito sem prestação de contas",
         tipo: "lacuna",
         hipotese:
-          "Todo candidato eleito é obrigado por lei a prestar contas finais. Eleito com zero receitas E zero despesas no cache é uma ausência que deveria ser impossível.",
+          "Todo candidato eleito é obrigado por lei a prestar contas finais. Eleito com zero receitas E zero despesas no acervo é uma ausência que deveria ser impossível.",
         parametros:
-          "situacao_totalizacao começando com 'eleito' + nenhuma linha de receita/despesa + confirmação na API DivulgaCandContas antes de publicar. Se a API mostra gasto que não temos, o achado vira alerta de qualidade (falha da NOSSA importação) em vez de lacuna.",
+          "Situação de totalização 'eleito' + nenhuma linha de receita/despesa + confirmação na API DivulgaCandContas antes de publicar. Se a API mostra gasto que não temos, o achado vira alerta de qualidade (falha nossa, não da origem) em vez de lacuna.",
         limites:
-          "Depende de receitas/despesas do (ano, UF) terem sido importadas; a confirmação via API é limitada por rodada.",
+          "Depende de as receitas/despesas daquele ano e UF já estarem no acervo; a confirmação via API é limitada por rodada.",
         falsosPositivos:
           "Importação parcial das contas do estado (por isso a dupla checagem na API antes de publicar).",
       },
@@ -328,8 +328,8 @@ const SECOES: Secao[] = [
         hipotese:
           "Para cada eleição importada, esperamos candidatos em todas as UFs. (Ano, UF) sem nenhum registro é buraco na série.",
         parametros:
-          "Zero candidatos no (ano, UF) de um ano com dados. Distinguimos a causa: varredura incompleta = falha NOSSA (alerta de qualidade, reimportar); varredura completa e vazia = ausência na origem (lacuna).",
-        limites: "Só roda sobre anos já iniciados — backlog de importação não vira lacuna.",
+          "Zero candidatos no (ano, UF) de um ano com dados. Distinguimos a causa: se a nossa carga ficou incompleta, é alerta de qualidade (refazemos); se a carga terminou e veio vazia, a ausência é da origem (lacuna).",
+        limites: "Só roda sobre anos já carregados — eleição ainda fora do acervo não vira lacuna.",
         falsosPositivos: "UF legitimamente sem eleição naquele recorte (ex.: BR em municipais).",
       },
       {
@@ -337,10 +337,10 @@ const SECOES: Secao[] = [
         nome: "Parlamentar sem candidatura vinculada",
         tipo: "lacuna",
         hipotese:
-          "Todo parlamentar em exercício se elegeu — não ter nenhuma candidatura vinculada na ponte é impossível; ou falta o ano no cache ou o matcher não encontrou.",
+          "Todo parlamentar em exercício se elegeu — não ter nenhuma candidatura vinculada é impossível: ou a eleição ainda não está no acervo, ou o cruzamento não encontrou o candidato.",
         parametros:
-          "Parlamentar do roster atual sem linha em tse_parlamentar_candidato (após a ponte rodar).",
-        limites: "Depende do matcher (CPF na Câmara; nome+UF no Senado).",
+          "Parlamentar em exercício sem nenhuma candidatura vinculada depois de o cruzamento rodar.",
+        limites: "Depende do critério de cruzamento (CPF na Câmara; nome+UF no Senado).",
         falsosPositivos: "Nome civil muito diferente do nome de urna; troca recente de suplente.",
       },
       {
@@ -350,7 +350,7 @@ const SECOES: Secao[] = [
         hipotese:
           "O mesmo CNPJ que financiou a campanha de um parlamentar e depois fatura contratos públicos configura um padrão que merece verificação humana — doação e contrato são, isoladamente, legais.",
         parametros:
-          "CNPJ doador (≥ R$ 1.000, corta ruído simbólico) de candidatura vinculada a parlamentar em exercício + presença do mesmo CNPJ como fornecedor em contratos no cache. O sinal grava valor doado, maior contrato, quantidade de contratos e intervalo em meses.",
+          "CNPJ doador (≥ R$ 1.000, corta ruído simbólico) de candidatura vinculada a parlamentar em exercício + presença do mesmo CNPJ como fornecedor em contratos no acervo. O sinal grava valor doado, maior contrato, quantidade de contratos e intervalo em meses.",
         limites:
           "Não estabelece influência do parlamentar sobre o órgão contratante — isso é trabalho de apuração humana. CPFs (pessoas físicas) não cruzam por virem mascarados da origem.",
         falsosPositivos:

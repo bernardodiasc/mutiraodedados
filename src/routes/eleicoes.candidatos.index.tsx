@@ -7,10 +7,14 @@ import {
 export const Route = createFileRoute("/eleicoes/candidatos/")({
   component: CandidatosPage,
   validateSearch: (search: Record<string, unknown>): CandidatosListaSearch => ({
-    ano: typeof search.ano === "number" ? search.ano : undefined,
+    ano: Number(search.ano) || undefined,
     uf: typeof search.uf === "string" && search.uf ? search.uf : undefined,
-    cargo: typeof search.cargo === "number" ? search.cargo : undefined,
+    cargo: Number(search.cargo) || undefined,
+    partido: typeof search.partido === "string" && search.partido ? search.partido : undefined,
     q: typeof search.q === "string" && search.q ? search.q : undefined,
+    pagina: Number(search.pagina) > 1 ? Math.floor(Number(search.pagina)) : undefined,
+    itens: Number(search.itens) || undefined,
+    ordem: typeof search.ordem === "string" && search.ordem ? search.ordem : undefined,
   }),
   head: () => ({
     meta: [

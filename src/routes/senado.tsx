@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { senadoOverview } from "@/lib/data/senado/queries.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { fmtBRL } from "@/lib/fmt";
 import { Building2, Users, Receipt, ExternalLink } from "lucide-react";
 
@@ -47,12 +46,10 @@ function SenadoHome() {
         </p>
       </header>
 
-      <AvisoMetodologico />
-
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat
           icon={<Users className="size-4" />}
-          label="Senadores em cache"
+          label="Senadores no acervo"
           value={isLoading ? "…" : String(data?.totalSenadores ?? 0)}
         />
         <Stat

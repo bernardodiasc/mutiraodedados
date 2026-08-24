@@ -8,11 +8,17 @@ Estabilizar as funcionalidades existentes para **importar todos os dados histór
 
 ## Release em andamento
 
-Nenhuma. O backlog numerado foi entregue (v0.6.0–v0.11.0 em 2026-08-20); a próxima versão é a **rodada de testes manuais e ajustes do mantenedor**, que definirá o escopo seguinte.
+Nenhuma. A v0.12.0 (revisão das páginas públicas do Explorar) foi entregue em 2026-08-24; a próxima versão é a **rodada de testes manuais e ajustes do mantenedor**, que definirá o escopo seguinte.
 
 ## Backlog sequenciado
 
-Vazio no momento — os itens numerados foram entregues. Candidatos a entrar (da rodada de ajustes e do horizonte): rotação de SICONFI e CGU por órgão na automação, sinal espelho×origem, UI de automação no admin.
+**Rodada de testes manuais e ajustes do mantenedor** (roteiro consolidado pós-v0.11.0), agora incluindo os fluxos revistos na v0.12.0. Candidatos a entrar depois (da rodada de ajustes e do horizonte): rotação de SICONFI e CGU por órgão na automação, sinal espelho×origem, UI de automação no admin.
+
+Deixados de fora da v0.12.0, por não serem necessários ao escopo:
+
+- Índice `pg_trgm` para a busca unificada e para os `count` das listagens — só se a carga histórica mostrar lentidão.
+- Seção de partidos no hub de eleições (hoje a entrada para `/eleicoes/partidos/$sigla` é pelos badges das listas e fichas).
+- Migração das ~35 ocorrências restantes do idiom de card à mão para `Cartao` nas rotas fora do grupo Explorar.
 
 ## Horizonte
 

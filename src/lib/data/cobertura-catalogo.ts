@@ -54,7 +54,7 @@ export const CATALOGO_COBERTURA: EntradaCatalogoCobertura[] = [
     id: "cgu_convenios",
     titulo: "Portal CGU — convênios",
     descricao:
-      "Convênios e contratos de repasse da União, pelo endpoint /convenios do Portal da Transparência.",
+      "Convênios e contratos de repasse da União, com dados do Portal da Transparência (CGU).",
     granularidade: "mes",
     rota: "/convenios",
   },
@@ -141,7 +141,7 @@ export const CATALOGO_COBERTURA: EntradaCatalogoCobertura[] = [
     id: "orgaos_siafi",
     titulo: "Órgãos SIAFI — catálogo",
     descricao:
-      "Catálogo de órgãos federais (código SIAFI) que ancora contratos e licitações da CGU.",
+      "Catálogo de órgãos federais (código SIAFI) que identifica o órgão em contratos e licitações da CGU.",
     granularidade: "cadastro",
     rota: "/orgaos",
   },
@@ -149,15 +149,15 @@ export const CATALOGO_COBERTURA: EntradaCatalogoCobertura[] = [
     id: "ibge",
     titulo: "IBGE — cadastro de municípios",
     descricao:
-      "Os 5.570 municípios brasileiros (código IBGE, nome e UF), base dos seletores de ente e das varreduras por município.",
+      "Os 5.570 municípios brasileiros (código IBGE, nome e UF) — a base para navegar os dados por estado e município.",
     granularidade: "cadastro",
     rota: null,
   },
   {
     id: "convenios_origem",
-    titulo: "Transferegov — enriquecimento pela origem",
+    titulo: "Transferegov — situação e execução dos convênios",
     descricao:
-      "Situação e execução financeira (empenhado, desembolsado) lidas do CSV oficial do SICONV e aplicadas aos convênios por código — o que só a origem publica.",
+      "Situação e execução financeira (empenhado, desembolsado) de cada convênio, lidas dos arquivos oficiais do Transferegov — informação que só a origem publica.",
     granularidade: "cadastro",
     rota: "/convenios",
   },

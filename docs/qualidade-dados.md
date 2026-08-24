@@ -18,7 +18,7 @@ No banco, os três tipos moram na tabela `qa_findings`, distinguidos pela coluna
 
 > **Por que uma coluna, e não três tabelas?** O schema já tinha `qa_findings` (achados heurísticos) e `lacunas` (curadoria editorial de "informações que faltam", com ciclo próprio — ver [laboratório cívico](./dominios/laboratorio-civico.md)); a tabela `anomalias` citada em versões antigas dos docs nunca existiu (os sinais de contratos eram derivados em memória). A coluna `tipo` mantém o pipeline único (`flagQA`, revalidação, canais de denúncia, admin) para os três tipos. **Lacunas detectadas** nascem como finding `tipo='lacuna'` e podem ser **promovidas** à tabela `lacunas` (curadoria pública) pelo fluxo existente `converterFindingEmLacuna` — as duas coisas não se confundem: o finding é a detecção; a lacuna curada é o item editorial.
 
-Sinais investigativos exigem sempre `AvisoMetodologico` na exposição pública: o padrão detectado não é irregularidade por si só.
+Sinais investigativos exigem sempre o aviso de sinais na exposição pública (`PainelExplicar` com `avisoSinais`): o padrão detectado não é irregularidade por si só.
 
 ## Campos do achado
 

@@ -378,8 +378,7 @@ function CadernoDetalhePage() {
         {!itens || itens.length === 0 ? (
           <div className="mt-4 border border-dashed border-border rounded-xl p-5 bg-card text-sm text-muted-foreground">
             Sem itens ainda. Quando você usar <strong>Salvar no caderno</strong> em outras páginas,
-            escolha esta pasta para que o item apareça aqui. (Em breve um seletor de pasta no botão
-            de salvar.)
+            escolha esta pasta para que o item apareça aqui.
           </div>
         ) : (
           <>

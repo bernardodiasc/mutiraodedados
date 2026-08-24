@@ -32,7 +32,7 @@ Taxonomia em [qualidade-dados](../qualidade-dados.md); critérios completos na s
 
 - **Alertas de qualidade** (`src/lib/data/tse/qualidade.ts`, rodam na importação): `cpf_cnpj_invalido`, `valor_invalido`, `data_impossivel`, `sentinela_nao_tratada`, `duplicata_importacao`, `encoding_suspeito`.
 - **Lacunas** (`lacunas.ts`, rodam pós-importação): `eleito_sem_prestacao_contas` (confirmada na API antes de publicar), `candidato_sem_bens` (atrás de flag até confirmar o comportamento do ano), `serie_historica_incompleta` (distingue falha nossa × ausência na origem), `parlamentar_sem_match`.
-- **Sinais investigativos** (`investigativos.ts`, cruzamentos — fonte `tse-cruzamento`, sempre com `AvisoMetodologico`): `doador_virou_fornecedor` (doação ≥ R$ 1.000 + contratos do mesmo CNPJ; roda também ao fim de cada importação de contratos), `evolucao_patrimonial_atipica` (≥ 10× entre eleições e ≥ R$ 500 mil), `fornecedor_campanha_concentrado` (≥ 10 candidatos e ≥ 40% do gasto do grupo partido×UF).
+- **Sinais investigativos** (`investigativos.ts`, cruzamentos — fonte `tse-cruzamento`, sempre com o aviso de sinais): `doador_virou_fornecedor` (doação ≥ R$ 1.000 + contratos do mesmo CNPJ; roda também ao fim de cada importação de contratos), `evolucao_patrimonial_atipica` (≥ 10× entre eleições e ≥ R$ 500 mil), `fornecedor_campanha_concentrado` (≥ 10 candidatos e ≥ 40% do gasto do grupo partido×UF).
 
 ## Peculiaridades
 

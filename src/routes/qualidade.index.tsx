@@ -12,9 +12,8 @@ import {
   SINAIS_CATALOGO,
 } from "@/lib/sinais-catalogo";
 import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 
-export const Route = createFileRoute("/qualidade")({
+export const Route = createFileRoute("/qualidade/")({
   component: QualidadePage,
   head: () => ({
     meta: [
@@ -142,10 +141,10 @@ function QualidadePage() {
         </span>
         <h1 className="font-display text-5xl leading-[0.95] mt-2">Qualidade dos dados</h1>
         <p className="mt-6 text-lg text-muted-foreground max-w-3xl">
-          Inconsistências nas bases públicas são detectadas automaticamente durante a importação dos
-          dados. Em seguida, nossa equipe revalida manualmente cada suspeita contra a API oficial e,
-          quando o defeito está na fonte, reporta ao órgão responsável. Esta página é o registro
-          público desse processo — o objetivo é que ela fique vazia.
+          Inconsistências nas bases públicas são detectadas automaticamente quando os dados entram
+          no acervo. Em seguida, nossa equipe revalida manualmente cada suspeita contra a API
+          oficial e, quando o defeito está na fonte, reporta ao órgão responsável. Esta página é o
+          registro público desse processo — o objetivo é que ela fique vazia.
         </p>
         <div className="mt-6 rounded-lg border border-border bg-card/50 p-4 text-sm text-muted-foreground max-w-3xl space-y-2">
           <p>
@@ -153,7 +152,7 @@ function QualidadePage() {
             <Link to="/cobertura" className="text-accent underline">
               cobertura
             </Link>{" "}
-            — acompanhe ali quais bases já foram ingeridas e em que período.
+            — acompanhe ali quais bases já entraram no acervo e em que período.
           </p>
           <p>
             Aqui tratamos apenas de <strong>falhas técnicas</strong> nos dados (valores corrompidos,
@@ -184,11 +183,10 @@ function QualidadePage() {
         descricao={
           <>
             <p>
-              Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na
-              importação (só com o dado em cache), passa por uma <strong>re-checagem</strong> contra
-              a API oficial e, se o defeito for real e estiver na fonte, é{" "}
-              <strong>reportada</strong> ao órgão. A tabela abaixo é o catálogo completo das regras
-              persistidas, nos três tipos de sinal.
+              Cada <strong>suspeita</strong> nasce de uma <strong>regra</strong> aplicada na entrada
+              do dado no acervo, passa por uma <strong>re-checagem</strong> contra a API oficial e,
+              se o defeito for real e estiver na fonte, é <strong>reportada</strong> ao órgão. A
+              tabela abaixo é o catálogo completo das regras persistidas, nos três tipos de sinal.
             </p>
             <p>
               Nos contratos da CGU, a importação cruza a <strong>listagem</strong> com o{" "}
@@ -226,7 +224,8 @@ function QualidadePage() {
               <strong>Falso positivo</strong> — analisado e descartado: não havia defeito.
             </li>
             <li>
-              <strong>Wontfix</strong> — defeito conhecido que, por decisão, não será tratado.
+              <strong>Não será corrigido</strong> — limitação conhecida da fonte oficial: o defeito
+              está documentado, mas não há correção possível do nosso lado.
             </li>
           </ul>
         </div>
@@ -339,8 +338,10 @@ function QualidadePage() {
                     </div>
                   </div>
                   <div className="mt-2 text-sm">
-                    <span className="font-medium">{f.entidade.tipo}</span>{" "}
-                    <code className="text-xs">{f.entidade.id}</code>{" "}
+                    <Link to="/qualidade/$id" params={{ id: f.id }} className="hover:underline">
+                      <span className="font-medium">{f.entidade.tipo}</span>{" "}
+                      <code className="text-xs">{f.entidade.id}</code>
+                    </Link>{" "}
                     <span className="text-muted-foreground">— {f.regra}</span>
                   </div>
                   {f.comparacao && (
@@ -348,11 +349,6 @@ function QualidadePage() {
                       {f.comparacao.armazenadoLabel ?? "armazenado"}{" "}
                       {fmtBRL(f.comparacao.armazenado)} → {f.comparacao.esperadoLabel ?? "esperado"}{" "}
                       {fmtBRL(f.comparacao.esperado)}
-                    </div>
-                  )}
-                  {f.tipo_sinal === "investigativo" && (
-                    <div className="mt-2">
-                      <AvisoMetodologico compacto />
                     </div>
                   )}
                 </div>

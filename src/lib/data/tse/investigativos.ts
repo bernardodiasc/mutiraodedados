@@ -2,7 +2,7 @@
  * Sinais INVESTIGATIVOS da fonte TSE — padrões detectáveis por CRUZAMENTO de
  * dados (taxonomia em docs/qualidade-dados.md). Os dados estão corretos e
  * completos; o cruzamento aponta um padrão que merece verificação humana.
- * NUNCA é acusação — a exposição pública exige AvisoMetodologico.
+ * NUNCA é acusação — a exposição pública exige o aviso de sinais (PainelExplicar avisoSinais).
  *
  * Este arquivo é PURO (constrói findings a partir de linhas já cruzadas);
  * as consultas/RPCs ficam em sinais.server.ts. Regras aqui saem SEMPRE com

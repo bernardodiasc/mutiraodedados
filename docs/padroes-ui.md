@@ -31,9 +31,9 @@ Os links externos por fonte estão padronizados em `src/lib/transparencia.ts`.
 
 Componente `EmptyState` em `src/components/EmptyState.tsx`. Sempre explicar **por que** está vazio (ex: "Nenhuma importação realizada neste mês — veja `/cobertura`").
 
-## Avisos metodológicos
+## Painéis de explicação e investigação
 
-`AvisoMetodologico` aparece em páginas onde o dado tem ressalva (ex: PNCP cobre apenas Lei 14.133, não substitui CGU para Executivo Federal). Toda página pública que mostra agregados deve ter um.
+A explicação que não cabe no parágrafo de abertura vai para o `PainelExplicar` (collapsible fechado no fluxo — evolução do antigo `ExplicadorFontes`). Ressalvas metodológicas de páginas que exibem sinais entram no mesmo painel via prop `avisoSinais` — o antigo banner fixo `AvisoMetodologico` foi absorvido por ele. Micro-explicação pontual ao lado de um número usa `MetodologiaPopover`. Instrução de investigação (passo a passo, prompts do banco) usa `PainelInvestigar` (Sheet lateral).
 
 ## Sanitização visual
 

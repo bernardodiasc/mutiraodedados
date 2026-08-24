@@ -1,13 +1,22 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
 import { listarRelatoriosSICONFI } from "@/lib/data/siconfi/queries.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
+import { BarraDeFiltros } from "@/components/BarraDeFiltros";
+import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
+import { ControlePaginacao } from "@/components/ControlePaginacao";
 import { FontesDoTema } from "@/components/FontesDoTema";
+import { SeletorItensPorPagina } from "@/components/SeletorItensPorPagina";
+import { SeletorOrdenacao } from "@/components/SeletorOrdenacao";
+import {
+  ITENS_PADRAO,
+  offsetDaPagina,
+  parseSearchListagem,
+  type OpcaoOrdem,
+  type SearchListagem,
+} from "@/lib/listagem/logic";
 import { fmtBRL } from "@/lib/fmt";
-import { Landmark, Download } from "lucide-react";
-import { downloadCSV } from "@/lib/csv";
+import { Landmark } from "lucide-react";
 
 const UFS = [
   "",
@@ -40,12 +49,35 @@ const UFS = [
   "TO",
 ];
 const TIPOS = ["", "RREO", "RREO Simplificado", "RGF", "RGF Simplificado", "DCA"];
+const ORDENS: OpcaoOrdem[] = [
+  { valor: "exercicio-desc", label: "Mais recentes" },
+  { valor: "exercicio-asc", label: "Mais antigos" },
+  { valor: "valor-desc", label: "Maior valor" },
+  { valor: "valor-asc", label: "Menor valor" },
+];
+const ORDEM_PADRAO = "exercicio-desc";
+
+// Filtros e paginação na URL: compartilhável e página estável no tempo
+// (corte `ate` — ver src/lib/listagem/logic.ts).
+type RelatoriosSearch = SearchListagem & {
+  uf?: string;
+  exercicio?: number;
+  tipo?: string;
+  q?: string;
+};
 
 export const Route = createFileRoute("/relatorios-fiscais")({
+  validateSearch: (s: Record<string, unknown>): RelatoriosSearch => ({
+    ...parseSearchListagem(s, { ordens: ORDENS, ordemPadrao: ORDEM_PADRAO }),
+    uf: typeof s.uf === "string" && s.uf ? s.uf : undefined,
+    exercicio: Number(s.exercicio) || undefined,
+    tipo: typeof s.tipo === "string" && s.tipo ? s.tipo : undefined,
+    q: typeof s.q === "string" && s.q ? s.q : undefined,
+  }),
   component: RelatoriosFiscaisPage,
   head: () => ({
     meta: [
-      { title: "Relatórios fiscais (RREO, RGF, DCA) — Mutirão de Dados" },
+      { title: "Relatórios fiscais — Mutirão de Dados" },
       {
         name: "description",
         content:
@@ -57,23 +89,49 @@ export const Route = createFileRoute("/relatorios-fiscais")({
 
 function RelatoriosFiscaisPage() {
   const buscar = useServerFn(listarRelatoriosSICONFI);
-  const [uf, setUf] = useState("");
-  const [exercicio, setExercicio] = useState<number | "">("");
-  const [tipo, setTipo] = useState("");
-  const [q, setQ] = useState("");
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const uf = search.uf ?? "";
+  const exercicio = search.exercicio ?? 0;
+  const tipo = search.tipo ?? "";
+  const q = search.q ?? "";
+  const pagina = search.pagina ?? 1;
+  const itens = search.itens ?? ITENS_PADRAO;
+  const ordem = search.ordem ?? ORDEM_PADRAO;
+
+  // Mudar filtro/ordenação/itens volta para a página 1.
+  const setFiltro = (patch: Partial<RelatoriosSearch>) =>
+    navigate({
+      search: (prev: RelatoriosSearch) => ({ ...prev, ...patch, pagina: undefined }),
+      replace: true,
+    });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["siconfi", uf, exercicio, tipo, q],
+    queryKey: ["siconfi", uf, exercicio, tipo, ordem, q, pagina, itens, search.ate],
+    placeholderData: keepPreviousData,
     queryFn: () =>
       buscar({
         data: {
           uf: uf || undefined,
           exercicio: exercicio || undefined,
           tipoRelatorio: tipo || undefined,
+          ordem: ordem as "exercicio-desc",
+          ate: search.ate,
           q: q || undefined,
-          limit: 100,
+          limit: itens,
+          offset: offsetDaPagina(pagina, itens),
         },
       }),
+  });
+
+  const lista = data?.relatorios ?? [];
+  const total = data?.total ?? 0;
+  // Fixa o corte nos links de página: a mesma URL mostra sempre os mesmos registros.
+  const corte = search.ate ?? data?.corteSugerido;
+  const montarSearch = (p: number): Record<string, unknown> => ({
+    ...search,
+    pagina: p > 1 ? p : undefined,
+    ate: corte,
   });
 
   return (
@@ -100,69 +158,84 @@ function RelatoriosFiscaisPage() {
 
       <FontesDoTema fontes={[{ label: "SICONFI (Tesouro Nacional)", to: "/siconfi" }]} />
 
-      <AvisoMetodologico />
+      <BarraDeFiltros
+        acoes={
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              <SeletorOrdenacao
+                opcoes={ORDENS}
+                valor={ordem}
+                aoMudar={(v) => setFiltro({ ordem: v !== ORDEM_PADRAO ? v : undefined })}
+              />
+              <SeletorItensPorPagina
+                valor={itens}
+                aoMudar={(n) => setFiltro({ itens: n !== ITENS_PADRAO ? n : undefined })}
+              />
+            </div>
+            {lista.length > 0 && (
+              <BotaoBaixarCsv
+                filename={`siconfi_${uf || "todos"}_${exercicio || "todos"}`}
+                obterLinhas={() => lista}
+                rotulo={`Exportar CSV (${lista.length})`}
+              />
+            )}
+          </>
+        }
+      >
+        <select
+          value={uf}
+          onChange={(e) => setFiltro({ uf: e.target.value || undefined })}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {UFS.map((u) => (
+            <option key={u} value={u}>
+              {u || "Todas UFs"}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          value={exercicio || ""}
+          onChange={(e) => setFiltro({ exercicio: Number(e.target.value) || undefined })}
+          placeholder="Exercício"
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        />
+        <select
+          value={tipo}
+          onChange={(e) => setFiltro({ tipo: e.target.value || undefined })}
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {TIPOS.map((t) => (
+            <option key={t} value={t}>
+              {t || "Todos relatórios"}
+            </option>
+          ))}
+        </select>
+        <input
+          value={q}
+          onChange={(e) => setFiltro({ q: e.target.value || undefined })}
+          placeholder="Buscar conta..."
+          className="rounded-md border bg-background px-3 py-2 text-sm"
+        />
+      </BarraDeFiltros>
 
-      <section className="rounded-2xl border border-border bg-card p-4 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-4">
-          <select
-            value={uf}
-            onChange={(e) => setUf(e.target.value)}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {UFS.map((u) => (
-              <option key={u} value={u}>
-                {u || "Todas UFs"}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            value={exercicio}
-            onChange={(e) => setExercicio(e.target.value ? Number(e.target.value) : "")}
-            placeholder="Exercício"
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          />
-          <select
-            value={tipo}
-            onChange={(e) => setTipo(e.target.value)}
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          >
-            {TIPOS.map((t) => (
-              <option key={t} value={t}>
-                {t || "Todos relatórios"}
-              </option>
-            ))}
-          </select>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar conta..."
-            className="rounded-md border bg-background px-3 py-2 text-sm"
-          />
-        </div>
-      </section>
+      <section className="space-y-3">
+        <ControlePaginacao
+          pagina={pagina}
+          itens={itens}
+          total={total}
+          to="/relatorios-fiscais"
+          montarSearch={montarSearch}
+        />
 
-      <section>
         {isLoading && <p className="text-sm text-muted-foreground">Carregando…</p>}
-        {!isLoading && (data?.relatorios.length ?? 0) === 0 && (
+        {!isLoading && lista.length === 0 && (
           <p className="text-sm text-muted-foreground">
-            Nenhum relatório disponível para os filtros selecionados.
+            Nenhum relatório no acervo para os filtros selecionados.
           </p>
         )}
-        {(data?.relatorios.length ?? 0) > 0 && (
-          <div className="flex justify-end mb-2">
-            <button
-              onClick={() =>
-                downloadCSV(`siconfi_${uf || "todos"}_${exercicio || "todos"}`, data!.relatorios)
-              }
-              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted"
-            >
-              <Download className="size-3.5" /> Exportar CSV
-            </button>
-          </div>
-        )}
         <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-          {(data?.relatorios ?? []).map((r) => (
+          {lista.map((r) => (
             <li key={r.id} className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -188,6 +261,14 @@ function RelatoriosFiscaisPage() {
             </li>
           ))}
         </ul>
+
+        <ControlePaginacao
+          pagina={pagina}
+          itens={itens}
+          total={total}
+          to="/relatorios-fiscais"
+          montarSearch={montarSearch}
+        />
       </section>
     </div>
   );

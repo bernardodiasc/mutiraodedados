@@ -26,8 +26,8 @@ export function EleicoesHubView({ estado, anos }: EleicoesHubViewProps) {
   if (estado === "vazio") {
     return (
       <EmptyState
-        title="Nenhuma eleição importada ainda"
-        hint="O administrador importa os dados do TSE em /admin/dados (aba TSE). Depois disso, os anos aparecem aqui."
+        title="Nenhuma eleição no acervo ainda"
+        hint="Os dados vêm do portal de dados abertos do TSE e entram no acervo eleição a eleição — volte em breve."
       />
     );
   }
@@ -61,9 +61,60 @@ export function EleicoesHubView({ estado, anos }: EleicoesHubViewProps) {
               </li>
             ))}
           </ul>
+          <details className="mt-3 text-sm">
+            <summary className="cursor-pointer select-none text-muted-foreground hover:text-foreground">
+              Panorama por estado — cargos, candidaturas e eleitos de uma UF nesta eleição
+            </summary>
+            <ul className="flex flex-wrap gap-1.5 mt-2">
+              {UFS_PANORAMA.map((uf) => (
+                <li key={uf}>
+                  <Link
+                    to="/eleicoes/$ano/$uf"
+                    params={{ ano: String(bloco.ano), uf }}
+                    data-flat
+                    className="inline-block rounded border border-border bg-background px-2 py-0.5 text-xs font-mono hover:border-accent hover:text-accent"
+                  >
+                    {uf}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </details>
         </section>
       ))}
     </div>
   );
 }
 EleicoesHubView.displayName = "EleicoesHubView";
+
+// Chips do panorama por estado — BR cobre os cargos nacionais (presidente).
+const UFS_PANORAMA = [
+  "BR",
+  "AC",
+  "AL",
+  "AM",
+  "AP",
+  "BA",
+  "CE",
+  "DF",
+  "ES",
+  "GO",
+  "MA",
+  "MG",
+  "MS",
+  "MT",
+  "PA",
+  "PB",
+  "PE",
+  "PI",
+  "PR",
+  "RJ",
+  "RN",
+  "RO",
+  "RR",
+  "RS",
+  "SC",
+  "SE",
+  "SP",
+  "TO",
+];

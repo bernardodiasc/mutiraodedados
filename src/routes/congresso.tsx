@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { camaraOverview } from "@/lib/data/camara/queries.functions";
 import { senadoOverview } from "@/lib/data/senado/queries.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { fmtBRL } from "@/lib/fmt";
 import { Users, Receipt, Building2 } from "lucide-react";
 
@@ -53,8 +52,6 @@ function CongressoHub() {
         </p>
       </header>
 
-      <AvisoMetodologico />
-
       <section className="grid gap-4 sm:grid-cols-3">
         <Stat
           icon={<Users className="size-4" />}
@@ -73,7 +70,7 @@ function CongressoHub() {
         />
         <Stat
           icon={<Receipt className="size-4" />}
-          label="Notas fiscais em cache"
+          label="Notas fiscais no acervo"
           value={totalNotas.toLocaleString("pt-BR")}
         />
       </section>

@@ -56,8 +56,9 @@ function CoberturaPage() {
             recente com pelo menos um registro.
           </li>
           <li>
-            <strong className="text-foreground">Heatmap ano × mês</strong>: intensidade proporcional
-            ao volume de registros naquele mês. Células tracejadas indicam ausência de dados.
+            <strong className="text-foreground">Mapa de calor ano × mês</strong>: intensidade
+            proporcional ao volume de registros naquele mês. Células tracejadas indicam ausência de
+            dados.
           </li>
           <li>
             Diferente da{" "}
@@ -73,7 +74,7 @@ function CoberturaPage() {
         <strong className="text-foreground">Qualidade ≠ cobertura.</strong>{" "}
         <span className="text-muted-foreground">
           Esta página mostra <em>quanto</em> baixamos. Para ver os <em>defeitos</em> detectados nos
-          dados ingeridos (e o que já foi reportado às fontes oficiais), veja{" "}
+          dados do acervo (e o que já foi reportado às fontes oficiais), veja{" "}
         </span>
         <Link to="/qualidade" className="text-accent underline">
           /qualidade
@@ -94,7 +95,7 @@ function CoberturaPage() {
             ))}
           </div>
           <p className="mt-6 text-[11px] text-muted-foreground">
-            Snapshot gerado em {new Date(cobertura.geradoEm).toLocaleString("pt-BR")}.
+            Retrato gerado em {new Date(cobertura.geradoEm).toLocaleString("pt-BR")}.
           </p>
         </>
       )}

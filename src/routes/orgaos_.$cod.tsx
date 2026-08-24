@@ -1,5 +1,10 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { FileSignature, Scale } from "lucide-react";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
+import { SecaoVinculos } from "@/components/SecaoVinculos";
+import { vinculosDoOrgao } from "@/lib/data/orgao-vinculos.functions";
 import { useDataSource, useData } from "@/lib/data-store";
 import { ORGAOS_ENRIQUECIMENTO, ORGAOS_OUTRAS_ESFERAS } from "@/lib/data/catalog";
 import type { Orgao } from "@/lib/data/types";
@@ -13,13 +18,23 @@ import { medianaPorFuncao, descreverValor } from "@/lib/contexto";
 import { calcularNotaTransparencia, corDaFaixa, rotuloDaFaixa } from "@/lib/transparencia";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
-import { BotaoCopiar } from "@/components/BotaoCopiar";
+import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
-import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
+import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 
 export const Route = createFileRoute("/orgaos_/$cod")({
   component: OrgaoDetail,
+  head: ({ params }) => ({
+    meta: [
+      { title: `Órgão ${params.cod} — Mutirão de Dados` },
+      {
+        name: "description",
+        content:
+          "Ficha do órgão federal: série histórica de gastos, radar de risco, principais fornecedores, licitações e convênios.",
+      },
+    ],
+  }),
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
       <h1 className="font-display text-4xl">Órgão não encontrado</h1>
@@ -38,6 +53,14 @@ export const Route = createFileRoute("/orgaos_/$cod")({
 
 function OrgaoDetail() {
   const { cod } = Route.useParams();
+
+  // Licitações e convênios do mesmo órgão (indexados por orgao_cod no banco).
+  const buscarVinculos = useServerFn(vinculosDoOrgao);
+  const { data: vinculos } = useQuery({
+    queryKey: ["orgao-vinculos", cod],
+    staleTime: 5 * 60_000,
+    queryFn: () => buscarVinculos({ data: { orgaoCod: cod } }),
+  });
 
   const ds = useDataSource();
   const { dataset } = useData();
@@ -148,9 +171,9 @@ function OrgaoDetail() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">
-      <Link to="/orgaos" className="text-sm text-muted-foreground hover:text-foreground">
-        ← Órgãos
-      </Link>
+      <TrilhaDeNavegacao
+        itens={[{ label: "Órgãos federais", to: "/orgaos" }, { label: base.sigla || base.nome }]}
+      />
       <div className="mt-3 flex items-baseline justify-between flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -168,7 +191,7 @@ function OrgaoDetail() {
             {naoCatalogado && (
               <span
                 className="text-[10px] font-semibold uppercase tracking-wider rounded px-1.5 py-0.5 border text-muted-foreground border-border"
-                title="Órgão presente nos documentos mas ainda não sincronizado no catálogo SIAFI."
+                title="Órgão citado nos dados, mas ainda sem cadastro completo no acervo."
               >
                 Não catalogado
               </span>
@@ -187,34 +210,31 @@ function OrgaoDetail() {
         />
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <BotaoCopiar
-          obterTexto={() =>
-            textoCopiavelDeEntidade(
-              base.sigla ? `${base.sigla} — ${base.nome}` : base.nome,
-              null,
-              base,
-            )
-          }
-          rotulo="Copiar dados"
-          mensagemToast="Dados do órgão copiados — cole na sua IA"
-        />
-        <BotaoSalvarItem
-          entidadeTipo="orgao"
-          entidadeId={base.cod}
-          titulo={base.sigla ? `${base.sigla} — ${base.nome}` : base.nome}
-          url={`/orgaos/${encodeURIComponent(base.cod)}`}
-          contexto={base.funcao}
-          snapshotDe={base}
-        />
-      </div>
+      <AcoesDaEntidade
+        className="mt-4"
+        entidadeTipo="orgao"
+        entidadeId={base.cod}
+        titulo={base.sigla ? `${base.sigla} — ${base.nome}` : base.nome}
+        url={`/orgaos/${encodeURIComponent(base.cod)}`}
+        contexto={base.funcao}
+        snapshotDe={base}
+        obterTextoCopiavel={() =>
+          textoCopiavelDeEntidade(
+            base.sigla ? `${base.sigla} — ${base.nome}` : base.nome,
+            null,
+            base,
+          )
+        }
+        rotuloCopiar="Copiar dados"
+        mensagemCopiar="Dados do órgão copiados — cole na sua IA"
+      />
 
       {!orgao && (
         <div className="mt-8">
           {base.disponivelPortal ? (
             <EmptyState
               title="Sem dados carregados para este órgão"
-              hint="A importação de dados é feita pela equipe de administração. Volte em breve."
+              hint="Os dados deste órgão vêm do Portal da Transparência (CGU) e entram no acervo aos poucos — volte em breve."
             />
           ) : (
             <div className="mt-6">
@@ -222,7 +242,7 @@ function OrgaoDetail() {
                 title={`${base.sigla} ainda não está conectado`}
                 hint={
                   base.nota ??
-                  "Este órgão não é coberto pelo /contratos do Portal da Transparência (CGU). A integração com a API própria está planejada."
+                  "Os contratos deste órgão não são publicados no Portal da Transparência (CGU), que cobre o Executivo federal — órgãos de outros Poderes publicam em sistemas próprios."
                 }
               />
             </div>
@@ -431,6 +451,42 @@ function OrgaoDetail() {
             </div>
           </div>
         </>
+      )}
+
+      {vinculos && (vinculos.totalLicitacoes > 0 || vinculos.totalConvenios > 0) && (
+        <div className="mt-10 grid lg:grid-cols-2 gap-6 items-start">
+          <SecaoVinculos
+            titulo={`Licitações deste órgão (${vinculos.totalLicitacoes.toLocaleString("pt-BR")})`}
+            icone={Scale}
+            descricao="Processos de disputa publicados pelo mesmo órgão no Portal da Transparência."
+            itens={vinculos.licitacoes.map((l) => ({
+              chave: l.id,
+              titulo: `Licitação ${l.numero ?? l.id}`,
+              subtitulo: l.objeto?.slice(0, 120) ?? undefined,
+              valorFmt: fmtBRL(l.valor),
+              to: "/licitacoes/$id",
+              params: { id: l.id },
+            }))}
+            verTodos={{
+              label: "Ver todas as licitações deste órgão",
+              to: "/licitacoes",
+              search: { orgao: cod },
+            }}
+          />
+          <SecaoVinculos
+            titulo={`Convênios deste órgão (${vinculos.totalConvenios.toLocaleString("pt-BR")})`}
+            icone={FileSignature}
+            descricao="Repasses a estados, municípios e organizações concedidos por este órgão."
+            itens={vinculos.convenios.map((c) => ({
+              chave: c.id,
+              titulo: `Convênio ${c.numero ?? c.id}`,
+              subtitulo: [c.convenente_nome, c.uf].filter(Boolean).join(" · ") || undefined,
+              valorFmt: fmtBRL(c.valor),
+              to: "/convenios/$id",
+              params: { id: c.id },
+            }))}
+          />
+        </div>
       )}
     </div>
   );

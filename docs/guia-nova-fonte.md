@@ -28,7 +28,7 @@ Uma fonte só está pronta quando entrega o arsenal completo, não só a importa
 - Página `/admin/dados` precisa expor a nova fonte (ver `AdminImportPanel`).
 - Página `/cobertura` precisa enxergar (ajustar `cobertura-jobs.ts`).
 - Rota pública correspondente existe e tem `head()` com metadados próprios.
-- **Sinais implementados nos três tipos aplicáveis** e visíveis nas páginas públicas (não só no admin); sinais investigativos com `AvisoMetodologico`.
+- **Sinais implementados nos três tipos aplicáveis** e visíveis nas páginas públicas (não só no admin); sinais investigativos com o aviso de sinais (`PainelExplicar avisoSinais`).
 - **Regras explicadas em `/metodologia`** — toda regra que gera sinal tem explicação pública.
 - **Materiais de apoio**: pelo menos um tutorial ou mapa investigativo que use a fonte, e uma nota de campo registrando o processo de integração (decisões, surpresas, limitações).
 - Documentação atualizada: `fontes/<nova>.md`, link em `fontes/README.md`, domínio relacionado em `dominios/`.

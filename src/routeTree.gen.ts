@@ -22,7 +22,6 @@ import { Route as SenadoRouteImport } from './routes/senado'
 import { Route as RoadmapRouteImport } from './routes/roadmap'
 import { Route as RelatoriosFiscaisRouteImport } from './routes/relatorios-fiscais'
 import { Route as ReferenciasRouteImport } from './routes/referencias'
-import { Route as QualidadeRouteImport } from './routes/qualidade'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as PortalCguRouteImport } from './routes/portal-cgu'
 import { Route as PncpRouteImport } from './routes/pncp'
@@ -33,7 +32,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as LacunasRouteImport } from './routes/lacunas'
 import { Route as ExplorarRouteImport } from './routes/explorar'
 import { Route as EstiloRouteImport } from './routes/estilo'
-import { Route as ConveniosRouteImport } from './routes/convenios'
 import { Route as ContribuirRouteImport } from './routes/contribuir'
 import { Route as ContestarRouteImport } from './routes/contestar'
 import { Route as CongressoRouteImport } from './routes/congresso'
@@ -48,12 +46,15 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TutoriaisIndexRouteImport } from './routes/tutoriais.index'
 import { Route as TransferenciasIndexRouteImport } from './routes/transferencias.index'
+import { Route as QualidadeIndexRouteImport } from './routes/qualidade.index'
 import { Route as NotasIndexRouteImport } from './routes/notas.index'
 import { Route as MapasIndexRouteImport } from './routes/mapas.index'
 import { Route as LicitacoesIndexRouteImport } from './routes/licitacoes.index'
+import { Route as FornecedoresIndexRouteImport } from './routes/fornecedores.index'
 import { Route as EstiloIndexRouteImport } from './routes/estilo.index'
 import { Route as EmendasIndexRouteImport } from './routes/emendas.index'
 import { Route as EleicoesIndexRouteImport } from './routes/eleicoes.index'
+import { Route as ConveniosIndexRouteImport } from './routes/convenios.index'
 import { Route as ContratosIndexRouteImport } from './routes/contratos.index'
 import { Route as TutoriaisSlugRouteImport } from './routes/tutoriais.$slug'
 import { Route as QualidadeIdRouteImport } from './routes/qualidade.$id'
@@ -65,6 +66,7 @@ import { Route as LicitacoesIdRouteImport } from './routes/licitacoes.$id'
 import { Route as FornecedoresCnpjRouteImport } from './routes/fornecedores.$cnpj'
 import { Route as EstiloTokensRouteImport } from './routes/estilo.tokens'
 import { Route as EstiloTipografiaRouteImport } from './routes/estilo.tipografia'
+import { Route as EntesCodigoRouteImport } from './routes/entes.$codigo'
 import { Route as EmendasIdRouteImport } from './routes/emendas.$id'
 import { Route as ConveniosIdRouteImport } from './routes/convenios.$id'
 import { Route as ContratosIdRouteImport } from './routes/contratos.$id'
@@ -170,11 +172,6 @@ const ReferenciasRoute = ReferenciasRouteImport.update({
   path: '/referencias',
   getParentRoute: () => rootRouteImport,
 } as any)
-const QualidadeRoute = QualidadeRouteImport.update({
-  id: '/qualidade',
-  path: '/qualidade',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const PrivacidadeRoute = PrivacidadeRouteImport.update({
   id: '/privacidade',
   path: '/privacidade',
@@ -223,11 +220,6 @@ const ExplorarRoute = ExplorarRouteImport.update({
 const EstiloRoute = EstiloRouteImport.update({
   id: '/estilo',
   path: '/estilo',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ConveniosRoute = ConveniosRouteImport.update({
-  id: '/convenios',
-  path: '/convenios',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContribuirRoute = ContribuirRouteImport.update({
@@ -299,6 +291,11 @@ const TransferenciasIndexRoute = TransferenciasIndexRouteImport.update({
   path: '/transferencias/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const QualidadeIndexRoute = QualidadeIndexRouteImport.update({
+  id: '/qualidade/',
+  path: '/qualidade/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const NotasIndexRoute = NotasIndexRouteImport.update({
   id: '/notas/',
   path: '/notas/',
@@ -312,6 +309,11 @@ const MapasIndexRoute = MapasIndexRouteImport.update({
 const LicitacoesIndexRoute = LicitacoesIndexRouteImport.update({
   id: '/licitacoes/',
   path: '/licitacoes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FornecedoresIndexRoute = FornecedoresIndexRouteImport.update({
+  id: '/fornecedores/',
+  path: '/fornecedores/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EstiloIndexRoute = EstiloIndexRouteImport.update({
@@ -329,6 +331,11 @@ const EleicoesIndexRoute = EleicoesIndexRouteImport.update({
   path: '/eleicoes/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConveniosIndexRoute = ConveniosIndexRouteImport.update({
+  id: '/convenios/',
+  path: '/convenios/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ContratosIndexRoute = ContratosIndexRouteImport.update({
   id: '/contratos/',
   path: '/contratos/',
@@ -340,9 +347,9 @@ const TutoriaisSlugRoute = TutoriaisSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const QualidadeIdRoute = QualidadeIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => QualidadeRoute,
+  id: '/qualidade/$id',
+  path: '/qualidade/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const PerguntasSlugRoute = PerguntasSlugRouteImport.update({
   id: '/perguntas_/$slug',
@@ -384,15 +391,20 @@ const EstiloTipografiaRoute = EstiloTipografiaRouteImport.update({
   path: '/tipografia',
   getParentRoute: () => EstiloRoute,
 } as any)
+const EntesCodigoRoute = EntesCodigoRouteImport.update({
+  id: '/entes/$codigo',
+  path: '/entes/$codigo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EmendasIdRoute = EmendasIdRouteImport.update({
   id: '/emendas/$id',
   path: '/emendas/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConveniosIdRoute = ConveniosIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ConveniosRoute,
+  id: '/convenios/$id',
+  path: '/convenios/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ContratosIdRoute = ContratosIdRouteImport.update({
   id: '/contratos/$id',
@@ -598,7 +610,6 @@ export interface FileRoutesByFullPath {
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
   '/contribuir': typeof ContribuirRoute
-  '/convenios': typeof ConveniosRouteWithChildren
   '/estilo': typeof EstiloRouteWithChildren
   '/explorar': typeof ExplorarRoute
   '/lacunas': typeof LacunasRoute
@@ -609,7 +620,6 @@ export interface FileRoutesByFullPath {
   '/pncp': typeof PncpRoute
   '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
   '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
@@ -630,6 +640,7 @@ export interface FileRoutesByFullPath {
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
   '/emendas/$id': typeof EmendasIdRoute
+  '/entes/$codigo': typeof EntesCodigoRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
@@ -641,12 +652,15 @@ export interface FileRoutesByFullPath {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos/': typeof ContratosIndexRoute
+  '/convenios/': typeof ConveniosIndexRoute
   '/eleicoes/': typeof EleicoesIndexRoute
   '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
+  '/fornecedores/': typeof FornecedoresIndexRoute
   '/licitacoes/': typeof LicitacoesIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
+  '/qualidade/': typeof QualidadeIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
   '/tutoriais/': typeof TutoriaisIndexRoute
   '/admin/analises': typeof AuthenticatedAdminAnalisesRoute
@@ -693,7 +707,6 @@ export interface FileRoutesByTo {
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
   '/contribuir': typeof ContribuirRoute
-  '/convenios': typeof ConveniosRouteWithChildren
   '/explorar': typeof ExplorarRoute
   '/lacunas': typeof LacunasRoute
   '/login': typeof LoginRoute
@@ -703,7 +716,6 @@ export interface FileRoutesByTo {
   '/pncp': typeof PncpRoute
   '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
   '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
@@ -724,6 +736,7 @@ export interface FileRoutesByTo {
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
   '/emendas/$id': typeof EmendasIdRoute
+  '/entes/$codigo': typeof EntesCodigoRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
@@ -735,12 +748,15 @@ export interface FileRoutesByTo {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos': typeof ContratosIndexRoute
+  '/convenios': typeof ConveniosIndexRoute
   '/eleicoes': typeof EleicoesIndexRoute
   '/emendas': typeof EmendasIndexRoute
   '/estilo': typeof EstiloIndexRoute
+  '/fornecedores': typeof FornecedoresIndexRoute
   '/licitacoes': typeof LicitacoesIndexRoute
   '/mapas': typeof MapasIndexRoute
   '/notas': typeof NotasIndexRoute
+  '/qualidade': typeof QualidadeIndexRoute
   '/transferencias': typeof TransferenciasIndexRoute
   '/tutoriais': typeof TutoriaisIndexRoute
   '/admin/analises': typeof AuthenticatedAdminAnalisesRoute
@@ -789,7 +805,6 @@ export interface FileRoutesById {
   '/congresso': typeof CongressoRoute
   '/contestar': typeof ContestarRoute
   '/contribuir': typeof ContribuirRoute
-  '/convenios': typeof ConveniosRouteWithChildren
   '/estilo': typeof EstiloRouteWithChildren
   '/explorar': typeof ExplorarRoute
   '/lacunas': typeof LacunasRoute
@@ -800,7 +815,6 @@ export interface FileRoutesById {
   '/pncp': typeof PncpRoute
   '/portal-cgu': typeof PortalCguRoute
   '/privacidade': typeof PrivacidadeRoute
-  '/qualidade': typeof QualidadeRouteWithChildren
   '/referencias': typeof ReferenciasRoute
   '/relatorios-fiscais': typeof RelatoriosFiscaisRoute
   '/roadmap': typeof RoadmapRoute
@@ -821,6 +835,7 @@ export interface FileRoutesById {
   '/contratos/$id': typeof ContratosIdRoute
   '/convenios/$id': typeof ConveniosIdRoute
   '/emendas/$id': typeof EmendasIdRoute
+  '/entes/$codigo': typeof EntesCodigoRoute
   '/estilo/tipografia': typeof EstiloTipografiaRoute
   '/estilo/tokens': typeof EstiloTokensRoute
   '/fornecedores/$cnpj': typeof FornecedoresCnpjRoute
@@ -832,12 +847,15 @@ export interface FileRoutesById {
   '/qualidade/$id': typeof QualidadeIdRoute
   '/tutoriais/$slug': typeof TutoriaisSlugRoute
   '/contratos/': typeof ContratosIndexRoute
+  '/convenios/': typeof ConveniosIndexRoute
   '/eleicoes/': typeof EleicoesIndexRoute
   '/emendas/': typeof EmendasIndexRoute
   '/estilo/': typeof EstiloIndexRoute
+  '/fornecedores/': typeof FornecedoresIndexRoute
   '/licitacoes/': typeof LicitacoesIndexRoute
   '/mapas/': typeof MapasIndexRoute
   '/notas/': typeof NotasIndexRoute
+  '/qualidade/': typeof QualidadeIndexRoute
   '/transferencias/': typeof TransferenciasIndexRoute
   '/tutoriais/': typeof TutoriaisIndexRoute
   '/_authenticated/admin_/analises': typeof AuthenticatedAdminAnalisesRoute
@@ -886,7 +904,6 @@ export interface FileRouteTypes {
     | '/congresso'
     | '/contestar'
     | '/contribuir'
-    | '/convenios'
     | '/estilo'
     | '/explorar'
     | '/lacunas'
@@ -897,7 +914,6 @@ export interface FileRouteTypes {
     | '/pncp'
     | '/portal-cgu'
     | '/privacidade'
-    | '/qualidade'
     | '/referencias'
     | '/relatorios-fiscais'
     | '/roadmap'
@@ -918,6 +934,7 @@ export interface FileRouteTypes {
     | '/contratos/$id'
     | '/convenios/$id'
     | '/emendas/$id'
+    | '/entes/$codigo'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
@@ -929,12 +946,15 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos/'
+    | '/convenios/'
     | '/eleicoes/'
     | '/emendas/'
     | '/estilo/'
+    | '/fornecedores/'
     | '/licitacoes/'
     | '/mapas/'
     | '/notas/'
+    | '/qualidade/'
     | '/transferencias/'
     | '/tutoriais/'
     | '/admin/analises'
@@ -981,7 +1001,6 @@ export interface FileRouteTypes {
     | '/congresso'
     | '/contestar'
     | '/contribuir'
-    | '/convenios'
     | '/explorar'
     | '/lacunas'
     | '/login'
@@ -991,7 +1010,6 @@ export interface FileRouteTypes {
     | '/pncp'
     | '/portal-cgu'
     | '/privacidade'
-    | '/qualidade'
     | '/referencias'
     | '/relatorios-fiscais'
     | '/roadmap'
@@ -1012,6 +1030,7 @@ export interface FileRouteTypes {
     | '/contratos/$id'
     | '/convenios/$id'
     | '/emendas/$id'
+    | '/entes/$codigo'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
@@ -1023,12 +1042,15 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos'
+    | '/convenios'
     | '/eleicoes'
     | '/emendas'
     | '/estilo'
+    | '/fornecedores'
     | '/licitacoes'
     | '/mapas'
     | '/notas'
+    | '/qualidade'
     | '/transferencias'
     | '/tutoriais'
     | '/admin/analises'
@@ -1076,7 +1098,6 @@ export interface FileRouteTypes {
     | '/congresso'
     | '/contestar'
     | '/contribuir'
-    | '/convenios'
     | '/estilo'
     | '/explorar'
     | '/lacunas'
@@ -1087,7 +1108,6 @@ export interface FileRouteTypes {
     | '/pncp'
     | '/portal-cgu'
     | '/privacidade'
-    | '/qualidade'
     | '/referencias'
     | '/relatorios-fiscais'
     | '/roadmap'
@@ -1108,6 +1128,7 @@ export interface FileRouteTypes {
     | '/contratos/$id'
     | '/convenios/$id'
     | '/emendas/$id'
+    | '/entes/$codigo'
     | '/estilo/tipografia'
     | '/estilo/tokens'
     | '/fornecedores/$cnpj'
@@ -1119,12 +1140,15 @@ export interface FileRouteTypes {
     | '/qualidade/$id'
     | '/tutoriais/$slug'
     | '/contratos/'
+    | '/convenios/'
     | '/eleicoes/'
     | '/emendas/'
     | '/estilo/'
+    | '/fornecedores/'
     | '/licitacoes/'
     | '/mapas/'
     | '/notas/'
+    | '/qualidade/'
     | '/transferencias/'
     | '/tutoriais/'
     | '/_authenticated/admin_/analises'
@@ -1173,7 +1197,6 @@ export interface RootRouteChildren {
   CongressoRoute: typeof CongressoRoute
   ContestarRoute: typeof ContestarRoute
   ContribuirRoute: typeof ContribuirRoute
-  ConveniosRoute: typeof ConveniosRouteWithChildren
   EstiloRoute: typeof EstiloRouteWithChildren
   ExplorarRoute: typeof ExplorarRoute
   LacunasRoute: typeof LacunasRoute
@@ -1184,7 +1207,6 @@ export interface RootRouteChildren {
   PncpRoute: typeof PncpRoute
   PortalCguRoute: typeof PortalCguRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
-  QualidadeRoute: typeof QualidadeRouteWithChildren
   ReferenciasRoute: typeof ReferenciasRoute
   RelatoriosFiscaisRoute: typeof RelatoriosFiscaisRoute
   RoadmapRoute: typeof RoadmapRoute
@@ -1201,20 +1223,26 @@ export interface RootRouteChildren {
   CadernoIdRoute: typeof CadernoIdRoute
   CadernoNovaRoute: typeof CadernoNovaRoute
   ContratosIdRoute: typeof ContratosIdRoute
+  ConveniosIdRoute: typeof ConveniosIdRoute
   EmendasIdRoute: typeof EmendasIdRoute
+  EntesCodigoRoute: typeof EntesCodigoRoute
   FornecedoresCnpjRoute: typeof FornecedoresCnpjRoute
   LicitacoesIdRoute: typeof LicitacoesIdRoute
   MapasSlugRoute: typeof MapasSlugRoute
   NotasSlugRoute: typeof NotasSlugRoute
   OrgaosCodRoute: typeof OrgaosCodRoute
   PerguntasSlugRoute: typeof PerguntasSlugRoute
+  QualidadeIdRoute: typeof QualidadeIdRoute
   TutoriaisSlugRoute: typeof TutoriaisSlugRoute
   ContratosIndexRoute: typeof ContratosIndexRoute
+  ConveniosIndexRoute: typeof ConveniosIndexRoute
   EleicoesIndexRoute: typeof EleicoesIndexRoute
   EmendasIndexRoute: typeof EmendasIndexRoute
+  FornecedoresIndexRoute: typeof FornecedoresIndexRoute
   LicitacoesIndexRoute: typeof LicitacoesIndexRoute
   MapasIndexRoute: typeof MapasIndexRoute
   NotasIndexRoute: typeof NotasIndexRoute
+  QualidadeIndexRoute: typeof QualidadeIndexRoute
   TransferenciasIndexRoute: typeof TransferenciasIndexRoute
   TutoriaisIndexRoute: typeof TutoriaisIndexRoute
   CamaraDeputadosIdRoute: typeof CamaraDeputadosIdRoute
@@ -1329,13 +1357,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReferenciasRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/qualidade': {
-      id: '/qualidade'
-      path: '/qualidade'
-      fullPath: '/qualidade'
-      preLoaderRoute: typeof QualidadeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/privacidade': {
       id: '/privacidade'
       path: '/privacidade'
@@ -1404,13 +1425,6 @@ declare module '@tanstack/react-router' {
       path: '/estilo'
       fullPath: '/estilo'
       preLoaderRoute: typeof EstiloRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/convenios': {
-      id: '/convenios'
-      path: '/convenios'
-      fullPath: '/convenios'
-      preLoaderRoute: typeof ConveniosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contribuir': {
@@ -1511,6 +1525,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TransferenciasIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/qualidade/': {
+      id: '/qualidade/'
+      path: '/qualidade'
+      fullPath: '/qualidade/'
+      preLoaderRoute: typeof QualidadeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/notas/': {
       id: '/notas/'
       path: '/notas'
@@ -1530,6 +1551,13 @@ declare module '@tanstack/react-router' {
       path: '/licitacoes'
       fullPath: '/licitacoes/'
       preLoaderRoute: typeof LicitacoesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fornecedores/': {
+      id: '/fornecedores/'
+      path: '/fornecedores'
+      fullPath: '/fornecedores/'
+      preLoaderRoute: typeof FornecedoresIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/estilo/': {
@@ -1553,6 +1581,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EleicoesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/convenios/': {
+      id: '/convenios/'
+      path: '/convenios'
+      fullPath: '/convenios/'
+      preLoaderRoute: typeof ConveniosIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/contratos/': {
       id: '/contratos/'
       path: '/contratos'
@@ -1569,10 +1604,10 @@ declare module '@tanstack/react-router' {
     }
     '/qualidade/$id': {
       id: '/qualidade/$id'
-      path: '/$id'
+      path: '/qualidade/$id'
       fullPath: '/qualidade/$id'
       preLoaderRoute: typeof QualidadeIdRouteImport
-      parentRoute: typeof QualidadeRoute
+      parentRoute: typeof rootRouteImport
     }
     '/perguntas_/$slug': {
       id: '/perguntas_/$slug'
@@ -1630,6 +1665,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EstiloTipografiaRouteImport
       parentRoute: typeof EstiloRoute
     }
+    '/entes/$codigo': {
+      id: '/entes/$codigo'
+      path: '/entes/$codigo'
+      fullPath: '/entes/$codigo'
+      preLoaderRoute: typeof EntesCodigoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/emendas/$id': {
       id: '/emendas/$id'
       path: '/emendas/$id'
@@ -1639,10 +1681,10 @@ declare module '@tanstack/react-router' {
     }
     '/convenios/$id': {
       id: '/convenios/$id'
-      path: '/$id'
+      path: '/convenios/$id'
       fullPath: '/convenios/$id'
       preLoaderRoute: typeof ConveniosIdRouteImport
-      parentRoute: typeof ConveniosRoute
+      parentRoute: typeof rootRouteImport
     }
     '/contratos/$id': {
       id: '/contratos/$id'
@@ -1933,18 +1975,6 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
-interface ConveniosRouteChildren {
-  ConveniosIdRoute: typeof ConveniosIdRoute
-}
-
-const ConveniosRouteChildren: ConveniosRouteChildren = {
-  ConveniosIdRoute: ConveniosIdRoute,
-}
-
-const ConveniosRouteWithChildren = ConveniosRoute._addFileChildren(
-  ConveniosRouteChildren,
-)
-
 interface EstiloRouteChildren {
   EstiloTipografiaRoute: typeof EstiloTipografiaRoute
   EstiloTokensRoute: typeof EstiloTokensRoute
@@ -1968,18 +1998,6 @@ const EstiloRouteChildren: EstiloRouteChildren = {
 const EstiloRouteWithChildren =
   EstiloRoute._addFileChildren(EstiloRouteChildren)
 
-interface QualidadeRouteChildren {
-  QualidadeIdRoute: typeof QualidadeIdRoute
-}
-
-const QualidadeRouteChildren: QualidadeRouteChildren = {
-  QualidadeIdRoute: QualidadeIdRoute,
-}
-
-const QualidadeRouteWithChildren = QualidadeRoute._addFileChildren(
-  QualidadeRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -1993,7 +2011,6 @@ const rootRouteChildren: RootRouteChildren = {
   CongressoRoute: CongressoRoute,
   ContestarRoute: ContestarRoute,
   ContribuirRoute: ContribuirRoute,
-  ConveniosRoute: ConveniosRouteWithChildren,
   EstiloRoute: EstiloRouteWithChildren,
   ExplorarRoute: ExplorarRoute,
   LacunasRoute: LacunasRoute,
@@ -2004,7 +2021,6 @@ const rootRouteChildren: RootRouteChildren = {
   PncpRoute: PncpRoute,
   PortalCguRoute: PortalCguRoute,
   PrivacidadeRoute: PrivacidadeRoute,
-  QualidadeRoute: QualidadeRouteWithChildren,
   ReferenciasRoute: ReferenciasRoute,
   RelatoriosFiscaisRoute: RelatoriosFiscaisRoute,
   RoadmapRoute: RoadmapRoute,
@@ -2021,20 +2037,26 @@ const rootRouteChildren: RootRouteChildren = {
   CadernoIdRoute: CadernoIdRoute,
   CadernoNovaRoute: CadernoNovaRoute,
   ContratosIdRoute: ContratosIdRoute,
+  ConveniosIdRoute: ConveniosIdRoute,
   EmendasIdRoute: EmendasIdRoute,
+  EntesCodigoRoute: EntesCodigoRoute,
   FornecedoresCnpjRoute: FornecedoresCnpjRoute,
   LicitacoesIdRoute: LicitacoesIdRoute,
   MapasSlugRoute: MapasSlugRoute,
   NotasSlugRoute: NotasSlugRoute,
   OrgaosCodRoute: OrgaosCodRoute,
   PerguntasSlugRoute: PerguntasSlugRoute,
+  QualidadeIdRoute: QualidadeIdRoute,
   TutoriaisSlugRoute: TutoriaisSlugRoute,
   ContratosIndexRoute: ContratosIndexRoute,
+  ConveniosIndexRoute: ConveniosIndexRoute,
   EleicoesIndexRoute: EleicoesIndexRoute,
   EmendasIndexRoute: EmendasIndexRoute,
+  FornecedoresIndexRoute: FornecedoresIndexRoute,
   LicitacoesIndexRoute: LicitacoesIndexRoute,
   MapasIndexRoute: MapasIndexRoute,
   NotasIndexRoute: NotasIndexRoute,
+  QualidadeIndexRoute: QualidadeIndexRoute,
   TransferenciasIndexRoute: TransferenciasIndexRoute,
   TutoriaisIndexRoute: TutoriaisIndexRoute,
   CamaraDeputadosIdRoute: CamaraDeputadosIdRoute,

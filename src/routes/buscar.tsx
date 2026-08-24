@@ -1,41 +1,60 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { buscaGlobal, type ResultadoBusca } from "@/lib/data/busca.functions";
-import { AvisoMetodologico } from "@/components/AvisoMetodologico";
 import { EmptyState } from "@/components/EmptyState";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { fmtBRL } from "@/lib/fmt";
 import type { EntidadeTipo } from "@/lib/itens-salvos.functions";
-import { Search, FileText, ArrowRightLeft, Gavel, HandCoins, FileSignature } from "lucide-react";
+import {
+  Search,
+  FileText,
+  Gavel,
+  HandCoins,
+  FileSignature,
+  Building2,
+  ScrollText,
+  Vote,
+} from "lucide-react";
 
 type ItemBusca = ResultadoBusca["pncp"][number];
 
 /** Uma linha de resultado com o Kit do auditor (Copiar, Salvar, Abrir fonte). */
-function ResultadoItem({ r, tipo }: { r: ItemBusca; tipo: EntidadeTipo }) {
+function ResultadoItem({ r, tipo }: { r: ItemBusca; tipo?: EntidadeTipo }) {
   return (
     <li className="p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-sm font-medium">{r.titulo}</div>
+          <div className="text-sm font-medium">
+            {!r.externo && r.href ? (
+              // Rota interna concreta vinda do servidor — navegação pelo router.
+              <Link to={r.href as never} className="hover:underline">
+                {r.titulo}
+              </Link>
+            ) : (
+              r.titulo
+            )}
+          </div>
           <div className="text-xs text-muted-foreground">{r.subtitulo}</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-medium">{fmtBRL(r.valor)}</div>
-          <div className="text-xs text-muted-foreground">{r.data ?? "—"}</div>
+          {r.valor != null && <div className="font-medium">{fmtBRL(r.valor)}</div>}
+          <div className="text-xs text-muted-foreground">{r.data ?? ""}</div>
         </div>
       </div>
-      <AcoesDaEntidade
-        entidadeTipo={tipo}
-        entidadeId={r.id}
-        titulo={r.titulo}
-        url={r.href}
-        contexto={r.subtitulo || undefined}
-        snapshotDe={r}
-        fonteOficialHref={r.href || undefined}
-        fonteOficialLabel="Abrir"
-      />
+      {tipo && (
+        <AcoesDaEntidade
+          entidadeTipo={tipo}
+          entidadeId={r.id}
+          titulo={r.titulo}
+          url={!r.externo ? r.href : undefined}
+          contexto={r.subtitulo || undefined}
+          snapshotDe={r}
+          fonteOficialHref={r.externo ? r.href || undefined : undefined}
+          fonteOficialLabel="Abrir na fonte oficial"
+        />
+      )}
     </li>
   );
 }
@@ -77,11 +96,13 @@ function BuscarPage() {
   }
 
   const totalResultados =
+    (data?.contratos.length ?? 0) +
     (data?.pncp.length ?? 0) +
     (data?.licitacoes.length ?? 0) +
     (data?.emendas.length ?? 0) +
     (data?.convenios.length ?? 0) +
-    (data?.transferencias.length ?? 0);
+    (data?.fornecedores.length ?? 0) +
+    (data?.candidatos.length ?? 0);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 space-y-6">
@@ -91,9 +112,9 @@ function BuscarPage() {
         </div>
         <h1 className="font-display text-4xl mt-1">Buscar</h1>
         <p className="text-muted-foreground mt-3 max-w-2xl leading-relaxed">
-          Pesquise um CNPJ (14 dígitos), nome de órgão/fornecedor ou trecho do objeto. A busca
-          atravessa contratos do PNCP e transferências/convênios da União que já estão em cache na
-          plataforma.
+          Pesquise um CNPJ (14 dígitos), um nome (órgão, fornecedor, candidato) ou um trecho do
+          objeto. A busca atravessa contratos, licitações, emendas, convênios, fornecedores e
+          candidatos que já estão no acervo do site.
         </p>
       </header>
 
@@ -111,8 +132,6 @@ function BuscarPage() {
           <Search className="size-4" /> Buscar
         </button>
       </form>
-
-      <AvisoMetodologico />
 
       {!enviado && (
         <EmptyState
@@ -134,6 +153,46 @@ function BuscarPage() {
             ) : null}
             {totalResultados} resultado(s).
           </div>
+
+          {data.fornecedores.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <Building2 className="size-4" /> Fornecedores — {data.fornecedores.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.fornecedores.map((r) => (
+                  <ResultadoItem key={r.id} r={r} tipo="fornecedor" />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data.contratos.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <ScrollText className="size-4" /> Contratos (Portal da Transparência) —{" "}
+                {data.contratos.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.contratos.map((r) => (
+                  <ResultadoItem key={r.id} r={r} tipo="contrato" />
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {data.candidatos.length > 0 && (
+            <section>
+              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
+                <Vote className="size-4" /> Candidatos (TSE) — {data.candidatos.length}
+              </h2>
+              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
+                {data.candidatos.map((r) => (
+                  <ResultadoItem key={r.id} r={r} />
+                ))}
+              </ul>
+            </section>
+          )}
 
           {data.pncp.length > 0 && (
             <section>
@@ -187,24 +246,10 @@ function BuscarPage() {
             </section>
           )}
 
-          {data.transferencias.length > 0 && (
-            <section>
-              <h2 className="font-display text-lg flex items-center gap-2 mb-3">
-                <ArrowRightLeft className="size-4" /> Transferências/Convênios —{" "}
-                {data.transferencias.length}
-              </h2>
-              <ul className="divide-y divide-border rounded-2xl border border-border bg-card">
-                {data.transferencias.map((r) => (
-                  <ResultadoItem key={r.id} r={r} tipo="convenio" />
-                ))}
-              </ul>
-            </section>
-          )}
-
           {totalResultados === 0 && (
             <EmptyState
               title="Nada encontrado"
-              hint="Verifique o termo ou importe dados via Admin. A busca usa apenas o cache local — não consulta as APIs em tempo real."
+              hint="Confira a grafia ou tente um trecho menor. A busca cobre o que já está no acervo do site — registros muito recentes podem ainda não ter chegado."
             />
           )}
         </>

@@ -14,6 +14,7 @@ import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { ComparadorPatrimonioView } from "@/components/ComparadorPatrimonioView";
 import { HistoricoCandidaturasView } from "@/components/HistoricoCandidaturasView";
 import { VinculoParlamentarView } from "@/components/VinculoParlamentarView";
+import { ContasDeCampanhaContainer } from "@/containers/ContasDeCampanhaContainer";
 
 function paraHistorico(row: CandidaturaHistoricoRow, sqAtual: string): CandidaturaHistorico {
   return {
@@ -93,6 +94,9 @@ export function CandidatoFichaContainer({ sq, ano }: { sq: string; ano?: number 
             : ""
         }
         vinculoParlamentar={data && <VinculoParlamentarView parlamentares={data.parlamentares} />}
+        contas={
+          data && anoEfetivo != null && <ContasDeCampanhaContainer sq={sq} ano={anoEfetivo} />
+        }
         historico={
           data && (
             <HistoricoCandidaturasView
