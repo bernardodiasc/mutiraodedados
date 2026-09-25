@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { FichaFornecedor } from "@/lib/data/fornecedores.functions";
-import { calcularRadar, derivarEstadoFicha, montarNosGrafo, serieAnualDe } from "./logic";
+import {
+  calcularRadar,
+  derivarEstadoFicha,
+  h1DoFornecedor,
+  montarNosGrafo,
+  serieAnualDe,
+} from "./logic";
 
 const contrato = (over: Partial<FichaFornecedor["contratos"][number]> = {}) => ({
   id: "c1",
@@ -60,5 +66,17 @@ describe("agregações puras", () => {
       expect(e.valor).toBeGreaterThanOrEqual(0);
       expect(e.valor).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("h1DoFornecedor", () => {
+  it("é o nome do cadastro", () => {
+    expect(
+      h1DoFornecedor("00000000000191", { cnpj: "00.000.000/0001-91", nome: "Banco do Brasil" }),
+    ).toBe("Banco do Brasil");
+  });
+
+  it("sem cadastro, é o CNPJ formatado", () => {
+    expect(h1DoFornecedor("00000000000191", null)).toBe("CNPJ 00.000.000/0001-91");
   });
 });

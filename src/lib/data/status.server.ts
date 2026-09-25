@@ -5,7 +5,7 @@
  * handlers em `status.functions.ts`. Assim nenhum símbolo de escopo de módulo
  * que sobrevive ao tree-shaking do cliente referencia `client.server` — o que
  * evita o vazamento do env-check para o bundle do cliente (ver
- * `docs/padroes/debug-problemas.ia.md` #3 e #5). `codigosComDados` é exportada
+ * `docs/padroes/debug-problemas.ia.md` §3 e §5). `codigosComDados` é exportada
  * para reuso server-side direto (sem round-trip de RPC).
  */
 import { supabaseAdmin } from "@/integrations/supabase/client.server";

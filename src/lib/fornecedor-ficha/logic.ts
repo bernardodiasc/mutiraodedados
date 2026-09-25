@@ -1,4 +1,5 @@
 import type { ContratoDoFornecedor, FichaFornecedor } from "@/lib/data/fornecedores.functions";
+import { formatarCnpj } from "@/lib/cnpj";
 
 /**
  * Derivações puras da ficha do fornecedor. A ficha tem três estados:
@@ -21,7 +22,7 @@ export type NoGrafo = { id: string; label: string; valor: number };
 
 export function serieAnualDe(contratos: ContratoDoFornecedor[]): { ano: number; valor: number }[] {
   const porAno = new Map<number, number>();
-  for (const c of contratos) porAno.set(c.ano, (porAno.get(c.ano) ?? 0) + c.valor);
+  for (const c of contratos) porAno.set(c.ano, (porAno.get(c.ano) ?? 0) + (c.valor ?? 0));
   return [...porAno.entries()]
     .map(([ano, valor]) => ({ ano, valor }))
     .sort((a, b) => a.ano - b.ano);
@@ -33,20 +34,20 @@ export function montarNosGrafo(contratos: ContratoDoFornecedor[]): NoGrafo[] {
     const atual = porOrgao.get(c.orgao_cod);
     porOrgao.set(c.orgao_cod, {
       label: c.orgao_sigla ?? c.orgao_cod,
-      valor: (atual?.valor ?? 0) + c.valor,
+      valor: (atual?.valor ?? 0) + (c.valor ?? 0),
     });
   }
   return [...porOrgao.entries()].map(([id, x]) => ({ id, label: x.label, valor: x.valor }));
 }
 
 export function sinaisSimples(contratos: ContratoDoFornecedor[]) {
-  const total = contratos.reduce((s, c) => s + c.valor, 0);
+  const total = contratos.reduce((s, c) => s + (c.valor ?? 0), 0);
   const orgaos = new Set(contratos.map((c) => c.orgao_cod));
   const pctDispensa = contratos.length
     ? contratos.filter((c) => c.modalidade === "dispensa").length / contratos.length
     : 0;
   const dispAltoValor = contratos.filter(
-    (c) => c.modalidade === "dispensa" && c.valor >= 50_000,
+    (c) => c.modalidade === "dispensa" && c.valor != null && c.valor >= 50_000,
   ).length;
   return { total, nOrgaos: orgaos.size, orgaoUnico: orgaos.size === 1, pctDispensa, dispAltoValor };
 }
@@ -80,4 +81,9 @@ export function calcularRadar(contratos: ContratoDoFornecedor[], fmtBRL: (n: num
     },
   ];
   return eixos;
+}
+
+/** H1 da ficha: nome do cadastro ou, sem cadastro, o CNPJ formatado. */
+export function h1DoFornecedor(cnpj: string, cadastro: FichaFornecedor["cadastro"]): string {
+  return cadastro?.nome ?? `CNPJ ${formatarCnpj(cnpj)}`;
 }

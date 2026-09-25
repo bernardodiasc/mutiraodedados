@@ -14,7 +14,7 @@ export function HeatmapMensal({ contratos }: { contratos: Contrato[] }) {
     const mes = d.getMonth();
     if (!map.has(ano)) map.set(ano, Array(12).fill(0));
     const arr = map.get(ano)!;
-    arr[mes] += c.valor;
+    arr[mes] += c.valor ?? 0;
     if (arr[mes] > max) max = arr[mes];
   }
   const anos = [...map.keys()].sort();

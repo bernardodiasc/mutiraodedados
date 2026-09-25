@@ -601,13 +601,15 @@ function ConveniosTransferegov() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-medium inline-flex items-center gap-2">
                   <FileSignature className="size-4 text-muted-foreground" />
-                  {c.numero}
+                  <Link to="/convenios/$id" params={{ id: c.id }} className="hover:underline">
+                    {c.numero ?? c.id}
+                  </Link>
                 </span>
                 <span className="text-sm tabular-nums">
-                  {fmtBRL(c.valor ?? 0)}
+                  {fmtBRL(c.valor)}
                   <span className="text-muted-foreground">
                     {" "}
-                    · repasse {fmtBRL(c.valor_liberado ?? 0)}
+                    · repasse {fmtBRL(c.valor_liberado)}
                   </span>
                 </span>
               </div>

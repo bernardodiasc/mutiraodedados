@@ -31,3 +31,8 @@ export type ArtigoDetalheViewProps = {
   /** Ações do artigo (copiar/salvar) — usadas em tutoriais e notas. */
   acoes?: ReactNode;
 };
+
+/** H1 da página de um artigo (mapa, nota ou tutorial) — também vira o título da aba. */
+export function h1DoArtigo(artigo: { titulo: string } | null | undefined): string | null {
+  return artigo?.titulo ?? null;
+}

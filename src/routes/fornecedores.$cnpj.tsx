@@ -19,6 +19,7 @@ import { obterFornecedor, type FichaFornecedor } from "@/lib/data/fornecedores.f
 import {
   calcularRadar,
   derivarEstadoFicha,
+  h1DoFornecedor,
   montarNosGrafo,
   serieAnualDe,
   sinaisSimples,
@@ -26,12 +27,25 @@ import {
 import { formatarCnpj, soDigitos } from "@/lib/cnpj";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
 
 export const Route = createFileRoute("/fornecedores/$cnpj")({
   component: FornecedorDetail,
-  head: ({ params }) => ({
+  // Pré-carrega a mesma query do componente só para o título da aba seguir o
+  // H1; falha ou CNPJ inexistente ficam com o componente, como antes.
+  loader: ({ params, context }) =>
+    carregarH1(context.queryClient, {
+      queryKey: ["fornecedor-ficha", params.cnpj],
+      queryFn: () => obterFornecedor({ data: { cnpj: params.cnpj } }),
+      h1: (ficha) =>
+        derivarEstadoFicha(ficha) === "inexistente"
+          ? null
+          : h1DoFornecedor(params.cnpj, ficha.cadastro),
+    }),
+  head: ({ loaderData }) => ({
     meta: [
-      { title: `Fornecedor ${params.cnpj} — Mutirão de Dados` },
+      { title: tituloDaPagina(loaderData?.h1, "Fornecedor") },
       {
         name: "description",
         content:
@@ -77,7 +91,7 @@ function FornecedorDetail() {
   if (estado === "inexistente") throw notFound();
 
   const cnpjFmt = formatarCnpj(cnpj);
-  const nome = ficha.cadastro?.nome ?? `CNPJ ${cnpjFmt}`;
+  const nome = h1DoFornecedor(cnpj, ficha.cadastro);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-10">

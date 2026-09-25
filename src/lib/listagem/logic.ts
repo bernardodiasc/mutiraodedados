@@ -51,7 +51,7 @@ export function normalizarItens(v: unknown): number {
 }
 
 // Aceita ISO completo ("2026-08-24T12:00:00.000Z") ou só a data.
-const ATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/;
+export const ATE_RE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z?)?$/;
 
 export function normalizarAte(v: unknown): string | undefined {
   return typeof v === "string" && ATE_RE.test(v) ? v : undefined;

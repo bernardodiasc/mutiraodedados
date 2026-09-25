@@ -13,7 +13,19 @@ Ponteiros do projeto:
 
 - [`docs/`](./docs/README.md) é a fonte única de verdade sobre **como o projeto funciona** — leia [`docs/padroes/debug-problemas.ia.md`](./docs/padroes/debug-problemas.ia.md) antes de depurar build, rotas, banco ou testes.
 - Skills em `.claude/skills/` e `.agents/skills/` são **cópias idênticas** — alterar uma exige espelhar a outra.
-- Tudo em `docs/`, nos 4 documentos e em `.agents/` é **público por padrão** (espelhado no repositório open source) — regras de redação na seção 5 do WORKFLOW.md.
+- Tudo em `docs/`, nos 4 documentos e em `.agents/` é **público por padrão** (espelhado no repositório open source), assim como o código — regras de redação (inclusive a de não citar issues e PRs) na seção 5 do WORKFLOW.md.
+
+## Skills de engenharia
+
+### Issue tracker
+
+Planejamento (mapas e tickets do `wayfinder`) e implementação (issues por milestone, PRs para a `main`) vivem no GitHub do repositório privado. Operações em [`docs/agents/issue-tracker.md`](./docs/agents/issue-tracker.md); processo na seção 1 do [WORKFLOW.md](./WORKFLOW.md). Push ou merge na `main` só a pedido do mantenedor. Antes de começar qualquer issue, aplicar "Versão de cada trabalho" (seção 1 do WORKFLOW): reivindicar, dar milestone e, se for a primeira issue do milestone, promover a release no ROADMAP — sem precisar pedir.
+
+O repositório público não enxerga issues, PRs nem `.claude/`: o que alguém de fora precisa saber do que está planejado vai, resumido, para o ROADMAP.md, e o que foi entregue para o RELEASES.md. Nunca guardar informação de projeto (decisões, planos, pesquisas, pendências, roteiros) em `.claude/` — isso vive nas issues.
+
+### Idioma
+
+Projeto, documentação, código, issues, PRs e comentários em português, mesmo quando o pedido chegar em outro idioma.
 
 ## Agent behavior guidelines
 

@@ -4,7 +4,7 @@
 
 - `portalGet(path, params)` — wrapper com retry/backoff, autenticação via header `chave-api-dados`.
 - `portalGetComTexto(path, params)` — como `portalGet`, mas devolve também o body bruto (antes do `JSON.parse`), usado para auditar valores com ponto-fixo no JSON.
-- `parseValorPortal(v)` — normaliza valores: number (direto), string pt-BR "1.234,56", decimal "1234.56", milhar "60.000", null/undefined → 0.
+- `parseValorPortal(v)` — normaliza valores: number (direto), string pt-BR "1.234,56", decimal "1234.56", milhar "60.000". Valor ausente (`"-"`, vazio, null/undefined, texto não numérico) → `null`, nunca 0 ("não localizado" não é zero).
 
 > A varredura de contratos confere cada item da listagem contra o detalhe (`fetchDetalheContrato` + `valorAutoritativoCgu` em `qa.ts`): divergência ≥ 100× → grava o valor não-truncado + finding `valor_corrigido_listagem` (`info`, resolvido, com `detalhes.evidencia_bruta`). As heurísticas antigas só-listagem (`possivel_ponto_fixo` etc.) foram aposentadas.
 
@@ -98,7 +98,7 @@ Toda fonte importável cumpre o mesmo contrato — é o que garante a mesma expe
 5. **Entrada em `FONTES_LIMPEZA`** — o teste-guarda `limpeza.test.ts` quebra se uma tabela `*_cache` nova ficar sem controle de limpeza.
 6. **Janela em `janelas.ts`** com justificativa em comentário.
 
-Matriz de paridade auditada e exceções justificadas: [`docs/planos/v0.6.0-padronizacao-importacao.md`](./planos/v0.6.0-padronizacao-importacao.md). Exceções vigentes: votações da Câmara importam por item pelo cliente (linha de rodada por votação seria ruído — o log de job pelo cliente permanece só para ela); SICONFI dispensa retomada (chamadas curtas) e grava o próprio histórico; sinais de proposições/votações/matérias estão no backlog (trabalho editorial, não de infraestrutura).
+Exceções vigentes à paridade: SICONFI dispensa retomada (chamadas curtas) e grava o próprio histórico; sinais de proposições/votações/matérias estão no backlog (trabalho editorial, não de infraestrutura).
 
 ## Upsert
 

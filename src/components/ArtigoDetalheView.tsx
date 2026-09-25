@@ -1,7 +1,11 @@
 import { Link, notFound } from "@tanstack/react-router";
 import { ArrowLeft, Clock, Loader2 } from "lucide-react";
 import { ArtigoRenderer } from "@/components/ArtigoRenderer";
-import { obterRotuloDificuldade, type ArtigoDetalheViewProps } from "@/lib/artigo-detalhe/logic";
+import {
+  h1DoArtigo,
+  obterRotuloDificuldade,
+  type ArtigoDetalheViewProps,
+} from "@/lib/artigo-detalhe/logic";
 
 export function ArtigoDetalheView({
   isLoading,
@@ -44,7 +48,7 @@ export function ArtigoDetalheView({
             </span>
           )}
         </div>
-        <h1 className="font-display text-4xl leading-tight">{artigo.titulo}</h1>
+        <h1 className="font-display text-4xl leading-tight">{h1DoArtigo(artigo)}</h1>
         {artigo.resumo && (
           <p className="text-base text-muted-foreground leading-relaxed">{artigo.resumo}</p>
         )}

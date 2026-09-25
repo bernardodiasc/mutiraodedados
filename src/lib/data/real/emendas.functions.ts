@@ -4,7 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { regrasCguEmendas, type CguEmendaLike } from "@/lib/data/qa";
-import { parseValorPortal } from "@/lib/data/real/portal-client";
+import { parseValorPortal, somarValoresInformados } from "@/lib/data/real/portal-client";
 import { ensureAdmin, montarVarreduraKey, sleep, varrerPaginado } from "@/lib/data/real/sweep";
 import { linkConsultaEmendaPortal } from "@/lib/links-oficiais";
 
@@ -47,8 +47,8 @@ type PortalEmenda = {
 
 type DetalheEspecial = {
   planos_acao_count: number;
-  valor_custeio: number;
-  valor_investimento: number;
+  valor_custeio: number | null;
+  valor_investimento: number | null;
   beneficiario_nome: string | null;
   beneficiario_cnpj: string | null;
   plano_acao_situacao: string | null;
@@ -65,12 +65,12 @@ type EmendaRow = {
   uf: string | null;
   funcao: string | null;
   subfuncao: string | null;
-  valor_empenhado: number;
-  valor_liquidado: number;
-  valor_pago: number;
-  valor_resto_inscrito: number;
-  valor_resto_pago: number;
-  valor_resto_cancelado: number;
+  valor_empenhado: number | null;
+  valor_liquidado: number | null;
+  valor_pago: number | null;
+  valor_resto_inscrito: number | null;
+  valor_resto_pago: number | null;
+  valor_resto_cancelado: number | null;
   // Detalhe de execução das Especiais (Transferegov), null nas demais.
   planos_acao_count: number | null;
   valor_custeio: number | null;
@@ -132,16 +132,23 @@ async function buscarDetalheEspecialPorAno(ano: number): Promise<Map<string, Det
       if (!key) continue;
       const cur = acc.get(key) ?? {
         planos_acao_count: 0,
-        valor_custeio: 0,
-        valor_investimento: 0,
+        valor_custeio: null,
+        valor_investimento: null,
         beneficiario_nome: null,
         beneficiario_cnpj: null,
         plano_acao_situacao: null,
         areas_politicas: null,
       };
       cur.planos_acao_count += 1;
-      cur.valor_custeio += parseValorPortal(r.valor_custeio_plano_acao);
-      cur.valor_investimento += parseValorPortal(r.valor_investimento_plano_acao);
+      // Soma só os planos que informam o valor; nenhum informado = null.
+      cur.valor_custeio = somarValoresInformados(
+        cur.valor_custeio,
+        parseValorPortal(r.valor_custeio_plano_acao),
+      );
+      cur.valor_investimento = somarValoresInformados(
+        cur.valor_investimento,
+        parseValorPortal(r.valor_investimento_plano_acao),
+      );
       cur.beneficiario_nome ??=
         sanitizarTextoPublico(String(r.nome_beneficiario_plano_acao ?? "").slice(0, 160)) || null;
       cur.beneficiario_cnpj ??= strOuNull(r.cnpj_beneficiario_plano_acao);

@@ -56,10 +56,14 @@ export function tetoDispensaNaData(dataIso: string): TetoDispensa {
 
 export function detectarAnomalias(ds: Dataset): Anomalia[] {
   const out: Anomalia[] = [];
+  // Regras de valor só enxergam contratos com valor informado: "não
+  // localizado" não é zero (não soma, não entra em média, não fica "abaixo do
+  // teto"). Regras de contagem/data seguem sobre `ds.contratos`.
+  const comValor = ds.contratos.filter((c): c is Contrato & { valor: number } => c.valor != null);
 
   // 1. Crescimento abrupto YoY por fornecedor (>3x e base >= R$ 500k).
   const porFornAno = new Map<string, Map<number, number>>();
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     if (!porFornAno.has(c.fornecedorCnpj)) porFornAno.set(c.fornecedorCnpj, new Map());
     const m = porFornAno.get(c.fornecedorCnpj)!;
     m.set(c.ano, (m.get(c.ano) ?? 0) + c.valor);
@@ -97,8 +101,8 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   // 2. Fracionamento: 5+ contratos de dispensa abaixo do teto legal VIGENTE NA
   //    DATA de cada contrato (Lei 8.666/Decreto 9.412 → Lei 14.133), mesmo
   //    fornecedor/órgão/ano.
-  const fracMap = new Map<string, Contrato[]>();
-  for (const c of ds.contratos) {
+  const fracMap = new Map<string, typeof comValor>();
+  for (const c of comValor) {
     if (c.modalidade !== "dispensa") continue;
     // Sem data de assinatura, usa o meio do ano do contrato como referência.
     const dataRef = c.dataAssinatura || `${c.ano}-07-01`;
@@ -135,7 +139,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   // 3. Concentração: fornecedor concentra > 60% do gasto de um órgão num ano.
   const orgaoAnoTotal = new Map<string, number>();
   const orgaoAnoFornTotal = new Map<string, number>();
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     orgaoAnoTotal.set(
       `${c.orgaoCod}|${c.ano}`,
       (orgaoAnoTotal.get(`${c.orgaoCod}|${c.ano}`) ?? 0) + c.valor,
@@ -168,12 +172,12 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   }
 
   // 4. Outlier por z-score em valor de contratos (>= z 3).
-  const vals = ds.contratos.map((c) => c.valor);
+  const vals = comValor.map((c) => c.valor);
   if (vals.length > 5) {
     const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
     const variance = vals.reduce((a, b) => a + (b - mean) ** 2, 0) / vals.length;
     const sd = Math.sqrt(variance) || 1;
-    for (const c of ds.contratos) {
+    for (const c of comValor) {
       const z = (c.valor - mean) / sd;
       if (z >= 3) {
         const f = ds.fornecedores.find((x) => x.cnpj === c.fornecedorCnpj);
@@ -208,7 +212,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
     if (!cur || c.dataAssinatura < cur) firstSeen.set(c.fornecedorCnpj, c.dataAssinatura);
   }
   const fornAlertados = new Set<string>();
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     if (c.valor < 1_000_000 || !c.dataAssinatura) continue;
     const first = firstSeen.get(c.fornecedorCnpj);
     if (!first) continue;
@@ -232,7 +236,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   }
 
   // 6. Descrição genérica em contrato alto.
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     if (c.valor < 200_000) continue;
     const obj = (c.objeto || "").toLowerCase().trim();
     const curto = obj.length < 30;
@@ -292,7 +296,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   //    anteriores COM DADOS — se a série tem lacunas, a mediana usa os três
   //    exercícios mais recentes disponíveis, não necessariamente consecutivos).
   const orgaoAno = new Map<string, Map<number, number>>();
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     if (!orgaoAno.has(c.orgaoCod)) orgaoAno.set(c.orgaoCod, new Map());
     const m = orgaoAno.get(c.orgaoCod)!;
     m.set(c.ano, (m.get(c.ano) ?? 0) + c.valor);
@@ -328,7 +332,7 @@ export function detectarAnomalias(ds: Dataset): Anomalia[] {
   // 9. Transparência institucional baixa em órgão com volume relevante.
   //    Nota ITI < 40 e total contratado >= R$ 5M na amostra carregada.
   const totalPorOrgao = new Map<string, number>();
-  for (const c of ds.contratos) {
+  for (const c of comValor) {
     totalPorOrgao.set(c.orgaoCod, (totalPorOrgao.get(c.orgaoCod) ?? 0) + c.valor);
   }
   for (const o of ds.orgaos) {

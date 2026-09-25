@@ -291,8 +291,8 @@ export type DiagnosticoPortalResult = {
     dataAssinatura: string | null;
     valorFinalCompra_raw: string | number | null;
     valorInicialCompra_raw: string | number | null;
-    valorFinal_parseado: number;
-    valorInicial_parseado: number;
+    valorFinal_parseado: number | null;
+    valorInicial_parseado: number | null;
     objeto: string;
   }>;
 };
@@ -434,9 +434,11 @@ function DiagnosticoPortalPanel({
                         {JSON.stringify(c.valorFinalCompra_raw)}
                       </td>
                       <td className="py-1 pr-3 font-mono">
-                        {c.valorFinal_parseado.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                        })}
+                        {c.valorFinal_parseado == null
+                          ? "não informado"
+                          : c.valorFinal_parseado.toLocaleString("pt-BR", {
+                              minimumFractionDigits: 2,
+                            })}
                       </td>
                       <td className="py-1 pr-3 font-mono">
                         {JSON.stringify(c.valorInicialCompra_raw)}

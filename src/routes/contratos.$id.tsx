@@ -14,12 +14,26 @@ import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
 import { Cartao, Estatistica } from "@/components/Cartao";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
+import { h1DoContrato, h1DoContratoPncp } from "@/lib/ficha-h1/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/contratos/$id")({
   component: ContratoDetail,
-  head: ({ params }) => ({
+  // Só para o título da aba seguir o H1: mesma ordem do componente (base CGU,
+  // depois acervo PNCP). Falha ou registro ausente ficam com o componente.
+  loader: async ({ params }) => {
+    try {
+      const cgu = await getContratoPorId({ data: { id: params.id } });
+      if (cgu.contrato) return { h1: h1DoContrato(cgu.contrato) };
+      const pncp = await getContratoPncpPorId({ data: { id: params.id } });
+      return { h1: pncp.contrato ? h1DoContratoPncp(pncp.contrato) : null };
+    } catch {
+      return { h1: null };
+    }
+  },
+  head: ({ loaderData }) => ({
     meta: [
-      { title: `Contrato ${params.id} — Mutirão de Dados` },
+      { title: tituloDaPagina(loaderData?.h1, "Contrato") },
       {
         name: "description",
         content:
@@ -30,6 +44,13 @@ export const Route = createFileRoute("/contratos/$id")({
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">
       <h1 className="font-display text-3xl">Contrato não encontrado</h1>
+      <p className="text-sm text-muted-foreground mt-2">
+        Não encontramos este contrato no acervo do site.{" "}
+        <Link to="/contratos" className="text-accent underline">
+          Ver a lista de contratos
+        </Link>
+        .
+      </p>
     </div>
   ),
   errorComponent: ({ error }) => (
@@ -116,7 +137,7 @@ function ContratoDetail() {
       <div className="text-xs font-semibold uppercase tracking-widest text-accent mt-4">
         {c.modalidade}
       </div>
-      <h1 className="font-display text-3xl mt-1">{sanitizarTextoPublico(c.objeto)}</h1>
+      <h1 className="font-display text-3xl mt-1">{h1DoContrato(c)}</h1>
 
       <AcoesDaEntidade
         className="mt-4"
@@ -220,7 +241,7 @@ function ContratoDetail() {
 
 /** Ficha de contrato do PNCP — a outra fonte da mesma página /contratos/$id. */
 function ContratoPncpDetail({ c }: { c: ContratoPNCPRow }) {
-  const objeto = c.objeto ? sanitizarTextoPublico(c.objeto) : `Contrato ${c.numero_controle_pncp}`;
+  const objeto = h1DoContratoPncp(c);
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <TrilhaDeNavegacao

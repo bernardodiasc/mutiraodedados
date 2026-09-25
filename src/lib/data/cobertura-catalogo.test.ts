@@ -11,7 +11,10 @@ describe("catálogo de cobertura × fontes com histórico", () => {
   it("toda fonte que grava rodada aparece no catálogo", () => {
     const ids = new Set(CATALOGO_COBERTURA.map((e) => e.id));
     for (const id of FONTES_COM_HISTORICO) {
-      expect(ids.has(id), `fonte "${id}" grava rodada mas não está em /cobertura`).toBe(true);
+      // O TSE grava uma rodada por tipo de arquivo (`tse_candidatos`,
+      // `tse_bens`…), mas /cobertura mostra a fonte inteira numa entrada `tse`.
+      const entrada = id.startsWith("tse_") ? "tse" : id;
+      expect(ids.has(entrada), `fonte "${id}" grava rodada mas não está em /cobertura`).toBe(true);
     }
   });
 
@@ -32,6 +35,12 @@ describe("catálogo de cobertura × fontes com histórico", () => {
   it("cadastros não fingem série temporal", () => {
     for (const id of ["camara_deputados", "senado_senadores", "orgaos_siafi", "ibge"]) {
       expect(entradaCatalogoCobertura(id).granularidade).toBe("cadastro");
+    }
+  });
+
+  it("proposições e matérias são séries anuais, não mensais", () => {
+    for (const id of ["camara_props", "senado_mat"]) {
+      expect(entradaCatalogoCobertura(id).granularidade, id).toBe("ano");
     }
   });
 

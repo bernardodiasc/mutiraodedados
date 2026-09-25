@@ -120,8 +120,8 @@ function construirContratoCgu(
   raw: PortalContrato,
   codigoOrgao: string,
   cnpj: string,
-  valorFinal: number,
-  valorInicial: number,
+  valorFinal: number | null,
+  valorInicial: number | null,
   anoFallback: number,
 ): Contrato {
   const dataAssinatura = parseDate(raw.dataAssinatura);
@@ -132,7 +132,9 @@ function construirContratoCgu(
   const id = String(
     raw.id ?? `${codigoOrgao}-${raw.numero ?? Math.random().toString(36).slice(2)}`,
   );
-  const valor = valorFinal > 0 ? valorFinal : valorInicial;
+  // Final positivo vence; senão o inicial; senão o que houver (0 explícito ou
+  // null = a CGU não informou nenhum dos dois — "não localizado" não é zero).
+  const valor = valorFinal != null && valorFinal > 0 ? valorFinal : (valorInicial ?? valorFinal);
   return {
     id,
     orgaoCod: codigoOrgao,
@@ -237,9 +239,12 @@ const FORNECEDOR_AUSENTE: Fornecedor = {
 /** Detalhe autoritativo de um contrato (`/contratos/id`). Devolve também o
  * trecho cru do JSON + timestamp para a evidência bruta dos findings de valor
  * (prova da intermitência do bug de escala da API). */
-async function fetchDetalheContrato(
-  id: string,
-): Promise<{ valorInicial: number; valorFinal: number; em: string; rawSnippet: string }> {
+async function fetchDetalheContrato(id: string): Promise<{
+  valorInicial: number | null;
+  valorFinal: number | null;
+  em: string;
+  rawSnippet: string;
+}> {
   const { data: det, rawText } = await portalGetComTexto<{
     valorInicialCompra?: unknown;
     valorFinalCompra?: unknown;
@@ -482,7 +487,8 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
                     id: idStr,
                     orgao_cod: data.codigoOrgao,
                     valor_truncado: truncadoFinal!,
-                    valor_correto: valorFinal,
+                    // corrigido ⇒ houve truncamento ⇒ valor autoritativo > 0.
+                    valor_correto: valorFinal!,
                     valor_listagem: listValores.valorFinal || null,
                     valor_detalhe: det.valorFinal || null,
                     pagina_varredura: pagina,
@@ -536,7 +542,8 @@ export const fetchPortalOrgao = createServerFn({ method: "POST" })
           );
           contratosPagina.push(contrato);
           fornecedoresPagina.set(forn.cnpj, forn);
-          if (valorInicial > 0) valorInicialPorIdPagina.set(contrato.id, valorInicial);
+          if (valorInicial != null && valorInicial > 0)
+            valorInicialPorIdPagina.set(contrato.id, valorInicial);
           if (raw.numero) numeroPorIdPagina.set(contrato.id, raw.numero);
           if (idStr) paginaPorId.set(idStr, pagina);
           if (semFornecedor) {
@@ -1548,7 +1555,7 @@ export const getContratoPorId = createServerFn({ method: "GET" })
       fornecedorCnpj: row.fornecedor_cnpj,
       objeto: row.objeto,
       modalidade: row.modalidade as Contrato["modalidade"],
-      valor: Number(row.valor) || 0,
+      valor: row.valor == null ? null : Number(row.valor),
       ano: row.ano,
       dataAssinatura: row.data_assinatura ?? "",
       dataInicioVigencia: row.data_inicio_vigencia ?? "",
@@ -1603,7 +1610,7 @@ export const loadStoredDataset = createServerFn({ method: "GET" }).handler(async
     fornecedorCnpj: c.fornecedor_cnpj,
     objeto: c.objeto,
     modalidade: c.modalidade as Contrato["modalidade"],
-    valor: Number(c.valor) || 0,
+    valor: c.valor == null ? null : Number(c.valor),
     ano: c.ano,
     dataAssinatura: c.data_assinatura ?? "",
     dataInicioVigencia: c.data_inicio_vigencia ?? "",

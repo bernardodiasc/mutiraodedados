@@ -28,7 +28,7 @@ const STATUS_LABEL: Record<string, string> = {
 export type AdminQualidadeActions = {
   onRevalidarCgu: (
     id: string,
-  ) => Promise<{ resultado: string; valor_armazenado: number; valor_detalhe: number }>;
+  ) => Promise<{ resultado: string; valor_armazenado: number; valor_detalhe: number | null }>;
   onReportar: (id: string, canal: string, protocolo?: string) => Promise<void>;
   onConfirmar: (id: string) => Promise<void>;
   onMarcarCorrigido: (id: string) => Promise<void>;

@@ -74,8 +74,9 @@ bun install
 cp .env.example .env
 # edite .env com as credenciais do seu projeto Supabase
 
-# 4. Aplique as migrations no seu Supabase
-#    (usa o schema em supabase/migrations/)
+# 4. Aplique as migrations no seu Supabase: todo supabase/migrations/ e,
+#    depois, drizzle/migrations/ a partir de 0004
+#    (detalhes em docs/padroes/migrations.md#banco-novo-self-host)
 supabase link --project-ref <seu-project-ref>
 supabase db push
 
@@ -125,8 +126,10 @@ src/
 │   ├── data/              # Server functions por fonte (cgu, pncp, camara, ...)
 │   └── sanitize.ts        # Máscaras de PII conforme LGPD
 └── integrations/supabase/ # Clientes (client / admin / auth middleware)
+drizzle/
+└── migrations/            # Migrations novas (desde 2026-09-25)
 supabase/
-└── migrations/            # Schema versionado
+└── migrations/            # Histórico de migrations (congelado)
 ```
 
 ---

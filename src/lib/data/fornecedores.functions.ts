@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { formatarCnpj, soDigitos } from "@/lib/cnpj";
+import { ATE_RE } from "@/lib/listagem/logic";
 
 /**
  * Leituras públicas de fornecedores. A ficha agrega TODAS as presenças do
@@ -18,7 +19,7 @@ export type ContratoDoFornecedor = {
   numero: string | null;
   objeto: string | null;
   modalidade: string | null;
-  valor: number;
+  valor: number | null;
   ano: number;
   data_assinatura: string | null;
 };
@@ -39,7 +40,8 @@ const LIMITE_CONTRATOS = 1000;
 /**
  * Lista de fornecedores (porta de entrada da ficha). O cadastro vem dos
  * contratos CGU; a busca aceita trecho do nome ou CNPJ (qualquer formato).
- * Sem corte `ate`: é um cadastro sem data de domínio — a ordenação é por nome.
+ * O corte `ate` usa `created_at` (entrada do CNPJ no cadastro), não
+ * `updated_at`, que o import reescreve a cada rodada.
  */
 export const listarFornecedores = createServerFn({ method: "POST" })
   .inputValidator((input) =>
@@ -47,6 +49,7 @@ export const listarFornecedores = createServerFn({ method: "POST" })
       .object({
         q: z.string().max(120).optional(),
         ordem: z.enum(["nome-asc", "nome-desc"]).default("nome-asc"),
+        ate: z.string().regex(ATE_RE).optional(),
         limit: z.number().int().min(1).max(500).default(100),
         offset: z.number().int().min(0).max(100000).default(0),
       })
@@ -63,11 +66,13 @@ export const listarFornecedores = createServerFn({ method: "POST" })
       if (digitos.length === 14) q = q.eq("cnpj", formatarCnpj(digitos));
       else q = q.ilike("nome", `%${data.q.replace(/[%(),.*]/g, " ").trim()}%`);
     }
+    if (data.ate) q = q.lte("created_at", data.ate);
     const { data: rows, error, count } = await q;
     if (error) throw new Error(error.message);
     return {
       fornecedores: (rows ?? []) as Array<{ cnpj: string; nome: string }>,
       total: count ?? 0,
+      corteSugerido: new Date().toISOString(),
     };
   });
 
@@ -153,7 +158,7 @@ export const obterFornecedor = createServerFn({ method: "POST" })
           numero: c.numero,
           objeto: c.objeto,
           modalidade: c.modalidade,
-          valor: Number(c.valor ?? 0),
+          valor: c.valor == null ? null : Number(c.valor),
           ano: c.ano,
           data_assinatura: c.data_assinatura,
         }),

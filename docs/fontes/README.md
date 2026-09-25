@@ -1,6 +1,6 @@
 # Fontes oficiais
 
-Cada fonte tem um arquivo próprio descrevendo **só o que é específico** dela. Regras gerais de ingestão (retries, sanitização, QA, janelas) vivem em [`../importacao.md`](../importacao.md).
+Cada fonte tem um arquivo próprio descrevendo **só o que é específico** dela. Regras gerais de ingestão (retries, sanitização, QA, janelas) vivem em [`../importacao.md`](../importacao.md). Como conferir uma rodada real de cada fonte: [`../qa/importacao.md`](../qa/importacao.md).
 
 ## Dois eixos de navegação
 

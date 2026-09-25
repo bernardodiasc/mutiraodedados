@@ -41,7 +41,7 @@ export type DoacaoFornecedorCruzada = {
   parlamentarTipo: string;
   parlamentarId: string;
   /** Contratos do mesmo CNPJ no cache de contratos. */
-  contratos: Array<{ id: string; valor: number; dataAssinatura: string | null }>;
+  contratos: Array<{ id: string; valor: number | null; dataAssinatura: string | null }>;
 };
 
 /** Meses entre a doação e a assinatura do contrato (negativo = contrato antes).
@@ -70,7 +70,7 @@ export function sinaisDoadorVirouFornecedor(cruzadas: DoacaoFornecedorCruzada[])
     const chave = `${c.cnpj}|${c.sqCandidato}|${c.anoEleicao}`;
     if (vistos.has(chave)) continue;
     vistos.add(chave);
-    const maiorContrato = c.contratos.reduce((a, b) => (b.valor > a.valor ? b : a));
+    const maiorContrato = c.contratos.reduce((a, b) => ((b.valor ?? 0) > (a.valor ?? 0) ? b : a));
     out.push({
       ...BASE,
       entidade_tipo: "cruzamento_doador_fornecedor",

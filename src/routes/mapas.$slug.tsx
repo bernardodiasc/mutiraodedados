@@ -1,7 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArtigoDetalhe } from "@/components/ArtigoDetalhe";
+import { carregarH1DoArtigo } from "@/lib/artigo-detalhe/loader";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/mapas/$slug")({
+  loader: ({ params, context }) => carregarH1DoArtigo(context.queryClient, params.slug),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Mapa investigativo") }],
+  }),
   component: MapaDetalhe,
   notFoundComponent: () => (
     <div className="mx-auto max-w-3xl px-4 py-20 text-center">

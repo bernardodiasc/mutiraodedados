@@ -4,49 +4,51 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
-import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { PREFIXO_TRANSITORIO, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import { anoMesDaJanela } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
+import {
+  buscarVotosDaVotacao,
+  contarVotos,
+  listarVotacoesDaJanela,
+  type VotacaoItem,
+} from "@/lib/data/camara/votacoes-api";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 
+/**
+ * GET na API da Câmara pela política única de retry (`http-retry.ts`): rede,
+ * 429 e 5xx tentam de novo; 4xx é definitivo e falha na hora — repetir um 400
+ * só gastava subrequisições e segundos. Falha passageira sai com o prefixo
+ * `TRANSIENT:`, para uma falha na lista interromper a rodada (a próxima refaz)
+ * em vez de encerrá-la como definitiva.
+ */
 async function camaraGet<T = unknown>(
   path: string,
   params: Record<string, string> = {},
 ): Promise<T> {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}${qs ? `?${qs}` : ""}`;
-  const maxAttempts = 4;
-  let lastErr: Error | null = null;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const ctrl = new AbortController();
-      const timeout = setTimeout(() => ctrl.abort(), 45_000);
-      const res = await fetch(url, {
-        headers: { accept: "application/json", "user-agent": UA },
-        signal: ctrl.signal,
-      }).finally(() => clearTimeout(timeout));
-      if (res.ok) return (await res.json()) as T;
-      // Retry on transient upstream errors / rate-limit
-      if ([429, 502, 503, 504].includes(res.status) && attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
-        continue;
-      }
-      const body = await res.text().catch(() => "");
-      throw new Error(`Câmara API ${res.status}: ${body.slice(0, 200)}`);
-    } catch (e) {
-      lastErr = e as Error;
-      if (attempt < maxAttempts) {
-        await new Promise((r) => setTimeout(r, 500 * 2 ** (attempt - 1)));
-        continue;
-      }
-      throw lastErr;
-    }
+  let res: Response;
+  try {
+    res = await fetchComRetry(
+      url,
+      { headers: { accept: "application/json", "user-agent": UA } },
+      // Timeout por tentativa, não compartilhado entre elas.
+      { fetchImpl: (u, init) => fetch(u, { ...init, signal: AbortSignal.timeout(45_000) }) },
+    );
+  } catch (e) {
+    throw new Error(`${PREFIXO_TRANSITORIO} Câmara API sem resposta: ${(e as Error).message}`);
   }
-  throw lastErr ?? new Error("Câmara API: falha desconhecida");
+  if (res.ok) return (await res.json()) as T;
+  const body = await res.text().catch(() => "");
+  const prefixo = ehStatusTransitorio(res.status) ? `${PREFIXO_TRANSITORIO} ` : "";
+  throw new Error(`${prefixo}Câmara API ${res.status}: ${body.slice(0, 200)}`);
 }
+
 type Env<T> = { dados: T };
 
 async function ensureAdmin(userId: string) {
@@ -60,33 +62,13 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-type VotacaoItem = {
-  id: string;
-  data?: string;
-  dataHoraRegistro?: string;
-  siglaOrgao?: string;
-  descricao?: string;
-  aprovacao?: number;
-  proposicaoObjeto?: string;
-};
-
-type VotoItem = {
-  tipoVoto?: string;
-  deputado_?: {
-    id?: number;
-    nome?: string;
-    siglaPartido?: string;
-    siglaUf?: string;
-  };
-};
-
 /**
- * Processa UMA votação: busca detalhe + votos paginados e faz upsert.
+ * Processa UMA votação: busca detalhe + votos e faz upsert.
  *
  * Devolve também o CUSTO em subrequisições — é o que permite ao runner
- * fechar a rodada antes do limite do Worker. Uma votação custa de 3 a ~13
- * chamadas (1 detalhe + até 10 páginas de votos + upserts), e uma pauta cheia
- * multiplicava isso por centenas dentro de uma única invocação.
+ * fechar a rodada antes do limite do Worker. Uma votação custa 1 detalhe +
+ * 1 chamada de votos (a API devolve todos de uma vez, sem paginação) +
+ * upserts.
  */
 async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo: number }> {
   let custo = 0;
@@ -98,28 +80,9 @@ async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo:
   custo++;
   const d = det.dados;
 
-  const votos: VotoItem[] = [];
-  let p = 1;
-  while (p < 10) {
-    const json = await camaraGet<Env<VotoItem[]>>(`/votacoes/${v.id}/votos`, {
-      itens: "200",
-      pagina: String(p),
-    });
-    custo++;
-    const arr = json.dados ?? [];
-    if (arr.length === 0) break;
-    votos.push(...arr);
-    if (arr.length < 200) break;
-    p++;
-  }
-
-  const tally = { sim: 0, nao: 0, outros: 0 };
-  for (const x of votos) {
-    const t = (x.tipoVoto ?? "").toLowerCase();
-    if (t.startsWith("sim")) tally.sim++;
-    else if (t.startsWith("não") || t.startsWith("nao")) tally.nao++;
-    else tally.outros++;
-  }
+  const votos = await buscarVotosDaVotacao(camaraGet, v.id);
+  custo++;
+  const tally = contarVotos(votos);
 
   const row = {
     id: v.id,
@@ -172,7 +135,9 @@ async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo:
  * mantenedor ficava com o botão girando, sem log nenhum para diagnosticar.
  *
  * Agora um passo = uma votação. A lista da janela é buscada uma vez por
- * rodada e ordenada por id, para a retomada não pular nem repetir.
+ * rodada, pedida à API por id ASC (a ordem por data/hora perdia e repetia
+ * itens entre páginas) e ordenada por id, para a retomada não pular nem
+ * repetir.
  */
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaVotacoesCamara(
@@ -187,27 +152,9 @@ export async function rodadaVotacoesCamara(
   let custoDaLista = 0;
   const carregarLista = async (): Promise<VotacaoItem[]> => {
     if (listaRodada) return listaRodada;
-    const acc: VotacaoItem[] = [];
-    let pagina = 1;
-    while (pagina <= data.maxPaginas) {
-      const json = await camaraGet<Env<VotacaoItem[]>>("/votacoes", {
-        dataInicio: data.dataInicio,
-        dataFim: data.dataFim,
-        itens: "100",
-        pagina: String(pagina),
-        ordem: "DESC",
-        ordenarPor: "dataHoraRegistro",
-      });
-      custoDaLista++;
-      const arr = json.dados ?? [];
-      if (arr.length === 0) break;
-      acc.push(...arr);
-      if (arr.length < 100) break;
-      pagina++;
-    }
-    // Ordem estável por id: a lista da Câmara vem por data/hora, que pode
-    // mudar entre rodadas se a Casa reprocessar uma sessão.
-    listaRodada = acc.sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    const { lista, paginas } = await listarVotacoesDaJanela(camaraGet, data);
+    custoDaLista = paginas;
+    listaRodada = lista;
     return listaRodada;
   };
 

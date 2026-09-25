@@ -10,6 +10,11 @@ import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 import { UF_LIST } from "@/lib/admin-entes/logic";
 import {
+  consultarRelatorio,
+  type PaginaSiconfi,
+  type TipoRelatorio,
+} from "@/lib/data/siconfi/consulta";
+import {
   alvoNoCursor,
   CAPITAIS,
   chaveVarreduraSiconfi,
@@ -65,24 +70,22 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-type SiconfiItem = {
-  cod_ibge?: string | number;
-  instituicao?: string;
-  uf?: string;
-  exercicio?: number;
-  periodo?: number;
-  periodicidade?: string;
-  anexo?: string;
-  coluna?: string;
-  cod_conta?: string;
-  conta?: string;
-  valor?: number | string;
-  esfera?: string;
-};
-
-type SiconfiResp = { items?: SiconfiItem[]; count?: number };
-
-type TipoRelatorio = "RREO" | "RREO Simplificado" | "RGF" | "RGF Simplificado" | "DCA";
+/**
+ * População atual de cada ente, pelo cadastro do próprio SICONFI (`/entes`).
+ * Decide se o município pode ter optado pelo RGF semestral/simplificado.
+ * Uma requisição por instância do worker; a falha não fica em cache e sobe
+ * como erro da consulta (5xx/rede é transitório: a varredura refaz o passo).
+ */
+let populacoes: Promise<Map<string, number>> | null = null;
+function populacaoDosEntes(): Promise<Map<string, number>> {
+  populacoes ??= siconfiGet<PaginaSiconfi<{ cod_ibge: number; populacao: number }>>("/entes", {})
+    .then((r) => new Map((r.items ?? []).map((e) => [String(e.cod_ibge), Number(e.populacao)])))
+    .catch((e) => {
+      populacoes = null;
+      throw e;
+    });
+  return populacoes;
+}
 
 function esferaFromIbge(ibge: string): string {
   // IBGE de UF tem 2 dígitos, município tem 7. Distrito Federal = 53 (UF) ou 5300108 (mun).
@@ -90,9 +93,11 @@ function esferaFromIbge(ibge: string): string {
 }
 
 /**
- * Núcleo de ingestão de UM relatório SICONFI: busca, normaliza, faz upsert,
- * aplica QA e registra a rodada em `importacoes` (uma linha por consulta — como
- * as demais fontes). Retorna a contagem importada.
+ * Núcleo de ingestão de UM relatório SICONFI: busca (todos os poderes e a
+ * forma certa — ver `consulta.ts`), normaliza, faz upsert, aplica QA e
+ * registra a rodada em `importacoes` (uma linha por consulta — como as demais
+ * fontes). Vazio só é registrado quando o extrato de entregas confirma que o
+ * relatório não foi entregue; vazio com entrega registrada lança erro.
  */
 async function ingerirRelatorioSiconfi(params: {
   codIbge: string;
@@ -101,49 +106,35 @@ async function ingerirRelatorioSiconfi(params: {
   tipoRelatorio: TipoRelatorio;
   anexo?: string;
   userId: string;
-}): Promise<{ importados: number; aviso?: string }> {
+}): Promise<{ importados: number; requisicoes: number; aviso?: string }> {
   const { codIbge, exercicio, periodo, tipoRelatorio, anexo, userId } = params;
 
-  // SICONFI endpoints divergem por tipo
-  let path: string;
-  const reqParams: Record<string, string | number> = {
-    an_exercicio: exercicio,
-    id_ente: codIbge,
-  };
+  const populacao =
+    codIbge.length === 7 ? ((await populacaoDosEntes()).get(codIbge) ?? null) : null;
 
-  if (tipoRelatorio === "DCA") {
-    path = "/dca";
-    if (anexo) reqParams.no_anexo = anexo;
-  } else if (tipoRelatorio.startsWith("RREO")) {
-    path = "/rreo";
-    if (!periodo) throw new Error("RREO exige 'periodo' (1..6 bimestres).");
-    reqParams.nr_periodo = periodo;
-    reqParams.co_tipo_demonstrativo =
-      tipoRelatorio === "RREO Simplificado" ? "RREO Simplificado" : "RREO";
-    if (anexo) reqParams.no_anexo = anexo;
-  } else {
-    path = "/rgf";
-    if (!periodo) throw new Error("RGF exige 'periodo' (1..3 quadrimestres).");
-    reqParams.nr_periodo = periodo;
-    reqParams.co_tipo_demonstrativo =
-      tipoRelatorio === "RGF Simplificado" ? "RGF Simplificado" : "RGF";
-    if (anexo) reqParams.no_anexo = anexo;
-  }
-
-  const endpoint = `GET ${BASE}${path}?${new URLSearchParams(
-    Object.entries(reqParams).map(([k, v]) => [k, String(v)]),
-  ).toString()}`;
-
-  const json = await siconfiGet<SiconfiResp>(path, reqParams);
-  const items = json.items ?? [];
+  const r = await consultarRelatorio({
+    buscar: siconfiGet,
+    base: BASE,
+    codIbge,
+    exercicio,
+    periodo,
+    tipo: tipoRelatorio,
+    populacao,
+    anexo,
+  });
+  const endpoint = r.endpoints.join(" · ");
 
   const esfera = esferaFromIbge(codIbge);
-  const rows = items.map((it, idx) => {
+  const tipoGravado = r.tipo === "dados" ? r.forma.tipo : tipoRelatorio;
+  const rows = (r.tipo === "dados" ? r.itens : []).map((it, idx) => {
+    // O poder entra na chave só no RGF: um anexo/conta/coluna se repete em
+    // cada poder e, sem ele, o Legislativo sobrescreveria o Executivo.
     const key = [
       codIbge,
       exercicio,
       periodo ?? 0,
-      tipoRelatorio,
+      tipoGravado,
+      ...(it.poder ? [it.poder] : []),
       it.anexo ?? "",
       it.cod_conta ?? "",
       it.coluna ?? "",
@@ -158,7 +149,7 @@ async function ingerirRelatorioSiconfi(params: {
       exercicio: Number(it.exercicio ?? exercicio),
       periodo: periodo ?? null,
       periodicidade: it.periodicidade ?? null,
-      tipo_relatorio: tipoRelatorio,
+      tipo_relatorio: tipoGravado,
       anexo: it.anexo ?? anexo ?? null,
       coluna: it.coluna ?? null,
       cod_conta: it.cod_conta ?? null,
@@ -195,7 +186,9 @@ async function ingerirRelatorioSiconfi(params: {
     }
   }
 
-  // Histórico: uma linha por consulta (inclui consultas vazias, como as demais fontes).
+  // Histórico: uma linha por consulta. A linha com 0 registros e sem erro é o
+  // marcador "consultado, vazio" — só chega aqui com o extrato confirmando a
+  // não entrega (o vazio inesperado lançou erro em `consultarRelatorio`).
   try {
     await supabaseAdmin.from("importacoes").insert({
       fonte: "siconfi",
@@ -212,13 +205,20 @@ async function ingerirRelatorioSiconfi(params: {
     console.error("[siconfi] falha ao registrar importacao", e);
   }
 
-  if (rows.length === 0) {
+  const requisicoes = r.requisicoes + Math.ceil(rows.length / 200);
+  if (r.tipo === "nao_entregue") {
     return {
       importados: 0,
-      aviso: "Relatório não encontrado ou não publicado para este ente/período.",
+      requisicoes,
+      aviso:
+        "Relatório não entregue ao SICONFI para este ente/período (conferido no extrato de entregas).",
     };
   }
-  return { importados: rows.length };
+  const aviso =
+    r.poderesSemDados.length > 0
+      ? `Sem ${tipoGravado} publicado para o(s) poder(es) ${r.poderesSemDados.join(", ")}.`
+      : undefined;
+  return { importados: rows.length, requisicoes, ...(aviso ? { aviso } : {}) };
 }
 
 /**
@@ -306,9 +306,10 @@ export const importarConjuntoSICONFI = createServerFn({ method: "POST" })
  * limitadas por tempo e por subrequisições, grava onde parou e o painel
  * continua até terminar.
  *
- * Consulta sem dados NÃO é erro: o SICONFI legitimamente não tem todo
- * relatório de todo ente em todo exercício. Ela conta como consultada e a
- * varredura segue.
+ * Consulta sem dados NÃO é erro quando o extrato de entregas confirma que o
+ * relatório não foi entregue: ela conta como consultada e a varredura segue.
+ * Vazio com entrega registrada é erro definitivo (registrado, a varredura
+ * segue, e nenhum marcador de vazio é gravado).
  */
 export const varrerSiconfi = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -370,8 +371,9 @@ export const varrerSiconfi = createServerFn({ method: "POST" })
             userId: context.userId,
           });
           if (r.importados === 0) semDados++;
-          // 1 consulta à API + as gravações em lote (~1 por 200 linhas).
-          return { processados: r.importados, fim: false, custo: 2 };
+          // Requisições à API (um poder por vez no RGF, páginas, extrato) +
+          // as gravações em lote (~1 por 200 linhas).
+          return { processados: r.importados, fim: false, custo: r.requisicoes };
         } catch (e) {
           const msg = (e as Error).message;
           const rotulo = `${ente.nome}/${exercicio} ${rotuloAlvo(alvo)}`;

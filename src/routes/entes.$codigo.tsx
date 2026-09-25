@@ -12,6 +12,8 @@ import { PainelExplicar } from "@/components/PainelExplicar";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { fmtBRL } from "@/lib/fmt";
 import { downloadCSV } from "@/lib/csv";
+import { h1DoEnte } from "@/lib/ente/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 type Aba = "contratos" | "fiscal" | "transferencias";
 
@@ -26,15 +28,13 @@ export const Route = createFileRoute("/entes/$codigo")({
   loader: async ({ params }) => {
     const ente = await obterEnte({ data: { codigo: params.codigo } });
     if (!ente) throw notFound();
-    return { ente };
+    return { ente, h1: h1DoEnte(ente) };
   },
   head: ({ loaderData }) => {
-    const nome = loaderData
-      ? `${loaderData.ente.nome}${loaderData.ente.tipo === "municipio" ? ` (${loaderData.ente.uf})` : ""}`
-      : "Ente";
+    const nome = loaderData?.h1 ?? "Ente";
     return {
       meta: [
-        { title: `Dados de ${nome} — Mutirão de Dados` },
+        { title: tituloDaPagina(loaderData?.h1, "Ente") },
         {
           name: "description",
           content: `O que a União contrata, repassa e registra sobre ${nome}: contratações do PNCP, relatórios fiscais do SICONFI e convênios recebidos, no mesmo lugar.`,
@@ -74,7 +74,7 @@ function EntePage() {
 
   const uf = ente.tipo === "estado" ? ente.uf! : undefined;
   const ibge = ente.tipo === "municipio" ? ente.codIbge : undefined;
-  const rotulo = ente.tipo === "municipio" ? `${ente.nome} (${ente.uf})` : ente.nome;
+  const rotulo = h1DoEnte(ente);
 
   const pncpFn = useServerFn(listarContratosPNCP);
   const siconfiFn = useServerFn(listarRelatoriosSICONFI);

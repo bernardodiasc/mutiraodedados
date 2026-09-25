@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { agruparPorAno, capitalizarCargo, deriveEstado, rotuloEleicao } from "./logic";
+import {
+  agruparPorAno,
+  capitalizarCargo,
+  deriveEstado,
+  h1DaEleicaoUf,
+  h1DoPartido,
+  recorteValido,
+  rotuloEleicao,
+} from "./logic";
 
 describe("deriveEstado", () => {
   it("carregando vence", () => {
@@ -48,5 +56,36 @@ describe("rótulos", () => {
   it("capitalizarCargo", () => {
     expect(capitalizarCargo("2º SUPLENTE")).toBe("2º suplente");
     expect(capitalizarCargo("")).toBe("");
+  });
+});
+
+describe("h1DaEleicaoUf", () => {
+  it("rótulo da eleição e UF em maiúsculas", () => {
+    expect(h1DaEleicaoUf("2022", "sp")).toBe("Eleições Gerais 2022 — SP");
+    expect(h1DaEleicaoUf("2024", "MG")).toBe("Eleições Municipais 2024 — MG");
+  });
+});
+
+describe("h1DoPartido", () => {
+  it("sigla em maiúsculas + 'nas urnas'", () => {
+    expect(h1DoPartido("pt")).toBe("PT nas urnas");
+  });
+});
+
+describe("recorteValido", () => {
+  it("aceita ano de eleição e UF conhecidos, com UF em qualquer caixa", () => {
+    expect(recorteValido("2022", "SP")).toBe(true);
+    expect(recorteValido("2024", "rj")).toBe(true);
+    expect(recorteValido("2022", "BR")).toBe(true);
+  });
+
+  it("recusa ano sem eleição ou fora da série", () => {
+    expect(recorteValido("2023", "SP")).toBe(false);
+    expect(recorteValido("1994", "SP")).toBe(false);
+    expect(recorteValido("abc", "SP")).toBe(false);
+  });
+
+  it("recusa UF inexistente", () => {
+    expect(recorteValido("2022", "XX")).toBe(false);
   });
 });

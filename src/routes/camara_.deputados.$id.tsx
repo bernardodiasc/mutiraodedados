@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DoParlamentar } from "@/lib/ficha-legislativa/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -28,9 +32,29 @@ function anosDaLegislatura(n: number): string {
 
 export const Route = createFileRoute("/camara_/deputados/$id")({
   component: DeputadoDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Deputado ${params.id} — Mutirão de Dados` }],
+  loader: ({ params, context }) => {
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    const numId = Number(params.id);
+    return carregarH1(context.queryClient, {
+      queryKey: ["camara", "dep", numId],
+      queryFn: () => getDeputadoDetalhe({ data: { id: numId } }),
+      h1: (data) => h1DoParlamentar(data.deputado),
+    });
+  },
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Deputado") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Deputado não encontrado">
+      Não encontramos este deputado nos dados da Câmara.{" "}
+      <Link to="/camara/deputados" className="text-accent underline">
+        Ver a lista de deputados
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function DeputadoDetalhe() {
@@ -87,7 +111,7 @@ function DeputadoDetalhe() {
         <div className="flex items-start gap-5 mt-3 flex-wrap">
           <img src={foto} alt="" className="size-28 rounded-md object-cover border border-border" />
           <div className="flex-1 min-w-[260px]">
-            <h1 className="font-display text-4xl leading-tight">{deputado.nome}</h1>
+            <h1 className="font-display text-4xl leading-tight">{h1DoParlamentar(deputado)}</h1>
             <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
               <span>
                 {deputado.siglaPartido ?? "—"} · {deputado.siglaUf ?? "—"}

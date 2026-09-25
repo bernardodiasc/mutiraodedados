@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { destinoSeguro } from "@/lib/destino-seguro";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -17,7 +18,7 @@ export const Route = createFileRoute("/login")({
 function LoginPage() {
   const navigate = useNavigate();
   const { redirect } = Route.useSearch();
-  const destino = redirect && redirect.startsWith("/") ? redirect : "/minhas-marcacoes";
+  const destino = destinoSeguro(redirect);
   const [mode, setMode] = React.useState<"login" | "signup">("login");
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
@@ -42,7 +43,7 @@ function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
-        navigate({ to: destino });
+        navigate({ href: destino });
       }
     } catch (err) {
       toast.error((err as Error).message);
@@ -59,7 +60,7 @@ function LoginPage() {
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      navigate({ to: destino });
+      navigate({ href: destino });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {

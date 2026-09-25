@@ -13,10 +13,34 @@ import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { linkBuscaPncp } from "@/lib/links-oficiais";
+import { h1DaLicitacao } from "@/lib/ficha-h1/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/licitacoes/$id")({
   component: LicitacaoDetalhe,
-  head: () => ({ meta: [{ title: "Licitação — Mutirão de Dados" }] }),
+  // Pré-carrega a mesma query do componente só para o título da aba seguir o
+  // H1; falha ou registro ausente ficam com o componente, como antes.
+  loader: ({ params, context }) =>
+    carregarH1(context.queryClient, {
+      queryKey: ["licitacao", params.id],
+      queryFn: () => getLicitacaoPorId({ data: { id: params.id } }),
+      h1: (r) => (r.licitacao ? h1DaLicitacao(r.licitacao) : null),
+    }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Licitação") }],
+  }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Licitação não encontrada">
+      Não encontramos este registro no acervo do site.{" "}
+      <Link to="/licitacoes" className="text-accent underline">
+        Ver a lista de licitações
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function LicitacaoDetalhe() {
@@ -68,9 +92,7 @@ function LicitacaoDetalhe() {
         <div className="text-xs uppercase tracking-wider text-accent">
           {l.modalidade ?? "Licitação"}
         </div>
-        <h1 className="font-display text-3xl mt-1">
-          {l.objeto ? sanitizarTextoPublico(l.objeto) : `Licitação ${l.numero ?? ""}`}
-        </h1>
+        <h1 className="font-display text-3xl mt-1">{h1DaLicitacao(l)}</h1>
         <p className="text-xs font-mono text-muted-foreground mt-1">
           nº {l.numero ?? "—"}
           {l.numero_processo ? ` · processo ${l.numero_processo}` : ""}

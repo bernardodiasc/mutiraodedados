@@ -26,6 +26,11 @@ export const PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dado
  * Number passa direto; string é normalizada como pt-BR ("1.234,56",
  * "60.000") ou decimal americano ("106226.64"). Nada de regras de escala.
  *
+ * Ausência de valor vira `null`, nunca 0: a CGU devolve "-" (e às vezes
+ * vazio/null) quando não informa o valor, e "não localizado" não é zero
+ * (regra do projeto). Só um zero explícito da fonte (0 ou "0,00")
+ * vira 0. String que não é número também vira `null`.
+ *
  * `milharAmbiguo`: uma string com UM único grupo ".ddd" ("576.000") é
  * indecidível sem contexto — pode ser milhar pt-BR (576000, caso real
  * documentado da CGU: "60.000") ou decimal americano de 3 casas (576.0).
@@ -33,14 +38,17 @@ export const PORTAL_BASE = "https://api.portaldatransparencia.gov.br/api-de-dado
  * ambiguidade aos findings. Com ≥ 2 grupos ("1.234.567") a leitura de milhar
  * é inequívoca.
  */
-export function parseValorPortalDetalhado(v: unknown): { valor: number; milharAmbiguo: boolean } {
-  if (typeof v === "number") return { valor: Number.isFinite(v) ? v : 0, milharAmbiguo: false };
-  if (typeof v !== "string") return { valor: 0, milharAmbiguo: false };
+export function parseValorPortalDetalhado(v: unknown): {
+  valor: number | null;
+  milharAmbiguo: boolean;
+} {
+  if (typeof v === "number") return { valor: Number.isFinite(v) ? v : null, milharAmbiguo: false };
+  if (typeof v !== "string") return { valor: null, milharAmbiguo: false };
   const s = v
     .trim()
     .replace(/^R\$\s*/i, "")
     .replace(/\s/g, "");
-  if (!s) return { valor: 0, milharAmbiguo: false };
+  if (!s) return { valor: null, milharAmbiguo: false };
   // pt-BR com vírgula decimal: "1.234.567,89" → "1234567.89".
   // pt-BR sem centavos: "60.000" → "60000" (sem isso, Number("60.000")=60).
   const pareceMilharPtBr = /^\d{1,3}(\.\d{3})+$/.test(s);
@@ -50,13 +58,26 @@ export function parseValorPortalDetalhado(v: unknown): { valor: number; milharAm
     : pareceMilharPtBr
       ? s.replace(/\./g, "")
       : s;
-  const n = Number(normalizado);
-  return { valor: Number.isFinite(n) ? n : 0, milharAmbiguo };
+  // `Number` aceitaria "0x10", "1e3" e "Infinity"; exigimos dígitos decimais.
+  if (!/^-?\d+(\.\d+)?$/.test(normalizado)) return { valor: null, milharAmbiguo: false };
+  return { valor: Number(normalizado), milharAmbiguo };
 }
 
-/** Atalho: só o número (ver `parseValorPortalDetalhado`). */
-export function parseValorPortal(v: unknown): number {
+/** Atalho: só o número, ou `null` quando a fonte não informou o valor
+ * (ver `parseValorPortalDetalhado`). */
+export function parseValorPortal(v: unknown): number | null {
   return parseValorPortalDetalhado(v).valor;
+}
+
+/**
+ * Soma dois valores monetários preservando a ausência: `null` só quando
+ * nenhum dos dois foi informado. Para agregar registros (ex.: planos de ação
+ * de uma emenda) sem transformar "não informado" em zero.
+ */
+export function somarValoresInformados(a: number | null, b: number | null): number | null {
+  if (a == null) return b;
+  if (b == null) return a;
+  return a + b;
 }
 
 /**

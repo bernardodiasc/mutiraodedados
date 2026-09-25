@@ -1,5 +1,47 @@
 # Migrations + RLS + roles
 
+## Onde vive cada migration
+
+Desde 2026-09-25 o Lovable aplica migrations pelo **drizzle-kit**: `drizzle.config.ts` aponta para `drizzle/migrations/` e a conexão vem de `LOVABLE_DB_MIGRATION_URL`, variável do ambiente do Lovable (nunca no repositório).
+
+| Pasta                  | Papel                                                                     |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `drizzle/migrations/`  | **Fonte da verdade daqui para frente.** Toda migration nova nasce aqui.   |
+| `supabase/migrations/` | Histórico congelado. Não recebe arquivos novos; nenhum arquivo é editado. |
+
+Como o drizzle-kit decide o que aplicar: cada arquivo `NNNN_<slug>.sql` tem uma entrada em `drizzle/migrations/meta/_journal.json` (com o instante `when`), e o banco registra as já aplicadas na tabela `drizzle.__drizzle_migrations`. Na próxima rodada, só entram as entradas do journal mais novas que a última registrada. Arquivo `.sql` sem entrada no journal **não é aplicado**.
+
+Se o Lovable ainda lê `supabase/migrations/`, o repositório não mostra — e não há documentação pública do Lovable sobre o modo drizzle. O que o histórico mostra: as migrations de 2026-08-20 a partir de `20260820150000` ficaram um mês ali sem serem aplicadas, e só entraram no banco quando o Lovable as copiou para `drizzle/`. Trate a pasta como não lida.
+
+Regras que decorrem disso:
+
+- **Migration nova é criada e aplicada pelo Lovable**, que gera o `.sql`, a entrada do journal e o snapshot em `meta/` no mesmo commit. Não crie esses arquivos à mão nem renumere os existentes.
+- **Imutável também aqui**: editar um arquivo já aplicado não o reaplica (o registro no banco não muda) e deixa o repositório descrevendo um banco que não existe.
+- **Escreva SQL idempotente** (`IF NOT EXISTS`, `CREATE OR REPLACE`, `DROP ... IF EXISTS`). Na transição, `0000` já estava aplicada e rodou outra vez — só não quebrou porque usava `IF NOT EXISTS`.
+- `drizzle/schema.ts` fica vazio de propósito: o esquema é descrito pelo SQL, não por modelos Drizzle. Os tipos continuam gerados em `src/integrations/supabase/types.ts`.
+
+### A transição de 2026-09-25
+
+As migrations de agosto que ainda não estavam aplicadas em produção foram copiadas para `drizzle/migrations/0000–0003`; `0004` e `0005` nasceram direto em `drizzle/`. Estas são as únicas migrations presentes nas duas pastas:
+
+| `drizzle/migrations/`                | Original em `supabase/migrations/`         | Observação                                                                                                                      |
+| ------------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `0000_importacoes_resultado`         | `20260820020000_importacoes_resultado`     | Já estava aplicada (a coluna aparece nos tipos citados abaixo); por usar `IF NOT EXISTS`, a cópia não deve ter alterado nada.   |
+| `0001_convenios_cache_unificada`     | `20260820150000_convenios_cache_unificada` | **Diverge**: em vez de `DROP TABLE`, marca as tabelas antigas de convênios como `DEPRECATED`; uma migration posterior as apaga. |
+| `0002_convenios_origem`              | `20260820170000_convenios_origem`          | Igual (sem comentários).                                                                                                        |
+| `0003_automacao`                     | `20260820190000_automacao`                 | Igual (sem comentários).                                                                                                        |
+| `0004_tse_ocultar_cpf_publico`       | —                                          | Só em `drizzle/`.                                                                                                               |
+| `0005_profiles_leitura_autenticados` | —                                          | Só em `drizzle/`.                                                                                                               |
+
+`20260819120000_importacao_varredura` e `20260820120000_ibge_municipios_cache` já estavam aplicadas antes da transição (as tabelas aparecem nos tipos que o Lovable regenerou a partir do banco antes de rodar o drizzle) e por isso não foram copiadas. Os originais de `0000–0003` ficam em `supabase/migrations/` por serem histórico, e o comentário explicativo de cada um vale para a cópia — menos o trecho do original de `0001` sobre apagar as tabelas antigas.
+
+### Banco novo (self-host)
+
+As duas pastas não podem ser aplicadas em sequência cega: `0000–0003` repetem migrations que já estão em `supabase/migrations/`, e `0001` recria políticas que já existiriam. Para montar um banco do zero:
+
+1. `supabase db push` — aplica todo `supabase/migrations/` (inclui os originais de `0000–0003`; aqui as tabelas antigas de convênios são apagadas, o que não afeta o app).
+2. Aplique à mão, em ordem, os arquivos de `drizzle/migrations/` **a partir de `0004`** (ex.: `psql "$DATABASE_URL" -f drizzle/migrations/0004_tse_ocultar_cpf_publico.sql`).
+
 ## Template de tabela de usuário
 
 ```sql

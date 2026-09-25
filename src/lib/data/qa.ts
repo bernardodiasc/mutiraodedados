@@ -82,8 +82,9 @@ export function razaoEscala(a: number, b: number): EscalaTruncamento | null {
  * escala). Anexada em `detalhes.evidencia_bruta` dos findings de valor. */
 export type LeituraValorCgu = {
   origem: "listagem" | "detalhe";
-  valorFinal: number;
-  valorInicial: number;
+  /** `null` = o endpoint não informou o valor ("-"). */
+  valorFinal: number | null;
+  valorInicial: number | null;
   /** ISO timestamp da leitura. */
   em: string;
   /** Trecho do JSON cru da resposta (≤ ~600 chars), quando disponível. */
@@ -106,18 +107,22 @@ export type LeituraValorCgu = {
  * API devolver (ver docs/qualidade-dados.md).
  */
 export function valorAutoritativoCgu(
-  valorListagem: number,
-  valorDetalhe: number,
-): { valor: number; truncado: number | null; razao: EscalaTruncamento | null } {
-  const l = valorListagem > 0 ? valorListagem : 0;
-  const d = valorDetalhe > 0 ? valorDetalhe : 0;
+  valorListagem: number | null,
+  valorDetalhe: number | null,
+): { valor: number | null; truncado: number | null; razao: EscalaTruncamento | null } {
+  const l = valorListagem != null && valorListagem > 0 ? valorListagem : 0;
+  const d = valorDetalhe != null && valorDetalhe > 0 ? valorDetalhe : 0;
   if (l > 0 && d > 0) {
     const maior = Math.max(l, d);
     const menor = Math.min(l, d);
     if (maior / menor >= 100) return { valor: maior, truncado: menor, razao: razaoEscala(l, d) };
     return { valor: d, truncado: null, razao: null };
   }
-  return { valor: d > 0 ? d : l, truncado: null, razao: null };
+  if (d > 0 || l > 0) return { valor: d > 0 ? d : l, truncado: null, razao: null };
+  // Nenhum valor positivo: zero só se algum endpoint informou; nenhum = null
+  // ("não localizado" não é zero).
+  const informado = valorListagem != null || valorDetalhe != null;
+  return { valor: informado ? 0 : null, truncado: null, razao: null };
 }
 
 /**

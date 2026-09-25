@@ -26,7 +26,8 @@ export function mergeDatasets(a: Dataset, b: Dataset): Dataset {
 export function makeDataSource(ds: Dataset): DataSource {
   const serie = (filtro: (c: Contrato) => boolean): SerieAnual[] => {
     const map = new Map<number, number>();
-    for (const c of ds.contratos) if (filtro(c)) map.set(c.ano, (map.get(c.ano) ?? 0) + c.valor);
+    for (const c of ds.contratos)
+      if (filtro(c)) map.set(c.ano, (map.get(c.ano) ?? 0) + (c.valor ?? 0));
     return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([ano, valor]) => ({ ano, valor }));
   };
 

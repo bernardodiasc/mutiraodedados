@@ -1,0 +1,5 @@
+-- CPF e título eleitoral não devem ser legíveis pela API pública (LGPD); leitura só via service_role.
+REVOKE SELECT ON public.tse_candidatos_cache FROM anon, authenticated;
+GRANT SELECT (sq_candidato, ano_eleicao, nr_turno, cargo_cod, cargo_nome, uf, municipio_cod, nome_completo, nome_urna, partido_sigla, partido_numero, numero_candidato, situacao_candidatura, situacao_totalizacao, ocupacao, grau_instrucao, genero, cor_raca, bens_total_declarado, url_prestacao_contas, updated_at) ON public.tse_candidatos_cache TO anon, authenticated;
+REVOKE SELECT ON public.tse_parlamentar_candidato FROM anon, authenticated;
+GRANT SELECT (parlamentar_tipo, parlamentar_id, sq_candidato, ano_eleicao, match_metodo, match_confianca, revisado, updated_at) ON public.tse_parlamentar_candidato TO anon, authenticated;

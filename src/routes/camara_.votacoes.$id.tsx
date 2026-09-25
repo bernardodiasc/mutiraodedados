@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DaVotacao } from "@/lib/ficha-legislativa/logic";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -9,9 +13,27 @@ import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/camara_/votacoes/$id")({
   component: VotacaoDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Votação ${params.id} — Mutirão de Dados` }],
+  loader: ({ params, context }) =>
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    carregarH1(context.queryClient, {
+      queryKey: ["camara", "vot", params.id],
+      queryFn: () => getVotacaoDetalhe({ data: { id: params.id } }),
+      h1: (data) => h1DaVotacao(data.votacao),
+    }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Votação") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Votação não encontrada">
+      Não encontramos esta votação nos dados da Câmara.{" "}
+      <Link to="/camara/votacoes" className="text-accent underline">
+        Ver a lista de votações
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function VotacaoDetalhe() {
@@ -68,9 +90,7 @@ function VotacaoDetalhe() {
             Votações
           </Link>
         </div>
-        <h1 className="font-display text-3xl mt-1 leading-tight">
-          {v.descricao ?? "(sem descrição)"}
-        </h1>
+        <h1 className="font-display text-3xl mt-1 leading-tight">{h1DaVotacao(v)}</h1>
         <div className="text-sm text-muted-foreground mt-2">
           {v.data ?? "—"}
           {v.siglaOrgao ? ` · ${v.siglaOrgao}` : ""}

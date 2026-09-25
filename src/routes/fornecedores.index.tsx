@@ -59,13 +59,14 @@ function FornecedoresPage() {
     });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["fornecedores", q, ordem, pagina, itens],
+    queryKey: ["fornecedores", q, ordem, pagina, itens, search.ate],
     placeholderData: keepPreviousData,
     queryFn: () =>
       buscar({
         data: {
           q: q || undefined,
           ordem: ordem as "nome-asc",
+          ate: search.ate,
           limit: itens,
           offset: offsetDaPagina(pagina, itens),
         },
@@ -74,9 +75,12 @@ function FornecedoresPage() {
 
   const lista = data?.fornecedores ?? [];
   const total = data?.total ?? 0;
+  // Fixa o corte nos links de página: a mesma URL mostra sempre os mesmos registros.
+  const corte = search.ate ?? data?.corteSugerido;
   const montarSearch = (p: number): Record<string, unknown> => ({
     ...search,
     pagina: p > 1 ? p : undefined,
+    ate: corte,
   });
 
   return (

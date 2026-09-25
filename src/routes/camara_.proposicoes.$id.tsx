@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DaProposicao } from "@/lib/ficha-legislativa/logic";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProposicaoDetalhe } from "@/lib/data/camara/proposicoes.functions";
@@ -7,9 +11,29 @@ import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/camara_/proposicoes/$id")({
   component: ProposicaoDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Proposição ${params.id} — Mutirão de Dados` }],
+  loader: ({ params, context }) => {
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    const numId = Number(params.id);
+    return carregarH1(context.queryClient, {
+      queryKey: ["camara", "prop", numId],
+      queryFn: () => getProposicaoDetalhe({ data: { id: numId } }),
+      h1: (data) => h1DaProposicao(data.proposicao),
+    });
+  },
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Proposição") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Proposição não encontrada">
+      Não encontramos esta proposição nos dados da Câmara.{" "}
+      <Link to="/camara/proposicoes" className="text-accent underline">
+        Ver a lista de proposições
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function ProposicaoDetalhe() {
@@ -46,9 +70,7 @@ function ProposicaoDetalhe() {
             Proposições
           </Link>
         </div>
-        <h1 className="font-display text-4xl mt-1">
-          {p.siglaTipo} {p.numero}/{p.ano}
-        </h1>
+        <h1 className="font-display text-4xl mt-1">{h1DaProposicao(p)}</h1>
         {p.descricaoTipo && (
           <div className="text-sm text-muted-foreground mt-1">{p.descricaoTipo}</div>
         )}

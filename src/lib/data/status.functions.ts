@@ -13,7 +13,7 @@ export type StatusFontesResult = {
 // A lógica que usa `supabaseAdmin` mora em `status.server.ts`, carregada via
 // `await import` dentro dos handlers — nunca no escopo de módulo. Assim rotas
 // cliente que importam estes server fns (ex.: /orgaos, /admin) não arrastam
-// `client.server` para o bundle (ver docs/padroes/debug-problemas.ia.md #3/#5).
+// `client.server` para o bundle (ver docs/padroes/debug-problemas.ia.md §3/§5).
 
 export const orgaosComDados = createServerFn({ method: "GET" }).handler(
   async (): Promise<string[]> => {

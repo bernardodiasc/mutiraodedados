@@ -186,7 +186,8 @@ export const listarEmendasCgu = createServerFn({ method: "POST" })
       "ano",
     );
     // Desempate estável dentro do mesmo ano.
-    if (data.ordem.startsWith("ano")) q = q.order("valor_pago", { ascending: false });
+    if (data.ordem.startsWith("ano"))
+      q = q.order("valor_pago", { ascending: false, nullsFirst: false });
     q = q.range(data.offset, data.offset + data.limit - 1);
 
     // Emendas têm granularidade anual — o corte vale por ano.
@@ -240,9 +241,9 @@ export type ConvenioRow = {
   municipio_nome: string | null;
   situacao: string | null;
   tipo_instrumento: string | null;
-  valor: number;
-  valor_liberado: number;
-  valor_contrapartida: number;
+  valor: number | null;
+  valor_liberado: number | null;
+  valor_contrapartida: number | null;
   data_inicio_vigencia: string | null;
   data_fim_vigencia: string | null;
   data_publicacao: string | null;
@@ -325,7 +326,7 @@ export type ContratoListaRow = {
   numero: string | null;
   objeto: string | null;
   modalidade: string | null;
-  valor: number;
+  valor: number | null;
   ano: number;
   data_assinatura: string | null;
   fornecedor_cnpj: string;
@@ -401,7 +402,7 @@ export const listarContratos = createServerFn({ method: "POST" })
           numero: r.numero,
           objeto: r.objeto,
           modalidade: r.modalidade,
-          valor: Number(r.valor ?? 0),
+          valor: r.valor == null ? null : Number(r.valor),
           ano: r.ano,
           data_assinatura: r.data_assinatura,
           fornecedor_cnpj: r.fornecedor_cnpj,

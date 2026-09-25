@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DaVotacao } from "@/lib/ficha-legislativa/logic";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
@@ -8,9 +12,27 @@ import { BotaoBaixarCsv } from "@/components/BotaoBaixarCsv";
 
 export const Route = createFileRoute("/senado_/votacoes/$id")({
   component: VotacaoSenadoDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Votação ${params.id} — Senado — Mutirão de Dados` }],
+  loader: ({ params, context }) =>
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    carregarH1(context.queryClient, {
+      queryKey: ["senado", "vot", params.id],
+      queryFn: () => getVotacaoSenadoDetalhe({ data: { id: params.id } }),
+      h1: (data) => h1DaVotacao(data.votacao),
+    }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Votação") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Votação não encontrada">
+      Não encontramos esta votação nos dados do Senado.{" "}
+      <Link to="/senado/votacoes" className="text-accent underline">
+        Ver a lista de votações
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function VotacaoSenadoDetalhe() {
@@ -67,9 +89,7 @@ function VotacaoSenadoDetalhe() {
             Votações
           </Link>
         </div>
-        <h1 className="font-display text-3xl mt-2 leading-tight">
-          {votacao.descricao ?? "(sem descrição)"}
-        </h1>
+        <h1 className="font-display text-3xl mt-2 leading-tight">{h1DaVotacao(votacao)}</h1>
         <div className="mt-2 text-sm text-muted-foreground">
           {votacao.data ?? "—"}
           {votacao.materiaTitulo && <> · {votacao.materiaTitulo}</>}

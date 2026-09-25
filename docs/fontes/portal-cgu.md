@@ -8,12 +8,12 @@ API oficial da Controladoria-Geral da União. É a principal fonte de dados do E
 
 ## O que importamos (eixo "Por tema")
 
-| Tema       | Endpoint                         | Tabela cache           | Varredura                               | Janela | Página/rota                        |
-| ---------- | -------------------------------- | ---------------------- | --------------------------------------- | ------ | ---------------------------------- |
-| Contratos  | `/contratos` (+ `/contratos/id`) | `contratos_cache`      | por órgão (com conferência por detalhe) | 2013   | `/contratos`, `/contratos/$id`     |
-| Licitações | `/licitacoes`                    | `cgu_licitacoes_cache` | por órgão + janela                      | 2013   | `/licitacoes`, `/licitacoes/$id`   |
-| Emendas    | `/emendas`                       | `cgu_emendas_cache`    | **por ano**                             | 2014   | `/emendas`, `/emendas/$id`         |
-| Convênios  | `/convenios`                     | `cgu_convenios_cache`  | por janela de referência                | 2017   | (repoint de `/convenios` pendente) |
+| Tema       | Endpoint                         | Tabela cache           | Varredura                               | Janela | Página/rota                      |
+| ---------- | -------------------------------- | ---------------------- | --------------------------------------- | ------ | -------------------------------- |
+| Contratos  | `/contratos` (+ `/contratos/id`) | `contratos_cache`      | por órgão (com conferência por detalhe) | 2013   | `/contratos`, `/contratos/$id`   |
+| Licitações | `/licitacoes`                    | `cgu_licitacoes_cache` | por órgão + janela                      | 2013   | `/licitacoes`, `/licitacoes/$id` |
+| Emendas    | `/emendas`                       | `cgu_emendas_cache`    | **por ano**                             | 2014   | `/emendas`, `/emendas/$id`       |
+| Convênios  | `/convenios`                     | `convenios_cache`      | por janela de referência                | 2017   | `/convenios`, `/convenios/$id`   |
 
 Também importamos os **órgãos** SIAFI (catálogo das páginas de órgão).
 
@@ -34,7 +34,23 @@ Os nomes de campo abaixo foram confirmados inspecionando o JSON real de cada end
 - **`uf` com sigla/nome trocados**: em `/licitacoes` e `/convenios`, o objeto `uf` vem como `{sigla: "RIO DE JANEIRO", nome: "RJ"}` — a sigla de 2 letras está em `uf.nome`. Os mappers pegam robustamente o valor que tiver 2 letras.
 - **`/emendas` é por ano**, não por órgão. A varredura usa `ano` como dimensão. Há **sobreposição** com `transferegov_emendas_cache` (finalidade definida) — aceita por decisão de projeto para isolar pipelines.
 - **Parser de valores BR**: `parseValorPortal` (em `portal-client.ts`) normaliza número/strings pt-BR; números com 4 casas decimais sinalizam o bug de escala ÷10000 da CGU (corrigido só em contratos, via conferência por detalhe).
+- **Valor não informado**: a CGU devolve `"-"` quando não tem o valor. Ele é gravado como `NULL` (nunca 0) em `contratos_cache`, `cgu_licitacoes_cache`, `cgu_transferegov_emendas_cache` e `convenios_cache`, e aparece como "Não informado" nas páginas. Somas ignoram registros sem valor; médias, tetos (ex.: fracionamento) e regras de QA não os consideram. Ver abaixo, em "Dados gravados antes de 2026-09-25".
 - **Varredura retomável + throttling**: cada rodada roda ~3 min, salva progresso em `cgu_varredura`, retoma depois; retry com backoff em 5xx/429/rede.
+
+## Dados gravados antes de 2026-09-25 (reprocessamento)
+
+Até essa data o parser convertia `"-"` em **0**, e a coluna `contratos_cache.valor` não aceitava `NULL`. Linhas já gravadas podem ter 0 onde a fonte não informou o valor. No banco não dá para distinguir esse 0 de um zero real, então a migration que libera `NULL` nessa coluna **não altera nem apaga dados**.
+
+A correção é **reimportar** as janelas afetadas em `/admin/dados` (contratos por órgão, licitações, convênios, emendas): o upsert regrava cada registro com `NULL` onde a API devolve `"-"` e mantém 0 onde ela informa zero. Para priorizar, os candidatos são as linhas com valor 0:
+
+```sql
+SELECT 'contratos' AS tabela, count(*) FROM contratos_cache WHERE valor = 0
+UNION ALL SELECT 'licitacoes', count(*) FROM cgu_licitacoes_cache WHERE valor = 0
+UNION ALL SELECT 'convenios', count(*) FROM convenios_cache WHERE fonte = 'cgu' AND (valor = 0 OR valor_liberado = 0)
+UNION ALL SELECT 'emendas', count(*) FROM cgu_transferegov_emendas_cache WHERE valor_pago = 0 OR valor_empenhado = 0;
+```
+
+Enquanto não houver reimportação, esses zeros seguem visíveis como R$ 0,00. As regras de QA de valor só disparam com valor > 0, então esses zeros não geram alertas falsos.
 
 ## Acoplamento com o PNCP — a "fratura de ID"
 

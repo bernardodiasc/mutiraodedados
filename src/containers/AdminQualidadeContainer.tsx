@@ -66,21 +66,22 @@ export function AdminQualidadeContainer() {
         onRevalidarCgu: async (id) => {
           const r = await mutRevalUm({ data: { id } });
           const sufixoLista = r.lista?.achado ? ` (lista pág. ${r.lista.pagina})` : "";
+          const portal = r.valor_detalhe == null ? "valor não informado" : `R$${r.valor_detalhe}`;
           if (r.resultado === "confirmado") {
             toast.success(
-              `Divergência confirmada${sufixoLista}: cache R$${r.valor_armazenado} → Portal R$${r.valor_detalhe}. Erro real na origem, segue para reporte.`,
+              `Divergência confirmada${sufixoLista}: cache R$${r.valor_armazenado} → Portal ${portal}. Erro real na origem, segue para reporte.`,
             );
           } else if (r.resultado === "corrigido_origem") {
             toast.success(
-              `Cache corrigido${sufixoLista}: valor errado R$${r.valor_armazenado} → valor oficial R$${r.valor_detalhe}.`,
+              `Cache corrigido${sufixoLista}: valor errado R$${r.valor_armazenado} → valor oficial ${portal}.`,
             );
           } else if (r.resultado === "inconclusivo") {
             toast.warning(
-              `Inconclusivo: só o detalhe pôde ser lido (R$${r.valor_detalhe}) e ele diverge do cache. Nada foi alterado — repita a re-checagem.`,
+              `Inconclusivo: só o detalhe pôde ser lido (${portal}) e ele diverge do cache. Nada foi alterado — repita a re-checagem.`,
             );
           } else {
             toast.message(
-              `Falso positivo${sufixoLista}: a fonte oficial não sustenta a suspeita. Portal retorna R$${r.valor_detalhe}.`,
+              `Falso positivo${sufixoLista}: a fonte oficial não sustenta a suspeita. Portal retorna ${portal}.`,
             );
           }
           invalidar();

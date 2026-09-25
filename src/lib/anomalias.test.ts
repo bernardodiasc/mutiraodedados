@@ -118,6 +118,12 @@ describe("fracionamento (teto por data)", () => {
     const ds = dataset(dispensas(5, 15_000, 2019, ""));
     expect(regras(ds, "fracionamento")).toHaveLength(1);
   });
+  it("dispensas sem valor informado não contam como 'abaixo do teto'", () => {
+    const semValor = Array.from({ length: 5 }, () =>
+      contrato({ modalidade: "dispensa", valor: null, ano: 2019, dataAssinatura: "2019-05-01" }),
+    );
+    expect(regras(dataset(semValor), "fracionamento")).toHaveLength(0);
+  });
 });
 
 describe("concentracao", () => {
@@ -258,5 +264,24 @@ describe("transparencia_baixa", () => {
   it("não dispara para órgão com volume abaixo de R$ 5M", () => {
     const ds = dataset([contrato({ valor: 1_000_000 })]);
     expect(regras(ds, "transparencia_baixa")).toHaveLength(0);
+  });
+});
+
+describe("valor não informado (null)", () => {
+  it("não entra na soma do crescimento abrupto", () => {
+    const ds = dataset([
+      contrato({ ano: 2022, valor: 600_000 }),
+      contrato({ ano: 2022, valor: null }),
+      contrato({ ano: 2023, valor: 1_800_000 }),
+    ]);
+    const [a] = regras(ds, "crescimento_abrupto");
+    expect(a.evidencia).toMatchObject({ total_anterior: 600_000, total: 1_800_000 });
+  });
+
+  it("não puxa a média do outlier para baixo como se fosse zero", () => {
+    const iguais = Array.from({ length: 6 }, () => contrato({ valor: 100_000 }));
+    const semValor = Array.from({ length: 100 }, () => contrato({ valor: null }));
+    // Com null tratado como 0, a média cairia e contratos comuns virariam outliers.
+    expect(regras(dataset([...iguais, ...semValor]), "outlier_valor")).toHaveLength(0);
   });
 });

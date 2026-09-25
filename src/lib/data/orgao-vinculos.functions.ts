@@ -56,3 +56,19 @@ export const vinculosDoOrgao = createServerFn({ method: "POST" })
       totalConvenios: conv.count ?? 0,
     };
   });
+
+/**
+ * Nome do órgão no catálogo `orgaos_cache` — o mesmo que a ficha lê do
+ * dataset no cliente. Serve ao loader da rota para o título da aba.
+ */
+export const obterNomeOrgao = createServerFn({ method: "GET" })
+  .inputValidator((input) => z.object({ orgaoCod: z.string().min(1).max(20) }).parse(input))
+  .handler(async ({ data }) => {
+    const { data: row, error } = await supabaseAdmin
+      .from("orgaos_cache")
+      .select("nome")
+      .eq("cod", data.orgaoCod)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    return { nome: row?.nome ?? null };
+  });

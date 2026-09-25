@@ -360,6 +360,7 @@ async function logRodada(args: {
     fonte: `tse_${args.tipo}`,
     orgao_cod: null,
     escopo: `${args.ano}-${args.uf}`,
+    ano: args.ano,
     data_inicial: `${args.ano}-01-01`,
     data_final: `${args.ano}-12-31`,
     total_bruto: args.totalBruto,

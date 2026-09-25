@@ -38,7 +38,8 @@ export type Contrato = {
   fornecedorCnpj: string;
   objeto: string;
   modalidade: "pregao" | "dispensa" | "inexigibilidade" | "concorrencia";
-  valor: number;
+  /** `null` = a fonte não informou o valor; não é zero. */
+  valor: number | null;
   ano: number;
   dataAssinatura: string;
   dataInicioVigencia?: string;

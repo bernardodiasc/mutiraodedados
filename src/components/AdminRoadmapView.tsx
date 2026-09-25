@@ -74,8 +74,8 @@ export function AdminRoadmapView(props: AdminRoadmapViewProps) {
     <div className="mx-auto max-w-7xl px-4 py-10 space-y-8">
       <AdminHeader titulo="Roadmap">
         Itens exibidos publicamente em{" "}
-        <Link to="/sobre" className="text-accent underline">
-          /sobre
+        <Link to="/roadmap" className="text-accent underline">
+          /roadmap
         </Link>
         .
       </AdminHeader>

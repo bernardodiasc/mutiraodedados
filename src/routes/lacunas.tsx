@@ -4,6 +4,7 @@ import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { listarLacunasPublicas, type Lacuna } from "@/lib/lacunas.functions";
 import { sinaisPorTipo } from "@/lib/sinais-catalogo";
 import { BoxComoLerSinais } from "@/components/BoxComoLerSinais";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 const lacunasQuery = queryOptions({
   queryKey: ["lacunas", "publicas"],
@@ -22,13 +23,13 @@ export const Route = createFileRoute("/lacunas")({
   notFoundComponent: () => <div className="p-8">Lacuna não encontrada.</div>,
   head: () => ({
     meta: [
-      { title: "Informação que falta — Mutirão de Dados" },
+      { title: tituloDaPagina("Informação que falta") },
       {
         name: "description",
         content:
           "O que ainda não é público sobre o funcionamento do Estado: lacunas de transparência, avaliação, mensuração, documento, instituição e método.",
       },
-      { property: "og:title", content: "Informação que falta — Mutirão de Dados" },
+      { property: "og:title", content: tituloDaPagina("Informação que falta") },
       {
         property: "og:description",
         content:
@@ -83,8 +84,11 @@ function LacunasPage() {
           <CircleDashed className="size-4" /> O que ainda não é público
         </div>
         <h1 className="font-display text-4xl sm:text-5xl mt-3 leading-tight">
-          A ausência de informação também é um achado.
+          Informação que falta
         </h1>
+        <p className="font-display text-2xl sm:text-3xl leading-tight text-muted-foreground mt-3">
+          A ausência de informação também é um achado.
+        </p>
         <p className="text-muted-foreground mt-4 text-lg">
           Mapeamos seis tipos de lacuna no funcionamento público. Cada lacuna é registrada,
           qualificada e acompanhada — e não desaparece quando é resolvida: vira memória.

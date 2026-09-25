@@ -887,8 +887,8 @@ type PortalContratoListaItem = {
 function detalhesRevalidacao(
   detalhes: Record<string, unknown> | null | undefined,
   valorAlertaRegistrado: number,
-  valorInicialDetalhe: number,
-  valorFinalDetalhe: number,
+  valorInicialDetalhe: number | null,
+  valorFinalDetalhe: number | null,
   lista?: {
     achado: boolean;
     pagina: number | null;
@@ -968,8 +968,8 @@ function montarNotaRecheck(args: {
   regra: string;
   valorCacheAtual: number | null;
   valorInicialCache: number | null;
-  valorInicialDetalhe: number;
-  valorFinalDetalhe: number;
+  valorInicialDetalhe: number | null;
+  valorFinalDetalhe: number | null;
   lista: {
     achado: boolean;
     pagina: number | null;
@@ -981,11 +981,12 @@ function montarNotaRecheck(args: {
 }): string {
   const listaFinal = args.lista.achado ? args.lista.valor_final : null;
   const cacheFinal = args.valorCacheAtual;
+  const detalheFinal = args.valorFinalDetalhe;
   const listaDetalheCoincidem =
     listaFinal != null &&
-    args.valorFinalDetalhe > 0 &&
-    Math.abs(listaFinal - args.valorFinalDetalhe) <=
-      Math.max(listaFinal, args.valorFinalDetalhe) * 0.001;
+    detalheFinal != null &&
+    detalheFinal > 0 &&
+    Math.abs(listaFinal - detalheFinal) <= Math.max(listaFinal, detalheFinal) * 0.001;
   const reconciliacaoLista = args.lista.achado
     ? listaDetalheCoincidem
       ? " Listagem e detalhe concordam entre si."
@@ -1044,7 +1045,7 @@ type ResultadoRecheckCgu = "confirmado" | "corrigido_origem" | "falso_positivo" 
 async function revalidarUmFindingCgu(p: FindingCguRow): Promise<{
   resultado: ResultadoRecheckCgu;
   valor_armazenado: number;
-  valor_detalhe: number;
+  valor_detalhe: number | null;
   lista: {
     achado: boolean;
     pagina: number | null;
@@ -1101,18 +1102,21 @@ async function revalidarUmFindingCgu(p: FindingCguRow): Promise<{
 
   // Valor autoritativo = o NÃO-truncado entre listagem e detalhe (o bug ÷10000
   // pode estar em qualquer um dos dois). MESMA lógica do ingest.
-  const listFinal = listaInfo.achado ? (listaInfo.valor_final ?? 0) : 0;
-  const listInicial = listaInfo.achado ? (listaInfo.valor_inicial ?? 0) : 0;
+  // Valor ausente ("-") fica null — nenhuma regra de suspeita dispara sobre ele.
+  const listFinal = listaInfo.achado ? listaInfo.valor_final : null;
+  const listInicial = listaInfo.achado ? listaInfo.valor_inicial : null;
   const finalAut = valorAutoritativoCgu(listFinal, valorFinalDetalhe);
   const inicialAut = valorAutoritativoCgu(listInicial, valorInicialDetalhe);
-  const aindaSuspeito = cguAindaSuspeito(p.regra, finalAut.valor, inicialAut.valor, {
+  const aindaSuspeito = cguAindaSuspeito(p.regra, finalAut.valor ?? 0, inicialAut.valor ?? 0, {
     // Regras aposentadas ainda abertas no banco: a re-checagem decide pela API.
     regraDesconhecidaContaComoSuspeita: false,
   });
-  const valorFinalCorreto = finalAut.valor > 0 ? finalAut.valor : inicialAut.valor;
-  const valorInicialCorreto = inicialAut.valor > 0 ? inicialAut.valor : null;
+  const valorFinalCorreto =
+    finalAut.valor != null && finalAut.valor > 0 ? finalAut.valor : inicialAut.valor;
+  const valorInicialCorreto =
+    inicialAut.valor != null && inicialAut.valor > 0 ? inicialAut.valor : null;
   // Confirmação cruzada: as DUAS leituras (listagem + detalhe) existem.
-  const leituraCruzada = listaInfo.achado && valorFinalDetalhe > 0;
+  const leituraCruzada = listaInfo.achado && valorFinalDetalhe != null && valorFinalDetalhe > 0;
 
   // Decisão:
   // - valor autoritativo ainda suspeito → erro real na origem (confirmado).
@@ -1128,6 +1132,7 @@ async function revalidarUmFindingCgu(p: FindingCguRow): Promise<{
     resultado = "confirmado";
   } else {
     const difere =
+      valorFinalCorreto != null &&
       valorFinalCorreto > 0 &&
       (valorCacheAtual == null ||
         Math.abs(Number(valorCacheAtual) - valorFinalCorreto) >

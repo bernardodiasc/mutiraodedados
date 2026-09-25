@@ -1,5 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CandidatoFichaContainer } from "@/containers/CandidatoFichaContainer";
+import { obterCandidatoTse } from "@/lib/data/tse/queries.functions";
+import { h1DoCandidato } from "@/lib/candidato-ficha/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
 
 export const Route = createFileRoute("/eleicoes/candidatos/$sq")({
   component: CandidatoPage,
@@ -9,9 +13,18 @@ export const Route = createFileRoute("/eleicoes/candidatos/$sq")({
   // identifica a candidatura; quem não informa o ano recebe o do registro.
   validateSearch: (search: Record<string, unknown>): { ano?: number } =>
     typeof search.ano === "number" ? { ano: search.ano } : {},
-  head: ({ params }) => ({
+  loaderDeps: ({ search }) => ({ ano: search.ano }),
+  loader: ({ params, context, deps }) =>
+    // Pré-carrega a mesma query do CandidatoFichaContainer só para o título da
+    // aba; erro e "não encontrada" continuam sendo tratados pelo Container.
+    carregarH1(context.queryClient, {
+      queryKey: ["tse", "candidato", params.sq, deps.ano],
+      queryFn: () => obterCandidatoTse({ data: { sq: params.sq, ano: deps.ano } }),
+      h1: (data) => h1DoCandidato(data.candidato),
+    }),
+  head: ({ params, loaderData }) => ({
     meta: [
-      { title: `Candidato ${params.sq} — Eleições — Mutirão de Dados` },
+      { title: tituloDaPagina(loaderData?.h1, "Candidato") },
       {
         name: "description",
         content:

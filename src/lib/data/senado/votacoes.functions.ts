@@ -8,6 +8,7 @@ import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
 import { anoMesDaJanela } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
+import { mapearVotacaoSenado, type SessaoVotacaoApi } from "@/lib/data/senado/parsers";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -56,33 +57,9 @@ async function ensureAdmin(userId: string) {
   if (data?.role !== "admin") throw new Error("Acesso restrito: somente administradores.");
 }
 
-type VotacaoItem = {
-  CodigoSessaoVotacao?: string | number;
-  CodigoSessao?: string | number;
-  SessaoPlenaria?: { CodigoSessao?: string | number };
-  DataSessao?: string;
-  DescricaoVotacao?: string;
-  Resultado?: string;
-  Materia?: {
-    CodigoMateria?: string | number;
-    DescricaoIdentificacao?: string;
-    SiglaMateria?: string;
-  };
-  Votos?: { VotoParlamentar?: VotoItem | VotoItem[] };
-};
-
-type VotoItem = {
-  CodigoParlamentar?: string | number;
-  NomeParlamentar?: string;
-  SiglaPartido?: string;
-  SiglaUF?: string;
-  Voto?: string;
-};
-
-function ymd(s: string): string {
-  // "2025-05-12" → "20250512"
-  return s.replace(/-/g, "");
-}
+// Substituto oficial de `/plenario/lista/votacao/{ini}/{fim}` (depreciado).
+// `v=2` fixa a versão do serviço para o formato não mudar sem aviso.
+const votacoesPath = (ini: string, fim: string) => `/votacao?dataInicio=${ini}&dataFim=${fim}&v=2`;
 
 /** Importa votações nominais em um intervalo de datas (até ~30 dias por chamada). */
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
@@ -98,22 +75,14 @@ export async function rodadaVotacoesSenado(
   // operações de banco (upsert + limpeza + insert dos votos) — uma pauta
   // cheia estoura o limite de subrequisições do Worker numa chamada única.
   // O cursor é a votação; a lista é buscada uma vez por rodada e ordenada
-  // por código de sessão para a retomada não pular nem repetir.
-  let listaRodada: VotacaoItem[] | null = null;
-  const carregarLista = async (): Promise<VotacaoItem[]> => {
+  // por código da votação para a retomada não pular nem repetir.
+  let listaRodada: SessaoVotacaoApi[] | null = null;
+  const carregarLista = async (): Promise<SessaoVotacaoApi[]> => {
     if (listaRodada) return listaRodada;
-    const json = await senadoGet<{
-      ListaVotacoes?: { Votacoes?: { Votacao?: VotacaoItem | VotacaoItem[] } };
-    }>(`/plenario/lista/votacao/${ymd(data.dataInicio)}/${ymd(data.dataFim)}`);
-    listaRodada = asArray(json.ListaVotacoes?.Votacoes?.Votacao).sort((a, b) => {
-      const ca = String(
-        a.CodigoSessaoVotacao ?? a.CodigoSessao ?? a.SessaoPlenaria?.CodigoSessao ?? "",
-      );
-      const cb = String(
-        b.CodigoSessaoVotacao ?? b.CodigoSessao ?? b.SessaoPlenaria?.CodigoSessao ?? "",
-      );
-      return ca.localeCompare(cb);
-    });
+    const json = await senadoGet<SessaoVotacaoApi[]>(votacoesPath(data.dataInicio, data.dataFim));
+    listaRodada = asArray(json).sort(
+      (a, b) => Number(a.codigoSessaoVotacao ?? 0) - Number(b.codigoSessaoVotacao ?? 0),
+    );
     return listaRodada;
   };
 
@@ -125,7 +94,7 @@ export async function rodadaVotacoesSenado(
     maxPassos: 5000,
     passo: async (cursor) => {
       let custo = 0;
-      let lista: VotacaoItem[];
+      let lista: SessaoVotacaoApi[];
       try {
         const antes = listaRodada;
         lista = await carregarLista();
@@ -146,52 +115,16 @@ export async function rodadaVotacoesSenado(
       const v = lista[cursor - 1];
 
       try {
-        const codSessao = v.CodigoSessaoVotacao ?? v.CodigoSessao ?? v.SessaoPlenaria?.CodigoSessao;
-        if (!codSessao) return { processados: 0, fim: false, custo };
-        const id = String(codSessao);
-
-        const votos = asArray(v.Votos?.VotoParlamentar);
-        const tally = { sim: 0, nao: 0, outros: 0 };
-        for (const x of votos) {
-          const t = (x.Voto ?? "").toLowerCase().trim();
-          if (t === "sim" || t.startsWith("sim")) tally.sim++;
-          else if (t === "não" || t === "nao" || t.startsWith("nã") || t.startsWith("na"))
-            tally.nao++;
-          else tally.outros++;
-        }
-
-        const row = {
-          id,
-          data:
-            v.DataSessao && /^\d{4}-\d{2}-\d{2}/.test(v.DataSessao)
-              ? v.DataSessao.slice(0, 10)
-              : null,
-          descricao: (v.DescricaoVotacao ?? "").slice(0, 2000) || null,
-          resultado: v.Resultado ?? null,
-          materia_id: v.Materia?.CodigoMateria ? Number(v.Materia.CodigoMateria) : null,
-          materia_titulo:
-            v.Materia?.DescricaoIdentificacao ??
-            (v.Materia?.SiglaMateria ? String(v.Materia.SiglaMateria) : null),
-          sigla_orgao: "SF",
-          votos_sim: tally.sim,
-          votos_nao: tally.nao,
-          votos_outros: tally.outros,
-          updated_at: new Date().toISOString(),
-        };
+        const mapeada = mapearVotacaoSenado(v);
+        if (!mapeada) return { processados: 0, fim: false, custo };
+        const { id } = mapeada.votacao;
+        const agora = new Date().toISOString();
+        const row = { ...mapeada.votacao, updated_at: agora };
         const { error: e1 } = await supabaseAdmin.from("senado_votacoes_cache").upsert(row);
         custo++;
         if (e1) throw new Error(e1.message);
 
-        const votoRows = votos
-          .filter((x) => x.CodigoParlamentar)
-          .map((x) => ({
-            votacao_id: id,
-            senador_id: Number(x.CodigoParlamentar),
-            tipo_voto: (x.Voto ?? "—").slice(0, 40),
-            sigla_partido: x.SiglaPartido ?? null,
-            sigla_uf: x.SiglaUF ?? null,
-            updated_at: new Date().toISOString(),
-          }));
+        const votoRows = mapeada.votos.map((x) => ({ ...x, updated_at: agora }));
 
         if (votoRows.length > 0) {
           // limpa votos antigos desta votação para upsert idempotente (PK composta inexistente)
@@ -222,7 +155,7 @@ export async function rodadaVotacoesSenado(
     {
       fonte: "senado_vot",
       ...anoMesDaJanela(data.dataInicio, data.dataFim),
-      endpoint: `GET ${BASE}/plenario/lista/votacao/${ymd(data.dataInicio)}/${ymd(data.dataFim)}`,
+      endpoint: `GET ${BASE}${votacoesPath(data.dataInicio, data.dataFim)}`,
       unidade: "votações",
       userId: userId,
       duracaoMs: Date.now() - inicioRodada,
