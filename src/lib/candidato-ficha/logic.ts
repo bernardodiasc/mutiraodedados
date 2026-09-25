@@ -257,3 +257,11 @@ export function subtituloFicha(c: {
 }): string {
   return [c.cargo_nome, c.uf, c.partido_sigla, String(c.ano_eleicao)].filter(Boolean).join(" · ");
 }
+
+/** H1 da ficha do candidato: nome de urna, senão o nome completo. */
+export function h1DoCandidato(c: {
+  nome_urna: string | null;
+  nome_completo: string | null;
+}): string | null {
+  return c.nome_urna ?? c.nome_completo;
+}

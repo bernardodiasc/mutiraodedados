@@ -9,18 +9,19 @@ import {
   type RoadmapStatus,
 } from "@/lib/data/roadmap.functions";
 import { ordenarConcluidos } from "@/lib/admin-roadmap/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/roadmap")({
   component: RoadmapPage,
   head: () => ({
     meta: [
-      { title: "Roadmap & novidades — Mutirão de Dados" },
+      { title: tituloDaPagina("Roadmap & novidades") },
       {
         name: "description",
         content:
           "O que já está no ar, o que está em construção e o que vem a seguir no Mutirão de Dados. Inclui notas de versão por entrega.",
       },
-      { property: "og:title", content: "Roadmap & novidades — Mutirão de Dados" },
+      { property: "og:title", content: tituloDaPagina("Roadmap & novidades") },
       {
         property: "og:description",
         content: "Histórico de entregas e prioridades em construção, com notas de cada lançamento.",
@@ -67,7 +68,10 @@ function RoadmapPage() {
       <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-widest text-accent uppercase">
         <ListChecks className="size-3.5" /> Roadmap público
       </span>
-      <h1 className="font-display text-5xl leading-[0.95] mt-2">O que estamos construindo</h1>
+      <h1 className="font-display text-5xl leading-[0.95] mt-2">Roadmap &amp; novidades</h1>
+      <p className="font-display text-2xl sm:text-3xl leading-tight text-muted-foreground mt-3">
+        O que estamos construindo
+      </p>
       <p className="mt-4 text-lg text-muted-foreground">
         Estado real da plataforma: o que já está no ar, o que está em construção e o que vem a
         seguir. A aba{" "}

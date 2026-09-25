@@ -64,9 +64,10 @@ export type ConvenioCacheRow = {
   uf: string | null;
   municipio_ibge: string | null;
   municipio_nome: string | null;
-  valor: number;
-  valor_liberado: number;
-  valor_contrapartida: number;
+  /** `null` = a CGU não informou o valor ("-"); não é zero. */
+  valor: number | null;
+  valor_liberado: number | null;
+  valor_contrapartida: number | null;
   data_assinatura: string | null;
   data_inicio_vigencia: string | null;
   data_fim_vigencia: string | null;

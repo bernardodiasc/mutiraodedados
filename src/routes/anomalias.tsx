@@ -11,7 +11,7 @@ export const Route = createFileRoute("/anomalias")({
   component: AnomaliasPage,
   head: () => ({
     meta: [
-      { title: "Anomalias detectadas — Mutirão de Dados" },
+      { title: "Sinais investigativos — Mutirão de Dados" },
       {
         name: "description",
         content:

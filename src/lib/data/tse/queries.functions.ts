@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { agregarPorCategoria, type AgregadoCategoria } from "@/lib/data/tse/categorias-bens";
 import { chavesIdentidade, temIdentificador } from "@/lib/data/tse/identidade";
+import { ATE_RE } from "@/lib/listagem/logic";
 
 /**
  * Leituras públicas da fonte TSE (cache read-only; sem gate de admin —
@@ -10,8 +11,10 @@ import { chavesIdentidade, temIdentificador } from "@/lib/data/tse/identidade";
  *
  * A listagem de candidatos segue o contrato do kit src/lib/listagem: filtros +
  * `ordem` ("campo-direcao") + `ate` (corte de estabilidade) + limit/offset;
- * resposta com `total` real (count) e `corteSugerido`. O corte é aplicado
- * sobre a data de domínio da lista — o ANO DA ELEIÇÃO (granularidade anual).
+ * resposta com `total` real (count) e `corteSugerido`. A lista já é recortada
+ * por eleição (ano obrigatório), mas a carga por UF de um mesmo ano ainda
+ * acrescenta linhas — o corte é aplicado sobre `updated_at`, que o upsert do
+ * ingest não reescreve (fica com o instante em que a candidatura entrou no acervo).
  */
 
 const hojeISO = () => new Date().toISOString().slice(0, 10);
@@ -77,6 +80,7 @@ export const listarCandidatosTse = createServerFn({ method: "POST" })
         situacao: z.string().max(60).optional(),
         q: z.string().max(120).optional(),
         ordem: z.enum(["nome-asc", "nome-desc", "bens-desc", "bens-asc"]).default("nome-asc"),
+        ate: z.string().regex(ATE_RE).optional(),
         limit: z.number().int().min(1).max(500).default(100),
         offset: z.number().int().min(0).max(100000).default(0),
       })
@@ -92,12 +96,15 @@ export const listarCandidatosTse = createServerFn({ method: "POST" })
     if (data.partido) q = q.eq("partido_sigla", data.partido.toUpperCase());
     if (data.situacao) q = q.ilike("situacao_totalizacao", `${data.situacao}%`);
     if (data.q) q = q.or(`nome_urna.ilike.%${data.q}%,nome_completo.ilike.%${data.q}%`);
+    if (data.ate) q = q.lte("updated_at", data.ate);
     q = ordenar(q, data.ordem, { nome: "nome_urna", bens: "bens_total_declarado" }, "nome");
     const { data: rows, count, error } = await q.range(data.offset, data.offset + data.limit - 1);
     if (error) throw new Error(`Falha ao listar candidatos: ${error.message}`);
-    // Sem corte `ate`: a lista já é recortada por eleição (ano obrigatório) —
-    // a carga por UF de um mesmo ano ainda pode acrescentar linhas.
-    return { rows: (rows ?? []) as CandidatoListaRow[], total: count ?? 0 };
+    return {
+      rows: (rows ?? []) as CandidatoListaRow[],
+      total: count ?? 0,
+      corteSugerido: new Date().toISOString(),
+    };
   });
 
 export type CandidatoDetalhe = {

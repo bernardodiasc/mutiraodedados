@@ -111,6 +111,17 @@ describe("valorAutoritativoCgu", () => {
     expect(valorAutoritativoCgu(576, 0)).toEqual({ valor: 576, truncado: null, razao: null });
     expect(valorAutoritativoCgu(0, 0)).toEqual({ valor: 0, truncado: null, razao: null });
   });
+
+  it("valor não informado (null) não vira zero", () => {
+    expect(valorAutoritativoCgu(null, null)).toEqual({ valor: null, truncado: null, razao: null });
+    expect(valorAutoritativoCgu(null, 576)).toEqual({ valor: 576, truncado: null, razao: null });
+    expect(valorAutoritativoCgu(576, null)).toEqual({ valor: 576, truncado: null, razao: null });
+  });
+
+  it("zero explícito de um lado e ausência do outro: zero (a fonte informou)", () => {
+    expect(valorAutoritativoCgu(null, 0)).toEqual({ valor: 0, truncado: null, razao: null });
+    expect(valorAutoritativoCgu(0, null)).toEqual({ valor: 0, truncado: null, razao: null });
+  });
 });
 
 describe("findingValorCorrigidoListagem", () => {

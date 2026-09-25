@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { parseValorPortal, parseValorPortalDetalhado } from "@/lib/data/real/portal-client";
+import {
+  parseValorPortal,
+  parseValorPortalDetalhado,
+  somarValoresInformados,
+} from "@/lib/data/real/portal-client";
 
 describe("parseValorPortal — confia no number cru da API", () => {
   it("inteiro number passa direto: 900000 => 900000", () => {
@@ -22,11 +26,65 @@ describe("parseValorPortal — confia no number cru da API", () => {
     expect(parseValorPortal("1130608.92")).toBe(1130608.92);
   });
 
-  it("vazio / null / undefined / NaN => 0", () => {
-    expect(parseValorPortal("")).toBe(0);
-    expect(parseValorPortal(null)).toBe(0);
-    expect(parseValorPortal(undefined)).toBe(0);
-    expect(parseValorPortal(NaN)).toBe(0);
+  it("zero explícito em string é zero: '0' e '0,00'", () => {
+    expect(parseValorPortal("0")).toBe(0);
+    expect(parseValorPortal("0,00")).toBe(0);
+  });
+});
+
+describe("parseValorPortal — ausência de valor vira null, nunca 0", () => {
+  it('"-" da CGU (valor não informado) => null', () => {
+    expect(parseValorPortal("-")).toBeNull();
+    expect(parseValorPortal(" - ")).toBeNull();
+    expect(parseValorPortal("R$ -")).toBeNull();
+  });
+
+  it("vazio / null / undefined / NaN / Infinity => null", () => {
+    expect(parseValorPortal("")).toBeNull();
+    expect(parseValorPortal("   ")).toBeNull();
+    expect(parseValorPortal(null)).toBeNull();
+    expect(parseValorPortal(undefined)).toBeNull();
+    expect(parseValorPortal(NaN)).toBeNull();
+    expect(parseValorPortal(Infinity)).toBeNull();
+  });
+
+  it("texto que não é número => null (não vira 0 nem é interpretado)", () => {
+    expect(parseValorPortal("não informado")).toBeNull();
+    expect(parseValorPortal("Infinity")).toBeNull();
+    expect(parseValorPortal("1e3")).toBeNull();
+    expect(parseValorPortal("0x10")).toBeNull();
+  });
+
+  it("tipos que não são number/string => null", () => {
+    expect(parseValorPortal({})).toBeNull();
+    expect(parseValorPortal(true)).toBeNull();
+  });
+
+  it("negativo explícito é preservado", () => {
+    expect(parseValorPortal("-1.234,56")).toBe(-1234.56);
+    expect(parseValorPortal(-10)).toBe(-10);
+  });
+});
+
+describe("somarValoresInformados — agrega sem transformar ausência em zero", () => {
+  it("nenhum informado => null", () => {
+    expect(somarValoresInformados(null, null)).toBeNull();
+  });
+
+  it("um informado => ele mesmo (inclusive zero)", () => {
+    expect(somarValoresInformados(null, 10)).toBe(10);
+    expect(somarValoresInformados(10, null)).toBe(10);
+    expect(somarValoresInformados(null, 0)).toBe(0);
+  });
+
+  it("dois informados => soma", () => {
+    expect(somarValoresInformados(10, 5.5)).toBe(15.5);
+  });
+
+  it("acumula planos com e sem valor", () => {
+    const planos = ["-", "1.000,00", null, "250,50"].map(parseValorPortal);
+    expect(planos.reduce(somarValoresInformados, null)).toBe(1250.5);
+    expect(["-", "", null].map(parseValorPortal).reduce(somarValoresInformados, null)).toBeNull();
   });
 });
 
@@ -81,5 +139,11 @@ describe("parseValorPortalDetalhado — ambiguidade de grupo único", () => {
 
   it("number cru nunca é ambíguo", () => {
     expect(parseValorPortalDetalhado(576000)).toEqual({ valor: 576000, milharAmbiguo: false });
+  });
+});
+
+describe("parseValorPortalDetalhado — ausência", () => {
+  it('"-" => valor null, sem ambiguidade', () => {
+    expect(parseValorPortalDetalhado("-")).toEqual({ valor: null, milharAmbiguo: false });
   });
 });

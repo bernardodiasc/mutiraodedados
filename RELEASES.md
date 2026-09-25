@@ -12,7 +12,7 @@ Template de entrada (copiar para o topo ao fechar uma release):
 **Checks executados:** apenas os realmente rodados, com resultado
 (ex.: `bun run lint` ✓ · `bun run build` ✓ · `bun run test` — N suítes, M verdes).
 
-**Plano:** docs/planos/vX.Y.Z-<slug>.md (se houver)
+**Issues:** milestone `vX.Y.Z` do repositório privado (e mapa do wayfinder, se houver) — referência só para o mantenedor.
 
 **PR de sync público:** link do PR `sync vX.Y.Z` no repositório público.
 
@@ -22,6 +22,57 @@ Regras de redação: referências por data e versão, nunca hash de commit
 (este arquivo é espelhado no repositório público, cujo histórico não contém
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
+
+## v0.13.0 — 2026-09-25
+
+**Resumo:** rodada de correções, endurecimento e processo antes do programa de busca unificada. Importadores de votações e do RGF voltaram a funcionar, valor ausente deixou de virar zero, permissões de leitura e escrita foram apertadas, e o projeto ganhou um processo com issues, milestones, PRs e roteiros permanentes de QA. Os títulos de aba passaram a seguir o H1 em todas as fichas públicas.
+
+**Entregas**
+
+- **Importação:**
+  - Votações da Câmara (votos sem paginação, listagem ordenada por id).
+  - Votações do Senado migradas para o endpoint `/votacao`.
+  - RGF do SICONFI pedido por poder e periodicidade.
+  - Valor ausente do Portal da Transparência gravado como vazio, não como zero; somas e médias ignoram registros sem valor, e a tela mostra "Não informado".
+- **Histórico de importações:** as rodadas do TSE aparecem com nome legível e ano da eleição. A limpeza de proposições da Câmara e de matérias do Senado apaga também as linhas do Histórico.
+- **Permissões e banco:**
+  - Leitura pública de dados pessoais endurecida (CPF do TSE oculto, perfis só para autenticados).
+  - Grants redundantes de `anon`/`authenticated` revogados nas tabelas de varredura.
+  - Tabelas antigas de convênios (`cgu_convenios_cache`, `transferegov_instrumentos_cache`) apagadas.
+  - Migrations passam a nascer em `drizzle/migrations/`, e `supabase/migrations/` vira histórico congelado.
+- **Admin:**
+  - Salvar um artigo preserva a capa e a data de publicação.
+  - Login a partir do admin volta para a página pedida.
+  - Conta sem papel de admin vê um aviso antes do redirecionamento.
+- **Páginas públicas:**
+  - Título da aba = H1 + " — Mutirão de Dados" nas fichas de contratos, convênios, licitações, emendas, fornecedores, órgãos, entes, Câmara, Senado, eleições e artigos, já no primeiro carregamento. Fichas com loader ganharam telas próprias de erro e de "não encontrado".
+  - `/sobre`, `/roadmap` e `/lacunas` passam a ter como H1 o nome da página, com o slogan como subtítulo.
+  - Corte de estabilidade `ate` em `/eleicoes/candidatos` e `/fornecedores`; este último usa a coluna nova `fornecedores_cache.created_at`.
+  - A aba "Por ente" de `/convenios` linka a ficha do convênio.
+- **QA e processo:**
+  - Roteiros permanentes de QA manual em [`docs/qa/`](./docs/qa/README.md), por área (importação, páginas públicas, admin), com cada item marcado como manual ou coberto por teste.
+  - Testes novos para a autorização da rota de automação, a divergência de situação do convênio, o banner de qualidade e a cobertura por ano.
+  - Workflow com issues, milestones, PRs e `wayfinder`; nome de branch `issue-<n>-<slug>`; versão de cada trabalho decidida por regra.
+  - Programa v0.14.0–v0.22.0 planejado e resumido no ROADMAP.
+- **Lint:** o ESLint e o Prettier passam a ignorar `src/integrations/supabase/types.ts` e `previewAuthStorage.ts`, gerados e reescritos pelo Lovable.
+
+**Decisões**
+
+- **Rodadas reais de importação fora do aceite.** Câmara (votações e votos desde 2003), Senado e SICONFI (RGF) saíram do critério de aceite por decisão do mantenedor e seguem como rodada de testes à parte, pelos roteiros de `docs/qa/`.
+- **Migrations aplicadas direto no banco.** As quatro alterações desta release (valor nulo em `contratos_cache`, revogação de grants, remoção das tabelas antigas de convênios e `fornecedores_cache.created_at`) foram aplicadas pelo mantenedor com SQL idempotente e conferidas por consulta. Ainda não estão registradas em `drizzle/migrations/`.
+
+**Checks executados**
+
+- `bun run lint` ✓ 0 erros (17 warnings do padrão shadcn/ui).
+- `bunx tsc --noEmit` ✓.
+- `bun run build` ✓.
+- `bun run test` ✓ — 94 arquivos, 918 testes.
+- Estado do banco conferido por consulta: `contratos_cache.valor` aceita nulo, nenhum grant sobrando nas tabelas de varredura, tabelas antigas de convênios ausentes, `fornecedores_cache.created_at` presente.
+- Não executados: rodadas reais de importação e conferência no preview dos fluxos alterados.
+
+**Issues:** milestone `v0.13.0` do repositório privado.
+
+**PR de sync público:** `sync v0.13.0`.
 
 ## v0.12.0 — 2026-08-24
 
@@ -43,8 +94,6 @@ os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 - `bun run lint` ✓ 0 erros (17 warnings do padrão shadcn/ui) · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
 - Smoke em dev das 34 rotas públicas do grupo Explorar — todas HTTP 200; paginação, corte de estabilidade e totais conferidos no navegador (`/emendas` página 2 = "101–200 de 2.310"; `/contratos?fonte=pncp` = 17.077); ficha degradada verificada com CNPJ presente só no PNCP.
 - Sem migration: os vínculos usam índices, RPCs e a view `v_fornecedor_doador` que já existiam.
-
-**Plano:** docs/planos/v0.12.0-revisao-paginas-publicas.md
 
 **PR de sync público:** `sync v0.12.0`.
 
@@ -159,8 +208,6 @@ os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 - `bun run lint` ✓ 0 erros · `bunx tsc --noEmit` ✓ · `bun run build` ✓.
 - Migration com GRANT/RLS revisados em código; aplicação ocorre no deploy (pipeline gerenciado).
 - **Validação manual adiada por decisão do mantenedor** (2026-08-20): as releases v0.7.0–v0.11.0 fecham sem testes manuais individuais; uma rodada única de testes e ajustes acontece depois da v0.11.0, em versão própria. Roteiro desta release preservado em `.claude/roteiro-testes-v0.7.0.md`.
-
-**Plano:** docs/planos/v0.7.0-cobertura-ibge-qualidade.md
 
 **PR de sync público:** `sync v0.7.0`.
 
@@ -301,8 +348,6 @@ _Precisão do que dizemos_
 - Detecção de commits não portados validada em cenário simulado ✓ (lógica de detecção; a integração com `origin/main` não foi exercida ponta a ponta para não escrever no repositório público).
 - Validação em staging pelo mantenedor ✓.
 
-**Plano:** [docs/planos/v0.2.0-lint-e-protecao-do-sync.md](./docs/planos/v0.2.0-lint-e-protecao-do-sync.md) — inclui o registro das decisões tomadas.
-
 **Roadmap cidadão:** sem item público — infraestrutura interna.
 
 ## v0.1.0 — 2026-08-19
@@ -324,8 +369,6 @@ _Precisão do que dizemos_
 - Links relativos dos quatro documentos resolvem ✓ · `diff -rq .claude/skills .agents/skills` vazio ✓.
 - Validação em staging pelo mantenedor ✓.
 - Conhecido e triado: `bun run lint` completo ainda acusa ~4,9 mil erros `prettier/prettier` pré-existentes em `src/` — escopo da v0.2.0.
-
-**Plano:** [docs/planos/v0.1.0-workflow.md](./docs/planos/v0.1.0-workflow.md)
 
 **Roadmap cidadão:** sem item público — infraestrutura interna.
 

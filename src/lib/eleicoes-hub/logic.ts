@@ -1,3 +1,5 @@
+import { TSE_ANOS_ELEICAO, TSE_UFS } from "@/lib/data/tse/client-ckan";
+
 export type Estado = "carregando" | "erro" | "vazio" | "pronto";
 
 export function deriveEstado(input: {
@@ -68,4 +70,22 @@ export function capitalizarCargo(nome: string): string {
 /** Anos múltiplos de 4 são municipais (2016, 2020, 2024); os demais, gerais. */
 export function rotuloEleicao(ano: number): string {
   return ano % 4 === 0 ? `Eleições Municipais ${ano}` : `Eleições Gerais ${ano}`;
+}
+
+/** H1 do recorte /eleicoes/$ano/$uf — derivado só dos params. */
+export function h1DaEleicaoUf(ano: string, uf: string): string {
+  return `${rotuloEleicao(Number(ano))} — ${uf.toUpperCase()}`;
+}
+
+/** H1 da página /eleicoes/partidos/$sigla — derivado só do param. */
+export function h1DoPartido(sigla: string): string {
+  return `${sigla.toUpperCase()} nas urnas`;
+}
+
+/** O par (ano, UF) da URL é um recorte que existe: ano de eleição da série e UF (ou BR) conhecida. */
+export function recorteValido(ano: string, uf: string): boolean {
+  return (
+    (TSE_ANOS_ELEICAO as readonly number[]).includes(Number(ano)) &&
+    (TSE_UFS as readonly string[]).includes(uf.toUpperCase())
+  );
 }

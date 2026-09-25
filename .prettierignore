@@ -12,3 +12,7 @@ routeTree.gen.ts
 .wrangler
 .tanstack
 .lovable
+
+# Gerados e reescritos pelo Lovable — mesma lista ignorada pelo ESLint
+src/integrations/supabase/types.ts
+src/integrations/supabase/previewAuthStorage.ts

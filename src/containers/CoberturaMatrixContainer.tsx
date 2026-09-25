@@ -147,7 +147,7 @@ export function CoberturaMatrixContainer({ isRunning, runJobs }: Props) {
     [dataset.orgaos],
   );
   const totalContratado = React.useMemo(
-    () => dataset.contratos.reduce((s, c) => s + c.valor, 0),
+    () => dataset.contratos.reduce((s, c) => s + (c.valor ?? 0), 0),
     [dataset.contratos],
   );
 

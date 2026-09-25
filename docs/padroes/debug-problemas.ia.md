@@ -114,4 +114,4 @@ export const sincronizarA = createServerFn({ method: "POST" })
 ```
 
 **Como verificar**
-Depois do `bun run build`, nenhum chunk em `.output/public` deve conter o handler server-only (ex.: `grep -rl "sincronizarArquivoTse" .output/public` = vazio). O corolário do problema #3 vale aqui: a extração do handler é o que mantém `client.server` fora do cliente.
+Depois do `bun run build`, nenhum chunk em `.output/public` deve conter o handler server-only (ex.: `grep -rl "sincronizarArquivoTse" .output/public` = vazio). O corolário do problema §3 vale aqui: a extração do handler é o que mantém `client.server` fora do cliente.

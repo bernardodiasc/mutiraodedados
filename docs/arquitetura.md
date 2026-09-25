@@ -37,7 +37,7 @@ Mesma estrutura, mas dentro do grupo de rotas `_authenticated/`:
 - `src/lib/data/<fonte>/` — uma pasta por fonte oficial (ver [`fontes/`](./fontes/)).
 - `src/lib/data/real/portal-client.ts` — cliente HTTP compartilhado entre Portal CGU e Transferegov.
 - `src/integrations/supabase/` — clientes Supabase (browser, admin, middleware) — **não editar manualmente**.
-- `supabase/migrations/` — esquema do banco.
+- `drizzle/migrations/` — esquema do banco daqui para frente; `supabase/migrations/` é histórico congelado (ver [migrations](./padroes/migrations.md#onde-vive-cada-migration)).
 - `scripts/sync-opensource.mjs` — script de espelhamento para o repositório público.
 
 ## Princípios

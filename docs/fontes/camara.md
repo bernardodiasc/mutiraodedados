@@ -16,6 +16,8 @@
 ## Peculiaridades
 
 - Paginação `pagina` + `itens` — respeitar limite máximo de itens por página.
+- **Votos de uma votação não paginam** (observado em 2026-09-25): `/votacoes/{id}/votos` responde 400 a `itens`/`pagina` e, sem eles, devolve todos os votos numa resposta só. Votação simbólica devolve lista vazia.
+- **Listagem de votações ordena por `id` ASC**: ordenada por `dataHoraRegistro` a paginação não é estável — março de 2003 veio com 22 de 440 votações repetidas e 22 faltando; por `id` vieram as 440, o mesmo total do CSV em lote. O contrato está em `src/lib/data/camara/votacoes-api.ts`, com testes.
 - API ocasionalmente retorna 429; cliente faz retry exponencial.
 - Descrições de despesa podem conter PII em casos raros — sanitização aplicada.
 

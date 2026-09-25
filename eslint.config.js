@@ -6,7 +6,20 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi", ".claude", ".wrangler", ".tanstack"] },
+  {
+    ignores: [
+      "dist",
+      ".output",
+      ".vinxi",
+      ".claude",
+      ".wrangler",
+      ".tanstack",
+      // Gerados e reescritos pelo Lovable a cada atualização: formatá-los à mão
+      // não dura (o lint voltava a quebrar no commit seguinte do Lovable).
+      "src/integrations/supabase/types.ts",
+      "src/integrations/supabase/previewAuthStorage.ts",
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

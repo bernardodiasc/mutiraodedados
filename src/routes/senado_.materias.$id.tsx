@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DaMateria } from "@/lib/ficha-legislativa/logic";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getMateriaDetalhe } from "@/lib/data/senado/materias.functions";
@@ -7,9 +11,29 @@ import { ExternalLink } from "lucide-react";
 
 export const Route = createFileRoute("/senado_/materias/$id")({
   component: MateriaDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Matéria ${params.id} — Senado — Mutirão de Dados` }],
+  loader: ({ params, context }) => {
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    const numId = Number(params.id);
+    return carregarH1(context.queryClient, {
+      queryKey: ["senado", "mat", numId],
+      queryFn: () => getMateriaDetalhe({ data: { id: numId } }),
+      h1: (data) => h1DaMateria(data.materia),
+    });
+  },
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Matéria") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Matéria não encontrada">
+      Não encontramos esta matéria nos dados do Senado.{" "}
+      <Link to="/senado/materias" className="text-accent underline">
+        Ver a lista de matérias
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function MateriaDetalhe() {
@@ -44,9 +68,7 @@ function MateriaDetalhe() {
             Matérias
           </Link>
         </div>
-        <h1 className="font-display text-4xl mt-2 font-mono">
-          {materia.siglaSubtipo} {materia.numero}/{materia.ano}
-        </h1>
+        <h1 className="font-display text-4xl mt-2 font-mono">{h1DaMateria(materia)}</h1>
         <div className="mt-2 text-sm text-muted-foreground">
           Apresentada em {materia.dataApresentacao ?? "—"}
           {materia.ultimaSituacao && <> · {materia.ultimaSituacao}</>}

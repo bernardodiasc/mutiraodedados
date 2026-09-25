@@ -2,8 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { notFound } from "@tanstack/react-router";
 import { CandidatosListaContainer } from "@/containers/CandidatosListaContainer";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
-import { TSE_ANOS_ELEICAO, TSE_UFS } from "@/lib/data/tse/client-ckan";
-import { rotuloEleicao } from "@/lib/eleicoes-hub/logic";
+import { h1DaEleicaoUf, recorteValido, rotuloEleicao } from "@/lib/eleicoes-hub/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/eleicoes/$ano/$uf")({
   component: EleicaoUfPage,
@@ -13,7 +13,12 @@ export const Route = createFileRoute("/eleicoes/$ano/$uf")({
   }),
   head: ({ params }) => ({
     meta: [
-      { title: `Eleições ${params.ano} — ${params.uf.toUpperCase()} — Mutirão de Dados` },
+      {
+        title: tituloDaPagina(
+          recorteValido(params.ano, params.uf) ? h1DaEleicaoUf(params.ano, params.uf) : null,
+          "Recorte não encontrado",
+        ),
+      },
       {
         name: "description",
         content: `Candidatos da eleição de ${params.ano} em ${params.uf.toUpperCase()}: situação, bens declarados e fichas individuais (dados oficiais do TSE).`,
@@ -64,21 +69,14 @@ function EleicaoUfPage() {
   const navigate = useNavigate({ from: Route.fullPath });
   const ano = Number(params.ano);
   const uf = params.uf.toUpperCase();
-  if (
-    !(TSE_ANOS_ELEICAO as readonly number[]).includes(ano) ||
-    !(TSE_UFS as readonly string[]).includes(uf)
-  ) {
-    throw notFound();
-  }
+  if (!recorteValido(params.ano, params.uf)) throw notFound();
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       <TrilhaDeNavegacao
         className="mb-4"
         itens={[{ label: "Eleições", to: "/eleicoes" }, { label: `${rotuloEleicao(ano)} · ${uf}` }]}
       />
-      <h1 className="font-display text-4xl">
-        {rotuloEleicao(ano)} — {uf}
-      </h1>
+      <h1 className="font-display text-4xl">{h1DaEleicaoUf(params.ano, params.uf)}</h1>
       <p className="text-muted-foreground mt-2 max-w-2xl">
         Candidaturas registradas no TSE para esta eleição e UF. Ordene, filtre por cargo pelo hub de{" "}
         <Link to="/eleicoes" className="text-accent underline">

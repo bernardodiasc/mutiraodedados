@@ -6,13 +6,14 @@ import { resumoPartidoTse } from "@/lib/data/tse/queries.functions";
 import { EmptyState } from "@/components/EmptyState";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
-import { capitalizarCargo, rotuloEleicao } from "@/lib/eleicoes-hub/logic";
+import { capitalizarCargo, h1DoPartido, rotuloEleicao } from "@/lib/eleicoes-hub/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/eleicoes/partidos/$sigla")({
   component: PartidoPage,
   head: ({ params }) => ({
     meta: [
-      { title: `${params.sigla.toUpperCase()} nas urnas — Eleições — Mutirão de Dados` },
+      { title: tituloDaPagina(h1DoPartido(params.sigla)) },
       {
         name: "description",
         content: `Panorama eleitoral do ${params.sigla.toUpperCase()}: candidaturas, eleitos e bens médios por eleição e cargo (dados oficiais do TSE, 1998 em diante).`,
@@ -64,7 +65,7 @@ function PartidoPage() {
         itens={[{ label: "Eleições", to: "/eleicoes" }, { label: `Partido ${siglaUpper}` }]}
       />
       <h1 className="font-display text-4xl flex items-center gap-2">
-        <Landmark className="size-7 text-accent" /> {siglaUpper} nas urnas
+        <Landmark className="size-7 text-accent" /> {h1DoPartido(sigla)}
       </h1>
       <p className="text-muted-foreground mt-2 max-w-2xl">
         Quantas candidaturas o partido lançou, quantas se elegeram e o patrimônio médio declarado

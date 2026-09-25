@@ -1,0 +1,224 @@
+# Roteiro de QA — importação
+
+Roteiro permanente das rodadas reais de importação em `/admin/dados`, uma seção por fonte. Rode a seção da fonte afetada sempre que a release tocar importação de dados — é o check obrigatório da linha "Toca importação de dados" em [Checks proporcionais](../../WORKFLOW.md#2-checks-proporcionais) — e registre em RELEASES.md só o que foi de fato executado.
+
+**Pré-requisito: migrations aplicadas.** Se uma importação falhar com "relation … does not exist" ou "function … does not exist", ou o painel mostrar o aviso "Migração pendente", confira o pipeline de migrations ([padrões](../padroes/migrations.md)) antes de reportar bug. A limpeza também avisa quando as funções `truncar_cache`/`limpar_cache_por_ano` ainda não existem no banco.
+
+Como ler este roteiro:
+
+- **Janela pequena primeiro.** Cada seção sugere o menor recorte que exercita a fonte de ponta a ponta. Carga histórica completa é operação, não QA.
+- **Histórico** é a aba "Histórico" de `/admin/dados`. A coluna Fonte mostra o rótulo; o id entre crases é o valor gravado em `importacoes.fonte`.
+- **Log `importacoes`**: para conferir o que o Histórico não mostra (operador, `resultado`, linhas de requisição), use no editor SQL:
+
+  ```sql
+  SELECT consultado_em, fonte, escopo, ano, mes, importados, resultado, erros, endpoint, user_id
+  FROM importacoes
+  WHERE fonte = '<id>' AND (log_kind IS NULL OR log_kind <> 'requisicao')
+  ORDER BY consultado_em DESC
+  LIMIT 20;
+  ```
+
+- **Cobertura**: `manual` = só a rodada real verifica; `coberto por …` = um teste vitest já garante o comportamento, e a rodada manual pode pular o item.
+
+Regras comuns do pipeline (retry, retomada, limpeza) estão em [importacao.md](../importacao.md); particularidades de cada fonte, em [`fontes/`](../fontes/README.md).
+
+## Comum a toda fonte
+
+Vale para qualquer fonte retomável. Rode junto com a seção da fonte afetada.
+
+| #   | O quê                                                                    | Esperado                                                                                                                                                  | Cobertura                                                                                     |
+| --- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| G1  | Rodada com dados                                                         | Linha nova no Histórico com Resultado "Importou"; Endpoint termina com `(rodada: <unidade> N–M — completa, Xs)` ou `— parcial: …`                         | manual                                                                                        |
+| G2  | Rodada de período fechado sem dados                                      | Linha com zero importados e Resultado "Consultado, sem dados" — o zero também é gravado                                                                   | coberto por `src/lib/data/historico-rodada.test.ts` e `src/lib/data/resultado-rodada.test.ts` |
+| G3  | Rodada do mês corrente ou de até dois meses atrás, sem dados             | Resultado "Ainda não publicado", não "sem dados"                                                                                                          | coberto por `src/lib/data/historico-rodada.test.ts`                                           |
+| G4  | Período anterior ao início da fonte                                      | Requisição pulada ou Resultado "Fora da janela da fonte"                                                                                                  | coberto por `src/lib/data/janelas.test.ts` e `src/lib/data/resultado-rodada.test.ts`          |
+| G5  | Falha da origem (5xx, 429, timeout) numa rodada                          | Resultado "Falha na origem" com ⚠; 404/401/403, parse ou banco viram "Falha nossa"                                                                        | coberto por `src/lib/data/resultado-rodada.test.ts`                                           |
+| G6  | Interromper no meio (Cancelar/Parar, ou fechar a aba) e disparar de novo | A nova rodada continua do cursor salvo: no Endpoint, o intervalo `<unidade> N–M` começa depois do último passo gravado, sem duplicar registros no cache   | manual (mecânica em `src/lib/data/runner.test.ts`)                                            |
+| G7  | Reimportar uma janela já concluída                                       | A varredura recomeça do passo 1 (`<unidade> 1–…`) em vez de responder vazio                                                                               | coberto por `src/lib/data/runner.test.ts`                                                     |
+| G8  | Manutenção → Zona destrutiva: a fonte aparece na lista de limpeza        | Checkbox com rótulo e descrição da fonte                                                                                                                  | coberto por `src/lib/data/limpeza.test.ts`                                                    |
+| G9  | Limpar só a fonte testada (digitar `APAGAR`), depois reimportar a janela | Toast lista o que saiu por tabela; falha numa fonte não impede as outras; cache e Histórico da fonte zerados; reimportação traz a mesma contagem de antes | manual (mensagem em `src/lib/admin-import/logic.test.ts`)                                     |
+| G10 | Aba "Cobertura" de `/admin/dados` e página pública `/cobertura`          | A célula do período importado passa a ter contagem; meses consultados sem dados aparecem como consultados, não como "nunca consultado"                    | manual                                                                                        |
+| G11 | Histórico não mostra id cru                                              | Coluna Fonte com rótulo legível, nunca `snake_case` — inclusive nas rodadas do TSE (`tse_<tipo>`)                                                         | coberto por `src/lib/data/fonte-rotulos.test.ts`                                              |
+| G12 | Sinais de qualidade da fonte                                             | Findings novos em `/admin/qualidade` só quando o dado justifica; limpar a fonte remove os findings órfãos dela                                            | manual                                                                                        |
+
+## Portal CGU
+
+Aba **Portal CGU** de `/admin/dados`. Exige a chave da API configurada no ambiente; sem ela, toda importação da CGU falha com erro explícito. Detalhes da fonte em [portal-cgu.md](../fontes/portal-cgu.md).
+
+### Catálogo de órgãos (SIAFI)
+
+| #    | O quê                                  | Esperado                                                                                    | Cobertura                                                                              |
+| ---- | -------------------------------------- | ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| CGU1 | Botão "Sincronizar catálogo de órgãos" | Toast com nomes sincronizados e contagem de ativos/inativos                                 | manual                                                                                 |
+| CGU2 | Histórico                              | Duas linhas "Órgãos SIAFI" (`orgaos_siafi`): escopo `nomes` e escopo `atividade`            | manual                                                                                 |
+| CGU3 | `/cobertura`                           | Cartão de cadastro "Órgãos SIAFI — catálogo" com contagem e última atualização, sem heatmap | coberto por `src/lib/data/cobertura-catalogo.test.ts` (granularidade); contagem manual |
+
+### Contratos por órgão
+
+Janela pequena: um órgão pequeno com "Vigência de/até" preenchidas cobrindo um mês. Sem datas, a importação varre o histórico inteiro do órgão.
+
+| #     | O quê                                                             | Esperado                                                                                                                                    | Cobertura                                              |
+| ----- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| CGU4  | "Executivo — contratos por órgão" → "Importar contratos do órgão" | Barra de progresso; toast final com importados                                                                                              | manual                                                 |
+| CGU5  | Histórico                                                         | Linha "Portal CGU" (`cgu`), escopo = sigla do órgão, período `início → fim`; Endpoint `…/contratos?codigoOrgao=… (varredura por detalhe …)` | manual                                                 |
+| CGU6  | Log `importacoes`                                                 | Além da linha de rodada, linhas com `log_kind = 'requisicao'` (uma por GET) que o Histórico esconde                                         | manual                                                 |
+| CGU7  | Varredura sem datas num órgão grande, sem auto-continuar          | Aviso âmbar "Varreduras em andamento" com a página alcançada; botão "Continuar" retoma da página seguinte                                   | manual                                                 |
+| CGU8  | Divergência listagem × detalhe                                    | Valor gravado é o não-truncado; finding `valor_corrigido_listagem` nasce `info` e resolvido                                                 | coberto por `src/lib/data/qa.test.ts`                  |
+| CGU9  | Valor `"-"` na origem                                             | Gravado como nulo e exibido como "Não informado", nunca R$ 0,00                                                                             | coberto por `src/lib/data/real/portal.parsers.test.ts` |
+| CGU10 | Limpeza "CGU — contratos" e reimportação                          | Apaga `contratos_cache`, Histórico `cgu` e o estado de varredura; reimportar começa da página 1                                             | manual                                                 |
+
+### Licitações, convênios e emendas
+
+Mesmo cartão "Licitações, convênios e emendas". Licitações e convênios usam as datas "Vigência de/até" do cartão de contratos; a tela fatia o período em janelas de um mês.
+
+| #     | O quê                                                       | Esperado                                                                                                                                                    | Cobertura                                                                    |
+| ----- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| CGU11 | Sem datas preenchidas, clicar em licitações ou convênios    | Toast pedindo o período; nada é chamado                                                                                                                     | manual                                                                       |
+| CGU12 | Período de dois meses                                       | Duas janelas mensais, com toast de progresso por janela                                                                                                     | coberto por `src/lib/admin-import/logic.test.ts` (fatiamento); toasts manual |
+| CGU13 | "Importar licitações (órgão + período)", um mês             | Linha "Portal CGU — Licitações" (`cgu_licitacoes`), escopo = sigla do órgão; Endpoint `…/licitacoes (varredura licitacoes, pág. …)`                         | manual                                                                       |
+| CGU14 | "Importar convênios (período)", um mês                      | Linha "Portal CGU — Convênios" (`cgu_convenios`), escopo `convênios`; registros gravados em `convenios_cache` com `fonte = 'cgu'`                           | manual                                                                       |
+| CGU15 | "Importar emendas (ano)" com um ano recente                 | Linha "Portal CGU — Emendas" (`cgu_emendas`), período = ano; emendas especiais trazem o plano de ação do Transferegov (custeio/investimento) quando existir | manual                                                                       |
+| CGU16 | Varredura parcial                                           | Aviso na coluna Erros/Avisos: "varredura parcial (até pág. N…) — há mais …; continue"; rodar de novo retoma                                                 | manual                                                                       |
+| CGU17 | Limpeza "CGU — licitações" e "Emendas (CGU + Transferegov)" | Apagam cache, Histórico do id e findings da fonte; reimportação traz a mesma contagem                                                                       | manual                                                                       |
+| CGU18 | `/cobertura`                                                | Licitações e convênios em heatmap mensal; emendas agrupadas por ano                                                                                         | manual                                                                       |
+
+## Convênios por ente e enriquecimento pela origem (Transferegov)
+
+Aba **Estados/Municípios** de `/admin/dados`. Os convênios vêm do Portal CGU (espelho do Transferegov) e caem na mesma tabela `convenios_cache` da seção anterior; o enriquecimento lê o CSV oficial do SICONV. Contexto em [transferegov.md](../fontes/transferegov.md).
+
+Janela pequena: um município pequeno (seção "1. Contexto", código IBGE de 7 dígitos) e um mês.
+
+| #      | O quê                                                                | Esperado                                                                                                                                                                         | Cobertura                                                                |
+| ------ | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| CONV1  | "4. Convênios — o que o ente recebe da União" → "Importar convênios" | Progresso com registros, rodada e página; botão "Parar" durante a rodada                                                                                                         | manual                                                                   |
+| CONV2  | Histórico                                                            | Linha "Portal CGU — Convênios por ente" (`transferegov`), unidade `páginas`; Endpoint `…/api-de-dados/convenios?dataInicial=…`; nenhum rótulo atribui a consulta ao Transferegov | manual (rótulo em `src/lib/data/fonte-rotulos.test.ts`)                  |
+| CONV3  | Mesmo convênio pelas duas entradas (CGU14 e CONV1)                   | Uma linha só em `convenios_cache`, sem duplicata                                                                                                                                 | manual                                                                   |
+| CONV4  | Ente = UF (2 dígitos)                                                | Traz só convênios daquela UF, não do país todo                                                                                                                                   | manual                                                                   |
+| CONV5  | Mesma janela com entes diferentes                                    | São varreduras independentes: a segunda não retoma do cursor da primeira                                                                                                         | coberto por `src/lib/data/janela-varredura.test.ts`                      |
+| CONV6  | Origem travada (duas rodadas seguidas vazias com erro)               | A varredura para e a mensagem culpa a origem, citando o erro                                                                                                                     | coberto por `src/lib/admin-entes/logic.test.ts`                          |
+| CONV7  | "Enriquecer pela origem (CSV do SICONV)"                             | Várias rodadas retomáveis com progresso; aviso `info` com quantos convênios da origem ainda não têm espelho no site                                                              | manual                                                                   |
+| CONV8  | Histórico do enriquecimento                                          | Linha "Transferegov — origem (CSV)" (`convenios_origem`), escopo `enriquecimento`, unidade `lotes`                                                                               | manual                                                                   |
+| CONV9  | Parse do CSV da origem                                               | Números no formato misto, datas DD/MM/AAAA e colunas pelo cabeçalho lidos certo; código inválido recusado                                                                        | coberto por `src/lib/data/convenios-origem/csv.test.ts`                  |
+| CONV10 | Ficha `/convenios/$id` de um convênio enriquecido                    | Bloco "Na origem (SICONV/Transferegov)" com situação, empenhado e desembolsado; campos do espelho intactos                                                                       | manual                                                                   |
+| CONV11 | Convênio cuja situação na origem difere do espelho                   | Aviso âmbar com as duas situações; mesma situação em caixa diferente não gera aviso                                                                                              | manual (regra em `src/lib/data/convenios-origem/situacao.test.ts`)       |
+| CONV12 | Limpeza "Convênios (tabela única)"                                   | Apaga o acervo e o Histórico dos dois ids (`cgu_convenios` e `transferegov`) e os findings de ambos                                                                              | manual (mapeamento dos dois ids em `src/lib/data/fonte-rotulos.test.ts`) |
+| CONV13 | `/cobertura`                                                         | Cartões "Portal CGU — convênios" e "Convênios por ente (Portal CGU)" com heatmap mensal; cartão de cadastro "Transferegov — situação e execução dos convênios" com contagem      | manual                                                                   |
+
+## Câmara dos Deputados
+
+Aba **Câmara** de `/admin/dados`. O seletor de mês/ano no topo vale para CEAP (mês) e proposições (ano); votações usam as datas "De/Até" do próprio cartão. Detalhes em [camara.md](../fontes/camara.md).
+
+| #     | O quê                                                                      | Esperado                                                                                                                                              | Cobertura                                                                                      |
+| ----- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| CAM1  | "Importar cadastro de deputados"                                           | Toast com a contagem da legislatura atual; linha "Câmara — Cadastro de deputados" (`camara_deputados`)                                                | manual                                                                                         |
+| CAM2  | "Importar CEAP de <mês>/<ano>" num mês fechado                             | Várias rodadas até fechar; toast com notas e deputados; linha "Câmara CEAP" (`camara_ceap`), unidade `deputados`, período `Mês/ano`                   | manual                                                                                         |
+| CAM3  | CEAP interrompida e retomada                                               | Continua do próximo deputado; nenhum deputado pulado ou repetido                                                                                      | coberto por `src/lib/data/ceap-varredura.test.ts`                                              |
+| CAM4  | "Importar <tipo> de <ano>" em proposições (ex.: PDL, que tem poucos itens) | Toast com proposições e autores; linha "Câmara — Proposições" (`camara_props`), unidade `proposições`, período = ano                                  | manual                                                                                         |
+| CAM5  | Votações nominais, janela de 15 a 30 dias                                  | Toast com votações e votos nominais; linha "Câmara votações" (`camara_vot`), unidade `votações`; janela dentro de um mês ancora a célula da cobertura | manual                                                                                         |
+| CAM6  | Votos gravados                                                             | `camara_votos_cache` com linhas para as votações nominais da janela; votação simbólica fica sem votos, sem erro                                       | manual (contrato da API em `src/lib/data/camara/votacoes-api.test.ts`)                         |
+| CAM7  | Mês antigo inteiro (ex.: um mês de 2003)                                   | Contagem de votações igual à da fonte oficial para o mês, sem repetidas nem faltantes                                                                 | coberto por `src/lib/data/camara/votacoes-api.test.ts` (amostra real); rodada real manual      |
+| CAM8  | Limpeza "Câmara — votações nominais"                                       | Apaga votações e votos (cascata) e o Histórico `camara_vot`                                                                                           | manual                                                                                         |
+| CAM9  | Limpeza "Câmara — proposições"                                             | Apaga proposições e autores e também as linhas do Histórico `camara_props` (respeitando o período)                                                    | manual (limpeza apagar o Histórico da fonte: coberto por `src/lib/data/fonte-rotulos.test.ts`) |
+| CAM10 | `/cobertura`                                                               | CEAP e votações em heatmap mensal; proposições agrupadas por ano; cadastro de deputados como cartão sem série                                         | coberto por `src/lib/data/cobertura-catalogo.test.ts` (granularidade); contagens manual        |
+
+## Senado Federal
+
+Aba **Senado** de `/admin/dados`. O seletor de mês/ano vale para CEAPS e votações (mês) e matérias (ano). Detalhes em [senado.md](../fontes/senado.md).
+
+| #     | O quê                                              | Esperado                                                                                                                                                         | Cobertura                                                                                      |
+| ----- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| SEN1  | "Importar cadastro de senadores"                   | Toast com a contagem; linha "Senado — Cadastro de senadores" (`senado_senadores`)                                                                                | manual                                                                                         |
+| SEN2  | "Importar CEAPS de <mês>/<ano>" num mês fechado    | Toast com notas e senadores; linha "Senado CEAPS" (`senado_ceaps`), unidade `lotes`; Endpoint no portal administrativo (`…/despesas_ceaps/<ano> (filtro mês=…)`) | manual                                                                                         |
+| SEN3  | "Importar matérias PL/<ano>" de um ano fechado     | Contagem > 0 e coerente com a fonte oficial para o ano; linha "Senado — Matérias" (`senado_mat`), unidade `matérias`, Endpoint `GET …/processo?ano=…&sigla=PL`   | manual                                                                                         |
+| SEN4  | Resposta de `/processo` que o parser não reconhece | Zero importados com itens descartados vira erro ("Falha nossa"), não "Consultado, sem dados"                                                                     | coberto por `src/lib/data/senado/materias-descarte.test.ts`                                    |
+| SEN5  | "Importar votações de <mês>/<ano>"                 | Toast com sessões e votos; linha "Senado votações" (`senado_vot`), unidade `votações`, Endpoint `GET …/votacao?dataInicio=…&dataFim=…&v=2`                       | manual                                                                                         |
+| SEN6  | Placar das votações                                | Nominal aberta: placar contado dos votos; secreta: placar dos totais da API                                                                                      | coberto por `src/lib/data/senado/votacoes-parser.test.ts`                                      |
+| SEN7  | Votos gravados                                     | `senado_votos_cache` com linhas para as votações nominais do mês                                                                                                 | manual                                                                                         |
+| SEN8  | Limpeza "Senado — votações"                        | Apaga votações e votos (cascata) e o Histórico `senado_vot`                                                                                                      | manual                                                                                         |
+| SEN9  | Limpeza "Senado — matérias"                        | Apaga matérias e autores e também as linhas do Histórico `senado_mat` (respeitando o período)                                                                    | manual (limpeza apagar o Histórico da fonte: coberto por `src/lib/data/fonte-rotulos.test.ts`) |
+| SEN10 | `/cobertura`                                       | CEAPS e votações em heatmap mensal; matérias agrupadas por ano; cadastro de senadores sem série                                                                  | coberto por `src/lib/data/cobertura-catalogo.test.ts` (granularidade); contagens manual        |
+
+## PNCP
+
+Aba **Estados/Municípios**, seção "3. PNCP — o que o ente contrata". Sem chave de API. Detalhes em [pncp.md](../fontes/pncp.md).
+
+Janela pequena: um município pequeno e um mês fechado.
+
+| #     | O quê                                     | Esperado                                                                                          | Cobertura                                           |
+| ----- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| PNCP1 | "Importar PNCP"                           | Progresso com registros, rodada e página; continua sozinha até fechar o mês                       | manual                                              |
+| PNCP2 | Histórico                                 | Linha "PNCP" (`pncp`), unidade `páginas`, Endpoint `GET …/v1/contratos?dataInicial=…&dataFinal=…` | manual                                              |
+| PNCP3 | Filtro por ente                           | Com UF ou município selecionado, só contratos daquele ente entram no cache                        | manual                                              |
+| PNCP4 | Mesma janela com e sem ente               | Varreduras distintas; uma não retoma da outra                                                     | coberto por `src/lib/data/janela-varredura.test.ts` |
+| PNCP5 | Mês recente sem publicação                | Resultado "Ainda não publicado"; 404 da API aparece como falha, nunca como "0 sem erro"           | coberto por `src/lib/data/historico-rodada.test.ts` |
+| PNCP6 | Limpeza "PNCP — contratos" e reimportação | Cache, Histórico e findings `pncp` zerados; reimportação traz a mesma contagem                    | manual                                              |
+| PNCP7 | `/cobertura`                              | Cartão "PNCP — contratos públicos" com heatmap mensal                                             | manual                                              |
+
+## SICONFI
+
+Aba **Estados/Municípios**, seção "2. SICONFI — o que o ente declara das próprias contas". O SICONFI grava uma linha no Histórico por consulta, e a varredura em massa grava também uma linha de rodada. Detalhes e passos de reimportação do RGF em [siconfi.md](../fontes/siconfi.md#reimportação-necessária-correção-de-2026-09-25).
+
+Janela pequena: um estado e um município com menos de 50 mil habitantes, um exercício fechado.
+
+| #     | O quê                                                                         | Esperado                                                                                                                                          | Cobertura                                                               |
+| ----- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| SIC1  | "Importar 1 relatório" com RREO                                               | Linha "SICONFI" (`siconfi`), escopo = código IBGE, com linhas importadas                                                                          | manual                                                                  |
+| SIC2  | "Importar 1 relatório" com RGF de um estado                                   | Linhas dos cinco poderes/órgãos (E, L, J, M, D); município traz E e L                                                                             | coberto por `src/lib/data/siconfi/consulta.test.ts`; rodada real manual |
+| SIC3  | RGF de município pequeno que publica a forma simplificada                     | `tipo_relatorio` gravado como "RGF Simplificado"                                                                                                  | coberto por `src/lib/data/siconfi/consulta.test.ts`                     |
+| SIC4  | Relatório não entregue                                                        | Marcador "consultado, vazio" com aviso de não entrega; vazio com entrega registrada no extrato vira erro "resposta vazia inesperada"              | coberto por `src/lib/data/siconfi/consulta.test.ts`                     |
+| SIC5  | "Importar o ano todo (10 relatórios)"                                         | Dez consultas (6 RREO, 3 RGF, DCA), cada uma com sua linha no Histórico                                                                           | manual (alvos em `src/lib/data/siconfi/varredura.test.ts`)              |
+| SIC6  | "Varredura em massa" → conjunto "Só o ente selecionado" → "Iniciar varredura" | Barra com "N de M consultas", linhas importadas e consultas sem dados; linha de rodada com unidade `consultas`                                    | manual                                                                  |
+| SIC7  | Varredura parada com "Parar" e reiniciada                                     | Retoma da consulta seguinte, sem pular nem repetir                                                                                                | coberto por `src/lib/data/siconfi/varredura.test.ts`                    |
+| SIC8  | Reimportação do RGF                                                           | Seguir [siconfi.md](../fontes/siconfi.md#reimportação-necessária-correção-de-2026-09-25): RGF passa a importar linhas e "consultas sem dados" cai | manual                                                                  |
+| SIC9  | Limpeza "SICONFI — relatórios fiscais" (com ou sem período)                   | Apaga relatórios, Histórico `siconfi` e findings da fonte; não usar a limpeza de marcadores vazios, que atinge todas as fontes                    | manual                                                                  |
+| SIC10 | `/cobertura` e `/relatorios-fiscais`                                          | Cobertura agrupada por período fiscal; o RGF do ente importado aparece nas duas páginas                                                           | manual                                                                  |
+
+## IBGE — municípios
+
+Aba **Estados/Municípios**, seção "5. IBGE — cadastro de municípios". Não depende do mês selecionado.
+
+| #     | O quê                                      | Esperado                                                                                                                    | Cobertura                                                                              |
+| ----- | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| IBGE1 | "Importar cadastro"                        | Progresso até terminar, em poucas rodadas; contagem em `ibge_municipios_cache` igual ao total oficial de municípios do IBGE | manual                                                                                 |
+| IBGE2 | Histórico                                  | Linha "IBGE — municípios" (`ibge`), escopo `municípios`, unidade `UFs`                                                      | manual                                                                                 |
+| IBGE3 | Seletor de ente na seção "1. Contexto"     | Abre na hora, lendo do cache (sem baixar a lista do IBGE de novo)                                                           | manual                                                                                 |
+| IBGE4 | Limpeza "IBGE — municípios" e reimportação | Cache e Histórico zerados; reimportar devolve a mesma contagem                                                              | manual                                                                                 |
+| IBGE5 | `/cobertura`                               | Cartão de cadastro "IBGE — cadastro de municípios" com contagem e última atualização, sem heatmap                           | coberto por `src/lib/data/cobertura-catalogo.test.ts` (granularidade); contagem manual |
+
+## TSE
+
+Aba **TSE** de `/admin/dados`. Cada rodada processa um arquivo (tipo × ano × UF). Operação completa em [tse.md](../fontes/tse.md) e [tse.ia.md](../fontes/tse.ia.md).
+
+Janela pequena: candidatos de uma eleição recente numa UF pequena (ex.: AC), depois bens da mesma combinação.
+
+| #    | O quê                                                                                | Esperado                                                                                                                                                                | Cobertura                                                                                         |
+| ---- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| TSE1 | "O que importar" = candidatos, eleição, UF → "Importar"                              | Status da rodada; "Progresso das varreduras" marca a UF como completa                                                                                                   | manual                                                                                            |
+| TSE2 | Histórico                                                                            | Linha com Fonte "TSE — <tipo>" (ex.: "TSE — Candidatos", id `tse_candidatos`), escopo `<ano>-<UF>`, Período com o ano da eleição, Endpoint com o zip e a entrada do CDN | manual (rótulos: coberto por `src/lib/data/fonte-rotulos.test.ts`)                                |
+| TSE3 | Combinação que o TSE não publica (ano anterior ao piso do tipo, ou eleição em curso) | Botão desabilitado com o motivo: "só publica a partir de…" ou "ainda não foi publicada"                                                                                 | coberto por `src/lib/tse-import/logic.test.ts`                                                    |
+| TSE4 | Receitas ou despesas de uma UF grande, interrompidas e retomadas                     | Retoma pela contagem de linhas em `tse_varredura`, sem duplicar                                                                                                         | manual                                                                                            |
+| TSE5 | Parse dos arquivos                                                                   | Layouts legado e moderno, sentinelas e datas coladas lidos certo                                                                                                        | coberto por `src/lib/data/tse/parsers.test.ts`                                                    |
+| TSE6 | "Vincular deputados" / "Vincular senadores" depois dos candidatos                    | Vínculos criados; os de baixa confiança entram na fila de `/admin/qualidade`                                                                                            | manual                                                                                            |
+| TSE7 | "Detectar lacunas (<ano>)" e "Rodar sinais investigativos (<ano>)"                   | Findings `tipo = 'lacuna'` e `'investigativo'` do ano, sem duplicar em nova execução                                                                                    | manual (regras em `src/lib/data/tse/lacunas.test.ts` e `src/lib/data/tse/investigativos.test.ts`) |
+| TSE8 | Limpeza "TSE — candidatos" (sem período) e reimportação                              | Apaga candidaturas, vínculos da ponte, estado de varredura `candidatos#…` e sinais órfãos; reimportar recomeça do zero                                                  | manual                                                                                            |
+| TSE9 | `/cobertura`                                                                         | Cartão "TSE — eleições" agrupado por ano, com contagem de candidaturas e nota de receitas e despesas                                                                    | manual                                                                                            |
+
+## Sanções e preços de referência
+
+Sem importação implementada — a página [sancoes-precos-referencia.md](../fontes/sancoes-precos-referencia.md) é roadmap. Nada a testar até existir um botão em `/admin/dados`.
+
+## Automação
+
+Rodada sem operador pela rota `/api/cron-importar`, com a fila `automacao_tarefas` e o agendador configurado em `automacao_config`. Desenho e ativação em [automacao.md](../automacao.md). Testar em ambiente com o secret `CRON_SECRET` já configurado pelo mantenedor.
+
+| #    | O quê                                                                             | Esperado                                                                                                        | Cobertura                                                         |
+| ---- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| AUT1 | `POST /api/cron-importar` sem header, com secret errado ou com `GET`              | 401 com corpo `{"erro":"não autorizado"}`, sem outro detalhe; a fila não é tocada                               | coberto por `src/lib/data/automacao/tique.test.ts`                |
+| AUT2 | `POST` com o header `x-cron-secret` correto                                       | 200 com `{tarefa, importados, haMais, erros}`; com a fila vazia ou tudo em execução, `{tarefa: null, mensagem}` | manual (chegada à fila em `src/lib/data/automacao/tique.test.ts`) |
+| AUT3 | Linha da rodada automática                                                        | Aparece no Histórico como qualquer rodada da fonte; no log `importacoes`, `user_id` nulo                        | manual                                                            |
+| AUT4 | `automacao_tarefas` depois da chamada                                             | A tarefa reivindicada tem `ultima_execucao` e `ultimo_resultado` preenchidos e `executando_desde` nulo          | manual                                                            |
+| AUT5 | Tarefas janeladas (PNCP, convênios, CEAP, CEAPS, votações, matérias, proposições) | Importam o mês corrente em UTC                                                                                  | coberto por `src/lib/data/automacao/janela.test.ts`               |
+| AUT6 | `automacao_config` com linha `ativo = true`                                       | Em cerca de 5 minutos, `ultimo_resultado` começa a preencher sem nenhuma chamada manual                         | manual                                                            |
+| AUT7 | `UPDATE automacao_config SET ativo = false`                                       | Os tiques param: nenhuma `ultima_execucao` nova nos minutos seguintes                                           | manual                                                            |
+| AUT8 | `automacao_tarefas.ativo = false` numa tarefa só                                  | Só aquela tarefa sai da rotação; as outras seguem                                                               | manual                                                            |
+| AUT9 | Rodada manual em `/admin/dados` durante um tique da mesma fonte                   | Nada corrompe: sem duplicata no cache e sem erro de conflito; no máximo trabalho repetido                       | manual                                                            |

@@ -16,6 +16,7 @@ Arquivos com sufixo `.ia.md` são referências técnicas mais densas, voltadas p
 - [Qualidade de dados](./qualidade-dados.md) — QA findings, severidades, fluxo cidadão de denúncia.
 - [Padrões de UI](./padroes-ui.md) — tokens, cards, badges, links externos/internos.
 - [Painel admin](./admin.md) — o que cada aba do `/admin` faz.
+- [QA manual](./qa/README.md) — roteiros permanentes para conferir importação, páginas públicas e admin.
 - [Guia: adicionar uma nova fonte](./guia-nova-fonte.md) — checklist humano.
   - [`guia-nova-fonte.ia.md`](./guia-nova-fonte.ia.md) — passo-a-passo técnico.
 - [`modelo-dados.ia.md`](./modelo-dados.ia.md) — tabelas principais e relações.
@@ -51,15 +52,12 @@ Cada arquivo agrupa páginas públicas + telas do admin do mesmo assunto.
 
 Por que esses dados existem, o que significam na prática, qual a lei por trás. Veja [`conceitos/README.md`](./conceitos/README.md).
 
-### Planos de release
-
-- [`planos/`](./planos/) — planos de release de engenharia (`vMAJOR.MINOR.0-<slug>.md`), criados conforme o [WORKFLOW.md](../WORKFLOW.md). Não seguem a convenção `X.md`/`X.ia.md` desta pasta.
-
 ## Como navegar
 
 - **Quero entender o que o site faz** → comece pelos [domínios](./dominios/).
 - **Quero entender de onde vêm os dados** → [fontes](./fontes/) + [pipeline](./importacao.md).
 - **Vou contribuir com código** → [arquitetura](./arquitetura.md) + [guia de nova fonte](./guia-nova-fonte.md).
+- **Vou testar uma release** → [QA manual](./qa/README.md).
 - **Vou alterar regra de qualidade ou anomalia** → [qualidade-dados](./qualidade-dados.md) + [anomalias-e-sinais](./dominios/anomalias-e-sinais.md).
 
 ## Regra de ouro

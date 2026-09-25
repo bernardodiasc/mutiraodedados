@@ -134,6 +134,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childTable: "camara_proposicoes_autores_cache",
     childRef: "proposicao_id",
     parentPk: "id",
+    tentativaFonte: "camara_props",
   },
   {
     id: "senado_senadores",
@@ -177,6 +178,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childTable: "senado_materias_autores_cache",
     childRef: "materia_id",
     parentPk: "id",
+    tentativaFonte: "senado_mat",
   },
   {
     id: "pncp",

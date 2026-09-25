@@ -6,6 +6,7 @@ import {
   candidaturaComparacaoPadrao,
   deriveEstado,
   diffCategorias,
+  h1DoCandidato,
   ordenarHistorico,
   serieBens,
   somaBens,
@@ -267,5 +268,21 @@ describe("diffCategorias", () => {
 
   it("dois lados vazios devolvem vazio", () => {
     expect(diffCategorias([], [])).toEqual([]);
+  });
+});
+
+describe("h1DoCandidato", () => {
+  it("prefere o nome de urna", () => {
+    expect(h1DoCandidato({ nome_urna: "Zé da Feira", nome_completo: "José Ferreira" })).toBe(
+      "Zé da Feira",
+    );
+  });
+  it("sem nome de urna usa o nome completo", () => {
+    expect(h1DoCandidato({ nome_urna: null, nome_completo: "José Ferreira" })).toBe(
+      "José Ferreira",
+    );
+  });
+  it("sem nome nenhum devolve null", () => {
+    expect(h1DoCandidato({ nome_urna: null, nome_completo: null })).toBeNull();
   });
 });

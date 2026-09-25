@@ -63,7 +63,7 @@ type LicitacaoRow = {
   objeto: string | null;
   modalidade: string | null;
   situacao: string | null;
-  valor: number;
+  valor: number | null;
   data_abertura: string | null;
   data_publicacao: string | null;
   data_resultado: string | null;

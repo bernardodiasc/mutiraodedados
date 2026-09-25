@@ -1,16 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/sobre")({
   component: Sobre,
   head: () => ({
     meta: [
-      { title: "Sobre — Mutirão de Dados" },
+      { title: tituloDaPagina("Sobre o projeto") },
       {
         name: "description",
         content:
           "Observatório cívico de interpretação pública do Estado. Premissas, limites analíticos, fontes e responsabilidades editoriais do Mutirão de Dados.",
       },
-      { property: "og:title", content: "Sobre — Mutirão de Dados" },
+      { property: "og:title", content: tituloDaPagina("Sobre o projeto") },
       {
         property: "og:description",
         content: "Quem somos, o que fazemos, o que deliberadamente não fazemos.",
@@ -40,10 +41,10 @@ export const Route = createFileRoute("/sobre")({
 function Sobre() {
   return (
     <article className="mx-auto max-w-3xl px-4 py-12 prose-civic">
-      <span className="inline-block text-xs font-semibold tracking-widest text-accent uppercase">
-        Sobre o projeto
-      </span>
-      <h1 className="font-display text-5xl leading-[0.95] mt-2">Um observatório cívico</h1>
+      <h1 className="font-display text-5xl leading-[0.95]">Sobre o projeto</h1>
+      <p className="font-display text-2xl sm:text-3xl leading-tight text-muted-foreground mt-3">
+        Um observatório cívico
+      </p>
 
       <p className="mt-6 text-lg text-muted-foreground">
         Mutirão de Dados é uma plataforma independente de pesquisa em transparência pública.

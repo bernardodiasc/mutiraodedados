@@ -99,8 +99,8 @@ export function calcularNotaTransparencia(ds: Dataset, orgaoCod: string): NotaTr
   const porForn = new Map<string, number>();
   let total = 0;
   for (const c of contratos) {
-    porForn.set(c.fornecedorCnpj, (porForn.get(c.fornecedorCnpj) ?? 0) + c.valor);
-    total += c.valor;
+    porForn.set(c.fornecedorCnpj, (porForn.get(c.fornecedorCnpj) ?? 0) + (c.valor ?? 0));
+    total += c.valor ?? 0;
   }
   const diversidade = Math.max(0, 1 - hhi([...porForn.values()], total));
 

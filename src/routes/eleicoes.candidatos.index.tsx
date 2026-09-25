@@ -3,6 +3,7 @@ import {
   CandidatosListaContainer,
   type CandidatosListaSearch,
 } from "@/containers/CandidatosListaContainer";
+import { normalizarAte } from "@/lib/listagem/logic";
 
 export const Route = createFileRoute("/eleicoes/candidatos/")({
   component: CandidatosPage,
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/eleicoes/candidatos/")({
     pagina: Number(search.pagina) > 1 ? Math.floor(Number(search.pagina)) : undefined,
     itens: Number(search.itens) || undefined,
     ordem: typeof search.ordem === "string" && search.ordem ? search.ordem : undefined,
+    ate: normalizarAte(search.ate),
   }),
   head: () => ({
     meta: [

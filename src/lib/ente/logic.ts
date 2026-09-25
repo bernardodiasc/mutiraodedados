@@ -87,3 +87,8 @@ export function interpretarCodigoEnte(codigo: string): EnteInterpretado | null {
 export function codigoCanonico(e: EnteInterpretado): string {
   return e.tipo === "estado" ? e.uf.toLowerCase() : e.ibge;
 }
+
+/** H1 da página do ente: município leva a UF entre parênteses. */
+export function h1DoEnte(e: { tipo: "estado" | "municipio"; nome: string; uf: string | null }) {
+  return e.tipo === "municipio" ? `${e.nome} (${e.uf})` : e.nome;
+}

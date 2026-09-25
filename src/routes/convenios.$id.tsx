@@ -13,10 +13,35 @@ import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
+import { situacoesDivergem } from "@/lib/data/convenios-origem/situacao";
+import { h1DoConvenio } from "@/lib/ficha-h1/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/convenios/$id")({
   component: ConvenioDetalhe,
-  head: () => ({ meta: [{ title: "Convênio — Mutirão de Dados" }] }),
+  // Pré-carrega a mesma query do componente só para o título da aba seguir o
+  // H1; falha ou registro ausente ficam com o componente, como antes.
+  loader: ({ params, context }) =>
+    carregarH1(context.queryClient, {
+      queryKey: ["convenio-cgu", params.id],
+      queryFn: () => getConvenioCguPorId({ data: { id: params.id } }),
+      h1: (r) => (r.convenio ? h1DoConvenio(r.convenio) : null),
+    }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Convênio") }],
+  }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Convênio não encontrado">
+      Não encontramos este registro no acervo do site.{" "}
+      <Link to="/convenios" className="text-accent underline">
+        Ver a lista de convênios
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function ConvenioDetalhe() {
@@ -66,9 +91,7 @@ function ConvenioDetalhe() {
         <div className="text-xs uppercase tracking-wider text-accent">
           {c.tipo_instrumento ?? "Convênio / instrumento"}
         </div>
-        <h1 className="font-display text-3xl mt-1">
-          {c.objeto ? sanitizarTextoPublico(c.objeto) : `Convênio ${c.numero ?? c.id}`}
-        </h1>
+        <h1 className="font-display text-3xl mt-1">{h1DoConvenio(c)}</h1>
         <p className="text-xs font-mono text-muted-foreground mt-1">
           nº {c.numero ?? "—"}
           {c.codigo_siconv ? ` · SICONV ${c.codigo_siconv}` : ""}
@@ -160,14 +183,12 @@ function ConvenioDetalhe() {
               value={c.valor_desembolsado != null ? fmtBRL(c.valor_desembolsado) : null}
             />
           </dl>
-          {c.situacao_origem &&
-            c.situacao &&
-            c.situacao_origem.toLowerCase() !== c.situacao.toLowerCase() && (
-              <p className="text-xs text-amber-700 dark:text-amber-400">
-                A situação na origem difere da situação no espelho da CGU ("{c.situacao}"). O
-                sistema onde o convênio vive costuma refletir mudanças primeiro.
-              </p>
-            )}
+          {situacoesDivergem(c.situacao_origem, c.situacao) && (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              A situação na origem difere da situação no espelho da CGU ("{c.situacao}"). O sistema
+              onde o convênio vive costuma refletir mudanças primeiro.
+            </p>
+          )}
         </section>
       )}
 

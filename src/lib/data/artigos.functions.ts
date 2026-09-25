@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
+import { montarPayloadArtigo } from "./artigos-payload";
 
 export type ArtigoCategoria = "mapa" | "tutorial" | "nota";
 export type ArtigoDificuldade = "iniciante" | "intermediario" | "avancado";
@@ -133,23 +134,21 @@ export const salvarArtigo = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => SalvarSchema.parse(d))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-    const payload = {
-      slug: data.slug,
-      titulo: data.titulo,
-      resumo: data.resumo ?? null,
-      conteudo_md: data.conteudo_md ?? "",
-      categoria: data.categoria,
-      capa_url: data.capa_url ?? null,
-      dificuldade: data.dificuldade ?? null,
-      tempo_estimado_min: data.tempo_estimado_min ?? null,
-      fontes_usadas: data.fontes_usadas ?? [],
-      notas_internas: data.notas_internas ?? null,
-      publico: data.publico,
-      // Se marcado público e sem data, registra "agora" automaticamente.
-      publicado_em: data.publico
-        ? (data.publicado_em ?? new Date().toISOString())
-        : (data.publicado_em ?? null),
-    };
+    // Edição de artigo público: preserva a data de publicação já gravada.
+    let publicadoEmAtual: string | null = null;
+    if (data.id && data.publico && !data.publicado_em) {
+      const { data: atual, error } = await supabaseAdmin
+        .from("artigos")
+        .select("publicado_em")
+        .eq("id", data.id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      publicadoEmAtual = (atual?.publicado_em as string | null | undefined) ?? null;
+    }
+    const payload = montarPayloadArtigo({
+      ...data,
+      publicado_em: data.publicado_em ?? publicadoEmAtual,
+    });
     if (data.id) {
       const { error } = await supabaseAdmin.from("artigos").update(payload).eq("id", data.id);
       if (error) throw new Error(error.message);

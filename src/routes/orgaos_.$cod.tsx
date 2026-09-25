@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { FileSignature, Scale } from "lucide-react";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { SecaoVinculos } from "@/components/SecaoVinculos";
-import { vinculosDoOrgao } from "@/lib/data/orgao-vinculos.functions";
+import { obterNomeOrgao, vinculosDoOrgao } from "@/lib/data/orgao-vinculos.functions";
 import { useDataSource, useData } from "@/lib/data-store";
 import { ORGAOS_ENRIQUECIMENTO, ORGAOS_OUTRAS_ESFERAS } from "@/lib/data/catalog";
 import type { Orgao } from "@/lib/data/types";
@@ -22,12 +22,23 @@ import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { BotaoFonteOficial } from "@/components/BotaoFonteOficial";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
+import { h1DoOrgao, resolverH1DoOrgao } from "@/lib/ficha-h1/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/orgaos_/$cod")({
   component: OrgaoDetail,
-  head: ({ params }) => ({
+  // O H1 vem do card curado ou do catálogo (que o componente lê do dataset do
+  // cliente); o loader busca só o nome, para o título da aba seguir o H1.
+  // Sem catálogo o H1 é "Órgão {cod}" (a ficha existe se houver dados); o
+  // notFound continua decidido pelo componente. Falha → título padrão.
+  loader: async ({ params }) => ({
+    h1: await resolverH1DoOrgao(params.cod, ORGAOS_OUTRAS_ESFERAS, () =>
+      obterNomeOrgao({ data: { orgaoCod: params.cod } }),
+    ),
+  }),
+  head: ({ loaderData }) => ({
     meta: [
-      { title: `Órgão ${params.cod} — Mutirão de Dados` },
+      { title: tituloDaPagina(loaderData?.h1, "Órgão") },
       {
         name: "description",
         content:
@@ -81,7 +92,7 @@ function OrgaoDetail() {
 
   const base: Orgao = curado ?? {
     cod,
-    nome: orgao?.nome ?? `Órgão ${cod}`,
+    nome: h1DoOrgao({ cod, curado: null, catalogo: orgao }),
     sigla: enr?.sigla ?? orgao?.sigla ?? "",
     funcao: enr?.funcao ?? orgao?.funcao ?? "",
     poder: orgao?.poder ?? "executivo",
@@ -95,7 +106,7 @@ function OrgaoDetail() {
   // Top fornecedores
   const porForn = new Map<string, number>();
   for (const c of contratos)
-    porForn.set(c.fornecedorCnpj, (porForn.get(c.fornecedorCnpj) ?? 0) + c.valor);
+    porForn.set(c.fornecedorCnpj, (porForn.get(c.fornecedorCnpj) ?? 0) + (c.valor ?? 0));
   const topForn = [...porForn.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
 
   // === Indicadores derivados para o radar de risco ===
@@ -104,7 +115,9 @@ function OrgaoDetail() {
   const pctDispensa = contratos.length
     ? contratos.filter((c) => c.modalidade === "dispensa").length / contratos.length
     : 0;
-  const ticketMedio = contratos.length ? total / contratos.length : 0;
+  // Ticket médio só sobre contratos com valor informado ("não localizado" não é zero).
+  const comValor = contratos.filter((c) => c.valor != null).length;
+  const ticketMedio = comValor ? total / comValor : 0;
   const ticketRef = 500_000;
   const ticketScore = Math.min(1, ticketMedio / ticketRef);
   // crescimento vs ano anterior
@@ -126,7 +139,9 @@ function OrgaoDetail() {
   ).length;
   const novosScore = porForn.size ? Math.min(1, novosUltimoAno / porForn.size) : 0;
   // fragmentação: dispensas abaixo do teto
-  const fragCount = contratos.filter((c) => c.modalidade === "dispensa" && c.valor < 17_600).length;
+  const fragCount = contratos.filter(
+    (c) => c.modalidade === "dispensa" && c.valor != null && c.valor < 17_600,
+  ).length;
   const fragScore = contratos.length
     ? Math.min(1, fragCount / Math.max(5, contratos.length * 0.1))
     : 0;

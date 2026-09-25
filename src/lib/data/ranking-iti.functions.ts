@@ -104,7 +104,7 @@ export const rankingITI = createServerFn({ method: "GET" }).handler(
         fornecedorCnpj: r.fornecedor_cnpj,
         objeto: r.objeto ?? "",
         modalidade: normalizarModalidade(r.modalidade),
-        valor: Number(r.valor) || 0,
+        valor: r.valor == null ? null : Number(r.valor),
         ano: r.ano,
         dataAssinatura: r.data_assinatura ?? "",
       };

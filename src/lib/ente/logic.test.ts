@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { codigoCanonico, interpretarCodigoEnte } from "./logic";
+import { codigoCanonico, h1DoEnte, interpretarCodigoEnte } from "./logic";
 
 describe("interpretarCodigoEnte", () => {
   it("aceita sigla de UF em qualquer caixa", () => {
@@ -21,5 +21,15 @@ describe("interpretarCodigoEnte", () => {
   it("gera a URL canônica", () => {
     expect(codigoCanonico({ tipo: "estado", uf: "SP", codIbge: "35" })).toBe("sp");
     expect(codigoCanonico({ tipo: "municipio", ibge: "3550308" })).toBe("3550308");
+  });
+});
+
+describe("h1DoEnte", () => {
+  it("município leva a UF entre parênteses", () => {
+    expect(h1DoEnte({ tipo: "municipio", nome: "Campinas", uf: "SP" })).toBe("Campinas (SP)");
+  });
+
+  it("estado é só o nome", () => {
+    expect(h1DoEnte({ tipo: "estado", nome: "São Paulo", uf: "SP" })).toBe("São Paulo");
   });
 });

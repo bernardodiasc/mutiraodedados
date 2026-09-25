@@ -27,6 +27,7 @@ export type CandidatosListaSearch = {
   pagina?: number;
   itens?: number;
   ordem?: string;
+  ate?: string;
 };
 
 export function CandidatosListaContainer({
@@ -59,6 +60,7 @@ export function CandidatosListaContainer({
       ordem,
       pagina,
       itens,
+      search.ate,
     ],
     placeholderData: keepPreviousData,
     queryFn: () =>
@@ -70,6 +72,7 @@ export function CandidatosListaContainer({
           partido: partido || undefined,
           q: q || undefined,
           ordem: ordem as "nome-asc",
+          ate: search.ate,
           limit: itens,
           offset: offsetDaPagina(pagina, itens),
         },
@@ -88,9 +91,12 @@ export function CandidatosListaContainer({
   const aplicar = (patch: Partial<CandidatosListaSearch>) =>
     onSearchChange({ ...search, ...patch, pagina: undefined });
 
+  // Fixa o corte nos links de página: a mesma URL mostra sempre os mesmos registros.
+  const corte = search.ate ?? data?.corteSugerido;
   const montarSearch = (p: number): Record<string, unknown> => ({
     ...search,
     pagina: p > 1 ? p : undefined,
+    ate: corte,
   });
 
   return (

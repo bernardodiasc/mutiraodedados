@@ -115,7 +115,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         id: r.id,
         titulo: `Contrato ${r.numero ?? r.id}`,
         subtitulo: [r.modalidade, r.objeto ?? undefined].filter(Boolean).join(" · ").slice(0, 160),
-        valor: Number(r.valor ?? 0),
+        valor: r.valor == null ? null : Number(r.valor),
         data: r.data_assinatura,
         href: `/contratos/${encodeURIComponent(r.id)}`,
         externo: false,
@@ -211,7 +211,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         id: r.id,
         titulo: `Licitação ${r.numero ?? ""}`.trim(),
         subtitulo: [r.unidade_gestora, r.uf, r.municipio_nome].filter(Boolean).join(" · "),
-        valor: Number(r.valor ?? 0),
+        valor: r.valor == null ? null : Number(r.valor),
         data: r.data_abertura,
         href: `/licitacoes/${r.id}`,
         externo: false,
@@ -241,7 +241,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         id: r.id,
         titulo: `Emenda · ${r.autor ?? r.id}`,
         subtitulo: [r.localidade, r.funcao].filter(Boolean).join(" · "),
-        valor: Number(r.valor_pago ?? 0),
+        valor: r.valor_pago == null ? null : Number(r.valor_pago),
         data: r.ano ? String(r.ano) : null,
         href: `/emendas/${r.id}`,
         externo: false,
@@ -284,7 +284,7 @@ export const buscaGlobal = createServerFn({ method: "POST" })
         subtitulo: [r.orgao_nome, "→", r.convenente_nome, r.uf, r.municipio_nome]
           .filter(Boolean)
           .join(" "),
-        valor: Number(r.valor ?? 0),
+        valor: r.valor == null ? null : Number(r.valor),
         data: r.data_inicio_vigencia,
         // Página interna de detalhe (lê a mesma convenios_cache desta busca),
         // com links para as fontes oficiais lá dentro.

@@ -51,7 +51,7 @@ export async function rodarDoadorVirouFornecedor(): Promise<SinaisRodada> {
   const cnpjsFormatados = [...new Set(linhas.map((d) => d.cnpj_formatado))];
   const contratosPorCnpj = new Map<
     string,
-    Array<{ id: string; valor: number; dataAssinatura: string | null }>
+    Array<{ id: string; valor: number | null; dataAssinatura: string | null }>
   >();
   const LOTE = 100;
   for (let i = 0; i < cnpjsFormatados.length; i += LOTE) {
@@ -68,7 +68,7 @@ export async function rodarDoadorVirouFornecedor(): Promise<SinaisRodada> {
       const lista = contratosPorCnpj.get(c.fornecedor_cnpj) ?? [];
       lista.push({
         id: String(c.id),
-        valor: Number(c.valor ?? 0),
+        valor: c.valor == null ? null : Number(c.valor),
         dataAssinatura: c.data_assinatura,
       });
       contratosPorCnpj.set(c.fornecedor_cnpj, lista);

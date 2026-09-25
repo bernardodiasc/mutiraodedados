@@ -1,4 +1,8 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
+import { h1DoParlamentar } from "@/lib/ficha-legislativa/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -63,9 +67,29 @@ function SupChip({
 
 export const Route = createFileRoute("/senado_/senadores/$id")({
   component: SenadorDetalhe,
-  head: ({ params }) => ({
-    meta: [{ title: `Senador ${params.id} — Mutirão de Dados` }],
+  loader: ({ params, context }) => {
+    // Pré-carrega a mesma query do componente só para o título da aba; erro
+    // e 404 continuam sendo tratados pelo componente, como antes.
+    const numId = Number(params.id);
+    return carregarH1(context.queryClient, {
+      queryKey: ["senado", "sen", numId],
+      queryFn: () => getSenadorDetalhe({ data: { id: numId } }),
+      h1: (data) => h1DoParlamentar(data.senador),
+    });
+  },
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Senador") }],
   }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Senador não encontrado">
+      Não encontramos este senador nos dados do Senado.{" "}
+      <Link to="/senado/senadores" className="text-accent underline">
+        Ver a lista de senadores
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function SenadorDetalhe() {
@@ -152,7 +176,7 @@ function SenadorDetalhe() {
         <div className="flex items-start gap-5 mt-3 flex-wrap">
           <img src={foto} alt="" className="size-28 rounded-md object-cover border border-border" />
           <div className="flex-1 min-w-[260px]">
-            <h1 className="font-display text-4xl leading-tight">{senador.nome}</h1>
+            <h1 className="font-display text-4xl leading-tight">{h1DoParlamentar(senador)}</h1>
             <div className="mt-2 text-sm text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-2">
               <span>
                 {senador.siglaPartido ?? "—"} · {senador.siglaUf ?? "—"}

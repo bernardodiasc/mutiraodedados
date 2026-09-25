@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
 import type { CandidatoDetalhe } from "@/lib/data/tse/queries.functions";
 import type { Estado } from "@/lib/candidato-ficha/logic";
-import { subtituloFicha, totalPatrimonio } from "@/lib/candidato-ficha/logic";
+import { h1DoCandidato, subtituloFicha, totalPatrimonio } from "@/lib/candidato-ficha/logic";
 
 export type CandidatoFichaViewProps = {
   estado: Estado;
@@ -57,7 +57,7 @@ export function CandidatoFichaView({
       <header className="border border-border rounded-xl p-5 bg-card">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="font-display text-2xl">{c.nome_urna ?? c.nome_completo}</h1>
+            <h1 className="font-display text-2xl">{h1DoCandidato(c)}</h1>
             <p className="text-sm text-muted-foreground mt-1">{c.nome_completo}</p>
             <p className="text-sm text-muted-foreground mt-1">{subtituloFicha(c)}</p>
           </div>

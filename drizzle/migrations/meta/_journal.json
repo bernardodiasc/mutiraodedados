@@ -1,0 +1,48 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790336892882,
+      "tag": "0000_importacoes_resultado",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790337126095,
+      "tag": "0001_convenios_cache_unificada",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790337161574,
+      "tag": "0002_convenios_origem",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790337168833,
+      "tag": "0003_automacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790337468506,
+      "tag": "0004_tse_ocultar_cpf_publico",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790337511570,
+      "tag": "0005_profiles_leitura_autenticados",
+      "breakpoints": true
+    }
+  ]
+}

@@ -2,6 +2,20 @@ import { describe, it, expect } from "vitest";
 import { FONTE_LABEL, FONTES_VIA_PORTAL_CGU, FONTES_COM_HISTORICO } from "./fonte-rotulos";
 import { FONTE_SINAL_LABEL } from "@/lib/sinais-catalogo";
 import { FONTES_LIMPEZA } from "@/lib/data/limpeza";
+import type { TseTipoArquivo } from "@/lib/data/tse/client-ckan";
+
+/**
+ * Os tipos de arquivo do TSE, um por um: cada rodada grava `tse_<tipo>` em
+ * `importacoes` (ver `logRodada` em `tse/ingest.server.ts`). O `Record`
+ * obriga o compilador a cobrar entrada aqui quando surgir tipo novo.
+ */
+const TIPOS_TSE: Record<TseTipoArquivo, true> = {
+  candidatos: true,
+  bens: true,
+  resultados: true,
+  receitas: true,
+  despesas: true,
+};
 
 /**
  * O rótulo de fonte já mentiu duas vezes: o Histórico dizia "Transferegov"
@@ -46,6 +60,23 @@ describe("nenhum id vaza cru para o Histórico", () => {
   it("toda fonte que grava rodada tem rótulo", () => {
     for (const id of FONTES_COM_HISTORICO) {
       expect(FONTE_LABEL[id], `falta rótulo para "${id}"`).toBeTruthy();
+    }
+  });
+
+  it("toda rodada do TSE (`tse_<tipo>`) está no histórico e tem rótulo", () => {
+    for (const tipo of Object.keys(TIPOS_TSE)) {
+      const id = `tse_${tipo}`;
+      expect(FONTES_COM_HISTORICO, `falta "${id}" em FONTES_COM_HISTORICO`).toContain(id);
+      expect(FONTE_LABEL[id], `falta rótulo para "${id}"`).toMatch(/^TSE/);
+    }
+  });
+
+  it("limpar uma fonte com histórico apaga também as linhas dela no Histórico", () => {
+    const comHistorico = new Set<string>(FONTES_COM_HISTORICO);
+    for (const f of FONTES_LIMPEZA) {
+      if (!comHistorico.has(f.id)) continue;
+      const ids = [f.tentativaFonte ?? []].flat();
+      expect(ids, `limpeza "${f.id}" sem tentativaFonte`).toContain(f.id);
     }
   });
 

@@ -11,6 +11,13 @@ Desde a v0.8.0 as matérias vêm de `legis.senado.leg.br/dadosabertos/processo?a
 
 Se um dia for preciso autoria estruturada (lista de autores com tipo e ordem), o detalhe `/processo/{id}` a expõe — ao custo de uma chamada por matéria.
 
+## Votações: servidas por `/votacao`
+
+Desde 2026-09-25 as votações plenárias vêm de `legis.senado.leg.br/dadosabertos/votacao?dataInicio=&dataFim=&v=2` — o substituto oficial do depreciado `plenario/lista/votacao/{ini}/{fim}` (desativação anunciada para 2026-02-01; ainda respondia em 2026-09-25). A resposta é uma lista JSON plana com os votos individuais embutidos; os códigos de votação (`codigoSessaoVotacao`, a chave de `senado_votacoes_cache`) e os votos são os mesmos do endpoint antigo, então o cache existente segue válido.
+
+- **Placar:** a API só preenche `totalVotosSim/Nao/Abstencao` em votação **secreta** (os votos individuais vêm como "Votou"). Em nominal aberta os totais são nulos e o placar é contado dos votos — "Sim", "Não" e o restante em outros.
+- O parser puro é `mapearVotacaoSenado` (`src/lib/data/senado/parsers.ts`), testado com amostra real em `src/lib/data/senado/__fixtures__/`.
+
 ## O que importamos
 
 - **Senadores** em exercício.

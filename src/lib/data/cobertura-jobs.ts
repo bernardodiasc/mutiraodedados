@@ -89,7 +89,7 @@ function endpointFor(
     case "senado_ceaps":
       return `GET https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/${y} (ano inteiro, filtro mês=${m})`;
     case "senado_vot":
-      return `GET https://legis.senado.leg.br/dadosabertos/plenario/lista/votacao/${ini}/${fim}`;
+      return `GET https://legis.senado.leg.br/dadosabertos/votacao?dataInicio=${ini}&dataFim=${fim}&v=2`;
     case "senado_mat":
       return `GET https://legis.senado.leg.br/dadosabertos/materia/pesquisa/lista?ano=${y}&sigla={PL,PLS,PEC,PLP,PDL,PRC,MPV} (ano inteiro)`;
     case "pncp":

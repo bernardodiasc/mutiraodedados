@@ -47,8 +47,11 @@ ROADMAP.md/RELEASES.md no seu PR).
 
 ## Mudanças de banco
 
-- **Nunca** edite migrations existentes em `supabase/migrations/`.
-- Crie uma nova migration com timestamp.
+- **Nunca** edite migrations existentes, em `drizzle/migrations/` ou em
+  `supabase/migrations/` (histórico congelado).
+- Precisa de mudança de banco? Proponha o SQL no PR — o mantenedor cria a
+  migration em `drizzle/migrations/`
+  ([padrão](./docs/padroes/migrations.md#onde-vive-cada-migration)).
 - Toda tabela nova em `public` precisa de `GRANT` + `RLS` + políticas
   explícitas.
 - Roles ficam em `user_roles` + função `has_role(...)` — nunca em `profiles`.

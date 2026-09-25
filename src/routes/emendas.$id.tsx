@@ -14,10 +14,34 @@ import { BotaoSalvarItem } from "@/components/BotaoSalvarItem";
 import { textoCopiavelDeEntidade } from "@/lib/itens-salvos/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
+import { h1DaEmenda } from "@/lib/ficha-h1/logic";
+import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
+import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/emendas/$id")({
   component: EmendaDetalhe,
-  head: () => ({ meta: [{ title: "Emenda parlamentar — Mutirão de Dados" }] }),
+  // Pré-carrega a mesma query do componente só para o título da aba seguir o
+  // H1; falha ou registro ausente ficam com o componente, como antes.
+  loader: ({ params, context }) =>
+    carregarH1(context.queryClient, {
+      queryKey: ["emenda", params.id],
+      queryFn: () => getEmendaPorId({ data: { id: params.id } }),
+      h1: (r) => (r.emenda ? h1DaEmenda(r.emenda) : null),
+    }),
+  head: ({ loaderData }) => ({
+    meta: [{ title: tituloDaPagina(loaderData?.h1, "Emenda parlamentar") }],
+  }),
+  notFoundComponent: () => (
+    <RegistroNaoEncontrado titulo="Emenda não encontrada">
+      Não encontramos esta emenda no acervo do site.{" "}
+      <Link to="/emendas" className="text-accent underline">
+        Ver a lista de emendas
+      </Link>
+      .
+    </RegistroNaoEncontrado>
+  ),
+  errorComponent: ErroAoCarregar,
 });
 
 function EmendaDetalhe() {
@@ -68,7 +92,7 @@ function EmendaDetalhe() {
         <div className="text-xs uppercase tracking-wider text-accent">
           {e.tipo_emenda ?? "Emenda parlamentar"}
         </div>
-        <h1 className="font-display text-3xl mt-1">{e.autor ?? "Emenda"}</h1>
+        <h1 className="font-display text-3xl mt-1">{h1DaEmenda(e)}</h1>
         <p className="text-xs font-mono text-muted-foreground mt-1">
           código {e.id} · nº {e.numero_emenda ?? "—"} · {e.ano}
         </p>
@@ -150,8 +174,8 @@ function EmendaDetalhe() {
             <span className="text-xs font-normal text-muted-foreground">(Transferegov)</span>
           </h2>
           <div className="grid sm:grid-cols-3 gap-4">
-            <Card title="Custeio">{fmtBRL(e.valor_custeio ?? 0)}</Card>
-            <Card title="Investimento">{fmtBRL(e.valor_investimento ?? 0)}</Card>
+            <Card title="Custeio">{fmtBRL(e.valor_custeio)}</Card>
+            <Card title="Investimento">{fmtBRL(e.valor_investimento)}</Card>
             <Card title="Planos de ação">{String(e.planos_acao_count)}</Card>
           </div>
           <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">

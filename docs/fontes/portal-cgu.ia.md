@@ -6,7 +6,9 @@
 
 ## Parser
 
-- `parseValorPortal(v)` aceita: number (caminho direto), string pt-BR "1.234,56", decimal "1234.56", milhar pt-BR sem centavos "60.000", null/undefined → 0.
+- `parseValorPortal(v)` devolve `number | null`. Aceita number (caminho direto), string pt-BR "1.234,56", decimal "1234.56", milhar pt-BR sem centavos "60.000". **Ausência vira `null`, nunca 0**: `"-"` (como a CGU marca valor não informado), vazio, null/undefined, NaN/Infinity e texto não numérico. Zero só quando a fonte informa zero (`0`, `"0,00"`).
+- `somarValoresInformados(a, b)` agrega valores (ex.: planos de ação de uma emenda) somando só os informados; `null` quando nenhum foi informado.
+- `valorAutoritativoCgu(listagem, detalhe)` aceita `null` nos dois lados e devolve `valor: null` quando nenhum endpoint informou.
 - Test suite: `src/lib/data/real/portal.parsers.test.ts`.
 
 ## Varredura por Detalhe (`fetchPortalOrgao`)
