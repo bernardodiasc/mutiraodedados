@@ -51,7 +51,7 @@ Criar uma issue no GitHub.
 Usadas por `/wayfinder`. O **mapa** é uma issue; os **tickets** são sub-issues dela.
 
 - **Mapa:** issue com label `wayfinder:map`, corpo com Destination / Notes / Decisions so far / Not yet specified / Out of scope (títulos de seção em inglês, exigidos pela skill; conteúdo em português).
-- **Ticket:** sub-issue do mapa (`gh api -X POST repos/<dono>/<repo>/issues/<mapa>/sub_issues -F sub_issue_id=<id-do-banco>`), label `wayfinder:<tipo>` (`research`, `prototype`, `grilling`, `task`). O `<id-do-banco>` é `gh api repos/<dono>/<repo>/issues/<n> --jq .id`, não o número nem o `node_id`.
+- **Ticket:** sub-issue do mapa (`gh api -X POST repos/<dono>/<repo>/issues/<mapa>/sub_issues -F sub_issue_id=<id-do-banco>`), label `wayfinder:<tipo>` (`research`, `prototype`, `grilling`, `task`) e milestone da primeira release que depende da decisão (seção 1 do WORKFLOW). O `<id-do-banco>` é `gh api repos/<dono>/<repo>/issues/<n> --jq .id`, não o número nem o `node_id`.
 - **Bloqueio:** dependência nativa do GitHub — `gh api -X POST repos/<dono>/<repo>/issues/<bloqueado>/dependencies/blocked_by -F issue_id=<id-do-banco-do-bloqueador>`. Um ticket está desbloqueado quando todos os bloqueadores estão fechados (`issue_dependencies_summary.blocked_by` = 0).
 - **Fronteira:** sub-issues abertas do mapa, sem bloqueador aberto e sem responsável; a primeira na ordem do mapa vence.
 - **Reivindicar:** `gh issue edit <n> --add-assignee @me` — a primeira escrita da sessão.

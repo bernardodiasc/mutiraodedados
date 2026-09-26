@@ -4,7 +4,6 @@ import {
   anotarVariacoes,
   barrasPatrimonio,
   candidaturaComparacaoPadrao,
-  deriveEstado,
   diffCategorias,
   h1DoCandidato,
   ordenarHistorico,
@@ -29,20 +28,6 @@ function cand(over: Partial<CandidaturaHistorico> & { ano: number }): Candidatur
     ...over,
   };
 }
-
-describe("deriveEstado", () => {
-  it("nao-encontrado quando a busca termina vazia", () => {
-    expect(deriveEstado({ carregando: false, temErro: false, encontrado: false })).toBe(
-      "nao-encontrado",
-    );
-  });
-  it("pronto quando encontrado", () => {
-    expect(deriveEstado({ carregando: false, temErro: false, encontrado: true })).toBe("pronto");
-  });
-  it("carregando vence erro", () => {
-    expect(deriveEstado({ carregando: true, temErro: true, encontrado: false })).toBe("carregando");
-  });
-});
 
 describe("somaBens", () => {
   it("ignora nulos", () => {

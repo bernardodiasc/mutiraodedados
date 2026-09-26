@@ -1,6 +1,4 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink } from "lucide-react";
 import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
@@ -16,15 +14,13 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { situacoesDivergem } from "@/lib/data/convenios-origem/situacao";
 import { h1DoConvenio } from "@/lib/ficha-h1/logic";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/convenios/$id")({
   component: ConvenioDetalhe,
-  // Pré-carrega a mesma query do componente só para o título da aba seguir o
-  // H1; falha ou registro ausente ficam com o componente, como antes.
   loader: ({ params, context }) =>
-    carregarH1(context.queryClient, {
+    carregarFicha(context.queryClient, {
       queryKey: ["convenio-cgu", params.id],
       queryFn: () => getConvenioCguPorId({ data: { id: params.id } }),
       h1: (r) => (r.convenio ? h1DoConvenio(r.convenio) : null),
@@ -46,17 +42,9 @@ export const Route = createFileRoute("/convenios/$id")({
 
 function ConvenioDetalhe() {
   const { id } = useParams({ from: "/convenios/$id" });
-  const fetchFn = useServerFn(getConvenioCguPorId);
-  const { data, isLoading } = useQuery({
-    queryKey: ["convenio-cgu", id],
-    queryFn: () => fetchFn({ data: { id } }),
-  });
+  const { dado: data } = Route.useLoaderData();
 
-  if (isLoading)
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">Carregando…</div>
-    );
-  const c = data?.convenio;
+  const c = data.convenio;
   if (!c)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">

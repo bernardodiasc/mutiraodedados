@@ -1,10 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DaProposicao } from "@/lib/ficha-legislativa/logic";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { getProposicaoDetalhe } from "@/lib/data/camara/proposicoes.functions";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { ExternalLink } from "lucide-react";
@@ -12,10 +10,8 @@ import { ExternalLink } from "lucide-react";
 export const Route = createFileRoute("/camara_/proposicoes/$id")({
   component: ProposicaoDetalhe,
   loader: ({ params, context }) => {
-    // Pré-carrega a mesma query do componente só para o título da aba; erro
-    // e 404 continuam sendo tratados pelo componente, como antes.
     const numId = Number(params.id);
-    return carregarH1(context.queryClient, {
+    return carregarFicha(context.queryClient, {
       queryKey: ["camara", "prop", numId],
       queryFn: () => getProposicaoDetalhe({ data: { id: numId } }),
       h1: (data) => h1DaProposicao(data.proposicao),
@@ -37,22 +33,7 @@ export const Route = createFileRoute("/camara_/proposicoes/$id")({
 });
 
 function ProposicaoDetalhe() {
-  const { id } = Route.useParams();
-  const numId = Number(id);
-  const fn = useServerFn(getProposicaoDetalhe);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["camara", "prop", numId],
-    queryFn: () => fn({ data: { id: numId } }),
-  });
-
-  if (isLoading) return <div className="mx-auto max-w-4xl px-4 py-10">Carregando…</div>;
-  if (error)
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-10 text-destructive">
-        {(error as Error).message}
-      </div>
-    );
-  if (!data) throw notFound();
+  const { dado: data } = Route.useLoaderData();
 
   const { proposicao: p, autores } = data;
   const principais = autores.filter((a) => a.proponente || (a.ordemAssinatura ?? 99) <= 1);

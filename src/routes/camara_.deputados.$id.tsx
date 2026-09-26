@@ -1,6 +1,6 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DoParlamentar } from "@/lib/ficha-legislativa/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
@@ -33,10 +33,8 @@ function anosDaLegislatura(n: number): string {
 export const Route = createFileRoute("/camara_/deputados/$id")({
   component: DeputadoDetalhe,
   loader: ({ params, context }) => {
-    // Pré-carrega a mesma query do componente só para o título da aba; erro
-    // e 404 continuam sendo tratados pelo componente, como antes.
     const numId = Number(params.id);
-    return carregarH1(context.queryClient, {
+    return carregarFicha(context.queryClient, {
       queryKey: ["camara", "dep", numId],
       queryFn: () => getDeputadoDetalhe({ data: { id: numId } }),
       h1: (data) => h1DoParlamentar(data.deputado),
@@ -60,11 +58,7 @@ export const Route = createFileRoute("/camara_/deputados/$id")({
 function DeputadoDetalhe() {
   const { id } = Route.useParams();
   const numId = Number(id);
-  const fn = useServerFn(getDeputadoDetalhe);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["camara", "dep", numId],
-    queryFn: () => fn({ data: { id: numId } }),
-  });
+  const { dado: data } = Route.useLoaderData();
   const propsFn = useServerFn(proposicoesDoDeputado);
   const { data: props } = useQuery({
     queryKey: ["camara", "dep-props", numId],
@@ -72,15 +66,6 @@ function DeputadoDetalhe() {
   });
   const [ano, setAno] = useState<number | null>(null);
   const [mes, setMes] = useState<number | null>(null);
-
-  if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
-        {(error as Error).message}
-      </div>
-    );
-  if (!data) throw notFound();
 
   const { deputado, perfil, mandatos, despesas } = data;
   const anos = anosDisponiveis(despesas);

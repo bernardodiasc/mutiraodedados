@@ -212,6 +212,102 @@ export type Database = {
         }
         Relationships: []
       }
+      busca_indice: {
+        Row: {
+          ano: number | null
+          atualizado_em: string
+          categoria: string
+          colecao: string
+          data_natureza: string | null
+          data_precisao: string | null
+          data_principal: string | null
+          facetas: Json
+          fonte: string
+          href_interno: string
+          id_origem: string
+          identificador: string | null
+          identificador_norm: string | null
+          indexado_em: string
+          nomes: string | null
+          pai_categoria: string | null
+          pai_id: string | null
+          pai_titulo: string | null
+          resumo: string | null
+          subtipo: string | null
+          texto: string | null
+          titulo: string
+          tsv_padrao: unknown | null
+          tsv_pt: unknown | null
+          uf: string | null
+          url_oficial: string | null
+          valor: number | null
+          valor_natureza: string | null
+          valor_unidade: string | null
+        }
+        Insert: {
+          ano?: never
+          atualizado_em?: string
+          categoria: string
+          colecao: string
+          data_natureza?: string | null
+          data_precisao?: string | null
+          data_principal?: string | null
+          facetas?: Json
+          fonte: string
+          href_interno: string
+          id_origem: string
+          identificador?: string | null
+          identificador_norm?: string | null
+          indexado_em?: string
+          nomes?: string | null
+          pai_categoria?: string | null
+          pai_id?: string | null
+          pai_titulo?: string | null
+          resumo?: string | null
+          subtipo?: string | null
+          texto?: string | null
+          titulo: string
+          tsv_padrao?: never
+          tsv_pt?: never
+          uf?: string | null
+          url_oficial?: string | null
+          valor?: number | null
+          valor_natureza?: string | null
+          valor_unidade?: string | null
+        }
+        Update: {
+          ano?: never
+          atualizado_em?: string
+          categoria?: string
+          colecao?: string
+          data_natureza?: string | null
+          data_precisao?: string | null
+          data_principal?: string | null
+          facetas?: Json
+          fonte?: string
+          href_interno?: string
+          id_origem?: string
+          identificador?: string | null
+          identificador_norm?: string | null
+          indexado_em?: string
+          nomes?: string | null
+          pai_categoria?: string | null
+          pai_id?: string | null
+          pai_titulo?: string | null
+          resumo?: string | null
+          subtipo?: string | null
+          texto?: string | null
+          titulo?: string
+          tsv_padrao?: never
+          tsv_pt?: never
+          uf?: string | null
+          url_oficial?: string | null
+          valor?: number | null
+          valor_natureza?: string | null
+          valor_unidade?: string | null
+        }
+        Relationships: []
+      }
       camara_deputado_eventos: {
         Row: {
           condicao_eleitoral: string | null
@@ -2501,6 +2597,41 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      busca_indexar: {
+        Args: { p_colecao: string; p_forcar?: boolean; p_ids: string[] }
+        Returns: number
+      }
+      busca_reconstruir: { Args: { p_colecao: string }; Returns: number }
+      busca_lista: {
+        Args: {
+          p_ate?: string | null
+          p_categoria: string
+          p_contar?: boolean
+          p_facetas?: string[]
+          p_filtros?: Json
+          p_itens?: number
+          p_ordem?: string
+          p_pagina?: number
+          p_q: string
+        }
+        Returns: Json
+      }
+      busca_opcoes_faceta: {
+        Args: {
+          p_ate?: string | null
+          p_categoria: string
+          p_faceta: string
+          p_filtros?: Json
+          p_limite?: number
+          p_q: string
+          p_termo: string
+        }
+        Returns: Json
+      }
+      busca_resumo: {
+        Args: { p_ate?: string | null; p_contar?: boolean; p_filtros?: Json; p_q: string }
+        Returns: Json
       }
       camara_gasto_total: { Args: never; Returns: number }
       cobertura_camara_ceap: {

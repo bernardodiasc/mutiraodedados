@@ -5,19 +5,6 @@ import {
   type CategoriaBem,
 } from "@/lib/data/tse/categorias-bens";
 
-export type Estado = "carregando" | "erro" | "nao-encontrado" | "pronto";
-
-export function deriveEstado(input: {
-  carregando: boolean;
-  temErro: boolean;
-  encontrado: boolean;
-}): Estado {
-  if (input.carregando) return "carregando";
-  if (input.temErro) return "erro";
-  if (!input.encontrado) return "nao-encontrado";
-  return "pronto";
-}
-
 export type BemDeclarado = {
   ordem: number;
   tipo: string;

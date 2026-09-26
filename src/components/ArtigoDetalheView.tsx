@@ -1,5 +1,5 @@
-import { Link, notFound } from "@tanstack/react-router";
-import { ArrowLeft, Clock, Loader2 } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ArrowLeft, Clock } from "lucide-react";
 import { ArtigoRenderer } from "@/components/ArtigoRenderer";
 import {
   h1DoArtigo,
@@ -8,24 +8,12 @@ import {
 } from "@/lib/artigo-detalhe/logic";
 
 export function ArtigoDetalheView({
-  isLoading,
-  error,
   artigo,
   voltarTo,
   voltarLabel,
   kit,
   acoes,
 }: ArtigoDetalheViewProps) {
-  if (isLoading) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-sm text-muted-foreground flex items-center gap-2">
-        <Loader2 className="size-4 animate-spin" /> Carregando…
-      </div>
-    );
-  }
-  if (error) throw error;
-  if (!artigo) throw notFound();
-
   const corpo = (
     <>
       <Link

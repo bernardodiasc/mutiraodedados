@@ -47,6 +47,7 @@ Server (`process.env`):
 - `INSERT/UPDATE/DELETE` restritos a `service_role` (via server functions admin).
 - `user_roles`: leitura só `authenticated`, escrita só via funções admin.
 - `qa_findings`, `importacoes`: leitura pública, escrita server-only.
+- `busca_indice`: nenhum acesso para `anon`/`authenticated`; lida e escrita só pelo servidor (`service_role`) e pelas funções `busca_*` (`SECURITY DEFINER`), chamadas pelos gatilhos das tabelas de origem.
 
 ## Routing
 

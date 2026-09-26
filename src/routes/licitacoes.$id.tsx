@@ -1,6 +1,4 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { ExternalLink } from "lucide-react";
 import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
@@ -15,15 +13,13 @@ import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { linkBuscaPncp } from "@/lib/links-oficiais";
 import { h1DaLicitacao } from "@/lib/ficha-h1/logic";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/licitacoes/$id")({
   component: LicitacaoDetalhe,
-  // Pré-carrega a mesma query do componente só para o título da aba seguir o
-  // H1; falha ou registro ausente ficam com o componente, como antes.
   loader: ({ params, context }) =>
-    carregarH1(context.queryClient, {
+    carregarFicha(context.queryClient, {
       queryKey: ["licitacao", params.id],
       queryFn: () => getLicitacaoPorId({ data: { id: params.id } }),
       h1: (r) => (r.licitacao ? h1DaLicitacao(r.licitacao) : null),
@@ -45,17 +41,9 @@ export const Route = createFileRoute("/licitacoes/$id")({
 
 function LicitacaoDetalhe() {
   const { id } = useParams({ from: "/licitacoes/$id" });
-  const fetchFn = useServerFn(getLicitacaoPorId);
-  const { data, isLoading } = useQuery({
-    queryKey: ["licitacao", id],
-    queryFn: () => fetchFn({ data: { id } }),
-  });
+  const { dado: data } = Route.useLoaderData();
 
-  if (isLoading)
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">Carregando…</div>
-    );
-  const l = data?.licitacao;
+  const l = data.licitacao;
   if (!l)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">

@@ -23,6 +23,98 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.15.0 — 2026-09-26
+
+**Resumo:** primeira release do programa de busca unificada. A `/buscar` deixa de consultar 7 tabelas por `ilike`, somar listas truncadas em 50 como se fossem totais e esconder falhas: passa a ler um índice próprio no Postgres, com texto em português que casa com e sem acento e no singular e no plural, contagens e facetas calculadas sobre todo o resultado, categoria paginada estável por um corte de horário e falha parcial visível. A busca cobre as mesmas coleções de antes — contratos (CGU e PNCP), licitações, emendas, convênios, fornecedores, candidaturas e artigos publicados. Três pautas editoriais ensinam a usá-la, e as fichas e páginas de artigo deixaram de acusar erro de hidratação.
+
+**Entregas**
+
+- **Índice de busca unificado** (tabela `busca_indice`, migration `0010`):
+  - extensões `unaccent` e `pg_trgm` e configuração de texto `busca_pt` (português sem acento);
+  - uma linha por registro pesquisável, com categoria, fonte, título, identificador rotulado e normalizado, data principal com natureza e precisão, valor com natureza e unidade, resumo, destino interno, link oficial e facetas (universais em colunas; as de cada tipo em JSON indexado);
+  - dois `tsvector` com pesos (título > identificador e nomes > resumo e texto): o `portuguese` padrão e o `busca_pt`, que tira o acento e troca "-ões" por "-ão" antes do radical — "licitacao", "licitacoes", "licitação" e "licitações" casam entre si;
+  - uma função de projeção por coleção (o adaptador) e gatilhos nas 8 tabelas de origem: inclusão, correção, exclusão, TRUNCATE e despublicação de artigo valem na hora, na mesma transação da importação, sem mudar o código dela; reconstrução por coleção que preserva o horário de entrada no índice;
+  - leitura só pelo servidor (RLS sem política para `anon` e `authenticated`);
+  - registro das 20 categorias do programa em ordem fixa no código (`src/lib/busca/categorias.ts`), com as 7 da v0.15.0 ativas.
+- **Política de dados pessoais na busca** (seção "Na busca" de [`docs/conceitos/lgpd-e-dados-publicos.md`](./docs/conceitos/lgpd-e-dados-publicos.md)): CPF e título de eleitor nunca entram no índice nem servem de termo de busca; CPF de pessoa física só mascarado (`***.456.789-**`); fornecedor cuja chave é CPF completo fica fora, porque o destino levaria o CPF na URL; cor/raça, gênero, grau de instrução e ocupação de candidatos não viram faceta nem texto pesquisável; artigo não público não entra.
+- **Consulta no servidor** (migration `0011`, `busca_resumo`, `busca_lista`, `busca_opcoes_faceta` e as server functions de `src/lib/data/busca-indice.functions.ts`):
+  - total exato por categoria, 3 prévias e registro de identificador exato destacado antes dos grupos, sem contar em dobro;
+  - facetas sobre todo o resultado: OU dentro do filtro, E entre filtros, cada faceta ignora o próprio filtro, valor selecionado continua listado com zero, "Sem informação" para registros sem valor; filtro próprio de uma categoria não restringe as outras na visão geral; filtro que não vale para a categoria é recusado com motivo;
+  - lista paginada com desempate estável e ordem por relevância, mais recente ou mais antigo; motivo ("casou no título…") e trecho destacado só nos itens da página;
+  - corte `ate` pelo horário de entrada no índice, com a contagem de resultados novos; página numerada até o resultado 10.000;
+  - orçamento de 3 s para a contagem completa: estourou, a chamada é repetida sem contagem e a interface mostra "contagem indisponível".
+- **Nova `/buscar`** (Container/View/logic; a busca antiga saiu):
+  - visão geral com as 7 categorias em ordem fixa, os dois primeiros grupos com resultado abertos, 3 prévias e "Ver todos os N";
+  - categoria paginada em 20/50/100 (padrão 20), paginação acima e abaixo, corte na URL;
+  - filtros na lateral com aplicação imediata; no mobile, painel "Filtrar (N)" com rascunho e Aplicar/Cancelar; 8 opções com "Ver mais" e pesquisa no servidor nas facetas longas; chips removíveis e "Limpar filtros"; filtro que vale só para algumas categorias aparece como chip com aviso ("só em Contratos e Licitações"); confirmação ao trocar para categoria onde o filtro não vale;
+  - cartão com título, fonte, identificador, data na precisão da fonte, valor com natureza, trecho com destaque seguro (sem HTML), motivo, destino interno e link oficial separados;
+  - estados antes da busca, carregando, nada encontrado, nada com os filtros, erro com "Tentar de novo", contagem indisponível e "N resultados novos · Atualizar";
+  - estado inteiro na URL; `aria-live`, `aria-expanded`, teclado e 320 px;
+  - `SeletorItensPorPagina` aceita opções próprias; as listagens seguem com 25/50/100;
+  - 14 variantes no `/estilo` (composição "Buscar") e seção "Busca unificada" em [`docs/padroes-ui.md`](./docs/padroes-ui.md).
+- **Ações da busca:**
+  - salvar busca guarda a consulta sem página nem corte, e a busca salva abre sempre ao vivo;
+  - "Salvar" em cada resultado leva o item ao caderno como link, sem snapshot (candidatura vira tipo novo do caderno);
+  - seleção optativa, presa ao recorte (consulta, categoria e filtros): ao mudar o recorte, a página pede "Salvar no caderno" ou "Limpar seleção" antes de aceitar novas marcações; "Selecionar esta página" avisa que não seleciona o resultado inteiro;
+  - copiar referências e exportar em CSV ou Markdown sobre a página, a seleção ou o conjunto completo (até 1.000 itens, com aviso de corte acima disso), com consulta, filtros, totais, corte do índice e data de geração no cabeçalho.
+- **Pautas editoriais** (publicadas em 2026-09-26):
+  - tutorial "Como pesquisar um assunto em várias fontes" (`/tutoriais/usar-busca-unificada`, reescrito para a nova busca);
+  - mapa "Da licitação ao contrato: encontre os documentos" (`/mapas/contrato-federal-pncp`, recortado para licitação → contrato);
+  - nota nova "Por que uma busca sem resultados não encerra a investigação" (`/notas/busca-sem-resultados`): falha, não coletado, não indexado e vazio confirmado;
+  - Kit de prompts do mapa revisado.
+- **Carga para a homologação:** contratos, fornecedores e licitações, vazios em produção até esta release, carregados pela ferramenta de importação numa janela que serve à homologação.
+  - catálogo SIAFI: 633 órgãos, dos quais 263 com atividade recente;
+  - contratos: 184 janelas órgão × mês aprovadas, com 93 contratos, principalmente de 2025-12, e os fornecedores deles;
+  - licitações: 87 janelas aprovadas, com 186 licitações, principalmente de 2024-03.
+
+**Correções**
+
+- Contratos do PNCP: a faceta "Modalidade" mostrava o tipo do contrato ("Empenho", "Contrato (termo inicial)"), misturado com a modalidade de licitação da CGU. O tipo passa para uma faceta própria, "Tipo de contrato", e "Modalidade" fica só com a CGU (migration `0012`, com reconstrução das duas coleções).
+- Candidaturas: o cartão repetia a eleição três vezes. Agora ela aparece só na data; o identificador é o número do candidato.
+- Licitações da CGU: a linha gravava em `orgao_cod` o órgão máximo da unidade gestora (26000 para uma universidade 26231), e a conferência contava a célula pelo órgão pedido. Toda janela de órgão subordinado com licitações reprovava em "reflexo na cobertura". Agora a linha grava o órgão pedido, como os contratos já faziam.
+- Hidratação: as páginas de artigo (`/notas`, `/mapas`, `/tutoriais`) e as 11 fichas de senador, deputado, votações da Câmara e do Senado, proposição, matéria, emenda, convênio, licitação, fornecedor e candidatura acusavam `Hydration failed` ao abrir a URL direto, e buscavam o registro de novo no cliente. O loader passa a devolver o registro nos dados da rota (`carregarFicha` e `carregarArtigo`), lança `notFound()` quando ele não existe e deixa a falha chegar ao `errorComponent`. Efeito colateral: "não encontrado" responde HTTP 404, não mais 200. A lição está na seção 7 de [`debug-problemas.ia.md`](./docs/padroes/debug-problemas.ia.md).
+
+**Decisões**
+
+- **Diagnóstico de produção antes de desenhar o índice** (só leitura, 2026-09-26): Postgres 17.6 no Lovable Cloud, banco de 1,66 GB, 87% dele no SICONFI; fora o SICONFI, o acervo pesquisável tem menos de 250 MB. Três das sete coleções da busca — contratos da CGU, fornecedores e licitações — estavam vazias, o que tornou a carga um pré-requisito da homologação. `unaccent` e `pg_trgm` estavam disponíveis e foram instaladas por migration, pelo mesmo caminho já usado para `pg_cron` e `pg_net`; não foi preciso plano B para acento.
+- **Arquitetura do índice:** tabela unificada, uma linha por registro com destino próprio. Consulta federada por coleção e views materializadas foram descartadas (a primeira multiplica consultas e esquemas de faceta quando os tipos passarem de 20; a segunda recalcula tudo a cada carga). O índice copia só o necessário para buscar e exibir o cartão; o registro completo continua na tabela de origem, e a ficha lê de lá. Só a `/buscar` usa o índice; as listagens seguem nas próprias tabelas.
+- **Granularidade para as próximas versões:** sub-registros (votos individuais, despesas, bens) viram linhas próprias a partir da v0.16.0; SICONFI entra por relatório, nunca por célula; texto integral de documentos, em tabela-filha, na v0.18.0. O tamanho medido na implementação (126 MB para 87 mil linhas, com dados sintéticos) superou a estimativa: antes de indexar sub-registros, medir com amostra real. Se passar do que o banco comporta, a resposta é planejar capacidade, não tirar votos do índice.
+- **Acento e plural:** o stemmer português com `unaccent` antes do radical separa "licitação" de "licitações", e o padrão não acha "licitacao". A decisão foram dois `tsvector` consultados com OU, aceitando uma combinação sem casar; na implementação, a falha aparecia nos dois sentidos, e a troca de "-ões" por "-ão" antes do radical resolveu as quatro combinações.
+- **Falha parcial reinterpretada:** a busca lê só o índice local, então não existe "fonte fora do ar" na consulta. Falha parcial é "contagem indisponível" (orçamento de tempo estourado, nunca zero). A marca de "coleção desatualizada" passou para a v0.16.0, junto com o modelo de cobertura: o critério de atraso por coleção depende dele.
+- **Corte e estabilidade:** a "edição" do índice é um corte global por horário de entrada, sem versões (versões duplicariam linhas e mostrariam em edição antiga um registro removido por lei). Remoções — despublicação, limpeza, dado pessoal — valem na hora, também dentro do corte; uma correção durante a navegação pode mudar a posição de um registro, e o aceite passou a ser "nenhuma duplicata causada por registro novo". Além do resultado 10.000, a interface pede para refinar ou exportar.
+- **Busca salva ao vivo, exportação como retrato:** a busca salva não guarda o corte e sempre reabre ao vivo; a exportação e a cópia de referências registram corte, data, consulta e totais, porque o arquivo é a prova. Exportação integral acima de 1.000 itens, por job, fica para a v0.23.0.
+- **Contrato do adaptador e taxonomia:** cada tipo entra na busca com duas peças — a função de projeção no banco e o registro de categorias no código — mais teste com exemplos da coleção. A ordem das 20 categorias é fixa para todas as versões, legislativo antes do dinheiro (Propostas, Normas, Votações, Votos, Documentos e debates, Eventos, Pessoas, Organizações, Contratos, Licitações, Emendas orçamentárias, Convênios e transferências, Despesas, Eleições e campanhas, Finanças públicas, Estudos externos, Artigos, Perguntas e investigações, Qualidade e sinais, Páginas e ajuda); categoria vazia aparece só como título e contagem. Cada registro tem uma data principal de natureza fechada (assinatura, apresentação, publicação, fato, exercício, eleição) e precisão de dia, mês ou ano. Nada é fundido entre fontes até o modelo de identidade da v0.17.0.
+- **Dados pessoais: segurança jurídica primeiro.** O índice nunca expõe mais do que a ficha pública mostra; buscar candidato por CPF permitiria montar perfil cruzando fontes, então a candidatura é achada por nome, UF e ano. Doador pessoa física (v0.16.0) entra pelo nome, com CPF mascarado como vem do TSE; descrição de bens fica fora do texto pesquisável; participantes de eventos e documentos (v0.18.0) só são indexados como pessoa com papel público documentado. Fora da busca, a ficha de contrato exibe o documento do fornecedor como vem da fonte e a listagem de fornecedores busca por CPF exato; isso não mudou agora e segue para uma investigação sobre o uso de dados pessoais publicados por fontes oficiais em cruzamentos.
+- **UX pelo protótipo:** três layouts foram navegados com dados fictícios, e a especificação literal (lateral de filtros, grupos colapsáveis) venceu a de categorias como navegação e a de coluna única com filtros no topo. A `/buscar` usa 20/50/100 por página, e não o kit das listagens, porque cada cartão tem trecho destacado e a busca é por relevância: quem não acha nos primeiros refina. No mobile, as contagens do painel são as da busca aplicada, sem prévia calculada a cada toque. O código do protótipo não foi aproveitado.
+- **Orçamento de tempo cortado no servidor:** os 3 s abortam a requisição no Worker, mas o banco pode seguir com a consulta até o tempo-limite da `service_role` (8 s), porque o PostgREST não permite um tempo-limite menor por chamada. Nas medições com volume de produção sintético, o pior caso ficou em 0,85 s.
+- **Item salvo sem snapshot:** o item do índice é uma projeção, não o registro completo; a prova fica na ficha.
+- **Pautas:** o inventário dos 21 artigos contra as 19 pautas do programa deu 4 revisões e 15 criações; as revisões mantêm o slug existente, para não quebrar links. O mapa da licitação ao contrato perdeu a parte de execução (empenho, liquidação, pagamento), que passa ao mapa "Rastreando o DNA da despesa", junto com o prompt "Contrato assinado x dinheiro que saiu"; perdeu também o diagrama, que desenhava até o pagamento; e a afirmação sobre aditivos acima de 25% passou a citar a regra do art. 125 da Lei 14.133/2021. O tutorial foi publicado sem os screenshots dos passos, por decisão do mantenedor: o texto não depende deles.
+- **Carga completa fora da release:** a carga desta versão serve à homologação; a janela completa das três coleções segue no plano de cobertura completa das fontes, fora de release.
+- **Limitação conhecida:** "Entrar para salvar" leva ao login e volta para `/buscar` sem a consulta. Vale também para as listagens e fica para uma correção à parte.
+
+**Checks executados**
+
+Na `main` com todas as correções da release (2026-09-26):
+
+- `bun run lint`: 0 erros (17 warnings conhecidos);
+- `bunx tsc --noEmit`: ok;
+- `bun run build`: ok;
+- `bun run test`: 130 arquivos, 1380 testes;
+- journal = banco: `drizzle.__drizzle_migrations` com 13 entradas, de `0000` a `0012`, conferido pelo mantenedor.
+
+**Homologação em produção**
+
+Em 2026-09-26, em `mutiraodedados.com.br`:
+
+- `/buscar?q=serviços`, em Contratos: 4.445 resultados de duas fontes (PNCP 4.378 e CGU 67), com facetas calculadas sobre o resultado inteiro e paginação 1–20;
+- `/buscar?q=pregão`, em Licitações: 185 resultados, com facetas de UF, órgão, situação, município e modalidade.
+
+Uma timeout isolada do banco numa janela de licitações não se repetiu na reexecução nem nas 87 janelas seguintes. A investigação da causa segue fora da release.
+
+**Issues:** milestone `v0.15.0` do repositório privado e o mapa do wayfinder da busca unificada.
+
+**PR de sync público:** `sync v0.15.0`.
+
 ## v0.14.0 — 2026-09-26
 
 **Resumo:** as importações oficiais passam a rodar sem o painel. A rota do agendador aceita fonte e janela nomeadas para todas as fontes do roteiro de importação; cada janela termina com uma conferência gravada (aprovada, inconclusiva ou reprovada); e uma ferramenta de linha de comando e uma skill de agente conduzem as importações até a cobertura desejada. A rodada manual pendente desde a v0.7.0 foi feita com essa ferramenta, que serviu de QA dela: cada divergência virou correção nesta release. Evals de dados e e2e de UI saíram da versão, porque dependem de um banco isolado.

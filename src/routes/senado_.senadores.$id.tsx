@@ -1,11 +1,9 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DoParlamentar } from "@/lib/ficha-legislativa/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { getSenadorDetalhe } from "@/lib/data/senado/queries.functions";
 import { SecaoEleicaoContainer as SecaoEleicao } from "@/containers/SecaoEleicaoContainer";
@@ -68,10 +66,8 @@ function SupChip({
 export const Route = createFileRoute("/senado_/senadores/$id")({
   component: SenadorDetalhe,
   loader: ({ params, context }) => {
-    // Pré-carrega a mesma query do componente só para o título da aba; erro
-    // e 404 continuam sendo tratados pelo componente, como antes.
     const numId = Number(params.id);
-    return carregarH1(context.queryClient, {
+    return carregarFicha(context.queryClient, {
       queryKey: ["senado", "sen", numId],
       queryFn: () => getSenadorDetalhe({ data: { id: numId } }),
       h1: (data) => h1DoParlamentar(data.senador),
@@ -93,24 +89,9 @@ export const Route = createFileRoute("/senado_/senadores/$id")({
 });
 
 function SenadorDetalhe() {
-  const { id } = Route.useParams();
-  const numId = Number(id);
-  const fn = useServerFn(getSenadorDetalhe);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["senado", "sen", numId],
-    queryFn: () => fn({ data: { id: numId } }),
-  });
+  const { dado: data } = Route.useLoaderData();
   const [ano, setAno] = useState<number | null>(null);
   const [mes, setMes] = useState<number | null>(null);
-
-  if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
-        {(error as Error).message}
-      </div>
-    );
-  if (!data) throw notFound();
 
   const { senador, perfil, mandatos, legislaturas, despesas } = data;
   // Exercícios → linha do tempo (entrada + saída com causa), igual à da Câmara.

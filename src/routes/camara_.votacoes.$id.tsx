@@ -1,10 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DaVotacao } from "@/lib/ficha-legislativa/logic";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { getVotacaoDetalhe } from "@/lib/data/camara/votacoes.functions";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
@@ -14,9 +12,7 @@ import { ExternalLink } from "lucide-react";
 export const Route = createFileRoute("/camara_/votacoes/$id")({
   component: VotacaoDetalhe,
   loader: ({ params, context }) =>
-    // Pré-carrega a mesma query do componente só para o título da aba; erro
-    // e 404 continuam sendo tratados pelo componente, como antes.
-    carregarH1(context.queryClient, {
+    carregarFicha(context.queryClient, {
       queryKey: ["camara", "vot", params.id],
       queryFn: () => getVotacaoDetalhe({ data: { id: params.id } }),
       h1: (data) => h1DaVotacao(data.votacao),
@@ -37,18 +33,12 @@ export const Route = createFileRoute("/camara_/votacoes/$id")({
 });
 
 function VotacaoDetalhe() {
-  const { id } = Route.useParams();
-  const fn = useServerFn(getVotacaoDetalhe);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["camara", "vot", id],
-    queryFn: () => fn({ data: { id } }),
-  });
+  const { dado: data } = Route.useLoaderData();
 
   const [filtroTipo, setFiltroTipo] = useState<string>("");
   const [filtroPart, setFiltroPart] = useState<string>("");
 
   const votosFiltrados = useMemo(() => {
-    if (!data) return [];
     return data.votos
       .filter((v) => {
         if (filtroTipo && v.tipoVoto !== filtroTipo) return false;
@@ -58,23 +48,11 @@ function VotacaoDetalhe() {
       .sort((a, b) => a.nome.localeCompare(b.nome));
   }, [data, filtroTipo, filtroPart]);
 
-  const tipos = useMemo(
-    () => [...new Set((data?.votos ?? []).map((v) => v.tipoVoto))].sort(),
-    [data],
-  );
+  const tipos = useMemo(() => [...new Set(data.votos.map((v) => v.tipoVoto))].sort(), [data]);
   const partidos = useMemo(
-    () => [...new Set((data?.votos ?? []).map((v) => v.siglaPartido ?? "—"))].sort(),
+    () => [...new Set(data.votos.map((v) => v.siglaPartido ?? "—"))].sort(),
     [data],
   );
-
-  if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
-        {(error as Error).message}
-      </div>
-    );
-  if (!data) throw notFound();
 
   const { votacao: v, disciplina, porUf } = data;
 

@@ -31,6 +31,7 @@ export const TIPOS_ENTIDADE = [
   "busca",
   "emenda",
   "licitacao",
+  "candidatura",
 ] as const;
 
 export type EntidadeTipo = (typeof TIPOS_ENTIDADE)[number];

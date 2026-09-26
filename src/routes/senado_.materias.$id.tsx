@@ -1,10 +1,8 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DaMateria } from "@/lib/ficha-legislativa/logic";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { getMateriaDetalhe } from "@/lib/data/senado/materias.functions";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { ExternalLink } from "lucide-react";
@@ -12,10 +10,8 @@ import { ExternalLink } from "lucide-react";
 export const Route = createFileRoute("/senado_/materias/$id")({
   component: MateriaDetalhe,
   loader: ({ params, context }) => {
-    // Pré-carrega a mesma query do componente só para o título da aba; erro
-    // e 404 continuam sendo tratados pelo componente, como antes.
     const numId = Number(params.id);
-    return carregarH1(context.queryClient, {
+    return carregarFicha(context.queryClient, {
       queryKey: ["senado", "mat", numId],
       queryFn: () => getMateriaDetalhe({ data: { id: numId } }),
       h1: (data) => h1DaMateria(data.materia),
@@ -39,20 +35,7 @@ export const Route = createFileRoute("/senado_/materias/$id")({
 function MateriaDetalhe() {
   const { id } = Route.useParams();
   const numId = Number(id);
-  const fn = useServerFn(getMateriaDetalhe);
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["senado", "mat", numId],
-    queryFn: () => fn({ data: { id: numId } }),
-  });
-
-  if (isLoading) return <div className="mx-auto max-w-7xl px-4 py-10">Carregando…</div>;
-  if (error)
-    return (
-      <div className="mx-auto max-w-7xl px-4 py-10 text-destructive">
-        {(error as Error).message}
-      </div>
-    );
-  if (!data) throw notFound();
+  const { dado: data } = Route.useLoaderData();
 
   const { materia, autores } = data;
 
