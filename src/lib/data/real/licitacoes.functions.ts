@@ -11,7 +11,9 @@ import {
   montarVarreduraKey,
   parseDatePortal,
   varrerPaginado,
+  type SweepRodada,
 } from "@/lib/data/real/sweep";
+import { anoMesDaJanela, type OrigemRodada } from "@/lib/data/historico-rodada";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { linkConsultaLicitacaoPortal } from "@/lib/links-oficiais";
 
@@ -120,76 +122,103 @@ function mapearLicitacao(raw: PortalLicitacao, codigoOrgaoFallback: string): Lic
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarLicitacoesSchema = z.object({
+  codigoOrgao: z.string().regex(/^\d{4,6}$/),
+  // O endpoint /licitacoes EXIGE janela (filtra por data de abertura) e
+  // recusa período maior que um mês.
+  dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  maxPaginas: z.number().int().min(1).max(5000).default(5000),
+  delayMs: z.number().int().min(0).max(10000).default(800),
+  orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
+});
+
+export type ParamsLicitacoes = z.infer<typeof importarLicitacoesSchema>;
+
+/** Chave de varredura da janela — a mesma para painel e ferramenta. */
+export const chaveVarreduraLicitacoes = (p: {
+  codigoOrgao: string;
+  dataInicial: string;
+  dataFinal: string;
+}) => montarVarreduraKey("licitacoes", p.codigoOrgao, p.dataInicial, p.dataFinal);
+
+/**
+ * Motivo para recusar o órgão, ou `null`. Aceita qualquer órgão do Executivo
+ * (não só o catálogo enriquecido); só recusa o catalogado como fora do Portal
+ * (Câmara/Senado).
+ */
+export function orgaoForaDoPortal(codigoOrgao: string): string | null {
+  const catalogado = ORGAOS_BASE.find((o) => o.cod === codigoOrgao);
+  if (catalogado && !catalogado.disponivelPortal) {
+    return `${catalogado.sigla} não é coberto pelo Portal. ${catalogado.nota ?? ""}`.trim();
+  }
+  return null;
+}
+
+/** O endpoint /licitacoes pagina em blocos fixos (mesmo default do Portal). */
+const TAM_PAGINA = 15;
+
+/**
+ * Núcleo chamável sem sessão: UMA rodada da varredura de um órgão numa
+ * janela. Usado pela casca autenticada e pelo modo nomeado. A linha de rodada
+ * marca a célula órgão × mês da cobertura (escopo = código do órgão).
+ */
+export async function rodadaLicitacoes(
+  data: ParamsLicitacoes,
+  userId: string | null,
+  origem: OrigemRodada = {},
+): Promise<SweepRodada> {
+  return varrerPaginado<PortalLicitacao, LicitacaoRow>({
+    entidade: "licitacoes",
+    fonte: "cgu_licitacoes",
+    endpoint: "/licitacoes",
+    orgaoCodLog: data.codigoOrgao,
+    escopo: data.codigoOrgao,
+    ...anoMesDaJanela(data.dataInicial, data.dataFinal),
+    userId,
+    origem,
+    varreduraKey: chaveVarreduraLicitacoes(data),
+    tamPagina: TAM_PAGINA,
+    maxPaginas: data.maxPaginas,
+    delayMs: data.delayMs,
+    orcamentoMs: data.orcamentoMs,
+    montarParams: (pagina) => ({
+      codigoOrgao: data.codigoOrgao,
+      dataInicial: isoToBR(data.dataInicial),
+      dataFinal: isoToBR(data.dataFinal),
+      pagina: String(pagina),
+    }),
+    mapPagina: (list, _pagina, push) => {
+      const rows = list.map((raw) => mapearLicitacao(raw, data.codigoOrgao));
+      // QA roda sobre as linhas mapeadas (sem conferência por detalhe).
+      for (const f of regrasCguLicitacoes(rows as CguLicitacaoLike[])) push.finding(f);
+      return rows;
+    },
+    upsertBatch: async (rows) => {
+      const erros: string[] = [];
+      for (let i = 0; i < rows.length; i += 200) {
+        const chunk = rows.slice(i, i + 200);
+        const { error } = await supabaseAdmin.from("cgu_licitacoes_cache").upsert(chunk);
+        if (error) erros.push(`db: ${error.message}`);
+      }
+      return erros;
+    },
+    rowDateIso: (row) => row.data_abertura,
+  });
+}
+
 export const importLicitacoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        codigoOrgao: z.string().regex(/^\d{4,6}$/),
-        // O endpoint /licitacoes EXIGE janela (filtra por data de abertura).
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        maxPaginas: z.number().int().min(1).max(5000).default(5000),
-        delayMs: z.number().int().min(0).max(10000).default(800),
-        orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarLicitacoesSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-    // Aceita qualquer órgão do Executivo (não só o catálogo enriquecido). Só
-    // bloqueia se estiver catalogado e marcado como fora do Portal (Câmara/Senado).
-    const catalogado = ORGAOS_BASE.find((o) => o.cod === data.codigoOrgao);
-    if (catalogado && !catalogado.disponivelPortal) {
-      throw new Error(`${catalogado.sigla} não é coberto pelo Portal. ${catalogado.nota ?? ""}`);
-    }
-    const base = catalogado ?? { sigla: data.codigoOrgao };
-
-    // O endpoint /licitacoes pagina em blocos fixos (mesmo default do Portal).
-    const TAM_PAGINA = 15;
-    const varreduraKey = montarVarreduraKey(
-      "licitacoes",
-      data.codigoOrgao,
-      data.dataInicial,
-      data.dataFinal,
-    );
-
-    const r = await varrerPaginado<PortalLicitacao, LicitacaoRow>({
-      entidade: "licitacoes",
-      fonte: "cgu_licitacoes",
-      endpoint: "/licitacoes",
-      orgaoCodLog: data.codigoOrgao,
-      escopo: base.sigla,
-      userId: context.userId,
-      varreduraKey,
-      tamPagina: TAM_PAGINA,
-      maxPaginas: data.maxPaginas,
-      delayMs: data.delayMs,
-      orcamentoMs: data.orcamentoMs,
-      montarParams: (pagina) => ({
-        codigoOrgao: data.codigoOrgao,
-        dataInicial: isoToBR(data.dataInicial),
-        dataFinal: isoToBR(data.dataFinal),
-        pagina: String(pagina),
-      }),
-      mapPagina: (list, _pagina, push) => {
-        const rows = list.map((raw) => mapearLicitacao(raw, data.codigoOrgao));
-        // QA roda sobre as linhas mapeadas (sem conferência por detalhe).
-        for (const f of regrasCguLicitacoes(rows as CguLicitacaoLike[])) push.finding(f);
-        return rows;
-      },
-      upsertBatch: async (rows) => {
-        const erros: string[] = [];
-        for (let i = 0; i < rows.length; i += 200) {
-          const chunk = rows.slice(i, i + 200);
-          const { error } = await supabaseAdmin.from("cgu_licitacoes_cache").upsert(chunk);
-          if (error) erros.push(`db: ${error.message}`);
-        }
-        return erros;
-      },
-      rowDateIso: (row) => row.data_abertura,
-    });
-
+    const recusa = orgaoForaDoPortal(data.codigoOrgao);
+    if (recusa) throw new Error(recusa);
+    const r = await rodadaLicitacoes(data, context.userId);
     return {
       meta: {
         totalBruto: r.totalAcumulado,

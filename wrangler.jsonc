@@ -4,4 +4,9 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Teto de CPU por requisição: o máximo (5 min), no lugar do padrão de 30 s.
+  // A retomada de um arquivo grande do TSE descomprime e relê o arquivo desde
+  // o começo a cada rodada; na última rodada de uma UF grande isso passa de
+  // 10 s de CPU. Espera de rede não conta. Contas em docs/fontes/tse.ia.md.
+  "limits": { "cpu_ms": 300000 },
 }

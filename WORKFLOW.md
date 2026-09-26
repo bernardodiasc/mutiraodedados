@@ -57,12 +57,12 @@ Este documento define **como o projeto evolui**: versionamento, ritmo de trabalh
 
 ## 2. Checks proporcionais
 
-| Escopo da release        | Checks obrigatórios                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------------- |
-| Toda release             | `bun run lint` · `bun run build` · `bun run test`                                     |
-| Toca importação de dados | Rodada real da fonte afetada em `/admin/dados`, conferindo o log `importacoes`        |
-| Contém migration         | Migration aplicada + `GRANT`/RLS conferidos ([padrões](./docs/padroes/migrations.md)) |
-| Muda UI                  | Fluxos afetados testados no preview; screenshots quando visual                        |
+| Escopo da release        | Checks obrigatórios                                                                                                                                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Toda release             | `bun run lint` · `bun run build` · `bun run test`                                                                                                                                |
+| Toca importação de dados | Rodada real da fonte afetada em `/admin/dados`, conferindo o log `importacoes`                                                                                                   |
+| Contém migration         | SQL aplicado e registrado em `drizzle.__drizzle_migrations` na mesma transação; no fechamento, journal = banco; `GRANT`/RLS conferidos ([padrões](./docs/padroes/migrations.md)) |
+| Muda UI                  | Fluxos afetados testados no preview; screenshots quando visual                                                                                                                   |
 
 Os roteiros de como cumprir cada check manual estão em [`docs/qa/`](./docs/qa/README.md).
 
@@ -75,7 +75,7 @@ Uma linha por regra; o detalhe mora no doc canônico — não duplique aqui.
 - Limites do Cloudflare Workers: importações longas usam orçamento de tempo + retomada — [`debug-problemas.ia.md` §2](./docs/padroes/debug-problemas.ia.md).
 - Server functions são sempre declarações estáticas, nunca criadas por factory — [`debug-problemas.ia.md` §5](./docs/padroes/debug-problemas.ia.md).
 - `client.server` (service role) jamais importado em `.tsx` que renderiza no cliente — [`debug-problemas.ia.md` §3](./docs/padroes/debug-problemas.ia.md).
-- Migrations são imutáveis e nascem em `drizzle/migrations/`, criadas e aplicadas pelo Lovable — [`docs/padroes/migrations.md`](./docs/padroes/migrations.md).
+- Migrations são imutáveis, idempotentes e nascem no PR em `drizzle/migrations/`; o mantenedor aplica o SQL à mão e a registra na tabela do drizzle na mesma transação — [`docs/padroes/migrations.md`](./docs/padroes/migrations.md).
 - Toda server function autenticada: `.middleware([requireSupabaseAuth])` + validação Zod; tabela nova = `GRANT` + RLS.
 - Texto de fonte externa exibido publicamente passa por `sanitizarTextoPublico()` (LGPD).
 - Runtime e gerenciador: **bun** (`bun run`, `bunx`) — nunca npm/npx.
@@ -132,12 +132,13 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** nenhuma. A próxima é a v0.14.0 (UX de `/buscar`), que já tem milestone e é promovida quando a primeira issue dela começar.
-- **Última release fechada:** v0.13.0, em 2026-09-25 ([RELEASES.md](./RELEASES.md)).
+- **Release em andamento:** nenhuma; a próxima é a v0.15.0 (UX de `/buscar`), promovida quando a primeira issue dela começar — ver [ROADMAP](./ROADMAP.md).
+- **Última release fechada:** v0.14.0, em 2026-09-26 ([RELEASES.md](./RELEASES.md)).
 - **Em paralelo, fora de release:**
-  - Rodada de testes manuais do mantenedor pelos roteiros de [`docs/qa/`](./docs/qa/README.md), inclusive as rodadas reais de Câmara, Senado e SICONFI que saíram do aceite da v0.13.0.
-  - Planejamento de testes automatizados (evals de dados e e2e de UI) e tickets de decisão do programa v0.14.0–v0.22.0, nas issues do privado; resumos no ROADMAP.
+  - Tickets de decisão do programa v0.15.0–v0.23.0, nas issues do privado; resumos no ROADMAP.
+  - Cobertura completa das fontes pela ferramenta de importação, executada pelo mantenedor a partir do plano nas issues do privado.
 - **Outras pendências:**
-  - Registrar em `drizzle/migrations/`, pelo Lovable, as quatro alterações da v0.13.0 aplicadas direto no banco (SQL idempotente, então rodar de novo é seguro).
-  - Ativação da automação (CRON_SECRET + linha de config — papel do mantenedor, ver docs/automacao.md).
+  - Registrar em `drizzle/migrations/` as quatro alterações da v0.13.0 aplicadas direto no banco, pelo fluxo de migration (SQL idempotente, então rodar de novo é seguro).
+  - Ativação da automação: o `CRON_SECRET` já está configurado; falta a linha de `automacao_config` para ligar o agendamento (papel do mantenedor, ver docs/automacao.md).
+  - Confirmar com a plataforma se o `limits.cpu_ms` do `wrangler.jsonc` é aplicado em produção, antes da carga histórica do TSE.
   - 17 warnings de lint do padrão shadcn/ui.

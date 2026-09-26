@@ -13,6 +13,19 @@ const CDN = "https://cdn.tse.jus.br/estatistica/sead/odsele";
 export type TseTipoArquivo = "candidatos" | "bens" | "resultados" | "receitas" | "despesas";
 
 /**
+ * Os tipos de arquivo na ordem de importação: candidatos primeiro, porque os
+ * demais referenciam o catálogo (o total de bens é gravado na ficha do
+ * candidato; sem ela, o `update` não afeta nada).
+ */
+export const TSE_TIPOS_ARQUIVO = [
+  "candidatos",
+  "bens",
+  "receitas",
+  "despesas",
+  "resultados",
+] as const satisfies readonly TseTipoArquivo[];
+
+/**
  * Eleições cobertas. O piso NÃO é o mesmo para todo tipo de arquivo — ver
  * `origemDisponivel`, que é quem sabe o que existe em cada (tipo, ano).
  *

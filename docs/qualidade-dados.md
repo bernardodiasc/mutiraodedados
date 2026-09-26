@@ -20,6 +20,26 @@ No banco, os três tipos moram na tabela `qa_findings`, distinguidos pela coluna
 
 Sinais investigativos exigem sempre o aviso de sinais na exposição pública (`PainelExplicar` com `avisoSinais`): o padrão detectado não é irregularidade por si só.
 
+## Problema da origem × erro nosso
+
+O Mutirão de Dados **audita** dados públicos. Tudo o que dá errado numa importação cai num de três casos, e cada um tem um destino diferente:
+
+| Caso                           | O que é                                                                                                                                                               | Destino                                                                                                                                                                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Erro nosso**                 | Parser, código, endpoint ou contrato da API mal lido, banco.                                                                                                          | **Corrige-se no código.** Na importação é erro no log; a rodada fica `erro_nosso` e a conferência reprova.                                                                                                                          |
+| **Origem indisponível**        | A origem não respondeu: fora do ar, 5xx, 429, timeout. O dado não está errado, só não veio.                                                                           | Nem código nem sinal: a rodada é refeita. Persistindo, a rodada fica `erro_origem` e a conferência, inconclusiva.                                                                                                                   |
+| **Problema do dado na origem** | A origem respondeu, e o que publica está inconsistente ou incompleto: lista um registro cujo detalhe não existe, traz um valor impossível, não tem o que deveria ter. | **Vira sinal**, não erro: alerta de qualidade ou lacuna, pela regra de classificação acima. A importação segue; o log registra um aviso `info:`; o registro que ficou de fora conta como **descartado**; a conferência não reprova. |
+
+Quando o problema do dado na origem vira cada tipo:
+
+- **Alerta de qualidade** — o registro existe na origem, mas inspecionado sozinho (ou contra outra leitura dele mesmo, como listagem × detalhe) está inconsistente. Ex.: `valor_corrigido_listagem` (CGU), `votacao_listada_sem_detalhe` (votações da Câmara).
+- **Lacuna** — algo que a regra de negócio ou a lei diz que deveria existir não está na origem, e a ausência só aparece com o conjunto carregado. Ex.: `eleito_sem_prestacao_contas`.
+- **Sinal investigativo** nunca nasce de falha de importação: é cruzamento de dados corretos.
+
+Um 404 não decide o lado sozinho. Numa URL que nós montamos (endpoint, parâmetro), é erro nosso. No detalhe de um registro que a própria origem listou, com o id e a URI que ela devolveu, é problema do dado na origem. O diagnóstico confere isso antes de escolher o destino.
+
+Por isso, **uma importação reprovada por um problema do dado na origem indica que falta um sinal**, não que há um dado a contornar. A correção é criar a regra: o caso passa a ser descartado com aviso `info:`, gera o sinal e entra como descartado na contagem da conferência ([importação](./importacao.md#problema-da-origem-na-conferência)).
+
 ## Campos do achado
 
 Todo sinal vira um registro na tabela `qa_findings`, com:

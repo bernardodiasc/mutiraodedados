@@ -9,24 +9,53 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { TSE_ANOS_ELEICAO, TSE_UFS } from "@/lib/data/tse/client-ckan";
+import {
+  TSE_ANOS_ELEICAO,
+  TSE_TIPOS_ARQUIVO,
+  TSE_UFS,
+  anoInicioTipo,
+  combinacaoValida,
+  origemDisponivel,
+} from "@/lib/data/tse/client-ckan";
 import { dentroDaJanelaAnual } from "@/lib/data/janelas";
 
-const chunkSchema = z.object({
-  ano: z.number().refine((a) => (TSE_ANOS_ELEICAO as readonly number[]).includes(a), {
+/**
+ * Ano de eleição coberto pela fonte e dentro da janela de disponibilidade.
+ * Anual, não mensal: a eleição em curso é importável desde o dia em que o TSE
+ * começa a publicar o registro das candidaturas.
+ */
+export const anoEleicaoTseSchema = z
+  .number()
+  .refine((a) => (TSE_ANOS_ELEICAO as readonly number[]).includes(a), {
     message: `Ano deve ser uma eleição coberta pela fonte (${TSE_ANOS_ELEICAO.join(", ")}).`,
-  }),
+  })
+  .refine((a) => dentroDaJanelaAnual("tse", a), {
+    message: "Fora da janela da fonte TSE (1998 até o ano corrente).",
+  });
+
+const chunkSchema = z.object({
+  ano: anoEleicaoTseSchema,
   uf: z.enum(TSE_UFS),
   reprocessar: z.boolean().optional(),
 });
 
-function validarJanela(ano: number): void {
-  // Anual, não mensal: a eleição em curso é importável desde o dia em que o TSE
-  // começa a publicar o registro das candidaturas.
-  if (!dentroDaJanelaAnual("tse", ano)) {
-    throw new Error(`Fora da janela da fonte TSE (1998 até o ano corrente): ${ano}.`);
-  }
-}
+/**
+ * Um arquivo do TSE — tipo × ano × UF —, como o modo nomeado de
+ * `/api/cron-importar` o recebe. Recusa a combinação que o TSE não publica
+ * (bens antes de 2006, contas antes de 2012, votação e contas da eleição em
+ * curso, "BR" em eleição municipal).
+ */
+export const arquivoTseSchema = z
+  .object({ tipo: z.enum(TSE_TIPOS_ARQUIVO), ano: anoEleicaoTseSchema, uf: z.enum(TSE_UFS) })
+  .superRefine((p, ctx) => {
+    if (combinacaoValida(p.tipo, p.ano, p.uf)) return;
+    const motivo = !origemDisponivel(p.tipo, p.ano)
+      ? p.ano < anoInicioTipo(p.tipo)
+        ? `o TSE só publica ${p.tipo} a partir de ${anoInicioTipo(p.tipo)}`
+        : `o TSE ainda não publicou ${p.tipo} de ${p.ano}`
+      : `"BR" não existe em eleição municipal (${p.ano})`;
+    ctx.addIssue({ code: "custom", message: motivo });
+  });
 
 type TseSyncTipo = "candidatos" | "bens" | "resultados" | "receitas" | "despesas";
 
@@ -43,7 +72,6 @@ async function executarSyncTse(
   userId: string,
   data: z.infer<typeof chunkSchema>,
 ) {
-  validarJanela(data.ano);
   const { ensureAdmin, sincronizarArquivoTse } = await import("@/lib/data/tse/ingest.server");
   await ensureAdmin(userId);
   return sincronizarArquivoTse({

@@ -13,8 +13,25 @@
  *   consultou e voltou vazia grava a linha com zero: é o marcador de
  *   "consultado, sem dados" que evita reconsultar um mês legitimamente vazio.
  */
-import type { ResultadoRodada } from "@/lib/data/runner";
+import type { MotivoParada, ResultadoRodada } from "@/lib/data/runner";
 import { classificarRodada, type ResultadoClassificado } from "@/lib/data/resultado-rodada";
+
+/**
+ * Quem disparou a rodada: o admin no painel, a fila da automação (cron) ou a
+ * ferramenta de linha de comando pelo modo nomeado de `/api/cron-importar`.
+ */
+export type Gatilho = "painel" | "cron" | "ferramenta";
+
+/**
+ * Gatilho de quem não declarou o seu: com operador logado é o painel; sem
+ * operador, a fila da automação. A ferramenta sempre declara o dela.
+ */
+export function gatilhoPadrao(userId: string | null): Gatilho {
+  return userId ? "painel" : "cron";
+}
+
+/** O que a ferramenta informa ao núcleo sobre a rodada que pediu. */
+export type OrigemRodada = { gatilho?: Gatilho; execucaoId?: string };
 
 export type LinhaRodada = {
   fonte: string;
@@ -27,8 +44,21 @@ export type LinhaRodada = {
   erros: string[];
   endpoint: string;
   user_id: string | null;
+  gatilho: Gatilho;
+  /** Execução (uma janela pedida pela ferramenta) a que a rodada pertence. */
+  execucao_id: string | null;
   /** Como ler o `importados` desta rodada (ver `resultado-rodada.ts`). */
   resultado: ResultadoClassificado;
+  /**
+   * Métricas de desempenho da rodada, em colunas próprias para o Histórico
+   * somar e comparar. Linhas anteriores a elas ficam nulas.
+   */
+  duracao_ms: number;
+  /** Passos confirmados na rodada (votações, consultas, páginas…). */
+  itens_processados: number;
+  /** Subrequisições que os passos reportaram (`custoGasto` do runner). */
+  subrequisicoes: number;
+  motivo_parada: MotivoParada;
 };
 
 /** Por que a rodada parou, na ordem de precedência do runner. */
@@ -87,6 +117,9 @@ export type MetaRodada = {
   unidade: string;
   /** null = execução do agendador (sem sessão) — a coluna no banco é anulável. */
   userId: string | null;
+  /** Omitido: deduzido de `userId` (ver {@link gatilhoPadrao}). */
+  gatilho?: Gatilho;
+  execucaoId?: string | null;
   duracaoMs?: number;
   /** Período anterior ao início da fonte (`janelas.ts`) — zero é esperado. */
   foraDaJanela?: boolean;
@@ -95,6 +128,7 @@ export type MetaRodada = {
 };
 
 export function montarLinhaRodada(meta: MetaRodada, rodada: ResultadoRodada): LinhaRodada {
+  const duracaoMs = meta.duracaoMs ?? rodada.duracaoMs;
   const duracao = meta.duracaoMs != null ? `, ${Math.round(meta.duracaoMs / 1000)}s` : "";
   const passos =
     rodada.cursorFinal >= rodada.cursorInicial
@@ -111,11 +145,17 @@ export function montarLinhaRodada(meta: MetaRodada, rodada: ResultadoRodada): Li
     erros: rodada.erros,
     endpoint: `${meta.endpoint} (rodada: ${passos} — ${motivoParada(rodada)}${duracao})`,
     user_id: meta.userId,
+    gatilho: meta.gatilho ?? gatilhoPadrao(meta.userId),
+    execucao_id: meta.execucaoId ?? null,
     resultado: classificarRodada(rodada, {
       foraDaJanela: meta.foraDaJanela,
       // Calculado aqui de propósito: exigir que cada fonte lembre de passar
       // isso seria uma chance a mais de classificar errado em silêncio.
       periodoRecente: meta.periodoRecente ?? ehPeriodoRecente(meta.ano, meta.mes),
     }),
+    duracao_ms: Math.round(duracaoMs),
+    itens_processados: Math.max(0, rodada.cursorFinal - rodada.cursorInicial + 1),
+    subrequisicoes: rodada.custoGasto,
+    motivo_parada: rodada.parada,
   };
 }

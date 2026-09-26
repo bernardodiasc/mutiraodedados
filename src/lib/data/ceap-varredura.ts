@@ -51,11 +51,12 @@ export const CEAP_ORCAMENTO_MS = 150_000;
 
 /**
  * Teto de subrequisições por rodada. O Worker limita subrequisições por
- * invocação, e tempo sozinho não protege disso: um parlamentar pode ser rápido
- * e caro. Conta páginas buscadas e lotes gravados; a margem até o teto real
- * absorve as consultas de QA.
+ * invocação (10.000 no plano pago), e tempo sozinho não protege disso: um
+ * parlamentar pode ser rápido e caro. Conta páginas buscadas e lotes gravados.
+ * Mesmo valor e mesma conta de `JANELA_TETO_SUBREQUISICOES`: o relógio limita
+ * a rodada, e a folga até o limite real absorve o que o custo não conta.
  */
-export const CEAP_TETO_SUBREQUISICOES = 45;
+export const CEAP_TETO_SUBREQUISICOES = 1_000;
 
 /**
  * Legislatura da Câmara que cobre um ano (52 = 2003–2006, +1 a cada 4 anos).

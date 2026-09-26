@@ -55,10 +55,12 @@ const r = await rodarComOrcamento({
   checkpoint, // Checkpoint: ler/salvar sobre a tabela da fonte
   orcamentoMs, // ~180s (teto do Worker é maior; a folga é do upsert)
   maxPassos, // trava contra laço infinito
-  passo: async (cursor) => ({ processados, fim, erros, interromper }),
+  paralelismo, // opcional, padrão 1: passos ao mesmo tempo
+  passo: async (cursor) => ({ processados, fim, erros, interromper, custo }),
 });
 // r: { concluido, proximoCursor, processados, totalAcumulado,
-//      cursorInicial, cursorFinal, orcamentoEsgotado, semRetomada, erros }
+//      cursorInicial, cursorFinal, orcamentoEsgotado, custoEsgotado,
+//      custoGasto, semRetomada, erros, parada, duracaoMs }
 ```
 
 Contrato do passo:
@@ -68,6 +70,8 @@ Contrato do passo:
 | `fim: true`         | origem acabou → varredura marcada completa                                                 |
 | `interromper: true` | para **sem** marcar completa e **sem** avançar o cursor: a próxima rodada refaz este passo |
 | nenhum dos dois     | cursor avança, checkpoint gravado, segue                                                   |
+
+`parada` é o motivo de parada que o Histórico grava em `motivo_parada`: `fim`, `tempo`, `subrequisicoes`, `erro` (passo interrompido) ou `passos` (`maxPassos`). `duracaoMs` é medida pelo relógio do runner; `montarLinhaRodada` prefere a `duracaoMs` de quem chama, quando vem, e grava também `itens_processados` (`cursorFinal − cursorInicial + 1`) e `subrequisicoes` (`custoGasto`, que inclui o custo dos passos interrompidos e dos descartados). `inserirImportacoes` tolera o banco sem as colunas novas: tira só o grupo que falta (gatilho e execução, ou métricas) e grava de novo.
 
 O checkpoint é gravado **depois de cada passo**, antes do seguinte: se o Worker for morto no meio, o trabalho feito não se perde. Como os upserts são idempotentes por chave natural, refazer um passo que gravou metade das linhas não duplica nada.
 
@@ -83,9 +87,45 @@ Implementações de `Checkpoint`: `checkpointImportacao` (`checkpoint.server.ts`
 
 O Workers também limita **subrequisições por invocação**, e tempo sozinho não protege disso: um passo pode ser rápido e caro. O passo reporta `custo` (páginas buscadas + lotes gravados) e a rodada para ao atingir `orcamentoCusto`. Como o custo só se conhece ao fim do passo, o teto é conferido depois dele — a rodada pode ultrapassar pelo custo do último passo, então deixe folga.
 
-Em uso hoje: despesas de gabinete (`ceap-varredura.ts`) processam **um parlamentar por passo**; PNCP e Transferegov (`janela-varredura.ts`) processam **uma página por passo**; proposições da Câmara processam **uma proposição por passo** — cada uma custa ~4 subrequisições (detalhe, autores e duas gravações), então uma página inteira da listagem estouraria o limite do Worker numa chamada só. Todas com teto de 45 subrequisições e orçamento de 150s por rodada.
+Em uso hoje: despesas de gabinete (`ceap-varredura.ts`) processam **um parlamentar por passo**; PNCP e Transferegov (`janela-varredura.ts`) processam **uma página por passo**; proposições da Câmara processam **uma proposição por passo** — cada uma custa ~4 subrequisições (detalhe, autores e duas gravações), então uma página inteira da listagem estouraria o limite do Worker numa chamada só. Todas com orçamento de 150s por rodada e teto de 1.000 subrequisições (`JANELA_TETO_SUBREQUISICOES` e `CEAP_TETO_SUBREQUISICOES`), menos as votações da Câmara, que rodam passos em paralelo ([abaixo](#paralelismo)), com 6.000.
+
+O teto de 1.000 vem do plano pago do Workers: 10.000 subrequisições por invocação, 5 min de CPU declarados no `wrangler.jsonc` (espera de rede não conta como CPU; a varredura do SICONFI indica que o teto efetivo é menor — [teto do SICONFI](#teto-do-siconfi)) e passos em sequência, sem disputar as 6 conexões simultâneas. O teto antigo, de 45, era a conta do plano Free (50) e parava a rodada muito antes do relógio: um mês de votações da Câmara (mais de 420, a ~4 subrequisições cada, ~0,4 s por votação) levava mais de 30 rodadas de ~8 s. Com 1.000, a rodada cabe ~250 votações em ~100 s e o mês termina em 2 rodadas; na maioria das fontes quem para a rodada passa a ser o relógio. A folga até 10.000 cobre o que o custo não conta — o checkpoint de cada passo, QA, a linha do Histórico, as gravações por consulta do SICONFI —, mesmo que isso triplique o custo real.
+
+Exceção: **PNCP e Transferegov** ficam em 45 (`JANELA_TETO_SUBREQUISICOES_COM_COTA`). As duas origens limitam requisições por minuto (30 por minuto no PNCP; a chave do Portal, no Transferegov), e a rodada curta com a pausa entre rodadas é o que as mantém abaixo da cota. Um teto alto faria uma rodada de 150 s disparar centenas de GETs seguidos.
+
+### Paralelismo
+
+`paralelismo` N > 1 roda até N passos ao mesmo tempo, nas posições logo depois do cursor. Os resultados são **confirmados na ordem do cursor**, como se tivessem rodado em sequência:
+
+- o cursor só avança sobre o prefixo contíguo de passos concluídos; um passo à frente que terminou antes espera a vez, e o checkpoint é gravado uma vez por grupo confirmado;
+- se um passo interrompe (falha passageira), os que estão à frente dele são descartados: não contam em `processados` nem no acumulado, e a próxima rodada recomeça do passo que falhou. Os upserts idempotentes absorvem o trabalho refeito;
+- o tempo e o custo são conferidos antes de cada lançamento; esgotados, a rodada para de lançar e confirma o que estava em voo;
+- ao parar (fim, interrupção, erro lançado), a rodada espera os passos em voo terminarem antes de gravar o checkpoint final e a linha do Histórico — nenhuma escrita fica pendente depois dela.
+
+Estado compartilhado entre passos precisa aguentar chamadas simultâneas: a lista das votações da Câmara é guardada como promessa, para os primeiros passos esperarem a mesma busca.
+
+| Fonte                            | N   | Constante                     | Por quê                                                                                                                                        |
+| -------------------------------- | --- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Votações da Câmara               | 5   | `PARALELISMO_VOTACOES_CAMARA` | ~0,55 s por votação em sequência, quase tudo espera pela API, sem cota publicada; 6 conexões do Worker menos uma para o checkpoint             |
+| SICONFI em lote                  | 3   | `PARALELISMO_SICONFI`         | a espera é pela origem e pelos lotes; a rodada é limitada pelo teto de custo próprio (`SICONFI_TETO_CUSTO_RODADA`), [abaixo](#teto-do-siconfi) |
+| PNCP, Transferegov, Portal (CGU) | 1   | —                             | cota por minuto da origem: a rodada curta e a pausa entre rodadas são o ritmo                                                                  |
+| Demais                           | 1   | —                             | sem medida de ganho; entram quando a rodada real mostrar que param pelo tempo                                                                  |
+
+Com N passos juntos, a rodada faz N vezes mais trabalho em 150 s, e o teto de 1.000 subrequisições pararia a rodada antes do relógio. As votações da Câmara usam `JANELA_TETO_SUBREQUISICOES_PARALELO` = 6.000: ~1.350 votações × 3 a 4 subrequisições contadas ≈ 5.000; a folga até 10.000 cobre o que o custo não conta (checkpoint por grupo confirmado, QA e a linha do Histórico). O orçamento de tempo continua em 150 s.
+
+**Medida (origem simulada, `camara/votacoes-rodadas.test.ts`):** maio de 2026, 1.535 votações, 0,55 s e 3–4 subrequisições por votação. Em sequência: 6 rodadas (a primeira com 273 votações, parada pelo tempo). Com N = 5: 2 rodadas (1.365 + 170).
+
+**Votos de votação não nominal: sem corte.** Conferido na API em 2026-09-26: a listagem `/votacoes` não traz indicação de votação nominal, e no detalhe os campos `descUltimaAberturaVotacao`/`dataHoraUltimaAberturaVotacao` não são confiáveis — numa amostra de 60 votações de maio de 2026, a `2233802-416` (Plenário) veio com os dois nulos e 474 votos em `/votos`. Sem garantia na origem, a chamada de votos continua sendo feita para toda votação.
 
 Chaves de varredura: `chaveVarreduraCeap` (casa, ano, mês) e `chaveVarreduraJanela` (fonte, janela de datas, filtros). A chave precisa distinguir tudo que muda o conjunto de resultados — duas importações da mesma janela com filtros diferentes são varreduras diferentes, e se compartilhassem chave a segunda retomaria do cursor da primeira e pularia páginas que nunca leu.
+
+#### Teto do SICONFI
+
+A varredura do SICONFI com 3 consultas juntas usa um teto de custo próprio, `SICONFI_TETO_CUSTO_RODADA` = 400 (GETs + lotes de 200 linhas), e não o de 6.000. Uma consulta de UF grava milhares de linhas, e o que cresce com elas é a **CPU da invocação** (ler o JSON, montar as linhas, serializar os lotes) — o relógio de 150 s deixava de ser o limite.
+
+Com 3 juntas e o teto de 6.000, as duas primeiras rodadas em produção (UFs 2023 e capitais 2025) gravaram 145 mil e 140 mil linhas em ~2 minutos (~850 de custo contado) e o Worker morreu no meio: a rota respondeu `502 Internal server error`, que não sai do nosso código (os erros da rodada saem em 500 com o erro no corpo), e a linha da rodada não foi gravada. A rodada anterior, também com 3 juntas, terminou com 96 mil linhas (575 de custo); as de ~70 mil, em sequência (~400), sempre terminaram. Medido com a origem e o banco simulados (respostas reais do Tesouro, até 1,75 MB e 4.760 linhas por consulta): a memória viva fica em poucos MB por consulta, sem acúmulo entre consultas, e a CPU fica em ~0,1–0,15 ms por linha — 140 mil linhas dão 14–21 s numa máquina de desenvolvimento, perto dos 30 s padrão do Workers numa máquina mais lenta. A causa provável é o teto de CPU efetivo da plataforma ser menor que o declarado no `wrangler.jsonc`; não há log do Worker que confirme.
+
+O teto de 400 para de lançar e deixa as consultas em voo terminarem (no máximo ~75 a mais): ~80 mil linhas por rodada em ~60 s, dentro do que já terminou em produção. Se a rota voltar a responder 502 no SICONFI, volte `PARALELISMO_SICONFI` para 1 e confira nos logs do Worker se a invocação acabou por CPU ou por memória.
 
 ## Contrato de fonte
 

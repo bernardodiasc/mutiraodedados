@@ -13,6 +13,7 @@ export type QaFonte =
   | "cgu_convenios"
   | "pncp"
   | "camara_ceap"
+  | "camara_vot"
   | "senado_ceaps"
   | "transferegov"
   | "siconfi"
@@ -176,6 +177,43 @@ export function findingValorCorrigidoListagem(args: {
       campos_suspeitos: ["valorFinalCompra"],
       motivo:
         "a fonte (listagem ou detalhe) trouxe o valor truncado por escala; gravamos o valor não-truncado, que bate com o documento oficial",
+    },
+  };
+}
+
+/**
+ * Alerta `votacao_listada_sem_detalhe`: a listagem de votações da Câmara traz
+ * a votação, mas o detalhe dela (`/votacoes/{id}`) responde 404. A votação é
+ * descartada da importação (sem detalhe não há o que gravar) e o descarte
+ * fica registrado aqui — é esse alerta que a conferência conta como
+ * descartado. Alerta de qualidade, não lacuna: a inconsistência aparece
+ * inspecionando o próprio registro (listagem × detalhe), como na conferência
+ * por detalhe dos contratos da CGU. Criado no ingest.
+ */
+export function findingVotacaoListadaSemDetalhe(v: {
+  id: string;
+  data?: string;
+  dataHoraRegistro?: string;
+  siglaOrgao?: string;
+  proposicaoObjeto?: string;
+  descricao?: string;
+}): QaFinding {
+  return {
+    fonte: "camara_vot",
+    entidade_tipo: "votacao",
+    entidade_id: v.id,
+    regra: "votacao_listada_sem_detalhe",
+    tipo: "qualidade",
+    severidade: "aviso",
+    detalhes: {
+      data: v.data ?? (v.dataHoraRegistro ?? "").slice(0, 10),
+      url_detalhe: `https://dadosabertos.camara.leg.br/api/v2/votacoes/${v.id}`,
+      status_detalhe: 404,
+      sigla_orgao: v.siglaOrgao ?? null,
+      proposicao_objeto: v.proposicaoObjeto ?? null,
+      descricao: v.descricao ?? null,
+      motivo:
+        "a listagem de votações da Câmara traz esta votação, mas o detalhe responde 404; a votação ficou fora da importação",
     },
   };
 }

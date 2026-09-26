@@ -18,6 +18,7 @@
 - Paginação `pagina` + `itens` — respeitar limite máximo de itens por página.
 - **Votos de uma votação não paginam** (observado em 2026-09-25): `/votacoes/{id}/votos` responde 400 a `itens`/`pagina` e, sem eles, devolve todos os votos numa resposta só. Votação simbólica devolve lista vazia.
 - **Listagem de votações ordena por `id` ASC**: ordenada por `dataHoraRegistro` a paginação não é estável — março de 2003 veio com 22 de 440 votações repetidas e 22 faltando; por `id` vieram as 440, o mesmo total do CSV em lote. O contrato está em `src/lib/data/camara/votacoes-api.ts`, com testes.
+- **Votação listada sem detalhe** (observado em julho de 2026): a listagem trouxe quatro votações (`2024320-94`, `2129817-26`, `2430854-61`, `535195-72`) cujo detalhe e votos respondem 404, embora a URI do detalhe venha da própria listagem e a rota `/proposicoes/{id}/votacoes` também as liste. O id tem a forma `<id da proposição>-<sequencial>`, e as votações vizinhas da mesma proposição (`2129817-25`, `535195-71`) respondem normalmente. A importação descarta a votação, registra o aviso `info:` e o alerta de qualidade `votacao_listada_sem_detalhe`, e a conferência a conta como descartada ([problema da origem na conferência](../importacao.md#problema-da-origem-na-conferência)).
 - API ocasionalmente retorna 429; cliente faz retry exponencial.
 - Descrições de despesa podem conter PII em casos raros — sanitização aplicada.
 

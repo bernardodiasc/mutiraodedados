@@ -6,6 +6,7 @@ import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import type { OrigemRodada } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
@@ -123,9 +124,48 @@ function apenasData(v: string | null | undefined): string | null {
   return v && /^\d{4}-\d{2}-\d{2}/.test(v) ? v.slice(0, 10) : null;
 }
 
+/** Chave de varredura do ano + sigla — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraMaterias = (data: { ano: number; sigla: string }) =>
+  `senado_mat#${data.ano}#${data.sigla}`;
+
+/** A lista do ano + sigla, ordenada por código — o cursor da retomada depende dela. */
+async function listarProcessosDoAno(data: { ano: number; sigla: string }): Promise<ProcessoItem[]> {
+  const json = await senadoGet<ProcessoItem[]>(
+    `/processo?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`,
+  );
+  return asArray(json).sort((a, b) => Number(a.codigoMateria ?? 0) - Number(b.codigoMateria ?? 0));
+}
+
+/** Item que a importação descarta: sem código de matéria ou sem número legível. */
+const materiaIlegivel = (m: ProcessoItem) => {
+  const idMat = Number(m.codigoMateria ?? 0);
+  return !Number.isFinite(idMat) || idMat <= 0 || !parseIdentificacao(m.identificacao);
+};
+
+/**
+ * O total da origem é o tamanho da lista, que vem inteira numa chamada; os
+ * itens ilegíveis contam como descartados.
+ */
+const totalDaLista = (lista: readonly ProcessoItem[]) => ({
+  total: lista.length,
+  descartados: lista.filter(materiaIlegivel).length,
+});
+
+/** Total da origem do ano + sigla numa chamada só, para conferir sem reimportar. */
+export async function totalDaOrigemMaterias(data: {
+  ano: number;
+  sigla: string;
+}): Promise<{ total: number; descartados: number }> {
+  return totalDaLista(await listarProcessosDoAno(data));
+}
+
 /** Importa matérias do Senado por ano + sigla (PL, PEC, MPV, PLP...). */
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
-export async function rodadaMaterias(data: { ano: number; sigla: string }, userId: string | null) {
+export async function rodadaMaterias(
+  data: { ano: number; sigla: string },
+  userId: string | null,
+  origem: OrigemRodada = {},
+) {
   let totalAutores = 0;
   const erros: string[] = [];
   const inicioRodada = Date.now();
@@ -138,13 +178,7 @@ export async function rodadaMaterias(data: { ano: number; sigla: string }, userI
   let listaRodada: ProcessoItem[] | null = null;
   const carregarLista = async (): Promise<ProcessoItem[]> => {
     if (listaRodada) return listaRodada;
-    const json = await senadoGet<ProcessoItem[]>(
-      `/processo?ano=${data.ano}&sigla=${encodeURIComponent(data.sigla)}`,
-    );
-    // Ordem estável por código de matéria — o cursor da retomada depende dela.
-    listaRodada = asArray(json).sort(
-      (a, b) => Number(a.codigoMateria ?? 0) - Number(b.codigoMateria ?? 0),
-    );
+    listaRodada = await listarProcessosDoAno(data);
     return listaRodada;
   };
 
@@ -154,7 +188,7 @@ export async function rodadaMaterias(data: { ano: number; sigla: string }, userI
   const descartados = { semCodigo: 0, semNumero: 0 };
 
   const rodada = await rodarComOrcamento({
-    chave: `senado_mat#${data.ano}#${data.sigla}`,
+    chave: chaveVarreduraMaterias(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
     orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
@@ -256,21 +290,28 @@ export async function rodadaMaterias(data: { ano: number; sigla: string }, userI
   const avisoHistorico = await registrarRodadaImportacao(
     {
       fonte: "senado_mat",
+      // A sigla: cada uma é uma varredura e uma conferência próprias.
+      escopo: data.sigla,
       ano: data.ano,
       mes: 1, // fonte anual — âncora da matriz de cobertura
       endpoint: `GET ${BASE}/processo?ano=${data.ano}&sigla=${data.sigla}`,
       unidade: "matérias",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
   );
   if (avisoHistorico) erros.push(avisoHistorico);
 
+  // A anotação desfaz o estreitamento para `null`: quem atribui é a closure.
+  const lista = listaRodada as ProcessoItem[] | null;
+
   return {
     importados: rodada.processados,
     autores: totalAutores,
     erros,
+    origem: lista ? totalDaLista(lista) : null,
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -281,16 +322,18 @@ export async function rodadaMaterias(data: { ano: number; sigla: string }, userI
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarMateriasSchema = z.object({
+  ano: z.number().int().min(1990).max(2100),
+  sigla: z.string().min(2).max(10).default("PL"),
+});
+
 export const importarMaterias = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        ano: z.number().int().min(1990).max(2100),
-        sigla: z.string().min(2).max(10).default("PL"),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarMateriasSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaMaterias(data, context.userId);

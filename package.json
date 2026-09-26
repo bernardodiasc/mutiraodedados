@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "format": "prettier --write .",
-    "sync:opensource": "node scripts/sync-opensource.mjs"
+    "sync:opensource": "node scripts/sync-opensource.mjs",
+    "importar": "bun scripts/importar.ts"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

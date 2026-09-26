@@ -10,6 +10,7 @@ import { rodadaMaterias } from "@/lib/data/senado/materias.functions";
 import { rodadaProposicoes } from "@/lib/data/camara/proposicoes.functions";
 import { rodadaConveniosOrigem } from "@/lib/data/convenios-origem/ingest.functions";
 import { rodadaMunicipiosIBGE } from "@/lib/data/ibge/ingest.functions";
+import { consultarPendentes, executarRodadaNomeada } from "@/lib/data/automacao/nomeado";
 
 /**
  * Um TIQUE do agendador (v0.11.0): reivindica a próxima tarefa da fila,
@@ -26,6 +27,11 @@ import { rodadaMunicipiosIBGE } from "@/lib/data/ibge/ingest.functions";
  * claim expira em 15 min — tique que morreu não prende a tarefa. Rodada
  * manual do admin em paralelo é tolerada por desenho: upserts idempotentes e
  * checkpoint por chave fazem o pior caso ser trabalho repetido, não corrupção.
+ *
+ * Com `tarefa` no corpo, a rota entra no MODO NOMEADO (`nomeado.ts`): roda a
+ * tarefa e a janela pedidas, sem passar pela fila. Sem corpo, ou com `{}` —
+ * o que o pg_net manda —, segue o modo fila. Com `consulta: "pendentes"`, só
+ * lê: devolve as janelas da tarefa sem conferência aprovada.
  */
 
 type ResultadoRodadaTique = {
@@ -109,6 +115,32 @@ export async function executarTiqueAutomacao(request: Request): Promise<Response
     return json(401, { erro: "não autorizado" });
   }
   if (request.method !== "POST") return json(405, { erro: "use POST" });
+
+  const texto = await request.text();
+  let corpo: unknown = null;
+  if (texto.trim()) {
+    try {
+      corpo = JSON.parse(texto);
+    } catch {
+      return json(400, { erro: "corpo não é JSON" });
+    }
+  }
+  if (corpo && typeof corpo === "object" && "consulta" in corpo) {
+    try {
+      const r = await consultarPendentes(corpo);
+      return "recusa" in r ? json(400, { erro: r.recusa }) : json(200, r);
+    } catch (e) {
+      return json(500, { erro: (e as Error).message });
+    }
+  }
+  if (corpo && typeof corpo === "object" && "tarefa" in corpo) {
+    try {
+      const r = await executarRodadaNomeada(corpo);
+      return "recusa" in r ? json(400, { erro: r.recusa }) : json(200, r);
+    } catch (e) {
+      return json(500, { erro: (e as Error).message });
+    }
+  }
 
   const { data: claim, error: errClaim } = await supabaseAdmin.rpc("automacao_reivindicar_tarefa");
   if (errClaim) return json(500, { erro: `fila: ${errClaim.message}` });

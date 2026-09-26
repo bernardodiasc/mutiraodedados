@@ -4,6 +4,7 @@ import {
   CAPITAIS,
   alvoNoCursor,
   chaveVarreduraSiconfi,
+  escopoDaVarreduraSiconfi,
   exerciciosDoIntervalo,
   rotuloAlvo,
   totalDeConsultas,
@@ -152,6 +153,22 @@ describe("siconfi/chave de varredura", () => {
     );
     expect(chaveVarreduraSiconfi("municipios", 2024, 2024, "SP")).not.toBe(
       chaveVarreduraSiconfi("municipios", 2024, 2024, "RJ"),
+    );
+  });
+});
+
+describe("siconfi/escopo da varredura no Histórico", () => {
+  it("separa o conjunto e o filtro, e não se confunde com um tipo de relatório", () => {
+    expect(escopoDaVarreduraSiconfi({ conjunto: "ufs" })).toBe("varredura:ufs");
+    expect(escopoDaVarreduraSiconfi({ conjunto: "municipios", uf: "SP" })).toBe(
+      "varredura:municipios:SP",
+    );
+    expect(escopoDaVarreduraSiconfi({ conjunto: "ente", codIbge: "3550308" })).toBe(
+      "varredura:ente:3550308",
+    );
+    // O filtro que o conjunto não usa não entra.
+    expect(escopoDaVarreduraSiconfi({ conjunto: "capitais", uf: "SP", codIbge: "35" })).toBe(
+      "varredura:capitais",
     );
   });
 });

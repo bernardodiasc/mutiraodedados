@@ -31,12 +31,18 @@ O SICONFI **permanece fonte nativa** e só vive no eixo "Por fonte": RREO/RGF/DC
 - **Paginação.** A API corta em 5.000 itens por página (`hasMore`); o RREO de um estado grande chega perto disso. A importação segue `offset` até o fim.
 - **Vazio só é "vazio" com o extrato de entregas.** Quando nenhuma forma responde, a importação consulta `/extrato_entregas` do ente/exercício: se o relatório não consta como entregue, grava o marcador "consultado, vazio"; se consta, é **erro** ("resposta vazia inesperada") e nenhum marcador é gravado. Lógica em `src/lib/data/siconfi/consulta.ts`.
 
+## Importação em lote
+
+- **Ano todo de um ente** (`/admin/dados` → Entes, ou `siconfi_ano` na ferramenta): os 10 relatórios padrão (RREO 1 a 6, RGF 1 a 3, DCA) de um exercício. É a varredura do conjunto "ente" num exercício só — retomável: o painel repete rodadas até terminar.
+- **Varredura em massa** (conjuntos UFs, capitais, municípios de uma UF ou um ente, num intervalo de exercícios; `siconfi_varredura` na ferramenta, um exercício por janela): uma consulta por passo, com orçamento de tempo e de subrequisições, retomável pelo cursor. Os municípios de uma UF vêm do cadastro do IBGE (`ibge_municipios_cache`), com a API do IBGE como reserva enquanto ele não foi importado.
+- Cada consulta grava a sua linha em `importacoes` como o relatório avulso (tipo, exercício, período e ente — casando com a cobertura). A rodada grava mais uma, com o conjunto no `escopo` (`varredura:<conjunto>[:<filtro>]`); numa varredura de um exercício só, ela leva o exercício em `ano` e `mes` 0, e é nela que a ferramenta grava a conferência. Rodadas anteriores a esta mudança gravavam o conjunto (ou o código do ente) no `escopo`, sem o prefixo.
+
 ## Reimportação necessária (correção de 2026-09-25)
 
 Antes da correção, **todo RGF** e o RREO dos municípios que publicam a versão simplificada eram consultados com parâmetros incompletos e registrados como "sem dados". O que foi verificado no código:
 
 - **Nenhum sinal foi gerado a partir desses vazios.** O SICONFI não tem regra de lacuna (só o alerta de qualidade `valor_negativo_em_conta_positiva`, que roda sobre linhas importadas) e nenhum finding foi criado por ausência.
-- **Cobertura não os tratou como confirmados de forma que impeça reimportar.** Os marcadores ficam em `importacoes` (`importados = 0`, `erros` vazio) com `escopo` = código IBGE, mas a matriz de cobertura agrupa o SICONFI por tipo de relatório — as chaves não se cruzam e os marcadores não aparecem como "consultado, vazio". A varredura não lê marcadores (percorre pelo cursor), o resumo de cobertura ignora o SICONFI e "Sincronizar tudo" não gera jobs do SICONFI.
+- **Cobertura não os tratou como confirmados de forma que impeça reimportar.** Os marcadores ficam em `importacoes` (`importados = 0`, `erros` vazio) com `escopo` = código IBGE, mas a matriz de cobertura agrupa o SICONFI por tipo de relatório — as chaves não se cruzam e os marcadores não aparecem como "consultado, vazio". (Desde a v0.14.0 a linha de cada consulta grava o tipo de relatório no `escopo`, o período em `mes` — 0 no DCA — e o ente em `orgao_cod`, e passa a marcar a célula; os marcadores antigos continuam com o código IBGE.) A varredura não lê marcadores (percorre pelo cursor), o resumo de cobertura ignora o SICONFI e "Sincronizar tudo" não gera jobs do SICONFI.
 - **O efeito foi silencioso:** a linha de RGF simplesmente não existe na cobertura e no `/relatorios-fiscais`, e o contador "consultas sem dados" das rodadas antigas está inflado.
 
 Para recuperar (nenhuma limpeza é necessária — o upsert grava por cima e nada é apagado):

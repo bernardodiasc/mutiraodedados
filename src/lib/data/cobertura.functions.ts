@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
+import { inserirImportacoes } from "@/lib/data/historico.server";
 
 export type Celula = {
   ano: number;
@@ -67,6 +68,9 @@ type RpcSiconfi = {
   qtd: number;
   ultimo: string | null;
 };
+/** Fontes anuais cujas rodadas gravam a sigla (ou o tipo) no `escopo`. */
+const FONTES_COM_SIGLA_NO_ESCOPO = new Set(["camara_props", "senado_mat"]);
+
 type RpcTentativa = {
   fonte: string;
   escopo: string;
@@ -116,7 +120,14 @@ export const statusCobertura = createServerFn({ method: "GET" })
     // Index attempts: key = `${fonte}|${escopo}|${ano}|${mes}`
     const tentMap = new Map<string, { ultimo: string | null }>();
     for (const t of (tentativas.data as RpcTentativa[] | null) ?? []) {
-      tentMap.set(`${t.fonte}|${t.escopo}|${t.ano}|${t.mes}`, { ultimo: t.ultimo });
+      // Proposições e matérias gravam o tipo ou a sigla no escopo, mas a
+      // matriz tem uma linha anual só para cada uma: toda sigla marca a célula.
+      const escopo = FONTES_COM_SIGLA_NO_ESCOPO.has(t.fonte) ? "" : t.escopo;
+      const k = `${t.fonte}|${escopo}|${t.ano}|${t.mes}`;
+      const atual = tentMap.get(k);
+      if (!atual || (t.ultimo && (!atual.ultimo || t.ultimo > atual.ultimo))) {
+        tentMap.set(k, { ultimo: t.ultimo });
+      }
     }
     const marcarTentativas = (fonte: string, escopo: string, celulas: Celula[]): Celula[] => {
       const out = celulas.map((c) => {
@@ -387,7 +398,7 @@ export const registrarTentativa = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => TentativaSchema.parse(d))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
-    const { error } = await supabaseAdmin.from("importacoes").insert({
+    const erro = await inserirImportacoes({
       fonte: data.fonte,
       escopo: data.escopo ?? "",
       ano: data.ano,
@@ -396,8 +407,9 @@ export const registrarTentativa = createServerFn({ method: "POST" })
       importados: data.registros,
       erros: data.erro ? [data.erro] : [],
       user_id: context.userId,
+      gatilho: "painel",
       endpoint: data.endpoint ?? null,
     });
-    if (error) throw new Error(error.message);
+    if (erro) throw new Error(erro);
     return { ok: true as const };
   });

@@ -7,7 +7,24 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { FONTE_LABEL } from "@/lib/data/fonte-rotulos";
-import { FONTES_LIMPEZA, FONTE_IDS, type FonteLimpeza } from "@/lib/data/limpeza";
+import type { Gatilho } from "@/lib/data/historico-rodada";
+import { MOTIVOS_PARADA, type MotivoParada } from "@/lib/data/runner";
+import {
+  GATILHOS,
+  aplicarFiltrosHistorico,
+  lerConferencia,
+  lerFiltrosHistorico,
+  lerResumoHistorico,
+  parametrosResumoHistorico,
+  type ConferenciaResumo,
+  type ResumoHistorico,
+} from "@/lib/admin-import/historico-filtros";
+import {
+  FONTES_LIMPEZA,
+  FONTE_IDS,
+  checkpointsALimpar,
+  type FonteLimpeza,
+} from "@/lib/data/limpeza";
 import { funcaoRpcAusente } from "@/lib/data/erros-banco";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -36,11 +53,17 @@ import {
   ensureAdmin,
   tabelaVarreduraAusente,
   inserirLogsRequisicao,
-  persistirVarredura,
   montarVarreduraKey,
   parseVarreduraKey,
+  checkpointCguVarredura,
+  TETO_SUBREQUISICOES_PORTAL,
   type LogRequisicao,
 } from "@/lib/data/real/sweep";
+import { inserirImportacoes } from "@/lib/data/historico.server";
+import { anoMesDaJanela, montarLinhaRodada, type OrigemRodada } from "@/lib/data/historico-rodada";
+import { AVISO_SEM_RETOMADA, rodarComOrcamento } from "@/lib/data/runner";
+import { ehErroTransitorio, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { orgaoForaDoPortal } from "@/lib/data/real/licitacoes.functions";
 
 // Re-export para compatibilidade (testes e código legado importam daqui).
 export { parseValorPortal };
@@ -257,429 +280,499 @@ async function fetchDetalheContrato(id: string): Promise<{
   };
 }
 
-export const fetchPortalOrgao = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        codigoOrgao: z.string().regex(/^\d{4,6}$/),
-        // Datas ISO (YYYY-MM-DD). OPCIONAIS: na API da CGU, dataInicial/
-        // dataFinal filtram por VIGÊNCIA, não por assinatura. A ingestão roda em
-        // modo VARREDURA (sem janela), puxando o histórico completo do órgão.
-        dataInicial: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .optional(),
-        dataFinal: z
-          .string()
-          .regex(/^\d{4}-\d{2}-\d{2}$/)
-          .optional(),
-        // Teto de páginas por rodada (rede de segurança). A varredura é
-        // primariamente limitada por TEMPO (orcamentoMs), não por páginas.
-        maxPaginas: z.number().int().min(1).max(5000).default(5000),
-        // Pausa entre TODAS as requisições (páginas E detalhes). A varredura
-        // confere o detalhe de cada contrato; 800ms entre GETs respeita o
-        // rate-limit da CGU e evita a degradação ÷10000 da listagem.
-        delayMs: z.number().int().min(0).max(10000).default(800),
-        // Orçamento de tempo por rodada. A varredura é retomável: cada rodada
-        // paginar até esgotar este tempo, salvando progresso POR PÁGINA, e a
-        // próxima rodada (manual ou auto) continua de onde parou. ~3min cabe no
-        // timeout de 4min do runBatch no cliente.
-        orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
-      })
-      .parse(input),
-  )
-  .handler(async ({ data, context }) => {
-    await ensureAdmin(context.userId);
+/**
+ * Parâmetros da importação de contratos de um órgão — fonte única da
+ * validação: a casca autenticada e o modo nomeado de `/api/cron-importar`
+ * usam este mesmo schema (o modo nomeado exige a janela).
+ */
+export const importarContratosCguSchema = z.object({
+  codigoOrgao: z.string().regex(/^\d{4,6}$/),
+  // Datas ISO (YYYY-MM-DD). OPCIONAIS: na API da CGU, dataInicial/
+  // dataFinal filtram por VIGÊNCIA, não por assinatura. Sem elas, a
+  // varredura puxa o histórico completo do órgão.
+  dataInicial: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  dataFinal: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  // Teto de páginas por rodada (rede de segurança). A varredura é
+  // primariamente limitada por TEMPO (orcamentoMs) e por CUSTO
+  // (subrequisições), não por páginas.
+  maxPaginas: z.number().int().min(1).max(5000).default(5000),
+  // Pausa entre TODAS as requisições (páginas E detalhes). A varredura
+  // confere o detalhe de cada contrato; 800ms entre GETs respeita o
+  // rate-limit da CGU e evita a degradação ÷10000 da listagem.
+  delayMs: z.number().int().min(0).max(10000).default(800),
+  // Orçamento de tempo por rodada. A varredura é retomável: cada rodada
+  // pagina até esgotar este tempo (ou o teto de custo), salvando progresso
+  // POR PÁGINA, e a próxima rodada continua de onde parou. ~3min cabe no
+  // timeout de 4min do runBatch no cliente.
+  orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
+});
 
-    // Órgão pode não estar no catálogo enriquecido (ORGAOS_BASE): o Portal
-    // /contratos aceita qualquer código de órgão máximo do Executivo. Se estiver
-    // catalogado e explicitamente marcado como fora do Portal (Câmara/Senado, com
-    // integração própria), bloqueia; senão, importa com um base mínimo (o nome bom
-    // vem do sync SIAFI / do payload dos contratos).
-    const catalogado = ORGAOS_BASE.find((o) => o.cod === data.codigoOrgao);
-    if (catalogado && !catalogado.disponivelPortal) {
-      throw new Error(`${catalogado.sigla} não é coberto pelo Portal. ${catalogado.nota ?? ""}`);
-    }
-    const base: Orgao = catalogado ?? {
-      cod: data.codigoOrgao,
-      sigla: data.codigoOrgao,
-      nome: data.codigoOrgao,
+export type ParamsContratosCgu = z.infer<typeof importarContratosCguSchema>;
+
+/**
+ * Chave de varredura em `cgu_varredura` — a mesma para painel, fila e
+ * ferramenta: o órgão (varredura completa) ou órgão#início#fim (janela).
+ * Contratos mantêm o formato legado, sem prefixo de entidade (ver
+ * `montarVarreduraKey` em `sweep.ts`).
+ */
+export const chaveVarreduraContratos = (p: {
+  codigoOrgao: string;
+  dataInicial?: string;
+  dataFinal?: string;
+}) => montarVarreduraKey("contratos", p.codigoOrgao, p.dataInicial, p.dataFinal);
+
+/** O endpoint /contratos pagina em blocos fixos de 15. Página menor = última. */
+const TAM_PAGINA_CONTRATOS = 15;
+
+/**
+ * Subrequisições de gravação de uma página, além dos GETs: fornecedores,
+ * contratos, a sincronização de QA (leitura do cache, alertas, fechamento
+ * dos que já não se aplicam), os alertas da página, os logs de requisição e
+ * o checkpoint. Estimativa com folga — o custo exato varia com a página.
+ */
+const CUSTO_GRAVACAO_POR_PAGINA = 12;
+
+/** O que uma rodada de contratos de um órgão devolve. */
+export type RodadaContratosCgu = {
+  orgao: Orgao;
+  contratos: Contrato[];
+  fornecedores: Fornecedor[];
+  processados: number;
+  /** Onde a varredura parou (última página contada pelo runner). */
+  cursor: number;
+  totalAcumulado: number;
+  ultimaPagina: number;
+  completa: boolean;
+  haMais: boolean;
+  orcamentoEsgotado: boolean;
+  custoEsgotado: boolean;
+  corrigidos: number;
+  erros: string[];
+  avisos: string[];
+};
+
+/**
+ * O órgão da importação. Pode não estar no catálogo enriquecido
+ * (ORGAOS_BASE): o Portal /contratos aceita qualquer código de órgão máximo
+ * do Executivo, e o nome bom vem do catálogo SIAFI ou do payload dos
+ * contratos. Catalogado como fora do Portal (Câmara/Senado, com integração
+ * própria) é recusado — ver `orgaoForaDoPortal`.
+ */
+function orgaoDaImportacao(codigoOrgao: string): Orgao {
+  const recusa = orgaoForaDoPortal(codigoOrgao);
+  if (recusa) throw new Error(recusa);
+  return (
+    ORGAOS_BASE.find((o) => o.cod === codigoOrgao) ?? {
+      cod: codigoOrgao,
+      sigla: codigoOrgao,
+      nome: codigoOrgao,
       funcao: "",
       poder: "executivo",
       disponivelPortal: true,
-    };
+    }
+  );
+}
 
-    const temJanela = !!data.dataInicial && !!data.dataFinal;
-    // O endpoint /contratos pagina em blocos fixos de 15. Página menor = última.
-    const TAM_PAGINA = 15;
-    await upsertOrgaoCache(base);
+/**
+ * Núcleo chamável sem sessão: UMA rodada da varredura por detalhe dos
+ * contratos de um órgão — o histórico completo ou uma janela de vigência.
+ * Usado pela casca autenticada (painel) e pelo modo nomeado.
+ *
+ * Para cada página, para cada item mantido, busca o `/contratos/id`
+ * (autoritativo) e grava o valor não-truncado; quando a listagem diverge do
+ * detalhe, cria `valor_corrigido_listagem`. Orçamento, checkpoint e retomada
+ * são do runner genérico (`runner.ts`) sobre `cgu_varredura`, com dois
+ * tetos: tempo e custo (subrequisições — cada contrato custa um GET de
+ * detalhe, então uma rodada pode ser rápida e cara).
+ *
+ * JANELA DE VIGÊNCIA: a API /contratos filtra por vigência
+ * (dataInicial=dataInicioVigencia, dataFinal=dataFimVigencia) e devolve os
+ * contratos cuja vigência SE SOBREPÕE à janela; guardamos só os com INÍCIO
+ * de vigência dentro dela — a mesma célula órgão × mês da cobertura. A linha
+ * de rodada grava `escopo` = código do órgão e o `ano`/`mes` da janela.
+ *
+ * Detalhe que falha de forma passageira (5xx, 429 depois das novas
+ * tentativas, rede) interrompe a rodada sem avançar a página: a próxima a
+ * refaz. Insistir contrato a contrato só gastaria a cota da chave. Detalhe
+ * com erro definitivo cai para o valor da listagem, com o erro registrado.
+ */
+export async function rodadaContratosCgu(
+  data: ParamsContratosCgu,
+  userId: string | null,
+  origem: OrigemRodada = {},
+): Promise<RodadaContratosCgu> {
+  const base = orgaoDaImportacao(data.codigoOrgao);
+  await upsertOrgaoCache(base);
 
-    // =========================================================================
-    // VARREDURA POR DETALHE (varredura completa do órgão OU janela de vigência).
-    // Para cada página, para cada item mantido, busca o /contratos/id
-    // (autoritativo) e grava o valor não-truncado. Quando a listagem diverge do
-    // detalhe, cria `valor_corrigido_listagem`. Retomável por TEMPO, com
-    // progresso persistido por página (sobrevive a kill do servidor).
-    //
-    // JANELA DE VIGÊNCIA (temJanela): a API /contratos filtra por vigência
-    // (dataInicial=dataInicioVigencia, dataFinal=dataFimVigencia). Ela devolve
-    // contratos cuja vigência SE SOBREPÕE à janela (inclui os que começaram
-    // antes); guardamos só os com INÍCIO de vigência DENTRO da janela. O estado
-    // de retomada é independente da varredura completa (chave composta).
-    // =========================================================================
-    // Chave da varredura em cgu_varredura: órgão (varredura completa) ou
-    // órgão#dataIni#dataFim (janela). Estados independentes, ambos retomáveis.
-    // Contratos mantêm o formato legado (sem prefixo de entidade); ver
-    // `montarVarreduraKey` em `sweep.ts`.
-    const varreduraKey = montarVarreduraKey(
-      "contratos",
-      data.codigoOrgao,
-      data.dataInicial,
-      data.dataFinal,
-    );
-    {
-      // Retoma de onde parou (cgu_varredura). Sem estado, ou já completa →
-      // recomeça do zero (re-varredura).
-      let paginaInicial = 1;
-      let totalAcumulado = 0;
-      {
-        const { data: est } = await supabaseAdmin
-          .from("cgu_varredura")
-          .select("ultima_pagina, completa, total_importado")
-          .eq("orgao_cod", varreduraKey)
-          .maybeSingle();
-        if (est && !est.completa && (est.ultima_pagina ?? 0) > 0) {
-          paginaInicial = (est.ultima_pagina ?? 0) + 1;
-          totalAcumulado = est.total_importado ?? 0;
-        }
+  const temJanela = !!data.dataInicial && !!data.dataFinal;
+  const janela = temJanela ? anoMesDaJanela(data.dataInicial!, data.dataFinal!) : null;
+  const contratosRodada: Contrato[] = [];
+  const fornecedoresRodada = new Map<string, Fornecedor>();
+  let ultimaPaginaComDados = 0;
+  let totalCorrigidos = 0;
+  let totalDetalhes = 0;
+  let totalDetalhesFalhos = 0;
+  let totalSemFornecedor = 0;
+  const inicioRodada = Date.now();
+
+  const rodada = await rodarComOrcamento({
+    chave: chaveVarreduraContratos(data),
+    checkpoint: checkpointCguVarredura,
+    orcamentoMs: data.orcamentoMs,
+    orcamentoCusto: TETO_SUBREQUISICOES_PORTAL,
+    maxPassos: data.maxPaginas,
+    passo: async (pagina) => {
+      const params: Record<string, string> = {
+        codigoOrgao: data.codigoOrgao,
+        pagina: String(pagina),
+      };
+      if (temJanela) {
+        // dataInicial/dataFinal filtram por vigência (formato BR DD/MM/YYYY).
+        params.dataInicial = isoToBR(data.dataInicial!);
+        params.dataFinal = isoToBR(data.dataFinal!);
       }
-
-      const inicio = Date.now();
-      const contratosRodada: Contrato[] = [];
-      const fornecedoresRodada = new Map<string, Fornecedor>();
-      const erros: string[] = [];
-      let ultimaPaginaVarrida = paginaInicial - 1;
-      let varreduraCompleta = false;
-      let varreduraPersistida = true;
-      let totalCorrigidos = 0;
-      let totalDetalhes = 0;
-      let totalDetalhesFalhos = 0;
-      let totalSemFornecedor = 0;
-      let orcamentoEsgotado = false;
-
-      for (let n = 0; n < data.maxPaginas; n++) {
-        if (Date.now() - inicio > data.orcamentoMs) {
-          orcamentoEsgotado = true;
-          break;
+      const urlPagina = `${PORTAL_BASE}/contratos?${new URLSearchParams(params).toString()}`;
+      let list: PortalContrato[];
+      let paginaLidaEm = new Date().toISOString();
+      try {
+        list = await portalGet<PortalContrato[]>("/contratos", params);
+        paginaLidaEm = new Date().toISOString();
+      } catch (e) {
+        const msg = (e as Error).message;
+        const erros = [`p${pagina}: ${msg}`];
+        // JSON inválido/não-JSON é transitório no Portal: pula a página (o
+        // cursor avança) e segue.
+        if (msg.includes("JSON inválido") || msg.includes("não-JSON")) {
+          if (data.delayMs > 0) await sleep(data.delayMs);
+          return { processados: 0, fim: false, custo: 1, erros };
         }
-        const pagina = paginaInicial + n;
-        const params: Record<string, string> = {
-          codigoOrgao: data.codigoOrgao,
-          pagina: String(pagina),
-        };
+        // Passageiro refaz a página na próxima rodada; definitivo encerra.
+        const r = reacaoAoErroDeLista(e);
+        return { processados: 0, fim: r.fim, interromper: r.interromper, custo: 1, erros };
+      }
+      if (data.delayMs > 0) await sleep(data.delayMs);
+      if (!Array.isArray(list) || list.length === 0) return { processados: 0, fim: true, custo: 1 };
+
+      const errosPagina: string[] = [];
+      let detalhesDaPagina = 0;
+      // Uma linha de log por requisição (a da página + uma por detalhe).
+      const reqLogs: LogRequisicao[] = [
+        {
+          fonte: "cgu",
+          orgao_cod: data.codigoOrgao,
+          escopo: data.codigoOrgao,
+          log_kind: "requisicao",
+          endpoint: `GET ${urlPagina}`,
+          total_bruto: list.length,
+          importados: list.length,
+          erros: [],
+          consultado_em: new Date().toISOString(),
+          user_id: userId,
+        },
+      ];
+
+      const contratosPagina: Contrato[] = [];
+      const valorInicialPorIdPagina = new Map<string, number>();
+      const fornecedoresPagina = new Map<string, Fornecedor>();
+      const numeroPorIdPagina = new Map<string, string>();
+      const paginaPorId = new Map<string, number>();
+      const findingsPagina: QaFinding[] = [];
+      let corrigidosPagina = 0;
+      let detalhesOkPagina = 0;
+      let detalhesFalhosPagina = 0;
+      let semFornecedorPagina = 0;
+
+      for (const raw of list) {
+        // Janela de vigência: guarda só os com INÍCIO de vigência DENTRO
+        // dela. Filtra ANTES de conferir o detalhe (economiza requisições).
         if (temJanela) {
-          // dataInicial/dataFinal filtram por vigência (formato BR DD/MM/YYYY).
-          params.dataInicial = isoToBR(data.dataInicial!);
-          params.dataFinal = isoToBR(data.dataFinal!);
+          const iv = parseDate(raw.dataInicioVigencia); // ISO YYYY-MM-DD ou ""
+          if (!iv || iv < data.dataInicial! || iv > data.dataFinal!) continue;
         }
-        const urlPagina = `${PORTAL_BASE}/contratos?${new URLSearchParams(params).toString()}`;
-        let list: PortalContrato[];
-        let paginaLidaEm = new Date().toISOString();
-        try {
-          list = await portalGet<PortalContrato[]>("/contratos", params);
-          paginaLidaEm = new Date().toISOString();
-        } catch (e) {
-          const msg = (e as Error).message;
-          erros.push(`p${pagina}: ${msg}`);
-          if (msg.includes("JSON inválido") || msg.includes("não-JSON")) {
-            if (data.delayMs > 0) await sleep(data.delayMs);
-            continue;
-          }
-          break;
-        }
-        if (data.delayMs > 0) await sleep(data.delayMs);
-        if (!Array.isArray(list) || list.length === 0) {
-          varreduraCompleta = true;
-          break;
-        }
+        // Fornecedor sigiloso/ausente: NÃO descarta — salva com placeholder e
+        // abre um alerta `fornecedor_ausente` para investigação.
+        const fornReal = fornecedorDeRaw(raw);
+        const semFornecedor = !fornReal;
+        const forn = fornReal ?? FORNECEDOR_AUSENTE;
 
-        // Uma linha de log por requisição (a da página + uma por detalhe).
-        const reqLogs: LogRequisicao[] = [
-          {
-            fonte: "cgu",
-            orgao_cod: data.codigoOrgao,
-            escopo: base.sigla,
-            log_kind: "requisicao",
-            endpoint: `GET ${urlPagina}`,
-            total_bruto: list.length,
-            importados: list.length,
-            erros: [],
-            consultado_em: new Date().toISOString(),
-            user_id: context.userId,
-          },
-        ];
-
-        const contratosPagina: Contrato[] = [];
-        const valorInicialPorIdPagina = new Map<string, number>();
-        const fornecedoresPagina = new Map<string, Fornecedor>();
-        const numeroPorIdPagina = new Map<string, string>();
-        const paginaPorId = new Map<string, number>();
-        const findingsPagina: QaFinding[] = [];
-
-        for (const raw of list) {
-          // Janela de vigência: a API devolve contratos cuja vigência se
-          // sobrepõe à janela; guardamos só os com INÍCIO de vigência DENTRO
-          // dela. Filtra ANTES de conferir o detalhe (economiza requisições).
-          if (temJanela) {
-            const iv = parseDate(raw.dataInicioVigencia); // ISO YYYY-MM-DD ou ""
-            if (!iv || iv < data.dataInicial! || iv > data.dataFinal!) continue;
-          }
-          // Fornecedor sigiloso/ausente: NÃO descarta — salva com placeholder e
-          // abre um alerta `fornecedor_ausente` para investigação.
-          const fornReal = fornecedorDeRaw(raw);
-          const semFornecedor = !fornReal;
-          const forn = fornReal ?? FORNECEDOR_AUSENTE;
-
-          const listValores = normalizarValoresCguListagem(
-            raw.valorInicialCompra,
-            raw.valorFinalCompra,
-          );
-          let valorFinal = listValores.valorFinal;
-          let valorInicial = listValores.valorInicial;
-          let truncadoFinal: number | null = null;
-          const idStr = raw.id != null ? String(raw.id) : null;
-
-          if (idStr) {
-            const urlDet = `${PORTAL_BASE}/contratos/id?id=${encodeURIComponent(idStr)}`;
-            try {
-              const det = await fetchDetalheContrato(idStr);
-              totalDetalhes++;
-              if (data.delayMs > 0) await sleep(data.delayMs);
-              // Valor autoritativo = o NÃO-truncado (listagem ou detalhe). O bug
-              // de escala ÷10000 aparece em qualquer um dos dois endpoints.
-              const finalAut = valorAutoritativoCgu(listValores.valorFinal, det.valorFinal);
-              const inicialAut = valorAutoritativoCgu(listValores.valorInicial, det.valorInicial);
-              valorFinal = finalAut.valor;
-              valorInicial = inicialAut.valor;
-              truncadoFinal = finalAut.truncado;
-              const corrigido = truncadoFinal != null;
-              reqLogs.push({
-                fonte: "cgu",
-                orgao_cod: data.codigoOrgao,
-                escopo: base.sigla,
-                log_kind: "requisicao",
-                endpoint: `GET ${urlDet}`,
-                total_bruto: 1,
-                importados: 1,
-                erros: corrigido
-                  ? [
-                      `info: valor_corrigido_listagem id=${idStr} truncado=${truncadoFinal} correto=${valorFinal} (listagem=${listValores.valorFinal} detalhe=${det.valorFinal})`,
-                    ]
-                  : [],
-                consultado_em: new Date().toISOString(),
-                user_id: context.userId,
-              });
-              if (corrigido) {
-                totalCorrigidos++;
-                findingsPagina.push(
-                  findingValorCorrigidoListagem({
-                    id: idStr,
-                    orgao_cod: data.codigoOrgao,
-                    valor_truncado: truncadoFinal!,
-                    // corrigido ⇒ houve truncamento ⇒ valor autoritativo > 0.
-                    valor_correto: valorFinal!,
-                    valor_listagem: listValores.valorFinal || null,
-                    valor_detalhe: det.valorFinal || null,
-                    pagina_varredura: pagina,
-                    razao: finalAut.razao,
-                    evidencia_bruta: [
-                      {
-                        origem: "listagem",
-                        valorFinal: listValores.valorFinal,
-                        valorInicial: listValores.valorInicial,
-                        em: paginaLidaEm,
-                      },
-                      {
-                        origem: "detalhe",
-                        valorFinal: det.valorFinal,
-                        valorInicial: det.valorInicial,
-                        em: det.em,
-                        rawSnippet: det.rawSnippet,
-                      },
-                    ],
-                  }),
-                );
-              }
-            } catch (e) {
-              const msg = (e as Error).message;
-              totalDetalhesFalhos++;
-              erros.push(`detalhe ${idStr}: ${msg}`);
-              reqLogs.push({
-                fonte: "cgu",
-                orgao_cod: data.codigoOrgao,
-                escopo: base.sigla,
-                log_kind: "requisicao",
-                endpoint: `GET ${urlDet}`,
-                total_bruto: 1,
-                importados: 0,
-                erros: [msg],
-                consultado_em: new Date().toISOString(),
-                user_id: context.userId,
-              });
-              if (data.delayMs > 0) await sleep(data.delayMs);
-              // Detalhe indisponível: cai para o valor da listagem (não bloqueia).
-            }
-          }
-
-          const contrato = construirContratoCgu(
-            raw,
-            data.codigoOrgao,
-            forn.cnpj,
-            valorFinal,
-            valorInicial,
-            new Date().getFullYear(),
-          );
-          contratosPagina.push(contrato);
-          fornecedoresPagina.set(forn.cnpj, forn);
-          if (valorInicial != null && valorInicial > 0)
-            valorInicialPorIdPagina.set(contrato.id, valorInicial);
-          if (raw.numero) numeroPorIdPagina.set(contrato.id, raw.numero);
-          if (idStr) paginaPorId.set(idStr, pagina);
-          if (semFornecedor) {
-            totalSemFornecedor++;
-            findingsPagina.push(
-              findingFornecedorAusente({
-                id: contrato.id,
-                orgao_cod: data.codigoOrgao,
-                pagina_varredura: idStr ? pagina : null,
-              }),
-            );
-          }
-        }
-
-        // ---- PERSISTÊNCIA INCREMENTAL (sobrevive a kill do servidor) ----
-        await upsertFornecedoresCache(fornecedoresPagina);
-        erros.push(
-          ...(await upsertContratosCache(
-            contratosPagina,
-            valorInicialPorIdPagina,
-            numeroPorIdPagina,
-          )),
+        const listValores = normalizarValoresCguListagem(
+          raw.valorInicialCompra,
+          raw.valorFinalCompra,
         );
-        try {
-          // regrasCgu lê o cache pós-upsert (agora com o valor não-truncado).
-          await sincronizarQaCgu(
-            contratosPagina.map((c) => c.id),
-            paginaPorId,
-          );
-        } catch (e) {
-          erros.push(`qa: ${(e as Error).message}`);
-        }
-        if (findingsPagina.length > 0) {
+        let valorFinal = listValores.valorFinal;
+        let valorInicial = listValores.valorInicial;
+        const idStr = raw.id != null ? String(raw.id) : null;
+
+        if (idStr) {
+          const urlDet = `${PORTAL_BASE}/contratos/id?id=${encodeURIComponent(idStr)}`;
+          detalhesDaPagina++;
           try {
-            // valor_corrigido_listagem (corrigido_automaticamente) + fornecedor_ausente.
-            await flagQA(findingsPagina);
+            const det = await fetchDetalheContrato(idStr);
+            detalhesOkPagina++;
+            if (data.delayMs > 0) await sleep(data.delayMs);
+            // Valor autoritativo = o NÃO-truncado (listagem ou detalhe). O bug
+            // de escala ÷10000 aparece em qualquer um dos dois endpoints.
+            const finalAut = valorAutoritativoCgu(listValores.valorFinal, det.valorFinal);
+            const inicialAut = valorAutoritativoCgu(listValores.valorInicial, det.valorInicial);
+            valorFinal = finalAut.valor;
+            valorInicial = inicialAut.valor;
+            const truncadoFinal = finalAut.truncado;
+            const corrigido = truncadoFinal != null;
+            reqLogs.push({
+              fonte: "cgu",
+              orgao_cod: data.codigoOrgao,
+              escopo: data.codigoOrgao,
+              log_kind: "requisicao",
+              endpoint: `GET ${urlDet}`,
+              total_bruto: 1,
+              importados: 1,
+              erros: corrigido
+                ? [
+                    `info: valor_corrigido_listagem id=${idStr} truncado=${truncadoFinal} correto=${valorFinal} (listagem=${listValores.valorFinal} detalhe=${det.valorFinal})`,
+                  ]
+                : [],
+              consultado_em: new Date().toISOString(),
+              user_id: userId,
+            });
+            if (corrigido) {
+              corrigidosPagina++;
+              findingsPagina.push(
+                findingValorCorrigidoListagem({
+                  id: idStr,
+                  orgao_cod: data.codigoOrgao,
+                  valor_truncado: truncadoFinal!,
+                  // corrigido ⇒ houve truncamento ⇒ valor autoritativo > 0.
+                  valor_correto: valorFinal!,
+                  valor_listagem: listValores.valorFinal || null,
+                  valor_detalhe: det.valorFinal || null,
+                  pagina_varredura: pagina,
+                  razao: finalAut.razao,
+                  evidencia_bruta: [
+                    {
+                      origem: "listagem",
+                      valorFinal: listValores.valorFinal,
+                      valorInicial: listValores.valorInicial,
+                      em: paginaLidaEm,
+                    },
+                    {
+                      origem: "detalhe",
+                      valorFinal: det.valorFinal,
+                      valorInicial: det.valorInicial,
+                      em: det.em,
+                      rawSnippet: det.rawSnippet,
+                    },
+                  ],
+                }),
+              );
+            }
           } catch (e) {
-            erros.push(`qa_alertas: ${(e as Error).message}`);
+            const msg = (e as Error).message;
+            // Passageiro: a página inteira é refeita na próxima rodada (os
+            // upserts são idempotentes). Nada desta página foi gravado.
+            if (ehErroTransitorio(e)) {
+              return {
+                processados: 0,
+                fim: false,
+                interromper: true,
+                custo: 1 + detalhesDaPagina,
+                erros: [`detalhe ${idStr}: ${msg}`],
+              };
+            }
+            detalhesFalhosPagina++;
+            errosPagina.push(`detalhe ${idStr}: ${msg}`);
+            reqLogs.push({
+              fonte: "cgu",
+              orgao_cod: data.codigoOrgao,
+              escopo: data.codigoOrgao,
+              log_kind: "requisicao",
+              endpoint: `GET ${urlDet}`,
+              total_bruto: 1,
+              importados: 0,
+              erros: [msg],
+              consultado_em: new Date().toISOString(),
+              user_id: userId,
+            });
+            if (data.delayMs > 0) await sleep(data.delayMs);
+            // Detalhe indisponível: cai para o valor da listagem (não bloqueia).
           }
         }
-        try {
-          await inserirLogsRequisicao(reqLogs);
-        } catch (e) {
-          erros.push(`log: ${(e as Error).message}`);
-        }
 
-        ultimaPaginaVarrida = pagina;
-        totalAcumulado += contratosPagina.length;
-        // Avança o ponteiro ANTES de ir para a próxima página, para retomar
-        // exatamente daqui se o servidor for morto no meio.
-        const pv = await persistirVarredura(
-          varreduraKey,
-          ultimaPaginaVarrida,
-          false,
-          totalAcumulado,
+        const contrato = construirContratoCgu(
+          raw,
+          data.codigoOrgao,
+          forn.cnpj,
+          valorFinal,
+          valorInicial,
+          new Date().getFullYear(),
         );
-        varreduraPersistida = pv.persistida;
-        if (pv.erro) erros.push(pv.erro);
-
-        contratosRodada.push(...contratosPagina);
-        for (const [k, v] of fornecedoresPagina) fornecedoresRodada.set(k, v);
-
-        if (list.length < TAM_PAGINA) {
-          varreduraCompleta = true;
-          break;
+        contratosPagina.push(contrato);
+        fornecedoresPagina.set(forn.cnpj, forn);
+        if (valorInicial != null && valorInicial > 0)
+          valorInicialPorIdPagina.set(contrato.id, valorInicial);
+        if (raw.numero) numeroPorIdPagina.set(contrato.id, raw.numero);
+        if (idStr) paginaPorId.set(idStr, pagina);
+        if (semFornecedor) {
+          semFornecedorPagina++;
+          findingsPagina.push(
+            findingFornecedorAusente({
+              id: contrato.id,
+              orgao_cod: data.codigoOrgao,
+              pagina_varredura: idStr ? pagina : null,
+            }),
+          );
         }
       }
 
-      // Estado final da varredura (marca completa quando chegou ao fim).
-      {
-        const pv = await persistirVarredura(
-          varreduraKey,
-          ultimaPaginaVarrida,
-          varreduraCompleta,
-          totalAcumulado,
-        );
-        varreduraPersistida = pv.persistida;
-        if (pv.erro) erros.push(pv.erro);
-      }
-
-      const haMais = !varreduraCompleta;
-      const consultadoEm = new Date().toISOString();
-      const avisos: string[] = [];
-      avisos.push(
-        `info: detalhes conferidos ${totalDetalhes}${totalDetalhesFalhos ? `, falharam ${totalDetalhesFalhos}` : ""}; valores corrigidos pela conferência ${totalCorrigidos}${totalSemFornecedor ? `; ${totalSemFornecedor} sem fornecedor (salvos + alerta fornecedor_ausente)` : ""}`,
+      // ---- PERSISTÊNCIA INCREMENTAL (sobrevive a kill do servidor) ----
+      await upsertFornecedoresCache(fornecedoresPagina);
+      errosPagina.push(
+        ...(await upsertContratosCache(
+          contratosPagina,
+          valorInicialPorIdPagina,
+          numeroPorIdPagina,
+        )),
       );
-      const rotuloModo = temJanela ? "janela" : "varredura";
-      if (haMais) {
-        avisos.push(
-          varreduraPersistida
-            ? `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaVarrida}${orcamentoEsgotado ? ", tempo da rodada esgotado" : ""}) — há mais contratos; continue para baixar o restante.`
-            : `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaVarrida}) — a tabela cgu_varredura não existe (migração pendente), então NÃO retoma. Aplique a migração.`,
+      try {
+        // regrasCgu lê o cache pós-upsert (agora com o valor não-truncado).
+        await sincronizarQaCgu(
+          contratosPagina.map((c) => c.id),
+          paginaPorId,
         );
+      } catch (e) {
+        errosPagina.push(`qa: ${(e as Error).message}`);
       }
-      // Log da RODADA (uma linha, log_kind NULL → aparece no Histórico).
-      const datasAssinatura = contratosRodada
-        .map((c) => c.dataAssinatura)
-        .filter((d): d is string => !!d)
-        .sort();
-      await supabaseAdmin.from("importacoes").insert({
-        fonte: "cgu",
-        orgao_cod: data.codigoOrgao,
-        escopo: base.sigla,
-        data_inicial: temJanela ? data.dataInicial! : (datasAssinatura[0] ?? null),
-        data_final: temJanela
-          ? data.dataFinal!
-          : (datasAssinatura[datasAssinatura.length - 1] ?? null),
-        total_bruto: contratosRodada.length,
-        importados: contratosRodada.length,
-        erros: [...erros, ...avisos],
-        consultado_em: consultadoEm,
-        user_id: context.userId,
-        endpoint: `GET ${PORTAL_BASE}/contratos?codigoOrgao=${data.codigoOrgao}${temJanela ? `&dataInicial=${isoToBR(data.dataInicial!)}&dataFinal=${isoToBR(data.dataFinal!)}` : ""} (varredura por detalhe${temJanela ? ` [vigência ${data.dataInicial}→${data.dataFinal}]` : ""}, pág. ${paginaInicial}–${ultimaPaginaVarrida}${varreduraCompleta ? " — completa" : " — parcial"})`,
-      });
+      if (findingsPagina.length > 0) {
+        try {
+          // valor_corrigido_listagem (corrigido_automaticamente) + fornecedor_ausente.
+          await flagQA(findingsPagina);
+        } catch (e) {
+          errosPagina.push(`qa_alertas: ${(e as Error).message}`);
+        }
+      }
+      try {
+        await inserirLogsRequisicao(reqLogs);
+      } catch (e) {
+        errosPagina.push(`log: ${(e as Error).message}`);
+      }
+
+      ultimaPaginaComDados = pagina;
+      totalCorrigidos += corrigidosPagina;
+      totalDetalhes += detalhesOkPagina;
+      totalDetalhesFalhos += detalhesFalhosPagina;
+      totalSemFornecedor += semFornecedorPagina;
+      contratosRodada.push(...contratosPagina);
+      for (const [k, v] of fornecedoresPagina) fornecedoresRodada.set(k, v);
 
       return {
-        orgaos: [base] as Orgao[],
-        fornecedores: [...fornecedoresRodada.values()],
-        contratos: contratosRodada,
-        meta: {
-          totalBruto: contratosRodada.length,
-          importados: contratosRodada.length,
-          erros: [...erros, ...avisos],
-          fonte: "Portal da Transparência (CGU)",
-          consultadoEm,
-          varredura: {
-            ultimaPagina: ultimaPaginaVarrida,
-            completa: varreduraCompleta,
-            haMais,
-            totalAcumulado,
-            corrigidos: totalCorrigidos,
-            orcamentoEsgotado,
-          },
-        },
+        processados: contratosPagina.length,
+        fim: list.length < TAM_PAGINA_CONTRATOS,
+        custo: 1 + detalhesDaPagina + CUSTO_GRAVACAO_POR_PAGINA,
+        erros: errosPagina,
       };
-    }
+    },
+  });
+
+  // O runner já avisa quando o checkpoint falhou; aqui a mensagem vira a do
+  // Portal, com a página alcançada. Não duplicamos as duas.
+  const erros = rodada.erros.filter((e) => e !== AVISO_SEM_RETOMADA);
+  const avisos: string[] = [
+    `info: detalhes conferidos ${totalDetalhes}${totalDetalhesFalhos ? `, falharam ${totalDetalhesFalhos}` : ""}; valores corrigidos pela conferência ${totalCorrigidos}${totalSemFornecedor ? `; ${totalSemFornecedor} sem fornecedor (salvos + alerta fornecedor_ausente)` : ""}`,
+  ];
+  const rotuloModo = temJanela ? "janela" : "varredura";
+  if (!rodada.concluido) {
+    const motivo = rodada.orcamentoEsgotado
+      ? ", tempo da rodada esgotado"
+      : rodada.custoEsgotado
+        ? ", teto de subrequisições da rodada"
+        : "";
+    avisos.push(
+      rodada.semRetomada
+        ? `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaComDados}) — a tabela cgu_varredura não existe (migração pendente), então NÃO retoma. Aplique a migração.`
+        : `info: ${rotuloModo} parcial (até pág. ${ultimaPaginaComDados}${motivo}) — há mais contratos; continue para baixar o restante.`,
+    );
+  }
+
+  // Log da RODADA (uma linha, log_kind NULL → aparece no Histórico). Com
+  // `resultado`, `ano`/`mes` da janela e `escopo` = código do órgão: é o que
+  // marca a célula órgão × mês da cobertura e o que a conferência lê.
+  const datasAssinatura = contratosRodada
+    .map((c) => c.dataAssinatura)
+    .filter((d): d is string => !!d)
+    .sort();
+  const linha = montarLinhaRodada(
+    {
+      fonte: "cgu",
+      escopo: data.codigoOrgao,
+      orgaoCod: data.codigoOrgao,
+      ano: janela?.ano ?? null,
+      mes: janela?.mes ?? null,
+      endpoint: `GET ${PORTAL_BASE}/contratos?codigoOrgao=${data.codigoOrgao}${temJanela ? `&dataInicial=${isoToBR(data.dataInicial!)}&dataFinal=${isoToBR(data.dataFinal!)}` : ""} (varredura por detalhe${temJanela ? ` [vigência ${data.dataInicial}→${data.dataFinal}]` : ""})`,
+      unidade: "páginas",
+      userId,
+      ...origem,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    { ...rodada, erros },
+  );
+  const erroHistorico = await inserirImportacoes({
+    ...linha,
+    erros: [...erros, ...avisos],
+    data_inicial: temJanela ? data.dataInicial! : (datasAssinatura[0] ?? null),
+    data_final: temJanela ? data.dataFinal! : (datasAssinatura[datasAssinatura.length - 1] ?? null),
+    consultado_em: new Date().toISOString(),
+  });
+  if (erroHistorico) erros.push(`historico: ${erroHistorico}`);
+
+  return {
+    orgao: base,
+    contratos: contratosRodada,
+    fornecedores: [...fornecedoresRodada.values()],
+    processados: rodada.processados,
+    cursor: rodada.cursorFinal,
+    totalAcumulado: rodada.totalAcumulado,
+    ultimaPagina: ultimaPaginaComDados,
+    completa: rodada.concluido,
+    haMais: !rodada.concluido,
+    orcamentoEsgotado: rodada.orcamentoEsgotado,
+    custoEsgotado: rodada.custoEsgotado,
+    corrigidos: totalCorrigidos,
+    erros,
+    avisos,
+  };
+}
+
+export const fetchPortalOrgao = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => importarContratosCguSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    await ensureAdmin(context.userId);
+    const r = await rodadaContratosCgu(data, context.userId);
+    return {
+      orgaos: [r.orgao] as Orgao[],
+      fornecedores: r.fornecedores,
+      contratos: r.contratos,
+      meta: {
+        totalBruto: r.processados,
+        importados: r.processados,
+        erros: [...r.erros, ...r.avisos],
+        fonte: "Portal da Transparência (CGU)",
+        consultadoEm: new Date().toISOString(),
+        varredura: {
+          ultimaPagina: r.ultimaPagina,
+          completa: r.completa,
+          haMais: r.haMais,
+          totalAcumulado: r.totalAcumulado,
+          corrigidos: r.corrigidos,
+          orcamentoEsgotado: r.orcamentoEsgotado,
+        },
+      },
+    };
   });
 
 export const listImportacoes = createServerFn({ method: "GET" })
@@ -771,6 +864,17 @@ export type HistoricoEntrada = {
    * anteriores à v0.6.0 — não dá para apurar a classificação retroativamente.
    */
   resultado: ResultadoClassificado | null;
+  /** Quem disparou a rodada. `null` em linhas anteriores à coluna. */
+  gatilho: Gatilho | null;
+  /** Execução (janela pedida pela ferramenta) a que a rodada pertence. */
+  execucaoId: string | null;
+  /** Veredito da janela, só na última rodada de uma execução. */
+  conferencia: ConferenciaResumo | null;
+  /** Métricas da rodada; `null` nas linhas anteriores a elas e nas por consulta. */
+  duracaoMs: number | null;
+  itensProcessados: number | null;
+  subrequisicoes: number | null;
+  motivoParada: MotivoParada | null;
 };
 
 const MESES_CURTO = [
@@ -795,6 +899,9 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
       .object({
         offset: z.number().int().min(0).max(10000).default(0),
         limit: z.number().int().min(1).max(100).default(50),
+        // Os mesmos filtros da URL do Histórico; valor desconhecido é ignorado
+        // por `lerFiltrosHistorico`, que também os lê na rota.
+        filtros: z.record(z.string(), z.string().max(64)).default({}),
       })
       .parse(input ?? {}),
   )
@@ -803,14 +910,16 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
 
     const from = data.offset;
     const to = data.offset + data.limit - 1;
-    const { data: rows, error } = await supabaseAdmin
+    const consulta = supabaseAdmin
       .from("importacoes")
       .select(
-        "id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint,resultado",
+        "id,fonte,escopo,orgao_cod,ano,mes,data_inicial,data_final,total_bruto,importados,erros,consultado_em,endpoint,resultado,gatilho,execucao_id,conferencia,duracao_ms,itens_processados,subrequisicoes,motivo_parada",
       )
       // Exclui as linhas de REQUISIÇÃO da varredura por detalhe (uma por GET) —
       // elas inundariam o Histórico. Mantém as linhas de rodada (log_kind NULL).
-      .or("log_kind.is.null,log_kind.neq.requisicao")
+      .or("log_kind.is.null,log_kind.neq.requisicao");
+    const filtros = lerFiltrosHistorico(data.filtros);
+    const { data: rows, error } = await aplicarFiltrosHistorico(consulta, filtros)
       .order("consultado_em", { ascending: false })
       .range(from, to + 1); // pega 1 extra pra detectar hasMore
 
@@ -833,7 +942,8 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
         }
       }
       const isCgu = r.fonte === "cgu" && r.data_inicial && r.data_final;
-      const isAnual = r.fonte === "cgu_emendas";
+      // Anuais gravam `mes` 1 só como âncora da janela: o período é o ano.
+      const isAnual = r.fonte === "cgu_emendas" || r.fonte.startsWith("tse_");
       let escopo = r.escopo || "—";
       if (isCgu && r.orgao_cod) {
         const o = ORGAOS_BASE.find((x) => x.cod === r.orgao_cod);
@@ -862,9 +972,36 @@ export const listHistoricoUnificado = createServerFn({ method: "POST" })
         resultado: ehResultadoConhecido((r as { resultado?: string | null }).resultado)
           ? ((r as { resultado?: string | null }).resultado as ResultadoClassificado)
           : null,
+        gatilho: (GATILHOS as readonly (string | null)[]).includes(r.gatilho)
+          ? (r.gatilho as Gatilho)
+          : null,
+        execucaoId: r.execucao_id ?? null,
+        conferencia: lerConferencia(r.conferencia),
+        duracaoMs: r.duracao_ms ?? null,
+        itensProcessados: r.itens_processados ?? null,
+        subrequisicoes: r.subrequisicoes ?? null,
+        motivoParada: (MOTIVOS_PARADA as readonly (string | null)[]).includes(r.motivo_parada)
+          ? (r.motivo_parada as MotivoParada)
+          : null,
       };
     });
-    return { entradas, hasMore };
+
+    // Soma e média do recorte inteiro, não só da página: calculadas no banco
+    // e pedidas só na primeira página. Função ausente (migration pendente) ou
+    // falha na soma não derrubam a listagem — o resumo só não aparece.
+    let resumo: ResumoHistorico | null = null;
+    if (data.offset === 0) {
+      const { data: soma, error: erroSoma } = await supabaseAdmin.rpc(
+        "resumo_historico_importacoes",
+        parametrosResumoHistorico(filtros),
+      );
+      if (erroSoma && !funcaoRpcAusente(erroSoma)) {
+        console.error("[historico] resumo do recorte", erroSoma.message);
+      }
+      const linha = soma?.[0];
+      if (linha) resumo = lerResumoHistorico(linha);
+    }
+    return { entradas, hasMore, resumo };
   });
 
 export const clearImportData = createServerFn({ method: "POST" })
@@ -1253,18 +1390,53 @@ export const clearImportData = createServerFn({ method: "POST" })
               : (vr.count ?? 0);
           }
 
-          // CGU: zera o estado da varredura retomável, senão uma reimportação
-          // continuaria de uma página obsoleta em vez de varrer do início.
-          // Tolerante à migração ainda não aplicada (tabela ausente = nada a zerar).
-          if (fid === "cgu") {
-            const vr = await supabaseAdmin
-              .from("cgu_varredura")
-              .delete({ count: "exact" })
-              .not("orgao_cod", "is", null);
-            if (vr.error && !tabelaVarreduraAusente(vr.error)) {
-              throw new Error(`cgu_varredura: ${vr.error.message}`);
+          // Zera os checkpoints de varredura da fonte (catálogo em `limpeza.ts`),
+          // senão a janela continuaria "completa" sem dados nem Histórico e a
+          // reimportação retomaria de um cursor obsoleto. Tolerante à migração
+          // ainda não aplicada (tabela ausente = nada a zerar).
+          for (const tabela of new Set((fonte.checkpoints ?? []).map((c) => c.tabela))) {
+            const col = tabela === "cgu_varredura" ? "orgao_cod" : "chave";
+            // Lê em páginas: o PostgREST corta cada resposta em 1.000 linhas, e
+            // a CEAP grava uma chave por parlamentar e mês.
+            const existentes: string[] = [];
+            let ausente = false;
+            for (let off = 0; ; off += 1000) {
+              const sel = await supabaseAdmin
+                .from(tabela)
+                .select(col)
+                .order(col)
+                .range(off, off + 999);
+              if (sel.error) {
+                if (!tabelaVarreduraAusente(sel.error)) {
+                  throw new Error(`${tabela}: ${sel.error.message}`);
+                }
+                ausente = true;
+                break;
+              }
+              const lote = (sel.data ?? []) as unknown as Record<string, string>[];
+              existentes.push(...lote.map((r) => r[col]));
+              if (lote.length < 1000) break;
             }
-            removed["cgu_varredura"] = vr.error ? "ausente (migração pendente)" : (vr.count ?? 0);
+            if (ausente) {
+              removed[`${tabela}:${fid}`] = "ausente (migração pendente)";
+              continue;
+            }
+            const chaves = checkpointsALimpar(
+              fid,
+              tabela,
+              existentes,
+              periodoAtivo ? { anoIni: anoIni!, anoFim: anoFim! } : undefined,
+            );
+            let apagados = 0;
+            for (let i = 0; i < chaves.length; i += 500) {
+              const vr = await supabaseAdmin
+                .from(tabela)
+                .delete({ count: "exact" })
+                .in(col, chaves.slice(i, i + 500));
+              if (vr.error) throw new Error(`${tabela}: ${vr.error.message}`);
+              apagados += vr.count ?? 0;
+            }
+            removed[`${tabela}:${fid}`] = apagados;
           }
         } catch (e) {
           falhas[fonte.label] = e instanceof Error ? e.message : String(e);

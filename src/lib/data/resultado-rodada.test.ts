@@ -44,6 +44,14 @@ describe("resultado-rodada/erro nosso × erro da origem", () => {
     );
   });
 
+  it("avisos `info:` não entram na classificação, nem citando um 404", () => {
+    // Descarte por inconsistência da origem é aviso, não erro nosso.
+    const aviso =
+      "info: vot 2129817-26 descartada: a Câmara lista a votação, mas o detalhe responde 404.";
+    expect(classificarResultado({ importados: 780, erros: [aviso] })).toBe("com_dados");
+    expect(classificarResultado({ importados: 0, erros: [aviso] })).toBe("sem_dados");
+  });
+
   it("401 e 403 são credencial — erro nosso", () => {
     expect(classificarResultado({ importados: 0, erros: ["Portal API 401"] })).toBe("erro_nosso");
     expect(classificarResultado({ importados: 0, erros: ["Portal API 403"] })).toBe("erro_nosso");

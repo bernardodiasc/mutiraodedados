@@ -32,6 +32,7 @@ const REGRAS_EMITIDAS_PELO_CODIGO = [
   "valor_global_zerado",
   "liquido_maior_documento",
   "valor_negativo_em_conta_positiva",
+  "votacao_listada_sem_detalhe",
   // tse/qualidade.ts + ponte + revalidação
   "duplicata_importacao",
   "encoding_suspeito",

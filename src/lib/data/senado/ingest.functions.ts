@@ -7,8 +7,8 @@ import { regrasSenadoCeaps, flagQA } from "@/lib/data/qa";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
-import { reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
-import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import { PREFIXO_TRANSITORIO, reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { registrarRodadaImportacao, inserirImportacoes } from "@/lib/data/historico.server";
 import {
   CEAP_ORCAMENTO_MS,
   CEAP_TETO_SUBREQUISICOES,
@@ -16,6 +16,8 @@ import {
   parlamentarNoCursor,
 } from "@/lib/data/ceap-varredura";
 import { parseValorSenado } from "@/lib/data/senado/parsers";
+import { gatilhoPadrao, type OrigemRodada } from "@/lib/data/historico-rodada";
+import { classificarResultado } from "@/lib/data/resultado-rodada";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 /**
@@ -114,7 +116,7 @@ async function upsertSenadorLegislaturas(
 
 async function logImportacaoSenadores(legislatura: number, total: number, userId: string) {
   try {
-    await supabaseAdmin.from("importacoes").insert({
+    await inserirImportacoes({
       fonte: "senado_senadores",
       escopo: `legislatura ${legislatura}`,
       ano: anoInicioLegislatura(legislatura),
@@ -123,6 +125,7 @@ async function logImportacaoSenadores(legislatura: number, total: number, userId
       importados: total,
       erros: [],
       user_id: userId,
+      gatilho: gatilhoPadrao(userId),
       endpoint: `GET https://legis.senado.leg.br/dadosabertos/senador/lista/legislatura/${legislatura}`,
     });
   } catch (e) {
@@ -151,16 +154,26 @@ type MandatoDetalhe = {
   Suplentes?: { Suplente?: SuplenteRaw | SuplenteRaw[] };
 };
 
-async function mandatosSenador(cod: number): Promise<MandatoDetalhe[]> {
+/**
+ * Mandatos de um senador. Separa "a origem respondeu lista vazia" de "a
+ * consulta falhou": só a resposta autoriza regravar exercícios, suplências e
+ * situação dele. Retry esgotado (rede, 429, 5xx) sai com `TRANSIENT:`, para a
+ * rodada contar como falha da origem; 4xx e parse ficam como definitivos.
+ */
+async function mandatosSenador(
+  cod: number,
+): Promise<{ mandatos: MandatoDetalhe[] } | { erro: string }> {
   try {
     const j = await senadoGet<{
       MandatoParlamentar?: {
         Parlamentar?: { Mandatos?: { Mandato?: MandatoDetalhe | MandatoDetalhe[] } };
       };
     }>(`/senador/${cod}/mandatos`);
-    return asArray(j.MandatoParlamentar?.Parlamentar?.Mandatos?.Mandato);
-  } catch {
-    return [];
+    return { mandatos: asArray(j.MandatoParlamentar?.Parlamentar?.Mandatos?.Mandato) };
+  } catch (e) {
+    const msg = (e as Error).message;
+    const prefixo = msg.startsWith("Senado API indisponível") ? `${PREFIXO_TRANSITORIO} ` : "";
+    return { erro: `${prefixo}mandatos do senador ${cod}: ${msg}` };
   }
 }
 
@@ -169,9 +182,12 @@ async function mandatosSenador(cod: number): Promise<MandatoDetalhe[]> {
  * afastamento) e a cadeia de suplência (os suplentes de cada titular, por
  * legislatura). Lotes paralelos; delete+insert por código (idempotente). É de
  * `Exercicios` que se lê quando/por que alguém deixou o cargo, e de `Suplentes`
- * quem entra no lugar.
+ * quem entra no lugar. O senador cuja consulta falhou fica de fora do
+ * delete+insert e da situação (o que estava gravado continua) e a falha volta
+ * nos erros devolvidos.
  */
-async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
+async function ingerirMandatosSenadores(codigos: number[]): Promise<string[]> {
+  const erros: string[] = [];
   const LOTE = 6;
   const now = new Date().toISOString();
   for (let i = 0; i < codigos.length; i += LOTE) {
@@ -198,7 +214,14 @@ async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
       updated_at: string;
     }> = [];
     const situacaoUpd: Array<{ cod: number; situacao: string }> = [];
-    for (const [cod, mandatos] of res) {
+    const respondidos: number[] = [];
+    for (const [cod, r] of res) {
+      if ("erro" in r) {
+        erros.push(r.erro);
+        continue;
+      }
+      respondidos.push(cod);
+      const { mandatos } = r;
       // Situação atual derivada dos exercícios: em exercício se há período aberto;
       // já ocupou mas encerrou → "Fora de exercício"; nenhum exercício em toda a
       // trajetória → "Nunca exerceu" (suplente que jamais assumiu a cadeira — sem
@@ -244,8 +267,18 @@ async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
         }
       }
     }
-    await supabaseAdmin.from("senado_exercicios").delete().in("codigo_parlamentar", lote);
-    await supabaseAdmin.from("senado_suplencia").delete().in("titular_codigo", lote);
+    // Idempotência: apaga os mandatos de quem respondeu e regrava.
+    if (respondidos.length === 0) continue;
+    const { error: delEx } = await supabaseAdmin
+      .from("senado_exercicios")
+      .delete()
+      .in("codigo_parlamentar", respondidos);
+    if (delEx) throw new Error(`db exercicios: ${delEx.message}`);
+    const { error: delSup } = await supabaseAdmin
+      .from("senado_suplencia")
+      .delete()
+      .in("titular_codigo", respondidos);
+    if (delSup) throw new Error(`db suplencia: ${delSup.message}`);
     for (let j = 0; j < exRows.length; j += 200) {
       const { error } = await supabaseAdmin
         .from("senado_exercicios")
@@ -262,72 +295,144 @@ async function ingerirMandatosSenadores(codigos: number[]): Promise<void> {
       await supabaseAdmin.from("senado_senadores_cache").update({ situacao }).eq("id", cod);
     }
   }
+  return erros;
 }
+
+/**
+ * Busca e grava os senadores em exercício; devolve o tamanho da lista, os
+ * gravados e as falhas na consulta de mandatos.
+ */
+async function gravarSenadoresAtuais(): Promise<{
+  lista: number;
+  gravados: number;
+  erros: string[];
+}> {
+  const json = await senadoGet<{
+    ListaParlamentarEmExercicio?: {
+      Parlamentares?: { Parlamentar?: Parlamentar | Parlamentar[] };
+    };
+  }>("/senador/lista/atual");
+
+  const arr = asArray(json.ListaParlamentarEmExercicio?.Parlamentares?.Parlamentar);
+  if (arr.length === 0) throw new Error("Senado retornou lista vazia.");
+
+  const rowsBrutos = arr
+    .map((p) => {
+      const i = p.IdentificacaoParlamentar ?? {};
+      const id = Number(i.CodigoParlamentar);
+      if (!Number.isFinite(id) || id <= 0) return null;
+      return {
+        id,
+        codigo_parlamentar: id,
+        nome: i.NomeParlamentar ?? `Senador ${id}`,
+        nome_completo: i.NomeCompletoParlamentar ?? null,
+        sigla_partido: i.SiglaPartidoParlamentar ?? null,
+        sigla_uf: i.UfParlamentar ?? null,
+        url_foto: i.UrlFotoParlamentar ?? null,
+        email: i.EmailParlamentar ?? null,
+        situacao: "Exercício",
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  // Dedupe defensivo por código do parlamentar (a lista pode repetir o mesmo
+  // senador), para o upsert não afetar a mesma linha duas vezes.
+  const rows = [...new Map(rowsBrutos.map((r) => [r.id, r])).values()];
+
+  for (let i = 0; i < rows.length; i += 100) {
+    const { error } = await supabaseAdmin
+      .from("senado_senadores_cache")
+      .upsert(rows.slice(i, i + 100));
+    if (error) throw new Error(`db: ${error.message}`);
+  }
+
+  // Linha-filha da legislatura atual (histórico de mandatos).
+  const legAtual = legislaturaAtualSenado();
+  const now = new Date().toISOString();
+  await upsertSenadorLegislaturas(
+    rows.map((r) => ({
+      codigo_parlamentar: r.codigo_parlamentar,
+      legislatura: legAtual,
+      sigla_partido: r.sigla_partido,
+      sigla_uf: r.sigla_uf,
+      participacao: "Exercício",
+      updated_at: now,
+    })),
+  );
+  const erros = await ingerirMandatosSenadores(rows.map((r) => r.codigo_parlamentar));
+
+  return { lista: arr.length, gravados: rows.length, erros };
+}
+
+/**
+ * Núcleo: importa o cadastro dos senadores em exercício — chamada única, sem
+ * varredura (a lista, mais um GET de mandatos por senador).
+ *
+ * Sempre registra a rodada em `importacoes`, com `resultado` — inclusive a que
+ * falhou, que não lança: o erro volta em `erros`. Devolve também o total da
+ * origem: a lista vem inteira numa chamada, então o tamanho dela é o total;
+ * os itens sem código e as repetições contam como descartados.
+ */
+export async function rodadaCadastroSenado(
+  userId: string | null,
+  origem: OrigemRodada = {},
+): Promise<{
+  importados: number;
+  erros: string[];
+  origem: { total: number; descartados: number } | null;
+}> {
+  const legAtual = legislaturaAtualSenado();
+  const erros: string[] = [];
+  let r: Awaited<ReturnType<typeof gravarSenadoresAtuais>> | null = null;
+  try {
+    r = await gravarSenadoresAtuais();
+    erros.push(...r.erros);
+  } catch (e) {
+    erros.push((e as Error).message);
+  }
+  const importados = r?.gravados ?? 0;
+
+  const erroHistorico = await inserirImportacoes({
+    fonte: "senado_senadores",
+    escopo: `legislatura ${legAtual}`,
+    ano: anoInicioLegislatura(legAtual),
+    mes: 1,
+    total_bruto: r?.lista ?? 0,
+    importados,
+    erros,
+    resultado: classificarResultado({ importados, erros }),
+    user_id: userId,
+    gatilho: origem.gatilho ?? gatilhoPadrao(userId),
+    execucao_id: origem.execucaoId ?? null,
+    endpoint: `GET ${BASE}/senador/lista/atual`,
+  });
+  if (erroHistorico)
+    console.error("[senado_senadores] falha ao registrar importacao", erroHistorico);
+
+  return {
+    importados,
+    erros,
+    origem: r && erros.length === 0 ? { total: r.lista, descartados: r.lista - r.gravados } : null,
+  };
+}
+
+/**
+ * Parâmetros do cadastro atual — nenhum. Fonte única da validação: a casca
+ * autenticada e o modo nomeado de `/api/cron-importar` usam este schema.
+ */
+export const importarSenadoresSchema = z.object({});
 
 /** Importa os 81 senadores em exercício. */
 export const importarSenadores = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({}).parse(input ?? {}))
+  .inputValidator((input) => importarSenadoresSchema.parse(input ?? {}))
   .handler(async ({ context }) => {
     await ensureAdmin(context.userId);
-
-    const json = await senadoGet<{
-      ListaParlamentarEmExercicio?: {
-        Parlamentares?: { Parlamentar?: Parlamentar | Parlamentar[] };
-      };
-    }>("/senador/lista/atual");
-
-    const arr = asArray(json.ListaParlamentarEmExercicio?.Parlamentares?.Parlamentar);
-    if (arr.length === 0) throw new Error("Senado retornou lista vazia.");
-
-    const rowsBrutos = arr
-      .map((p) => {
-        const i = p.IdentificacaoParlamentar ?? {};
-        const id = Number(i.CodigoParlamentar);
-        if (!Number.isFinite(id) || id <= 0) return null;
-        return {
-          id,
-          codigo_parlamentar: id,
-          nome: i.NomeParlamentar ?? `Senador ${id}`,
-          nome_completo: i.NomeCompletoParlamentar ?? null,
-          sigla_partido: i.SiglaPartidoParlamentar ?? null,
-          sigla_uf: i.UfParlamentar ?? null,
-          url_foto: i.UrlFotoParlamentar ?? null,
-          email: i.EmailParlamentar ?? null,
-          situacao: "Exercício",
-          updated_at: new Date().toISOString(),
-        };
-      })
-      .filter((r): r is NonNullable<typeof r> => r !== null);
-
-    // Dedupe defensivo por código do parlamentar (a lista pode repetir o mesmo
-    // senador), para o upsert não afetar a mesma linha duas vezes.
-    const rows = [...new Map(rowsBrutos.map((r) => [r.id, r])).values()];
-
-    for (let i = 0; i < rows.length; i += 100) {
-      const { error } = await supabaseAdmin
-        .from("senado_senadores_cache")
-        .upsert(rows.slice(i, i + 100));
-      if (error) throw new Error(`db: ${error.message}`);
-    }
-
-    // Linha-filha da legislatura atual (histórico de mandatos).
-    const legAtual = legislaturaAtualSenado();
-    const now = new Date().toISOString();
-    await upsertSenadorLegislaturas(
-      rows.map((r) => ({
-        codigo_parlamentar: r.codigo_parlamentar,
-        legislatura: legAtual,
-        sigla_partido: r.sigla_partido,
-        sigla_uf: r.sigla_uf,
-        participacao: "Exercício",
-        updated_at: now,
-      })),
-    );
-    await logImportacaoSenadores(legAtual, rows.length, context.userId);
-    await ingerirMandatosSenadores(rows.map((r) => r.codigo_parlamentar));
-
-    return { importados: rows.length };
+    const r = await rodadaCadastroSenado(context.userId);
+    // Casca do painel: o erro da rodada vira exceção, como antes.
+    if (r.erros.length > 0) throw new Error(r.erros[0]);
+    return { importados: r.importados };
   });
 
 /**
@@ -374,7 +479,7 @@ function mandatoDaLegislatura(
 async function ingerirSenadoresLegislatura(
   legislatura: number,
   userId: string,
-): Promise<{ importados: number; legislatura: number }> {
+): Promise<{ importados: number; legislatura: number; erros: string[] }> {
   const json = await senadoGet<{
     ListaParlamentarLegislatura?: {
       Parlamentares?: { Parlamentar?: ParlamentarLegislatura | ParlamentarLegislatura[] };
@@ -382,7 +487,7 @@ async function ingerirSenadoresLegislatura(
   }>(`/senador/lista/legislatura/${legislatura}`);
 
   const arrBruto = asArray(json.ListaParlamentarLegislatura?.Parlamentares?.Parlamentar);
-  if (arrBruto.length === 0) return { importados: 0, legislatura };
+  if (arrBruto.length === 0) return { importados: 0, legislatura, erros: [] };
 
   // A lista por legislatura pode repetir o mesmo parlamentar; dedupe por código
   // para o upsert (roster e mandato) não afetar a mesma linha duas vezes.
@@ -437,9 +542,9 @@ async function ingerirSenadoresLegislatura(
 
   await upsertSenadorLegislaturas(legRows);
   await logImportacaoSenadores(legislatura, identidades.length, userId);
-  await ingerirMandatosSenadores(identidades.map((r) => r.codigo_parlamentar));
+  const erros = await ingerirMandatosSenadores(identidades.map((r) => r.codigo_parlamentar));
 
-  return { importados: identidades.length, legislatura };
+  return { importados: identidades.length, legislatura, erros };
 }
 
 /** Importa o cadastro de senadores de UMA legislatura passada. */
@@ -476,6 +581,7 @@ export const importarSenadoresHistorico = createServerFn({ method: "POST" })
         const r = await ingerirSenadoresLegislatura(n, context.userId);
         importados += r.importados;
         legislaturas.push(n);
+        erros.push(...r.erros.map((x) => `leg ${n}: ${x}`));
       } catch (e) {
         erros.push(`leg ${n}: ${(e as Error).message}`);
         console.error(`[senado_senadores] legislatura ${n} falhou`, e);
@@ -515,27 +621,75 @@ type DespesaRaw = {
  * em lotes — o cursor do runner é o LOTE, o que mantém o teto de
  * subrequisições respeitado mesmo num mês atípico.
  */
+type DespesaCeaps = {
+  id?: number;
+  tipoDocumento?: string;
+  ano?: number;
+  mes?: number;
+  codSenador?: number;
+  nomeSenador?: string;
+  tipoDespesa?: string;
+  cpfCnpj?: string;
+  fornecedor?: string;
+  documento?: string;
+  data?: string;
+  detalhamento?: string | null;
+  valorReembolsado?: number | string;
+};
+
+type JanelaCeaps = { ano: number; mes: number; senadorId?: number };
+
+/** Chave de varredura do mês — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraCeaps = (data: JanelaCeaps) =>
+  chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId);
+
+/** As despesas do mês (e do senador, se pedido), do ano inteiro que a origem entrega. */
+async function despesasCeapsDoMes(data: JanelaCeaps): Promise<DespesaCeaps[]> {
+  const res = await fetchComRetry(`${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano}`, {
+    headers: { accept: "application/json" },
+  });
+  if (!res.ok) {
+    throw new Error(
+      ehStatusTransitorio(res.status)
+        ? `TRANSIENT: Senado ${res.status} (CEAPS ${data.ano} indisponível)`
+        : `Senado API ${res.status} ao buscar CEAPS ${data.ano}`,
+    );
+  }
+  const ano = (await res.json()) as DespesaCeaps[];
+  return (Array.isArray(ano) ? ano : []).filter(
+    (d) =>
+      Number(d.mes) === data.mes && (!data.senadorId || Number(d.codSenador) === data.senadorId),
+  );
+}
+
+/** Despesa sem id ou sem código de senador: a importação a descarta. */
+const despesaIlegivel = (d: DespesaCeaps) => d.id == null || !Number.isFinite(Number(d.codSenador));
+
+/**
+ * O total da origem é exato: a lista do mês vem inteira a cada rodada. As
+ * despesas ilegíveis contam como descartadas.
+ */
+const totalDaLista = (lista: readonly DespesaCeaps[]) => ({
+  total: lista.length,
+  descartados: lista.filter(despesaIlegivel).length,
+});
+
+/**
+ * Total da origem do mês numa chamada só, para conferir sem reimportar. É a
+ * mesma chamada da rodada: o ano inteiro (~9 MB).
+ */
+export async function totalDaOrigemCEAPS(
+  data: JanelaCeaps,
+): Promise<{ total: number; descartados: number }> {
+  return totalDaLista(await despesasCeapsDoMes(data));
+}
+
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaCEAPSMes(
-  data: { ano: number; mes: number; senadorId?: number },
+  data: JanelaCeaps,
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
-  type DespesaCeaps = {
-    id?: number;
-    tipoDocumento?: string;
-    ano?: number;
-    mes?: number;
-    codSenador?: number;
-    nomeSenador?: string;
-    tipoDespesa?: string;
-    cpfCnpj?: string;
-    fornecedor?: string;
-    documento?: string;
-    data?: string;
-    detalhamento?: string | null;
-    valorReembolsado?: number | string;
-  };
-
   const erros: string[] = [];
   const inicioRodada = Date.now();
   const LOTE = 200;
@@ -545,27 +699,13 @@ export async function rodadaCEAPSMes(
   let senadoresNoMes = 0;
   const carregarMes = async (): Promise<DespesaCeaps[]> => {
     if (doMes) return doMes;
-    const res = await fetchComRetry(`${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano}`, {
-      headers: { accept: "application/json" },
-    });
-    if (!res.ok) {
-      throw new Error(
-        ehStatusTransitorio(res.status)
-          ? `TRANSIENT: Senado ${res.status} (CEAPS ${data.ano} indisponível)`
-          : `Senado API ${res.status} ao buscar CEAPS ${data.ano}`,
-      );
-    }
-    const ano = (await res.json()) as DespesaCeaps[];
-    doMes = (Array.isArray(ano) ? ano : []).filter(
-      (d) =>
-        Number(d.mes) === data.mes && (!data.senadorId || Number(d.codSenador) === data.senadorId),
-    );
+    doMes = await despesasCeapsDoMes(data);
     senadoresNoMes = new Set(doMes.map((d) => d.codSenador)).size;
     return doMes;
   };
 
   const rodada = await rodarComOrcamento({
-    chave: chaveVarreduraCeap("senado_ceaps", data.ano, data.mes, data.senadorId),
+    chave: chaveVarreduraCeaps(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: CEAP_ORCAMENTO_MS,
     orcamentoCusto: CEAP_TETO_SUBREQUISICOES,
@@ -595,9 +735,9 @@ export async function rodadaCEAPSMes(
 
       const rows = fatia
         .map((d) => {
-          const id = d.id != null ? String(d.id) : null;
+          if (despesaIlegivel(d)) return null;
+          const id = String(d.id);
           const senId = Number(d.codSenador);
-          if (!id || !Number.isFinite(senId)) return null;
           return {
             id,
             senador_id: senId,
@@ -668,16 +808,21 @@ export async function rodadaCEAPSMes(
       endpoint: `GET ${BASE_ADM}/api/v1/senadores/despesas_ceaps/${data.ano} (filtro mês=${data.mes})`,
       unidade: "lotes",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
   );
   if (avisoHistorico) erros.push(avisoHistorico);
 
+  // A anotação desfaz o estreitamento para `null`: quem atribui é a closure.
+  const lista = doMes as DespesaCeaps[] | null;
+
   return {
     importados: rodada.processados,
     senadoresProcessados: senadoresNoMes,
     erros,
+    origem: lista ? totalDaLista(lista) : null,
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -689,17 +834,19 @@ export async function rodadaCEAPSMes(
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarCEAPSMesSchema = z.object({
+  ano: z.number().int().min(2008).max(2100),
+  mes: z.number().int().min(1).max(12),
+  senadorId: z.number().int().positive().optional(),
+});
+
 export const importarCEAPSMes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        ano: z.number().int().min(2008).max(2100),
-        mes: z.number().int().min(1).max(12),
-        senadorId: z.number().int().positive().optional(),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarCEAPSMesSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaCEAPSMes(data, context.userId);

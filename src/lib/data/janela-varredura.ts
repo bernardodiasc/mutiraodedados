@@ -12,10 +12,40 @@
 export const JANELA_ORCAMENTO_MS = 150_000;
 
 /**
- * Teto de subrequisições por rodada. Conta a busca da página e os lotes
- * gravados; a margem até o teto real do Worker absorve as consultas de QA.
+ * Teto de subrequisições por rodada. Conta a busca da página (ou do item) e
+ * os lotes gravados.
+ *
+ * O Worker roda no plano pago: 10.000 subrequisições por invocação. O teto
+ * antigo, de 45, era a conta do plano Free (50) e fazia a rodada parar muito
+ * antes do orçamento de tempo — um mês de votações da Câmara (mais de 420, a
+ * ~4 subrequisições cada) precisava de mais de 30 rodadas. Com 1.000, quem
+ * limita a rodada passa a ser o relógio, e a folga até 10.000 cobre o que o
+ * custo não conta: o checkpoint de cada passo, as consultas de QA, a linha do
+ * Histórico e as gravações por consulta do SICONFI.
  */
-export const JANELA_TETO_SUBREQUISICOES = 45;
+export const JANELA_TETO_SUBREQUISICOES = 1_000;
+
+/**
+ * Teto das rodadas com passos em paralelo (`paralelismo` do runner): votações
+ * da Câmara.
+ *
+ * Com N passos ao mesmo tempo, a rodada de 150 s faz N vezes mais trabalho, e
+ * o teto de 1.000 passaria a parar a rodada antes do relógio — o ganho do
+ * paralelismo sumiria. A conta: uma votação custa 3 a 4 subrequisições
+ * contadas; com 5 em paralelo, cabem ~1.350 votações em 150 s, ~5.000
+ * subrequisições. O limite do Worker é 10.000; a folga de 4.000 cobre o que o
+ * custo não conta — uma gravação de checkpoint por grupo de passos
+ * confirmados (no máximo uma por item), o QA e a linha do Histórico.
+ */
+export const JANELA_TETO_SUBREQUISICOES_PARALELO = 6_000;
+
+/**
+ * Teto das fontes cuja origem limita requisições por minuto: o PNCP (30 por
+ * minuto) e a chave do Portal da Transparência (Transferegov). Nelas a rodada
+ * curta e a pausa entre rodadas servem de ritmo; subir o teto faria uma rodada
+ * de 150 s disparar centenas de GETs seguidos e esbarrar na cota.
+ */
+export const JANELA_TETO_SUBREQUISICOES_COM_COTA = 45;
 
 export function chaveVarreduraJanela(
   fonte: string,

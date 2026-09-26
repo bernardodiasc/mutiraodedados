@@ -190,3 +190,53 @@ export function janelasMensais(
   }
   return janelas;
 }
+
+/** O mínimo que o painel lê de uma rodada retomável: se há mais e os erros. */
+export type RodadaRetomavel = { erros: string[]; varredura: { haMais: boolean } };
+
+/**
+ * Repete as rodadas de uma rotina retomável (catálogo SIAFI, atividade dos
+ * órgãos) até ela terminar, com teto de rodadas como trava contra laço.
+ * Devolve as rodadas feitas e se terminou; quem chama soma os contadores.
+ */
+export async function repetirAteTerminar<R extends RodadaRetomavel>(
+  rodar: () => Promise<R>,
+  maxRodadas = 100,
+): Promise<{ rodadas: R[]; terminou: boolean }> {
+  const rodadas: R[] = [];
+  for (let n = 0; n < maxRodadas; n++) {
+    const r = await rodar();
+    rodadas.push(r);
+    if (!r.varredura.haMais) return { rodadas, terminou: true };
+  }
+  return { rodadas, terminou: false };
+}
+
+const somar = <R>(rodadas: readonly R[], campo: (r: R) => number) =>
+  rodadas.reduce((soma, r) => soma + campo(r), 0);
+
+/**
+ * O resumo do botão "Sincronizar catálogo de órgãos", depois das rodadas das
+ * duas rotinas: nomes do SIAFI e atividade dos órgãos.
+ */
+export function resumoDoCatalogo(
+  nomes: {
+    rodadas: readonly { importados: number; invalidos: number; erros: string[] }[];
+    terminou: boolean;
+  },
+  atividade: {
+    rodadas: readonly { verificados: number; ativos: number; inativos: number; erros: string[] }[];
+    terminou: boolean;
+  },
+): { texto: string; completo: boolean } {
+  const erros =
+    somar(nomes.rodadas, (r) => r.erros.length) + somar(atividade.rodadas, (r) => r.erros.length);
+  const partes = [
+    `Catálogo: ${somar(nomes.rodadas, (r) => r.importados)} órgãos (${somar(nomes.rodadas, (r) => r.invalidos)} inválidos ignorados)`,
+    `atividade: ${somar(atividade.rodadas, (r) => r.ativos)} ativos, ${somar(atividade.rodadas, (r) => r.inativos)} extintos/inativos de ${somar(atividade.rodadas, (r) => r.verificados)} verificados`,
+  ];
+  if (erros > 0) partes.push(`${erros} erro(s) — veja o Histórico`);
+  const completo = nomes.terminou && atividade.terminou;
+  if (!completo) partes.push("parou no teto de rodadas; clique de novo para continuar");
+  return { texto: partes.join(" · "), completo };
+}

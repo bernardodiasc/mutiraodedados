@@ -16,5 +16,6 @@ Consulte [`docs/padroes/debug-problemas.ia.md`](/docs/padroes/debug-problemas.ia
 | 3   | Vazamento de `client.server` para o bundle                                                                                                       | `supabaseAdmin`, service role key, bundle                                     |
 | 4   | Rota com `_` no nome gera URL diferente                                                                                                          | TanStack Router, file-based routing, `_authenticated`                         |
 | 5   | Server function criada por factory vaza handler p/ o cliente                                                                                     | `createServerFn`, factory, `Missing Supabase environment variable(s)`, bundle |
+| 6   | Contagem em HEAD falha com mensagem vazia                                                                                                        | `head: true`, `57014`, statement timeout, contagem                            |
 
 Ao identificar um problema parecido com qualquer um acima, leia o arquivo de referência antes de investigar.

@@ -38,14 +38,15 @@ export type SinaisRodada = {
  * doador_virou_fornecedor: cruza doações (≥ threshold) de CNPJs que também são
  * fornecedores com os contratos desses CNPJs no cache. Roda em lote (backfill
  * e re-execução); o mesmo runner serve ao gatilho incremental pós-importação.
+ * Com `ano`, só as doações daquela eleição.
  */
-export async function rodarDoadorVirouFornecedor(): Promise<SinaisRodada> {
+export async function rodarDoadorVirouFornecedor(ano?: number): Promise<SinaisRodada> {
   const avisos: string[] = [];
   const { data: doacoes, error } = await supabaseAdmin.rpc("tse_doacoes_de_fornecedores", {
     _minimo: LIMIARES_INVESTIGATIVOS.doacaoMinima,
   });
   if (error) throw new Error(`tse_doacoes_de_fornecedores: ${error.message}`);
-  const linhas = doacoes ?? [];
+  const linhas = (doacoes ?? []).filter((d) => ano === undefined || d.ano_eleicao === ano);
 
   // Contratos por CNPJ formatado (é assim que contratos_cache guarda).
   const cnpjsFormatados = [...new Set(linhas.map((d) => d.cnpj_formatado))];
@@ -99,14 +100,16 @@ export async function rodarDoadorVirouFornecedor(): Promise<SinaisRodada> {
   };
 }
 
-export async function rodarEvolucaoPatrimonial(): Promise<SinaisRodada> {
-  const { data, error } = await supabaseAdmin.rpc("tse_evolucao_patrimonial", {
+/** Com `ano`, só as evoluções que chegam àquela eleição (a candidatura recente). */
+export async function rodarEvolucaoPatrimonial(ano?: number): Promise<SinaisRodada> {
+  const { data: todas, error } = await supabaseAdmin.rpc("tse_evolucao_patrimonial", {
     _multiplo: LIMIARES_INVESTIGATIVOS.evolucaoMultiplo,
     _minimo_final: LIMIARES_INVESTIGATIVOS.evolucaoMinimoFinal,
   });
   if (error) throw new Error(`tse_evolucao_patrimonial: ${error.message}`);
+  const data = (todas ?? []).filter((l) => ano === undefined || l.ano_recente === ano);
   const findings = sinaisEvolucaoPatrimonial(
-    (data ?? []).map((l) => ({
+    data.map((l) => ({
       cpf: l.cpf,
       sqAnterior: l.sq_anterior,
       anoAnterior: l.ano_anterior,
@@ -121,7 +124,7 @@ export async function rodarEvolucaoPatrimonial(): Promise<SinaisRodada> {
   const inseridos = await flagQA(findings);
   return {
     regra: "evolucao_patrimonial_atipica",
-    candidatosAvaliados: (data ?? []).length,
+    candidatosAvaliados: data.length,
     findingsGerados: inseridos,
     avisos: [],
   };
@@ -216,7 +219,7 @@ export async function rodarCandidatosSemBens(ano: number, ativar: boolean): Prom
       regra: "candidato_sem_bens",
       candidatosAvaliados: 0,
       findingsGerados: 0,
-      avisos: ["regra desligada nesta execução (ativarCandidatoSemBens=false)"],
+      avisos: ["info: regra desligada nesta execução (ativarCandidatoSemBens=false)"],
     };
   }
   const { data, error } = await supabaseAdmin.rpc("tse_candidatos_sem_bens", { _ano: ano });
@@ -240,7 +243,8 @@ export async function rodarCandidatosSemBens(ano: number, ativar: boolean): Prom
   };
 }
 
-export async function rodarSerieHistorica(): Promise<SinaisRodada> {
+/** Com `ano`, só a série daquela eleição; sem ele, todas as já importadas. */
+export async function rodarSerieHistorica(ano?: number): Promise<SinaisRodada> {
   const [{ data: contagens, error }, { data: varreduras }] = await Promise.all([
     supabaseAdmin.rpc("tse_contagem_ano_uf"),
     supabaseAdmin.from("tse_varredura").select("chave, completa").like("chave", "candidatos#%"),
@@ -255,7 +259,9 @@ export async function rodarSerieHistorica(): Promise<SinaisRodada> {
       v.completa,
     ]),
   );
-  const anosImportados = [...new Set((contagens ?? []).map((c) => c.ano_eleicao))];
+  const anosImportados = [...new Set((contagens ?? []).map((c) => c.ano_eleicao))].filter(
+    (a) => ano === undefined || a === ano,
+  );
 
   const series: SerieAnoUf[] = [];
   for (const ano of anosImportados) {
@@ -304,7 +310,7 @@ export async function rodarParlamentarSemMatch(): Promise<SinaisRodada> {
       regra: "parlamentar_sem_match",
       candidatosAvaliados: 0,
       findingsGerados: 0,
-      avisos: ["ponte vazia — rode primeiro o vínculo parlamentar↔candidato"],
+      avisos: ["info: ponte vazia — rode primeiro o vínculo parlamentar↔candidato"],
     };
   }
   const inseridos = await flagQA(lacunasParlamentarSemMatch(semMatch));

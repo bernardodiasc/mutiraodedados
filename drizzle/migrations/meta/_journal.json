@@ -43,6 +43,34 @@
       "when": 1790337511570,
       "tag": "0005_profiles_leitura_autenticados",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790396261658,
+      "tag": "0006_importacoes_gatilho_execucao",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790397768340,
+      "tag": "0007_importacoes_gatilho_execucao",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790433901404,
+      "tag": "0008_importacoes_metricas_rodada",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790440812866,
+      "tag": "0009_siconfi_exercicio_cod_ibge",
+      "breakpoints": true
     }
   ]
 }

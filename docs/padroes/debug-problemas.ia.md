@@ -115,3 +115,17 @@ export const sincronizarA = createServerFn({ method: "POST" })
 
 **Como verificar**
 Depois do `bun run build`, nenhum chunk em `.output/public` deve conter o handler server-only (ex.: `grep -rl "sincronizarArquivoTse" .output/public` = vazio). O corolário do problema §3 vale aqui: a extração do handler é o que mantém `client.server` fora do cliente.
+
+## 6. Contagem em HEAD falha com mensagem vazia
+
+**Sintoma**
+Um erro nosso termina em `: ` sem texto, como `conferência: contagem em siconfi_relatorios_cache: `.
+
+**Causa**
+`select(..., { count: "exact", head: true })` faz o supabase-js mandar HEAD. Resposta de HEAD não tem corpo, e o PostgREST põe o erro no corpo: o supabase-js entrega `{ message: "" }`. O código só aparece no cabeçalho `proxy-status` (ex.: `PostgREST; error=57014`), que o supabase-js não lê. O caso mais comum é o tempo-limite de 8 s do PostgREST (`57014: canceling statement due to statement timeout`) numa contagem exata que não usa índice e lê a tabela inteira.
+
+**Regra**
+Contagem que alimenta uma mensagem de erro vai em GET com `.limit(0)`, que traz o mesmo `count` e o erro no corpo. Escreva o erro com `textoDoErroDoBanco(error, status)` (`src/lib/data/erros-banco.ts`), que junta código, mensagem, detalhe e dica e, sem nada disso, deixa o status HTTP. Se a contagem estoura o tempo, o filtro precisa casar com um índice: lista (`in`) ou faixa (`gte`/`lte`) sobre as colunas indexadas. `like` com `_` ou `%` só usa índice btree com `text_pattern_ops`.
+
+**Como verificar**
+Reproduza em GET (`Prefer: count=exact`, `limit=0`) com o mesmo filtro: o corpo traz `code` e `message`, e o tempo total mostra se passou dos 8 s.

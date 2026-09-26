@@ -11,16 +11,18 @@
 - `valorAutoritativoCgu(listagem, detalhe)` aceita `null` nos dois lados e devolve `valor: null` quando nenhum endpoint informou.
 - Test suite: `src/lib/data/real/portal.parsers.test.ts`.
 
-## Varredura por Detalhe (`fetchPortalOrgao`)
+## Varredura por Detalhe (`rodadaContratosCgu`)
 
-A ingestão roda como **varredura completa por órgão**, paginando o endpoint `/contratos` sem janela de datas até o fim (última página = tamanho < 15). Para cada contrato na listagem:
+O núcleo `rodadaContratosCgu` (em `portal.functions.ts`) é chamável sem sessão: a casca `fetchPortalOrgao` (painel) e o modo nomeado `cgu_contratos` (ferramenta) usam o mesmo, com o mesmo schema (`importarContratosCguSchema`). No painel, sem datas, a ingestão roda como **varredura completa por órgão**; com datas, e sempre no modo nomeado, numa **janela de um mês**, guardando só os contratos com início de vigência no mês. A paginação vai até o fim (última página = tamanho < 15). Para cada contrato na listagem:
 
 1. Busca o endpoint autoritativo `/contratos/id?id=<id>` (detalhe por contrato).
 2. Compara os valores da listagem com os do detalhe usando `valorAutoritativoCgu`.
 3. Se o detalhe diverge com sinal de bug ÷10000 (ex: listagem=6.000, detalhe=60.000.000), **aplica a correção automática** e persiste o valor correto no cache.
 4. Cria um QA finding `valor_corrigido_listagem` (severidade `info`, nasce resolvido) via `findingValorCorrigidoListagem`.
 
-Cada rodada tem um orçamento de tempo (`orcamentoMs`, padrão 3 min). Quando esgota, **salva o progresso** na tabela `cgu_varredura` (`ultima_pagina`, `total_importado`) e retorna. A próxima rodada retoma automaticamente de onde parou — o cliente (`AdminImportContainer`) gerencia o loop de auto-continue.
+Orçamento, checkpoint e retomada são do runner genérico (`runner.ts`) sobre `cgu_varredura` (chave legada `<cod>` ou `<cod>#<ini>#<fim>`). Cada rodada tem dois tetos: tempo (`orcamentoMs`, padrão 3 min) e custo (`TETO_SUBREQUISICOES_PORTAL` subrequisições: listagem, um detalhe por contrato e uma estimativa das gravações por página). O progresso é salvo a cada página, e a próxima rodada retoma da seguinte — no painel, o cliente (`AdminImportContainer`) repete as rodadas; na ferramenta, o script. Detalhe com falha passageira (429 persistente, 5xx, rede) interrompe a rodada sem avançar a página; com erro definitivo, cai para o valor da listagem e registra o erro.
+
+A linha de rodada vai para `importacoes` com `fonte = cgu`, `escopo` = código do órgão, `resultado` e, na janela de um mês, `ano`/`mes` — casando com a linha e a célula de `cobertura_cgu`.
 
 ### Parâmetros de `fetchPortalOrgao`
 
@@ -57,6 +59,7 @@ Header `chave-api-dados: <key>`. Sem a env var `PORTAL_TRANSPARENCIA_API_KEY`, t
 
 ## Server functions relevantes
 
-- `fetchPortalOrgao({ codigoOrgao, dataInicial?, dataFinal?, maxPaginas, delayMs, orcamentoMs })` — `src/lib/data/real/portal.functions.ts`. Sem `dataInicial`/`dataFinal`, varre o histórico completo do órgão (modo padrão); com janela, filtra por vigência.
+- `fetchPortalOrgao({ codigoOrgao, dataInicial?, dataFinal?, maxPaginas, delayMs, orcamentoMs })` — `src/lib/data/real/portal.functions.ts`. Sem `dataInicial`/`dataFinal`, varre o histórico completo do órgão (modo padrão); com janela, filtra por vigência. Casca de `rodadaContratosCgu`.
+- `sincronizarOrgaosSIAFI` e `verificarAtividadeOrgaos` — `src/lib/data/real/orgaos-siafi.functions.ts`. Cascas de `rodadaCatalogoSiafi` (uma página de `/orgaos-siafi` por passo) e `rodadaAtividadeOrgaos` (um órgão por passo na sonda de `/despesas/por-orgao`), retomáveis em `importacao_varredura` (`orgaos_siafi#nomes`, `orgaos_siafi#atividade`); o painel repete as rodadas até o fim. `orgaosAtivosDoCatalogo` lista os órgãos ativos já sondados — o padrão das tarefas por órgão na ferramenta.
 - `importarConveniosTransferegov(...)` — `src/lib/data/transferegov/ingest.functions.ts`.
 - `listHistoricoUnificado()` — log unificado de importações.

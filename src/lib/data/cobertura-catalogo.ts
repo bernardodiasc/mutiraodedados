@@ -110,6 +110,14 @@ export const CATALOGO_COBERTURA: EntradaCatalogoCobertura[] = [
     rota: "/camara/deputados",
   },
   {
+    id: "camara_trajetoria",
+    titulo: "Câmara — trajetória de deputados",
+    descricao:
+      "Linha do tempo de cada mandato (posse, licença, afastamento, vacância), por legislatura.",
+    granularidade: "cadastro",
+    rota: "/camara/deputados",
+  },
+  {
     id: "senado_ceaps",
     titulo: "Senado — CEAPS (cota parlamentar)",
     descricao: "Notas fiscais de cota parlamentar dos 81 senadores.",

@@ -33,4 +33,4 @@ Skill de **fluxo**. As regras completas ficam nos docs abaixo — leia o relevan
 ## Onde editar (sem tocar em código)
 
 - **Conteúdo do mapa** e vínculo de prompts → `/admin/artigos` e `/admin/prompts`.
-- Só recorra a código/migração se precisar de **campo/tabela novos** — aí siga [`/docs/padroes/migrations.md`](/docs/padroes/migrations.md) (migração nova em `drizzle/migrations/`, criada e aplicada pelo Lovable) e registre a entrega pela skill `mutirao-de-dados-features-roadmap`.
+- Só recorra a código/migração se precisar de **campo/tabela novos** — aí siga [`/docs/padroes/migrations.md`](/docs/padroes/migrations.md) (migração nova em `drizzle/migrations/`, criada no PR e aplicada pelo fluxo descrito lá) e registre a entrega pela skill `mutirao-de-dados-features-roadmap`.

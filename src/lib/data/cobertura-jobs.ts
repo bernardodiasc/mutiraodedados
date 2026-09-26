@@ -15,6 +15,7 @@ import { importEmendas } from "@/lib/data/real/emendas.functions";
 import { importConvenios } from "@/lib/data/real/convenios.functions";
 import { importarConveniosTransferegov } from "@/lib/data/transferegov/ingest.functions";
 import { dentroDaJanela, type FonteJanela } from "@/lib/data/janelas";
+import { SIGLAS_MATERIA_SENADO, TIPOS_PROPOSICAO_CAMARA } from "@/lib/data/siglas-legislativas";
 
 const MESES_CURTO = [
   "Jan",
@@ -416,7 +417,7 @@ export function useCoberturaJobBuilder(): BuildJobFn {
             label: `Câmara proposições · ${y}`,
             noTimeout: true,
             run: wrap(async () => {
-              const tipos = ["PL", "PEC", "PLP", "MPV", "PDL", "PRC"];
+              const tipos = TIPOS_PROPOSICAO_CAMARA;
               // Cada tipo é uma varredura própria e retomável: uma proposição
               // custa ~4 subrequisições, então uma rodada dá conta de poucas e
               // o teto de rodadas precisa ser alto.
@@ -497,7 +498,7 @@ export function useCoberturaJobBuilder(): BuildJobFn {
           return {
             label: `Senado matérias · ${y}`,
             run: wrap(async () => {
-              const siglas = ["PL", "PLS", "PEC", "PLP", "PDL", "PRC", "MPV"];
+              const siglas = SIGLAS_MATERIA_SENADO;
               let total = 0;
               const MAX_RODADAS = 500;
               for (const sigla of siglas) {
