@@ -4,15 +4,26 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
-import { PREFIXO_TRANSITORIO, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { PREFIXO_TRANSITORIO, reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
+import { findingVotacaoListadaSemDetalhe, flagQA } from "@/lib/data/qa";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
-import { anoMesDaJanela } from "@/lib/data/historico-rodada";
-import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
+import { anoMesDaJanela, type OrigemRodada } from "@/lib/data/historico-rodada";
 import {
+  JANELA_ORCAMENTO_MS,
+  JANELA_TETO_SUBREQUISICOES_PARALELO,
+} from "@/lib/data/janela-varredura";
+import {
+  ErroApiCamara,
+  PARALELISMO_VOTACOES_CAMARA,
+  avisoDeVotacaoDescartada,
   buscarVotosDaVotacao,
+  contarDescartes,
   contarVotos,
+  detalheInexistenteNaOrigem,
   listarVotacoesDaJanela,
+  totalDasVotacoesDaJanela,
+  totalDoHeader,
   type VotacaoItem,
 } from "@/lib/data/camara/votacoes-api";
 
@@ -25,11 +36,14 @@ const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
  * só gastava subrequisições e segundos. Falha passageira sai com o prefixo
  * `TRANSIENT:`, para uma falha na lista interromper a rodada (a próxima refaz)
  * em vez de encerrá-la como definitiva.
+ *
+ * Devolve também o total da consulta (header `X-Total-Count`), que a
+ * conferência da janela compara com o importado.
  */
-async function camaraGet<T = unknown>(
+async function camaraGetComTotal<T = unknown>(
   path: string,
   params: Record<string, string> = {},
-): Promise<T> {
+): Promise<{ corpo: T; totalOrigem: number | null }> {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}${qs ? `?${qs}` : ""}`;
   let res: Response;
@@ -43,11 +57,19 @@ async function camaraGet<T = unknown>(
   } catch (e) {
     throw new Error(`${PREFIXO_TRANSITORIO} Câmara API sem resposta: ${(e as Error).message}`);
   }
-  if (res.ok) return (await res.json()) as T;
+  if (res.ok) {
+    return {
+      corpo: (await res.json()) as T,
+      totalOrigem: totalDoHeader(res.headers.get("x-total-count")),
+    };
+  }
   const body = await res.text().catch(() => "");
   const prefixo = ehStatusTransitorio(res.status) ? `${PREFIXO_TRANSITORIO} ` : "";
-  throw new Error(`${prefixo}Câmara API ${res.status}: ${body.slice(0, 200)}`);
+  throw new ErroApiCamara(res.status, `${prefixo}Câmara API ${res.status}: ${body.slice(0, 200)}`);
 }
+
+const camaraGet = async <T = unknown>(path: string, params: Record<string, string> = {}) =>
+  (await camaraGetComTotal<T>(path, params)).corpo;
 
 type Env<T> = { dados: T };
 
@@ -69,14 +91,28 @@ async function ensureAdmin(userId: string) {
  * fechar a rodada antes do limite do Worker. Uma votação custa 1 detalhe +
  * 1 chamada de votos (a API devolve todos de uma vez, sem paginação) +
  * upserts.
+ *
+ * Detalhe em 404 de uma votação que a listagem trouxe é inconsistência da
+ * origem: a votação é descartada (`descartada: true`) e quem chama registra o
+ * alerta de qualidade.
  */
-async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo: number }> {
+async function processarVotacao(
+  v: VotacaoItem,
+): Promise<
+  { descartada: false; votos: number; custo: number } | { descartada: true; custo: number }
+> {
   let custo = 0;
   type Detalhe = VotacaoItem & {
     descricaoResultado?: string;
     ultimaApresentacaoProposicao?: { idProposicao?: number; descricao?: string };
   };
-  const det = await camaraGet<Env<Detalhe>>(`/votacoes/${v.id}`);
+  let det: Env<Detalhe>;
+  try {
+    det = await camaraGet<Env<Detalhe>>(`/votacoes/${v.id}`);
+  } catch (e) {
+    if (detalheInexistenteNaOrigem(e)) return { descartada: true, custo: 1 };
+    throw e;
+  }
   custo++;
   const d = det.dados;
 
@@ -122,7 +158,36 @@ async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo:
     custo++;
     if (e2) throw new Error(`votos: ${e2.message}`);
   }
-  return { votos: votoRows.length, custo };
+  return { descartada: false, votos: votoRows.length, custo };
+}
+
+/**
+ * Votações da janela descartadas por inconsistência da origem: as que têm o
+ * alerta `votacao_listada_sem_detalhe` com a data na janela e não estão no
+ * cache. O alerta é o registro do descarte — sobrevive às rodadas e às
+ * execuções, como o acumulado do checkpoint —, então a conta fecha mesmo
+ * quando o descarte aconteceu numa rodada anterior.
+ */
+async function descartesDaJanela(janela: { dataInicio: string; dataFim: string }): Promise<number> {
+  const { data: sinais, error } = await supabaseAdmin
+    .from("qa_findings")
+    .select("entidade_id")
+    .eq("fonte", "camara_vot")
+    .eq("regra", "votacao_listada_sem_detalhe")
+    .gte("detalhes->>data", janela.dataInicio)
+    .lte("detalhes->>data", janela.dataFim);
+  if (error) throw new Error(`descartes: qa_findings: ${error.message}`);
+  const sinalizadas = (sinais ?? []).map((s) => s.entidade_id as string);
+  if (sinalizadas.length === 0) return 0;
+  const { data: importadas, error: e2 } = await supabaseAdmin
+    .from("camara_votacoes_cache")
+    .select("id")
+    .in("id", sinalizadas);
+  if (e2) throw new Error(`descartes: camara_votacoes_cache: ${e2.message}`);
+  return contarDescartes(
+    sinalizadas,
+    (importadas ?? []).map((r) => r.id as string),
+  );
 }
 
 /**
@@ -139,38 +204,80 @@ async function processarVotacao(v: VotacaoItem): Promise<{ votos: number; custo:
  * itens entre páginas) e ordenada por id, para a retomada não pular nem
  * repetir.
  */
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarVotacoesSchema = z.object({
+  dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  maxPaginas: z.number().int().min(1).max(2000).default(2000),
+});
+
+/** Chave de varredura da janela — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraVotacoesCamara = (data: { dataInicio: string; dataFim: string }) =>
+  `camara_vot#${data.dataInicio}#${data.dataFim}`;
+
+/**
+ * Total da origem da janela numa chamada só, para conferir sem reimportar.
+ * `null` quando a Câmara não manda o `X-Total-Count`.
+ */
+export async function totalDaOrigemVotacoesCamara(data: {
+  dataInicio: string;
+  dataFim: string;
+}): Promise<{ total: number; descartados: number } | null> {
+  const total = await totalDasVotacoesDaJanela(camaraGetComTotal, data);
+  return total === null ? null : { total, descartados: await descartesDaJanela(data) };
+}
+
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaVotacoesCamara(
   data: { dataInicio: string; dataFim: string; maxPaginas: number },
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
   let totalVotos = 0;
   const erros: string[] = [];
   const inicioRodada = Date.now();
 
-  let listaRodada: VotacaoItem[] | null = null;
-  let custoDaLista = 0;
-  const carregarLista = async (): Promise<VotacaoItem[]> => {
-    if (listaRodada) return listaRodada;
-    const { lista, paginas } = await listarVotacoesDaJanela(camaraGet, data);
-    custoDaLista = paginas;
-    listaRodada = lista;
+  // A lista é buscada uma vez por rodada. Guardada como promessa: com passos
+  // em paralelo, os primeiros pedem a lista ao mesmo tempo e esperam a mesma
+  // busca. Falha não fica guardada — o passo seguinte tenta de novo.
+  let listaRodada: Promise<{ lista: VotacaoItem[]; paginas: number }> | null = null;
+  let totalOrigem: number | null = null;
+  const carregarLista = () => {
+    listaRodada ??= listarVotacoesDaJanela(camaraGetComTotal, data).then(
+      (r) => {
+        totalOrigem = r.totalOrigem;
+        return r;
+      },
+      (e: unknown) => {
+        listaRodada = null;
+        throw e;
+      },
+    );
     return listaRodada;
   };
+  let custoDaListaContado = false;
 
   const rodada = await rodarComOrcamento({
-    chave: `camara_vot#${data.dataInicio}#${data.dataFim}`,
+    chave: chaveVarreduraVotacoesCamara(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
-    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES_PARALELO,
     maxPassos: 5000,
+    paralelismo: PARALELISMO_VOTACOES_CAMARA,
     passo: async (cursor) => {
       let custo = 0;
       let lista: VotacaoItem[];
       try {
-        const antes = listaRodada;
-        lista = await carregarLista();
-        if (!antes) custo += custoDaLista;
+        const r = await carregarLista();
+        lista = r.lista;
+        // As páginas da lista entram no custo de um passo só.
+        if (!custoDaListaContado) {
+          custoDaListaContado = true;
+          custo += r.paginas;
+        }
       } catch (e) {
         // Sem a lista não há item a processar: passageiro refaz, definitivo
         // encerra a rodada em vez de gastar centenas de tentativas inúteis.
@@ -188,20 +295,51 @@ export async function rodadaVotacoesCamara(
       const v = lista[cursor - 1];
       try {
         const r = await processarVotacao(v);
+        if (r.descartada) {
+          // Inconsistência da origem: aviso e alerta de qualidade, não erro.
+          // Falha ao gravar o alerta é nossa e cai no catch como erro.
+          await flagQA([findingVotacaoListadaSemDetalhe(v)]);
+          return {
+            processados: 0,
+            fim: false,
+            custo: custo + r.custo + 2,
+            erros: [avisoDeVotacaoDescartada(v.id)],
+          };
+        }
         totalVotos += r.votos;
         return { processados: 1, fim: false, custo: custo + r.custo };
       } catch (e) {
-        // Uma votação com problema não interrompe a varredura — segue para a
-        // seguinte, com o erro registrado.
+        // Erro definitivo numa votação não interrompe a varredura — segue para
+        // a seguinte, com o erro registrado. Falha passageira (rede, 429, 5xx
+        // com as tentativas esgotadas) interrompe sem avançar: a próxima
+        // rodada refaz a votação em vez de pulá-la.
         return {
           processados: 0,
           fim: false,
           custo: custo + 1,
           erros: [`vot ${v.id}: ${(e as Error).message}`],
+          interromper: reacaoAoErro(e).interromper,
         };
       }
     },
   });
+
+  // Total que a Câmara informa para a janela, quando a rodada buscou a lista.
+  // Só a votação sem detalhe na origem é descartada; outra falha vira erro. (A
+  // anotação desfaz o estreitamento para `null`: quem atribui é a closure.)
+  const total = totalOrigem as number | null;
+
+  // Na última rodada, os descartes da janela (ver `descartesDaJanela`), para a
+  // conferência fechar a conta: acumulado + descartados = total da origem. A
+  // leitura que falha é erro nosso e vai para a linha da rodada.
+  let descartados = 0;
+  if (rodada.concluido && total !== null) {
+    try {
+      descartados = await descartesDaJanela(data);
+    } catch (e) {
+      rodada.erros.push((e as Error).message);
+    }
+  }
 
   erros.push(...rodada.erros);
 
@@ -213,6 +351,7 @@ export async function rodadaVotacoesCamara(
       endpoint: `GET ${BASE}/votacoes?dataInicio=${data.dataInicio}&dataFim=${data.dataFim} (+ detalhe e votos por votação)`,
       unidade: "votações",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
@@ -223,6 +362,7 @@ export async function rodadaVotacoesCamara(
     votacoes: rodada.processados,
     votos: totalVotos,
     erros,
+    origem: total === null ? null : { total, descartados },
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -235,15 +375,7 @@ export async function rodadaVotacoesCamara(
 
 export const importarVotacoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        maxPaginas: z.number().int().min(1).max(2000).default(2000),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarVotacoesSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaVotacoesCamara(data, context.userId);

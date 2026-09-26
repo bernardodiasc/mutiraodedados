@@ -6,6 +6,7 @@ import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { reacaoAoErro } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import type { OrigemRodada } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 import { fetchComRetry } from "@/lib/data/http-retry";
 import { UF_LIST } from "@/lib/admin-entes/logic";
@@ -52,15 +53,41 @@ function siglaDe(m: MunicipioIBGE): string | null {
   );
 }
 
+/** Chave da varredura do cadastro — a mesma para painel, fila e ferramenta. */
+export const CHAVE_VARREDURA_IBGE = "ibge#municipios";
+
+/** Município que a importação descarta: sem código de 7 dígitos ou sem nome. */
+const municipioIlegivel = (codigo: string, nome: string) =>
+  !/^\d{7}$/.test(codigo) || nome.length === 0;
+
+/**
+ * Total da origem: a lista nacional de municípios numa chamada só (visão
+ * nivelada, ~2 MB) — é a soma das listas por UF que a varredura percorre. Os
+ * ilegíveis contam como descartados.
+ */
+export async function totalDaOrigemIBGE(): Promise<{ total: number; descartados: number }> {
+  const res = await fetchComRetry(`${BASE}/municipios?view=nivelado`, {
+    headers: { "User-Agent": UA, Accept: "application/json" },
+  });
+  if (!res.ok) throw new Error(`IBGE ${res.status} (lista nacional de municípios)`);
+  const lista = (await res.json()) as { "municipio-id"?: number; "municipio-nome"?: string }[];
+  return {
+    total: lista.length,
+    descartados: lista.filter((m) =>
+      municipioIlegivel(String(m["municipio-id"] ?? ""), m["municipio-nome"] ?? ""),
+    ).length,
+  };
+}
+
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
-export async function rodadaMunicipiosIBGE(userId: string | null) {
+export async function rodadaMunicipiosIBGE(userId: string | null, origem: OrigemRodada = {}) {
   const erros: string[] = [];
   const inicioRodada = Date.now();
   // Ordem estável por código — o cursor da retomada depende dela.
   const ufs = [...UF_LIST].sort((a, b) => a.codigo.localeCompare(b.codigo));
 
   const rodada = await rodarComOrcamento({
-    chave: "ibge#municipios",
+    chave: CHAVE_VARREDURA_IBGE,
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
     orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
@@ -96,7 +123,7 @@ export async function rodadaMunicipiosIBGE(userId: string | null) {
           uf: siglaDe(m) ?? uf.uf ?? "",
           updated_at: new Date().toISOString(),
         }))
-        .filter((r) => /^\d{7}$/.test(r.codigo) && r.nome.length > 0 && r.uf.length === 2);
+        .filter((r) => !municipioIlegivel(r.codigo, r.nome) && r.uf.length === 2);
 
       for (let i = 0; i < rows.length; i += 500) {
         const { error } = await supabaseAdmin
@@ -127,6 +154,7 @@ export async function rodadaMunicipiosIBGE(userId: string | null) {
       endpoint: `GET ${BASE}/estados/{uf}/municipios`,
       unidade: "UFs",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
@@ -146,9 +174,15 @@ export async function rodadaMunicipiosIBGE(userId: string | null) {
   };
 }
 
+/**
+ * Parâmetros da importação (nenhum: é o cadastro inteiro) — o mesmo schema
+ * na casca autenticada e no modo nomeado de `/api/cron-importar`.
+ */
+export const importarMunicipiosIBGESchema = z.object({});
+
 export const importarMunicipiosIBGE = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({}).parse(input ?? {}))
+  .inputValidator((input) => importarMunicipiosIBGESchema.parse(input ?? {}))
   .handler(async ({ context }) => {
     await ensureAdmin(context.userId);
     return rodadaMunicipiosIBGE(context.userId);

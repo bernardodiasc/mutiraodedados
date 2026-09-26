@@ -57,6 +57,8 @@ O endpoint `/convenios` do Portal CGU alimenta **uma tabela só**: `convenios_ca
 
 Até a v0.9.0 eram duas tabelas (`cgu_convenios_cache` e `transferegov_instrumentos_cache`) com os mesmos registros mapeados por dois códigos diferentes — que divergiram em silêncio (links oficiais, rótulos de fonte). O mapeador único vive em `src/lib/data/real/convenio-row.ts`; os ids de importação `cgu_convenios` e `transferegov` continuam distintos no Histórico e na cobertura, porque descrevem **qual varredura** trouxe o dado, não onde ele mora.
 
+A varredura por ente (`transferegov`) grava a linha de rodada com `escopo` vazio quando consulta o país inteiro — a linha única da matriz de cobertura — e com `municipio:<ibge>` ou `uf:<código>` quando filtra um ente: a importação de um município não cobre o mês do país, e a conferência de um ente não aprova a janela de todos.
+
 ## O que importamos
 
 - **Convênios e contratos de repasse** (SICONV) via Portal CGU.

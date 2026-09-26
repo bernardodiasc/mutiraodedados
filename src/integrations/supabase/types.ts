@@ -923,16 +923,19 @@ export type Database = {
       fornecedores_cache: {
         Row: {
           cnpj: string
+          created_at: string
           nome: string
           updated_at: string
         }
         Insert: {
           cnpj: string
+          created_at?: string
           nome: string
           updated_at?: string
         }
         Update: {
           cnpj?: string
+          created_at?: string
           nome?: string
           updated_at?: string
         }
@@ -986,55 +989,76 @@ export type Database = {
       importacoes: {
         Row: {
           ano: number | null
+          conferencia: Json | null
           consultado_em: string
           data_final: string | null
           data_inicial: string | null
+          duracao_ms: number | null
           endpoint: string | null
           erros: Json
           escopo: string
+          execucao_id: string | null
           fonte: string
+          gatilho: string | null
           id: string
           importados: number
+          itens_processados: number | null
           log_kind: string | null
           mes: number | null
+          motivo_parada: string | null
           orgao_cod: string | null
           resultado: string | null
+          subrequisicoes: number | null
           total_bruto: number
           user_id: string | null
         }
         Insert: {
           ano?: number | null
+          conferencia?: Json | null
           consultado_em?: string
           data_final?: string | null
           data_inicial?: string | null
+          duracao_ms?: number | null
           endpoint?: string | null
           erros?: Json
           escopo?: string
+          execucao_id?: string | null
           fonte?: string
+          gatilho?: string | null
           id?: string
           importados?: number
+          itens_processados?: number | null
           log_kind?: string | null
           mes?: number | null
+          motivo_parada?: string | null
           orgao_cod?: string | null
           resultado?: string | null
+          subrequisicoes?: number | null
           total_bruto?: number
           user_id?: string | null
         }
         Update: {
           ano?: number | null
+          conferencia?: Json | null
           consultado_em?: string
           data_final?: string | null
           data_inicial?: string | null
+          duracao_ms?: number | null
           endpoint?: string | null
           erros?: Json
           escopo?: string
+          execucao_id?: string | null
           fonte?: string
+          gatilho?: string | null
           id?: string
           importados?: number
+          itens_processados?: number | null
           log_kind?: string | null
           mes?: number | null
+          motivo_parada?: string | null
           orgao_cod?: string | null
           resultado?: string | null
+          subrequisicoes?: number | null
           total_bruto?: number
           user_id?: string | null
         }
@@ -2705,6 +2729,26 @@ export type Database = {
           tipo: string
           valor_armazenado: number
           valor_esperado: number
+        }[]
+      }
+      resumo_historico_importacoes: {
+        Args: {
+          p_ate?: string
+          p_conferencia?: string
+          p_de?: string
+          p_execucao?: string
+          p_fonte?: string
+          p_gatilho?: string
+          p_motivo_parada?: string
+          p_resultado?: string
+        }
+        Returns: {
+          duracao_ms_soma: number
+          itens_soma: number
+          por_motivo: Json
+          rodadas: number
+          rodadas_com_metricas: number
+          subrequisicoes_soma: number
         }[]
       }
       senado_gasto_total: { Args: never; Returns: number }

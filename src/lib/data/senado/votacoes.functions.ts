@@ -6,9 +6,13 @@ import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
-import { anoMesDaJanela } from "@/lib/data/historico-rodada";
+import { anoMesDaJanela, type OrigemRodada } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
-import { mapearVotacaoSenado, type SessaoVotacaoApi } from "@/lib/data/senado/parsers";
+import {
+  mapearVotacaoSenado,
+  origemDaListaDeVotacoes,
+  type SessaoVotacaoApi,
+} from "@/lib/data/senado/parsers";
 
 const BASE = "https://legis.senado.leg.br/dadosabertos";
 const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
@@ -61,11 +65,34 @@ async function ensureAdmin(userId: string) {
 // `v=2` fixa a versão do serviço para o formato não mudar sem aviso.
 const votacoesPath = (ini: string, fim: string) => `/votacao?dataInicio=${ini}&dataFim=${fim}&v=2`;
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarVotacoesSenadoSchema = z.object({
+  dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+
+/** Chave de varredura da janela — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraVotacoesSenado = (data: { dataInicio: string; dataFim: string }) =>
+  `senado_vot#${data.dataInicio}#${data.dataFim}`;
+
+/** Total da origem da janela numa chamada só (a lista), para conferir sem reimportar. */
+export async function totalDaOrigemVotacoesSenado(data: {
+  dataInicio: string;
+  dataFim: string;
+}): Promise<{ total: number; descartados: number }> {
+  const json = await senadoGet<SessaoVotacaoApi[]>(votacoesPath(data.dataInicio, data.dataFim));
+  return origemDaListaDeVotacoes(asArray(json));
+}
+
 /** Importa votações nominais em um intervalo de datas (até ~30 dias por chamada). */
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaVotacoesSenado(
   data: { dataInicio: string; dataFim: string },
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
   let totalVotos = 0;
   const erros: string[] = [];
@@ -87,7 +114,7 @@ export async function rodadaVotacoesSenado(
   };
 
   const rodada = await rodarComOrcamento({
-    chave: `senado_vot#${data.dataInicio}#${data.dataFim}`,
+    chave: chaveVarreduraVotacoesSenado(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
     orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
@@ -158,16 +185,25 @@ export async function rodadaVotacoesSenado(
       endpoint: `GET ${BASE}${votacoesPath(data.dataInicio, data.dataFim)}`,
       unidade: "votações",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
   );
   if (avisoHistorico) erros.push(avisoHistorico);
 
+  // O Senado entrega a lista inteira numa chamada: o tamanho dela é o total da
+  // origem. Sessão sem código não tem como ser gravada — é descartada por
+  // regra (`mapearVotacaoSenado`), sem erro. Só existe quando a rodada buscou
+  // a lista. (A anotação desfaz o estreitamento para `null`: quem atribui é a
+  // closure.)
+  const lista = listaRodada as SessaoVotacaoApi[] | null;
+
   return {
     votacoes: rodada.processados,
     votos: totalVotos,
     erros,
+    origem: lista ? origemDaListaDeVotacoes(lista) : null,
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -180,14 +216,7 @@ export async function rodadaVotacoesSenado(
 
 export const importarVotacoesSenado = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        dataInicio: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFim: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarVotacoesSenadoSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaVotacoesSenado(data, context.userId);

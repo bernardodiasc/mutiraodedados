@@ -354,3 +354,257 @@ describe("sondagem do fim não ocupa posição", () => {
     expect(r.concluido).toBe(true);
   });
 });
+
+/** Passos que só terminam quando o teste libera: controla a ordem de conclusão. */
+function passosControlados() {
+  const pendentes = new Map<number, (r: { processados: number; fim: boolean }) => void>();
+  let emVoo = 0;
+  let maxEmVoo = 0;
+  const passo = (cursor: number) =>
+    new Promise<{ processados: number; fim: boolean }>((resolve) => {
+      emVoo++;
+      maxEmVoo = Math.max(maxEmVoo, emVoo);
+      pendentes.set(cursor, (r) => {
+        emVoo--;
+        resolve(r);
+      });
+    });
+  const esperar = () => new Promise((r) => setTimeout(r, 0));
+  return {
+    passo,
+    maxEmVoo: () => maxEmVoo,
+    concluir: async (cursor: number, r = { processados: 1, fim: false }) => {
+      await esperar();
+      pendentes.get(cursor)!(r);
+      pendentes.delete(cursor);
+      await esperar();
+    },
+  };
+}
+
+describe("runner/paralelismo", () => {
+  it("roda até N passos ao mesmo tempo", async () => {
+    const { cp } = checkpointFake();
+    let emVoo = 0;
+    let maxEmVoo = 0;
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 100,
+      paralelismo: 3,
+      passo: async (cursor) => {
+        emVoo++;
+        maxEmVoo = Math.max(maxEmVoo, emVoo);
+        await new Promise((res) => setTimeout(res, 1));
+        emVoo--;
+        return cursor > 10 ? { processados: 0, fim: true } : { processados: 1, fim: false };
+      },
+      agora: () => 0,
+    });
+    expect(maxEmVoo).toBe(3);
+    expect(r.concluido).toBe(true);
+    // As sondagens além do fim não contam nem ocupam posição.
+    expect(r.cursorFinal).toBe(10);
+    expect(r.processados).toBe(10);
+  });
+
+  it("sem paralelismo, um passo por vez (o comportamento de sempre)", async () => {
+    const { cp } = checkpointFake();
+    const c = passosControlados();
+    const rodada = rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 2,
+      passo: c.passo,
+      agora: () => 0,
+    });
+    await c.concluir(1);
+    await c.concluir(2);
+    await rodada;
+    expect(c.maxEmVoo()).toBe(1);
+  });
+
+  it("o cursor só avança sobre o prefixo concluído: item à frente terminado não é gravado antes", async () => {
+    const { cp, gravacoes } = checkpointFake();
+    const c = passosControlados();
+    const rodada = rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 3,
+      paralelismo: 3,
+      passo: c.passo,
+      agora: () => 0,
+    });
+    await c.concluir(3);
+    await c.concluir(2);
+    expect(gravacoes).toEqual([]);
+    await c.concluir(1);
+    const r = await rodada;
+    expect(gravacoes[0]).toEqual({ cursor: 3, total: 3, completa: false });
+    expect(r.cursorFinal).toBe(3);
+  });
+
+  it("falha passageira no meio não é pulada: o cursor para antes dela e a próxima rodada a refaz", async () => {
+    const { cp, estado } = checkpointFake();
+    const vistos: number[] = [];
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 100,
+      paralelismo: 4,
+      passo: async (cursor) => {
+        vistos.push(cursor);
+        return cursor === 3
+          ? { processados: 0, fim: false, interromper: true, erros: ["TRANSIENT: 503"] }
+          : { processados: 1, fim: false };
+      },
+      agora: () => 0,
+    });
+    // O 4 rodou junto com o 3, mas fica fora da conta: será refeito.
+    expect(vistos).toContain(4);
+    expect(r.cursorFinal).toBe(2);
+    expect(r.proximoCursor).toBe(3);
+    expect(r.processados).toBe(2);
+    expect(estado.valor).toEqual({ cursor: 2, total: 2, completa: false });
+    expect(r.parada).toBe("erro");
+
+    const vistos2: number[] = [];
+    const r2 = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 100,
+      paralelismo: 4,
+      passo: async (cursor) => {
+        vistos2.push(cursor);
+        return cursor > 5 ? { processados: 0, fim: true } : { processados: 1, fim: false };
+      },
+      agora: () => 0,
+    });
+    expect(Math.min(...vistos2)).toBe(3);
+    expect(r2.concluido).toBe(true);
+    // 2 da primeira rodada + 3, 4 e 5: o 4 não entra duas vezes.
+    expect(r2.totalAcumulado).toBe(5);
+  });
+
+  it("tempo esgotado: para de lançar e termina os passos em voo", async () => {
+    const { cp } = checkpointFake();
+    let t = 0;
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 100,
+      maxPassos: 1_000,
+      paralelismo: 2,
+      passo: async () => {
+        t += 30;
+        return { processados: 1, fim: false };
+      },
+      agora: () => t,
+    });
+    expect(r.orcamentoEsgotado).toBe(true);
+    expect(r.parada).toBe("tempo");
+    expect(r.proximoCursor).toBe(r.cursorFinal + 1);
+    expect(r.processados).toBe(r.cursorFinal);
+  });
+
+  it("teto de custo conta os passos em voo e para de lançar", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      orcamentoCusto: 10,
+      maxPassos: 100,
+      paralelismo: 2,
+      passo: async () => ({ processados: 1, fim: false, custo: 4 }),
+      agora: () => 0,
+    });
+    expect(r.custoEsgotado).toBe(true);
+    expect(r.parada).toBe("subrequisicoes");
+    expect(r.custoGasto).toBeGreaterThanOrEqual(10);
+    expect(r.processados).toBe(r.cursorFinal);
+  });
+});
+
+describe("runner/métricas da rodada", () => {
+  it("fim da origem: parada 'fim' e a duração medida pelo relógio", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 10,
+      passo: async (cursor) => ({ processados: 1, fim: cursor === 2 }),
+      agora: relogio(1_000),
+    });
+    expect(r.parada).toBe("fim");
+    expect(r.duracaoMs).toBeGreaterThan(0);
+  });
+
+  it("maxPassos: parada 'passos'", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 2,
+      passo: async () => ({ processados: 1, fim: false }),
+      agora: () => 0,
+    });
+    expect(r.parada).toBe("passos");
+  });
+
+  it("o custo do passo interrompido também conta", async () => {
+    const { cp } = checkpointFake();
+    const r = await rodarComOrcamento({
+      chave: "k",
+      checkpoint: cp,
+      orcamentoMs: 60_000,
+      maxPassos: 10,
+      passo: async (cursor) =>
+        cursor === 2
+          ? { processados: 0, fim: false, custo: 3, interromper: true }
+          : { processados: 1, fim: false, custo: 2 },
+      agora: () => 0,
+    });
+    expect(r.custoGasto).toBe(5);
+  });
+});
+
+describe("runner/paralelismo — passo que lança", () => {
+  it("o erro sobe como rejeição da rodada, depois dos passos em voo, sem rejeição solta", async () => {
+    const soltas: unknown[] = [];
+    const ouvir = (e: unknown) => soltas.push(e);
+    process.on("unhandledRejection", ouvir);
+    try {
+      const { cp } = checkpointFake();
+      let terminados = 0;
+      const rodada = rodarComOrcamento({
+        chave: "k",
+        checkpoint: cp,
+        orcamentoMs: 60_000,
+        maxPassos: 10,
+        paralelismo: 3,
+        passo: async (cursor) => {
+          await new Promise((r) => setTimeout(r, cursor === 2 ? 1 : 5));
+          if (cursor === 2) throw new Error("banco fora");
+          terminados++;
+          return { processados: 1, fim: false };
+        },
+        agora: () => 0,
+      });
+      await expect(rodada).rejects.toThrow("banco fora");
+      // Os que estavam em voo com o 2 (o 1 e o 3) terminaram antes da rejeição.
+      expect(terminados).toBe(2);
+      await new Promise((r) => setTimeout(r, 10));
+      expect(soltas).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", ouvir);
+    }
+  });
+});

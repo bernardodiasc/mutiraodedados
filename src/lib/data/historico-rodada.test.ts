@@ -20,6 +20,8 @@ function rodada(parcial: Partial<ResultadoRodada> = {}): ResultadoRodada {
     custoGasto: 12,
     semRetomada: false,
     erros: [],
+    parada: "passos",
+    duracaoMs: 0,
     ...parcial,
   };
 }
@@ -99,9 +101,66 @@ describe("historico-rodada/linha", () => {
     expect(l.endpoint).toContain("149s");
   });
 
+  it("métricas de desempenho vão para colunas próprias", () => {
+    const l = montarLinhaRodada(
+      { ...meta, duracaoMs: 148_600 },
+      rodada({ cursorInicial: 11, cursorFinal: 280, custoGasto: 950, parada: "tempo" }),
+    );
+    expect(l.duracao_ms).toBe(148_600);
+    expect(l.itens_processados).toBe(270);
+    expect(l.subrequisicoes).toBe(950);
+    expect(l.motivo_parada).toBe("tempo");
+  });
+
+  it("sem duração informada, vale a medida pelo runner", () => {
+    const l = montarLinhaRodada(meta, rodada({ duracaoMs: 1_234 }));
+    expect(l.duracao_ms).toBe(1_234);
+  });
+
+  it("rodada sem nenhum passo processou zero itens", () => {
+    const l = montarLinhaRodada(meta, rodada({ cursorInicial: 5, cursorFinal: 4 }));
+    expect(l.itens_processados).toBe(0);
+  });
+
   it("erros da rodada viajam para a linha", () => {
     const l = montarLinhaRodada(meta, rodada({ erros: ["p3: TRANSIENT: 503"] }));
     expect(l.erros).toEqual(["p3: TRANSIENT: 503"]);
+  });
+});
+
+describe("historico-rodada/gatilho e execução", () => {
+  const meta = {
+    fonte: "camara_vot",
+    endpoint: "GET https://dadosabertos.camara.leg.br/api/v2/votacoes",
+    unidade: "votações",
+    ano: 2024,
+    mes: 3,
+  };
+
+  it("rodada com operador logado veio do painel", () => {
+    const l = montarLinhaRodada({ ...meta, userId: "u1" }, rodada());
+    expect(l.gatilho).toBe("painel");
+    expect(l.execucao_id).toBeNull();
+  });
+
+  it("rodada sem operador nem gatilho declarado veio da fila da automação", () => {
+    const l = montarLinhaRodada({ ...meta, userId: null }, rodada());
+    expect(l.gatilho).toBe("cron");
+  });
+
+  it("a ferramenta declara o gatilho e a execução a que a rodada pertence", () => {
+    const l = montarLinhaRodada(
+      {
+        ...meta,
+        userId: null,
+        gatilho: "ferramenta",
+        execucaoId: "7d1f3c2a-9b8e-4f6d-a5c4-3b2a1f0e9d8c",
+      },
+      rodada(),
+    );
+    expect(l.gatilho).toBe("ferramenta");
+    expect(l.execucao_id).toBe("7d1f3c2a-9b8e-4f6d-a5c4-3b2a1f0e9d8c");
+    expect(l.user_id).toBeNull();
   });
 });
 

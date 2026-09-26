@@ -9,6 +9,8 @@ import {
   buildLimpezaPayload,
   resumirLimpeza,
   precisaRenovarSessao,
+  repetirAteTerminar,
+  resumoDoCatalogo,
 } from "./logic";
 
 describe("MONTHS", () => {
@@ -197,5 +199,55 @@ describe("janelasMensais", () => {
     for (const j of janelasMensais("2020-01-01", "2022-12-31")) {
       expect(j.ini.slice(0, 7), `${j.ini}→${j.fim}`).toBe(j.fim.slice(0, 7));
     }
+  });
+});
+
+describe("catálogo de órgãos em rodadas", () => {
+  const rodada = (haMais: boolean, n: number) => ({
+    importados: n,
+    invalidos: 1,
+    erros: [] as string[],
+    varredura: { haMais },
+  });
+
+  it("repete as rodadas até a varredura terminar", async () => {
+    const respostas = [rodada(true, 10), rodada(true, 10), rodada(false, 5)];
+    let chamadas = 0;
+    const r = await repetirAteTerminar(async () => respostas[chamadas++]);
+    expect(chamadas).toBe(3);
+    expect(r).toMatchObject({ terminou: true });
+    expect(r.rodadas).toHaveLength(3);
+  });
+
+  it("para no teto de rodadas sem terminar", async () => {
+    let chamadas = 0;
+    const r = await repetirAteTerminar(async () => {
+      chamadas++;
+      return rodada(true, 1);
+    }, 4);
+    expect(chamadas).toBe(4);
+    expect(r.terminou).toBe(false);
+  });
+
+  it("soma as rodadas das duas rotinas no resumo", () => {
+    const atividade = (ativos: number, inativos: number, erros: string[] = []) => ({
+      verificados: ativos + inativos,
+      ativos,
+      inativos,
+      erros,
+      varredura: { haMais: false },
+    });
+    const resumo = resumoDoCatalogo(
+      { rodadas: [rodada(true, 10), rodada(false, 5)], terminou: true },
+      { rodadas: [atividade(3, 1), atividade(2, 0, ["x"])], terminou: true },
+    );
+    expect(resumo).toEqual({
+      texto:
+        "Catálogo: 15 órgãos (2 inválidos ignorados) · atividade: 5 ativos, 1 extintos/inativos de 6 verificados · 1 erro(s) — veja o Histórico",
+      completo: true,
+    });
+    expect(
+      resumoDoCatalogo({ rodadas: [], terminou: false }, { rodadas: [], terminou: true }),
+    ).toMatchObject({ completo: false, texto: expect.stringMatching(/clique de novo/) });
   });
 });

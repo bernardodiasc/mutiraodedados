@@ -21,6 +21,7 @@ vi.mock("@/lib/data/convenios-origem/ingest.functions", () => ({
   rodadaConveniosOrigem: vi.fn(),
 }));
 vi.mock("@/lib/data/ibge/ingest.functions", () => ({ rodadaMunicipiosIBGE: vi.fn() }));
+vi.mock("@/lib/data/automacao/nomeado", () => ({ executarRodadaNomeada: vi.fn() }));
 
 const { executarTiqueAutomacao } = await import("./tique.server");
 

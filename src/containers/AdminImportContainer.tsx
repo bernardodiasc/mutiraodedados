@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
+import { useNavigate, useSearch } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useData } from "@/lib/data-store";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
@@ -48,7 +49,10 @@ import {
   resumirLimpeza,
   precisaRenovarSessao,
   janelasMensais,
+  repetirAteTerminar,
+  resumoDoCatalogo,
 } from "@/lib/admin-import/logic";
+import type { FiltrosHistorico, ResumoHistorico } from "@/lib/admin-import/historico-filtros";
 import { AdminImportView, type BatchProgress } from "@/components/AdminImportView";
 import type { CoberturaJob } from "@/components/CoberturaMatrix";
 
@@ -129,6 +133,7 @@ export function AdminImportContainer() {
 
   const HIST_PAGE = 50;
   const [history, setHistory] = useState<HistoricoEntrada[]>([]);
+  const [resumoHist, setResumoHist] = useState<ResumoHistorico | null>(null);
   const [histHasMore, setHistHasMore] = useState(false);
   const [histLoadingMore, setHistLoadingMore] = useState(false);
   const [loadingHist, setLoadingHist] = useState(false);
@@ -175,24 +180,42 @@ export function AdminImportContainer() {
   });
   const [votFim, setVotFim] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
+  // Filtros do Histórico vêm da URL; mudar um filtro troca a URL e recarrega
+  // a primeira página do recorte.
+  const filtrosHist = useSearch({ from: "/_authenticated/admin_/dados" });
+  const navigate = useNavigate({ from: "/admin/dados" });
+  const setFiltrosHist = (f: FiltrosHistorico) => navigate({ search: f, replace: true });
+  const filtrosHistKey = JSON.stringify(filtrosHist);
+  // Ignora a resposta de uma consulta que ficou velha porque o filtro mudou.
+  const histReqRef = useRef(0);
+
   const refreshHistory = async () => {
+    const req = ++histReqRef.current;
     setLoadingHist(true);
     try {
-      const res = await listHistFn({ data: { offset: 0, limit: HIST_PAGE } });
+      const res = await listHistFn({
+        data: { offset: 0, limit: HIST_PAGE, filtros: filtrosHist },
+      });
+      if (req !== histReqRef.current) return;
       setHistory(res.entradas);
+      setResumoHist(res.resumo);
       setHistHasMore(res.hasMore);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
-      setLoadingHist(false);
+      if (req === histReqRef.current) setLoadingHist(false);
     }
   };
 
   const loadMoreHistory = async () => {
     if (histLoadingMore || !histHasMore) return;
+    const req = histReqRef.current;
     setHistLoadingMore(true);
     try {
-      const res = await listHistFn({ data: { offset: history.length, limit: HIST_PAGE } });
+      const res = await listHistFn({
+        data: { offset: history.length, limit: HIST_PAGE, filtros: filtrosHist },
+      });
+      if (req !== histReqRef.current) return;
       setHistory((prev) => [...prev, ...res.entradas]);
       setHistHasMore(res.hasMore);
     } catch (e) {
@@ -206,10 +229,14 @@ export function AdminImportContainer() {
   useEffect(() => {
     if (ranOnce.current) return;
     ranOnce.current = true;
-    void refreshHistory();
     void refreshVarreduras();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    void refreshHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrosHistKey]);
 
   const limparSelecionado = async () => {
     setLimpBusy(true);
@@ -895,12 +922,13 @@ export function AdminImportContainer() {
   const onSincronizarCatalogo = async () => {
     setSincronizandoCatalogo(true);
     try {
-      const nomes = await sincCatalogoFn({ data: {} });
-      const ativ = await verifAtivFn({ data: {} });
-      toast.success(
-        `Catálogo: ${nomes.importados} órgãos (${nomes.invalidos} inválidos ignorados) · ` +
-          `atividade: ${ativ.ativos} ativos, ${ativ.inativos} extintos/inativos de ${ativ.verificados} com dados.`,
-      );
+      // As duas rotinas são retomáveis: cada chamada é uma rodada, e o painel
+      // repete até a varredura terminar.
+      const nomes = await repetirAteTerminar(() => sincCatalogoFn({ data: {} }));
+      const ativ = await repetirAteTerminar(() => verifAtivFn({ data: {} }));
+      const resumo = resumoDoCatalogo(nomes, ativ);
+      if (resumo.completo) toast.success(resumo.texto);
+      else toast.warning(resumo.texto);
       await refreshFromDB();
     } catch (e) {
       toast.error((e as Error).message);
@@ -998,6 +1026,9 @@ export function AdminImportContainer() {
       onImportarTrajetoriaCamara={onImportarTrajetoriaCamara}
       onImportarHistSenado={onImportarHistSenado}
       history={history}
+      resumoHist={resumoHist}
+      filtrosHist={filtrosHist}
+      setFiltrosHist={setFiltrosHist}
       loadingHist={loadingHist}
       histHasMore={histHasMore}
       histLoadingMore={histLoadingMore}

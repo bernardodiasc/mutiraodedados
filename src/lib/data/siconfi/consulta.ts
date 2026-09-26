@@ -44,6 +44,17 @@ export function poderesDoEnte(codIbge: string): Poder[] {
   return ["E", "L"];
 }
 
+/**
+ * Períodos por exercício de cada tipo: RREO bimestral (6), RGF quadrimestral
+ * (3), RGF simplificado semestral (2); 0 no DCA, que é anual e sem período.
+ */
+export function periodosDoTipo(tipo: TipoRelatorio): number {
+  if (tipo === "DCA") return 0;
+  if (tipo === "RGF") return 3;
+  if (tipo === "RGF Simplificado") return 2;
+  return 6;
+}
+
 export function familiaDoTipo(tipo: TipoRelatorio): FamiliaRelatorio {
   if (tipo.startsWith("RREO")) return "RREO";
   if (tipo.startsWith("RGF")) return "RGF";

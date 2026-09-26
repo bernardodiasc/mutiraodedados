@@ -1,3 +1,4 @@
+import { TIPOS_PROPOSICAO_CAMARA } from "@/lib/data/siglas-legislativas";
 import {
   Database,
   Loader2,
@@ -39,8 +40,29 @@ import {
   EXPLICACAO_RESULTADO,
   ROTULO_RESULTADO,
   exigeAtencao,
+  RESULTADOS,
   type ResultadoClassificado,
 } from "@/lib/data/resultado-rodada";
+import type { Gatilho } from "@/lib/data/historico-rodada";
+import { MOTIVOS_PARADA, type MotivoParada } from "@/lib/data/runner";
+import {
+  ESTADOS_CONFERENCIA,
+  EXPLICACAO_GATILHO,
+  EXPLICACAO_PARADA,
+  GATILHOS,
+  OPCOES_FONTE_HISTORICO,
+  ROTULO_CONFERENCIA,
+  ROTULO_GATILHO,
+  ROTULO_PARADA,
+  formatarDuracao,
+  itensPorSegundo,
+  mudarFiltroHistorico,
+  resumirMotivo,
+  temFiltroHistorico,
+  type ConferenciaResumo,
+  type FiltrosHistorico,
+  type ResumoHistorico,
+} from "@/lib/admin-import/historico-filtros";
 
 export type BatchProgress = {
   total: number;
@@ -137,6 +159,10 @@ export type AdminImportViewProps = {
 
   // historico
   history: HistoricoEntrada[];
+  /** Soma e média das métricas do recorte filtrado; `null` sem migration. */
+  resumoHist: ResumoHistorico | null;
+  filtrosHist: FiltrosHistorico;
+  setFiltrosHist: (f: FiltrosHistorico) => void;
   loadingHist: boolean;
   histHasMore: boolean;
   histLoadingMore: boolean;
@@ -628,6 +654,340 @@ function ResultadoBadge({ resultado }: { resultado: ResultadoClassificado | null
   );
 }
 
+const CLASSE_SELECT_FILTRO =
+  "mt-1 w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm";
+
+/**
+ * Filtros do Histórico. Cada mudança vai para a URL (pelo Container), então
+ * copiar o endereço da página compartilha o recorte.
+ */
+function HistoricoFiltros({
+  filtros,
+  onChange,
+}: {
+  filtros: FiltrosHistorico;
+  onChange: (f: FiltrosHistorico) => void;
+}) {
+  const muda = (patch: Partial<Record<keyof FiltrosHistorico, string>>) =>
+    onChange(mudarFiltroHistorico(filtros, patch));
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
+      <div className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <Label className="text-xs" htmlFor="hist-fonte">
+            Fonte
+          </Label>
+          <select
+            id="hist-fonte"
+            className={CLASSE_SELECT_FILTRO}
+            value={filtros.fonte ?? ""}
+            onChange={(e) => muda({ fonte: e.target.value })}
+          >
+            <option value="">Todas</option>
+            {OPCOES_FONTE_HISTORICO.map((o) => (
+              <option key={o.valor} value={o.valor}>
+                {o.rotulo}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-gatilho">
+            Gatilho
+          </Label>
+          <select
+            id="hist-gatilho"
+            className={CLASSE_SELECT_FILTRO}
+            value={filtros.gatilho ?? ""}
+            onChange={(e) => muda({ gatilho: e.target.value })}
+          >
+            <option value="">Todos</option>
+            {GATILHOS.map((g) => (
+              <option key={g} value={g}>
+                {ROTULO_GATILHO[g]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-resultado">
+            Resultado
+          </Label>
+          <select
+            id="hist-resultado"
+            className={CLASSE_SELECT_FILTRO}
+            value={filtros.resultado ?? ""}
+            onChange={(e) => muda({ resultado: e.target.value })}
+          >
+            <option value="">Todos</option>
+            {RESULTADOS.map((r) => (
+              <option key={r} value={r}>
+                {ROTULO_RESULTADO[r]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-conferencia">
+            Conferência
+          </Label>
+          <select
+            id="hist-conferencia"
+            className={CLASSE_SELECT_FILTRO}
+            value={filtros.conferencia ?? ""}
+            onChange={(e) => muda({ conferencia: e.target.value })}
+          >
+            <option value="">Todas</option>
+            {ESTADOS_CONFERENCIA.map((c) => (
+              <option key={c} value={c}>
+                {ROTULO_CONFERENCIA[c]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-parada">
+            Parada
+          </Label>
+          <select
+            id="hist-parada"
+            className={CLASSE_SELECT_FILTRO}
+            value={filtros.parada ?? ""}
+            onChange={(e) => muda({ parada: e.target.value })}
+          >
+            <option value="">Todas</option>
+            {MOTIVOS_PARADA.map((m) => (
+              <option key={m} value={m}>
+                {ROTULO_PARADA[m]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-de">
+            Consultado de
+          </Label>
+          <Input
+            id="hist-de"
+            type="date"
+            className="mt-1"
+            value={filtros.de ?? ""}
+            onChange={(e) => muda({ de: e.target.value })}
+          />
+        </div>
+        <div>
+          <Label className="text-xs" htmlFor="hist-ate">
+            até
+          </Label>
+          <Input
+            id="hist-ate"
+            type="date"
+            className="mt-1"
+            value={filtros.ate ?? ""}
+            onChange={(e) => muda({ ate: e.target.value })}
+          />
+        </div>
+        <form
+          className="sm:col-span-2"
+          // Campo não controlado: a execução só vira filtro ao confirmar, e a
+          // `key` recarrega o valor quando o filtro muda por outro caminho.
+          key={filtros.execucao ?? ""}
+          onSubmit={(e) => {
+            e.preventDefault();
+            const v = new FormData(e.currentTarget).get("execucao");
+            muda({ execucao: typeof v === "string" ? v : "" });
+          }}
+        >
+          <Label className="text-xs" htmlFor="hist-execucao">
+            Execução (identificador da janela)
+          </Label>
+          <div className="mt-1 flex gap-2">
+            <Input
+              id="hist-execucao"
+              name="execucao"
+              defaultValue={filtros.execucao ?? ""}
+              placeholder="ex.: 5b0c7f1e-2d3a-4c8b-9e6f-1a2b3c4d5e6f"
+              pattern="\s*[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\s*"
+              title="Identificador no formato 8-4-4-4-12, como aparece na coluna Gatilho."
+              className="font-mono text-xs"
+            />
+            <Button type="submit" size="sm" variant="outline">
+              Filtrar
+            </Button>
+          </div>
+        </form>
+      </div>
+      {temFiltroHistorico(filtros) && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span>Filtros ativos. O endereço desta página abre o mesmo recorte.</span>
+          <Button size="sm" variant="ghost" onClick={() => onChange({})}>
+            Limpar filtros
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Quem disparou a rodada e, quando veio da ferramenta, a execução dela. */
+function GatilhoCelula({
+  gatilho,
+  execucaoId,
+  onFiltrarExecucao,
+}: {
+  gatilho: Gatilho | null;
+  execucaoId: string | null;
+  onFiltrarExecucao: (id: string) => void;
+}) {
+  return (
+    <div className="space-y-1">
+      {gatilho ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] whitespace-nowrap cursor-help">
+              {ROTULO_GATILHO[gatilho]}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs">
+            {EXPLICACAO_GATILHO[gatilho]}
+          </TooltipContent>
+        </Tooltip>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      )}
+      {execucaoId && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              className="block font-mono text-[11px] text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
+              onClick={() => onFiltrarExecucao(execucaoId)}
+            >
+              exec. {execucaoId.slice(0, 8)}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs">
+            Ver só as rodadas desta execução ({execucaoId}).
+          </TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Veredito da conferência sobre a janela inteira. Aparece só na última rodada
+ * de uma execução; nas demais linhas, "—".
+ */
+const numeroBR = (n: number, casas = 0) =>
+  n.toLocaleString("pt-BR", { maximumFractionDigits: casas });
+
+/**
+ * Soma e média das métricas das rodadas do recorte filtrado — o recorte
+ * inteiro, não só as linhas carregadas. Serve para comparar antes × depois:
+ * filtre a fonte e o período e leia a média por rodada.
+ */
+function ResumoDoRecorte({ resumo }: { resumo: ResumoHistorico | null }) {
+  if (!resumo || resumo.rodadas === 0) return null;
+  if (resumo.comMetricas === 0) {
+    return (
+      <p className="text-xs text-muted-foreground">
+        {numeroBR(resumo.rodadas)} rodadas no recorte, nenhuma com métricas de desempenho (linhas
+        anteriores a elas).
+      </p>
+    );
+  }
+  const motivos = MOTIVOS_PARADA.filter((m) => (resumo.porMotivo[m] ?? 0) > 0);
+  const celula = (rotulo: string, total: string, media: string) => (
+    <div className="rounded-lg border border-border bg-background px-3 py-2">
+      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{rotulo}</p>
+      <p className="font-medium tabular-nums">{total}</p>
+      <p className="text-xs text-muted-foreground tabular-nums">{media}</p>
+    </div>
+  );
+  return (
+    <section aria-label="Resumo do recorte" className="space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Resumo do recorte: {numeroBR(resumo.rodadas)} rodadas, {numeroBR(resumo.comMetricas)} com
+        métricas (as médias são sobre estas).
+      </p>
+      <div className="grid gap-2 text-sm grid-cols-2 lg:grid-cols-4">
+        {celula(
+          "Duração",
+          formatarDuracao(resumo.duracaoTotalMs),
+          `média ${formatarDuracao(resumo.duracaoMediaMs)} por rodada`,
+        )}
+        {celula(
+          "Itens",
+          numeroBR(resumo.itensTotal),
+          `média ${numeroBR(resumo.itensMedia ?? 0)} por rodada`,
+        )}
+        {celula(
+          "Itens por segundo",
+          resumo.itensPorSegundo == null ? "—" : numeroBR(resumo.itensPorSegundo, 2),
+          "itens ÷ duração do recorte",
+        )}
+        {celula(
+          "Subrequisições",
+          numeroBR(resumo.subrequisicoesTotal),
+          `média ${numeroBR(resumo.subrequisicoesMedia ?? 0)} por rodada`,
+        )}
+      </div>
+      {motivos.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Paradas:{" "}
+          {motivos
+            .map((m) => `${ROTULO_PARADA[m]} ${numeroBR(resumo.porMotivo[m] ?? 0)}`)
+            .join(" · ")}
+        </p>
+      )}
+    </section>
+  );
+}
+
+/** Motivo de parada da rodada, com a explicação no tooltip. */
+function ParadaCelula({ parada }: { parada: MotivoParada | null }) {
+  if (!parada) return <span className="text-muted-foreground">—</span>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="cursor-help whitespace-nowrap underline decoration-dotted underline-offset-2">
+          {ROTULO_PARADA[parada]}
+        </span>
+      </TooltipTrigger>
+      <TooltipContent className="max-w-xs text-xs">{EXPLICACAO_PARADA[parada]}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function ConferenciaCelula({ conferencia }: { conferencia: ConferenciaResumo | null }) {
+  if (!conferencia) return <span className="text-muted-foreground">—</span>;
+  const cor: Record<ConferenciaResumo["estado"], string> = {
+    aprovada: "bg-accent/15 text-accent border-accent/30",
+    inconclusiva: "bg-muted text-muted-foreground border-border",
+    reprovada: "bg-destructive/15 text-destructive border-destructive/40",
+  };
+  const resumo = resumirMotivo(conferencia.motivo);
+  return (
+    <div className="space-y-1 min-w-[12rem] max-w-xs">
+      <span
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] whitespace-nowrap ${cor[conferencia.estado]}`}
+      >
+        {conferencia.estado === "reprovada" && <span aria-hidden>⚠</span>}
+        {ROTULO_CONFERENCIA[conferencia.estado]}
+      </span>
+      {resumo && (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className="text-xs text-muted-foreground cursor-help">{resumo}</p>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-md text-xs">{conferencia.motivo}</TooltipContent>
+        </Tooltip>
+      )}
+    </div>
+  );
+}
+
 export function AdminImportView(p: AdminImportViewProps) {
   return (
     <div className="space-y-6">
@@ -662,7 +1022,11 @@ export function AdminImportView(p: AdminImportViewProps) {
         </div>
       )}
 
-      <Tabs defaultValue="cobertura" className="w-full">
+      {/* Link com filtros do Histórico abre direto nessa aba. */}
+      <Tabs
+        defaultValue={temFiltroHistorico(p.filtrosHist) ? "historico" : "cobertura"}
+        className="w-full"
+      >
         <TabsList className="flex flex-wrap h-auto justify-start">
           <TabsTrigger value="cobertura">Cobertura</TabsTrigger>
           <TabsTrigger value="portal">Portal CGU</TabsTrigger>
@@ -1032,7 +1396,7 @@ export function AdminImportView(p: AdminImportViewProps) {
                   onChange={(e) => p.setPropTipo(e.target.value)}
                   disabled={p.camaraBusy !== null}
                 >
-                  {["PL", "PEC", "PLP", "MPV", "PDL", "PRC"].map((t) => (
+                  {TIPOS_PROPOSICAO_CAMARA.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
@@ -1210,8 +1574,16 @@ export function AdminImportView(p: AdminImportViewProps) {
               {p.history.length.toLocaleString("pt-BR")} registros carregados
             </span>
           </div>
+          <HistoricoFiltros filtros={p.filtrosHist} onChange={p.setFiltrosHist} />
+          <ResumoDoRecorte resumo={p.resumoHist} />
           {p.history.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Nenhuma importação registrada ainda.</p>
+            <p className="text-sm text-muted-foreground">
+              {p.loadingHist
+                ? "Carregando…"
+                : temFiltroHistorico(p.filtrosHist)
+                  ? "Nenhuma rodada com estes filtros. Afrouxe ou limpe os filtros para ver mais."
+                  : "Nenhuma importação registrada ainda."}
+            </p>
           ) : (
             <TooltipProvider delayDuration={150}>
               <div className="overflow-x-auto rounded-xl border border-border">
@@ -1220,6 +1592,20 @@ export function AdminImportView(p: AdminImportViewProps) {
                     <tr>
                       <th className="text-left p-3">Quando</th>
                       <th className="text-left p-3">Fonte</th>
+                      <th className="text-left p-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 uppercase tracking-wider cursor-help transition-colors hover:text-destructive">
+                              Gatilho <Info className="size-3 opacity-60" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md text-xs">
+                            Quem disparou a rodada: o painel, a automação ou a ferramenta de linha
+                            de comando. Rodadas da ferramenta mostram a execução — clique para ver
+                            todas as rodadas da mesma janela.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
                       <th className="text-left p-3">Escopo</th>
                       <th className="text-left p-3">Período</th>
                       <th className="text-right p-3">
@@ -1262,6 +1648,49 @@ export function AdminImportView(p: AdminImportViewProps) {
                           </TooltipContent>
                         </Tooltip>
                       </th>
+                      <th className="text-right p-3">Duração</th>
+                      <th className="text-right p-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 uppercase tracking-wider cursor-help transition-colors hover:text-destructive">
+                              Itens <Info className="size-3 opacity-60" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            Passos que a rodada concluiu: votações, consultas, páginas ou
+                            parlamentares, conforme a fonte (a unidade está no Endpoint). Itens por
+                            segundo = itens ÷ duração.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="text-right p-3">Itens/s</th>
+                      <th className="text-right p-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 uppercase tracking-wider cursor-help transition-colors hover:text-destructive">
+                              Subreq. <Info className="size-3 opacity-60" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs text-xs">
+                            Subrequisições que a rodada contou (chamadas à origem e gravações em
+                            lote), contra o teto da rodada. O Worker aceita 10.000 por invocação.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
+                      <th className="text-left p-3">Parada</th>
+                      <th className="text-left p-3">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-1 uppercase tracking-wider cursor-help transition-colors hover:text-destructive">
+                              Conferência <Info className="size-3 opacity-60" />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-md text-xs">
+                            Veredito sobre a janela inteira de uma execução (aprovada, inconclusiva
+                            ou reprovada) e o motivo. Aparece só na última rodada da janela.
+                          </TooltipContent>
+                        </Tooltip>
+                      </th>
                       <th className="text-left p-3">Erros / Avisos</th>
                       <th className="text-left p-3">
                         <Tooltip>
@@ -1286,6 +1715,17 @@ export function AdminImportView(p: AdminImportViewProps) {
                           {new Date(h.quando).toLocaleString("pt-BR")}
                         </td>
                         <td className="p-3 whitespace-nowrap">{h.fonte}</td>
+                        <td className="p-3">
+                          <GatilhoCelula
+                            gatilho={h.gatilho}
+                            execucaoId={h.execucaoId}
+                            onFiltrarExecucao={(id) =>
+                              p.setFiltrosHist(
+                                mudarFiltroHistorico(p.filtrosHist, { execucao: id }),
+                              )
+                            }
+                          />
+                        </td>
                         <td className="p-3 whitespace-nowrap">{h.escopo}</td>
                         <td className="p-3 whitespace-nowrap font-mono text-xs">{h.periodo}</td>
                         <td className="p-3 text-right tabular-nums text-muted-foreground">
@@ -1321,6 +1761,27 @@ export function AdminImportView(p: AdminImportViewProps) {
                         </td>
                         <td className="p-3 whitespace-nowrap">
                           <ResultadoBadge resultado={h.resultado} />
+                        </td>
+                        <td className="p-3 text-right whitespace-nowrap tabular-nums">
+                          {formatarDuracao(h.duracaoMs)}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {h.itensProcessados == null ? "—" : numeroBR(h.itensProcessados)}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {(() => {
+                            const taxa = itensPorSegundo(h.itensProcessados, h.duracaoMs);
+                            return taxa == null ? "—" : numeroBR(taxa, 2);
+                          })()}
+                        </td>
+                        <td className="p-3 text-right tabular-nums">
+                          {h.subrequisicoes == null ? "—" : numeroBR(h.subrequisicoes)}
+                        </td>
+                        <td className="p-3">
+                          <ParadaCelula parada={h.motivoParada} />
+                        </td>
+                        <td className="p-3">
+                          <ConferenciaCelula conferencia={h.conferencia} />
                         </td>
                         <td className="p-3 text-xs min-w-[18rem] max-w-md space-y-1">
                           {h.erros.length === 0 && h.avisos.length === 0 ? (

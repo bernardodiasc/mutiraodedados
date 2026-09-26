@@ -6,6 +6,7 @@ import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import type { OrigemRodada } from "@/lib/data/historico-rodada";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 import { fetchComRetry } from "@/lib/data/http-retry";
 import {
@@ -76,8 +77,17 @@ async function* linhasDoCsvZip(): AsyncGenerator<string> {
   if (resto.trim()) yield resto;
 }
 
-/** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
-export async function rodadaConveniosOrigem(userId: string | null) {
+/** A casca autenticada e o modo nomeado validam com o mesmo schema: sem parâmetros. */
+export const importarConveniosOrigemSchema = z.object({});
+
+/** Chave da varredura do CSV — o arquivo inteiro é uma janela só. */
+export const CHAVE_VARREDURA_ORIGEM = "convenios_origem#csv";
+
+/**
+ * Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada, pelo
+ * agendador e pelo modo nomeado de `/api/cron-importar` (`origem`).
+ */
+export async function rodadaConveniosOrigem(userId: string | null, origem: OrigemRodada = {}) {
   const erros: string[] = [];
   const inicioRodada = Date.now();
   let atualizados = 0;
@@ -117,7 +127,7 @@ export async function rodadaConveniosOrigem(userId: string | null) {
   };
 
   const rodada = await rodarComOrcamento({
-    chave: "convenios_origem#csv",
+    chave: CHAVE_VARREDURA_ORIGEM,
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
     orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
@@ -178,6 +188,7 @@ export async function rodadaConveniosOrigem(userId: string | null) {
       endpoint: `GET ${URL_ZIP}`,
       unidade: "lotes",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
@@ -201,7 +212,7 @@ export async function rodadaConveniosOrigem(userId: string | null) {
 
 export const importarConveniosOrigem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({}).parse(input ?? {}))
+  .inputValidator((input) => importarConveniosOrigemSchema.parse(input ?? {}))
   .handler(async ({ context }) => {
     const { data: role } = await supabaseAdmin
       .from("user_roles")

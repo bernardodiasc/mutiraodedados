@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { funcaoRpcAusente, mensagemColunaAusente } from "./erros-banco";
+import { funcaoRpcAusente, mensagemColunaAusente, textoDoErroDoBanco } from "./erros-banco";
 
 describe("funcaoRpcAusente", () => {
   it("reconhece o PGRST202 do PostgREST", () => {
@@ -61,5 +61,32 @@ describe("mensagemColunaAusente", () => {
     expect(mensagemColunaAusente("minha_tabela", "Could not find the 'x' column")).toMatch(
       /^minha_tabela:/,
     );
+  });
+});
+
+describe("textoDoErroDoBanco", () => {
+  it("traz o código e a mensagem do banco, como o tempo-limite da consulta", () => {
+    expect(
+      textoDoErroDoBanco(
+        {
+          code: "57014",
+          details: null,
+          hint: null,
+          message: "canceling statement due to statement timeout",
+        },
+        500,
+      ),
+    ).toBe("57014: canceling statement due to statement timeout");
+  });
+
+  it("junta detalhe e dica quando vêm", () => {
+    expect(
+      textoDoErroDoBanco({ code: "42P01", message: "relação não existe", details: "d", hint: "h" }),
+    ).toBe("42P01: relação não existe (d; h)");
+  });
+
+  it("nunca sai vazio: sem corpo, fica o status HTTP", () => {
+    expect(textoDoErroDoBanco({ message: "" }, 500)).toBe("HTTP 500, resposta sem corpo");
+    expect(textoDoErroDoBanco({ message: "" })).toBe("resposta sem corpo");
   });
 });

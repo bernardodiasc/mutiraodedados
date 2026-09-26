@@ -24,7 +24,7 @@ Além disso, a **ponte** `tse_parlamentar_candidato` liga deputados/senadores em
 
 ## Como a importação funciona
 
-Cada rodada processa **um arquivo (ano × UF)**, em streaming direto do CDN — os zips (até 624 MB) nunca são baixados inteiros: lemos o índice do zip via HTTP Range e descomprimimos só a entrada da rodada. Arquivos grandes (receitas de 2022 têm milhões de linhas) são **retomáveis** por contagem de linhas (`tse_varredura`). Disparo pela aba **TSE** em `/admin/dados`, com auto-continuar.
+Cada rodada processa **um arquivo (ano × UF)**, em streaming direto do CDN — os zips (até 624 MB) nunca são baixados inteiros: lemos o índice do zip via HTTP Range e descomprimimos só a entrada da rodada. Arquivos grandes (receitas de 2022 têm milhões de linhas) são **retomáveis** por contagem de linhas (`tse_varredura`). Disparo pela aba **TSE** em `/admin/dados`, com auto-continuar, ou pela ferramenta de linha de comando (`bun run importar tse_arquivo`, com o vínculo e os cruzamentos como tarefas próprias — ver [automacao.md](../automacao.md#importação-sob-demanda-modo-nomeado)).
 
 ## Sinais da fonte (por tipo)
 

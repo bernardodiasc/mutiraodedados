@@ -10,6 +10,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const anoSchema = z.object({ ano: z.number().int().min(1998).max(2100) });
 
+/** Lacunas de uma eleição — o painel e o modo nomeado validam com o mesmo schema. */
+export const lacunasTseSchema = anoSchema.extend({
+  ativarCandidatoSemBens: z.boolean().optional(),
+});
+
+/** Sinais investigativos (e o cruzamento doador↔fornecedor) de uma eleição. */
+export const sinaisTseSchema = anoSchema;
+
 export const rodarSinaisInvestigativosTse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => anoSchema.parse(data))
@@ -28,9 +36,7 @@ export const rodarSinaisInvestigativosTse = createServerFn({ method: "POST" })
 
 export const rodarLacunasTse = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    anoSchema.extend({ ativarCandidatoSemBens: z.boolean().optional() }).parse(data),
-  )
+  .inputValidator((data: unknown) => lacunasTseSchema.parse(data))
   .handler(async ({ context, data }) => {
     const { ensureAdmin } = await import("@/lib/data/tse/ingest.server");
     await ensureAdmin(context.userId);

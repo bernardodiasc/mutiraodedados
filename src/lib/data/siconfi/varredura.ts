@@ -27,6 +27,32 @@ export const ALVOS_SICONFI: readonly AlvoSiconfi[] = [
   { tipoRelatorio: "DCA" as const },
 ];
 
+/**
+ * Consultas ao mesmo tempo numa rodada da varredura. O Tesouro não publica
+ * cota — 429 e 5xx passam pela política de retry, e a falha passageira
+ * interrompe sem pular a consulta.
+ *
+ * Com 3 em paralelo, quem limita a rodada é {@link SICONFI_TETO_CUSTO_RODADA},
+ * não o relógio: cada consulta de UF grava milhares de linhas, e a CPU da
+ * invocação cresce com as linhas gravadas.
+ */
+export const PARALELISMO_SICONFI = 3;
+
+/**
+ * Teto de custo (GETs + lotes de 200 linhas gravados) de uma rodada da
+ * varredura — na prática, um teto de ~80 mil linhas por chamada.
+ *
+ * Com 3 em paralelo e o teto comum de 6.000, as rodadas passaram de 140 mil
+ * linhas em ~2 minutos e o Worker morreu no meio (502 da plataforma, sem a
+ * linha da rodada), nas UFs e nas capitais, com ~850 de custo contado. A
+ * rodada de 96 mil linhas (575 de custo) terminou, e as de ~70 mil em
+ * sequência (~400) sempre terminaram. O teto para de lançar em 400; as
+ * consultas em voo terminam e somam no máximo ~75, o que deixa a rodada
+ * dentro do que já terminou em produção. A causa provável é a CPU por
+ * invocação, que cresce com as linhas; o paralelismo só encurta a rodada.
+ */
+export const SICONFI_TETO_CUSTO_RODADA = 400;
+
 export type EnteSiconfi = { codigo: string; nome: string; uf: string };
 
 /**
@@ -131,4 +157,24 @@ export function chaveVarreduraSiconfi(
 ): string {
   const base = `siconfi_varredura#${conjunto}#${exercicioInicial}-${exercicioFinal}`;
   return filtro ? `${base}#${filtro}` : base;
+}
+
+export type RecorteDaVarredura = { conjunto: ConjuntoSiconfi; uf?: string; codIbge?: string };
+
+/** O filtro que o conjunto usa: a UF nos municípios, o ente no "ente"; nenhum nos demais. */
+export function filtroDoConjunto(p: RecorteDaVarredura): string | null {
+  if (p.conjunto === "municipios") return p.uf ?? null;
+  if (p.conjunto === "ente") return p.codIbge ?? null;
+  return null;
+}
+
+/**
+ * `escopo` da linha de rodada da varredura no Histórico: o conjunto e o
+ * filtro dele. O prefixo `varredura:` a separa das linhas de cada consulta,
+ * que levam o tipo de relatório no `escopo` (a linha da matriz de cobertura).
+ * É por ele que a conferência e as pendentes da varredura se acham.
+ */
+export function escopoDaVarreduraSiconfi(p: RecorteDaVarredura): string {
+  const filtro = filtroDoConjunto(p);
+  return filtro ? `varredura:${p.conjunto}:${filtro}` : `varredura:${p.conjunto}`;
 }

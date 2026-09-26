@@ -81,6 +81,16 @@ export const QA_CANAIS: Record<string, CanalReporte> = {
     instrucoes:
       "Use o SIC da Câmara para reportar a inconsistência. Inclua o cod_documento e o id do deputado.",
   },
+  camara_vot: {
+    fonte: "camara_vot",
+    fonteLabel: "Câmara dos Deputados — Votações",
+    orgao: "Câmara dos Deputados",
+    canalPrimario: "Serviço de Informação ao Cidadão (SIC)",
+    urlReporte: "https://www2.camara.leg.br/transparencia/acesso-a-informacao/sic",
+    emailSecundario: "sic@camara.leg.br",
+    instrucoes:
+      "Use o SIC da Câmara para reportar a inconsistência. Inclua o id da votação e a URL do detalhe na API de Dados Abertos.",
+  },
   senado_ceaps: {
     fonte: "senado_ceaps",
     fonteLabel: "Senado Federal — CEAPS",

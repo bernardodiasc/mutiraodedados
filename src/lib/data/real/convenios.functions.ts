@@ -9,6 +9,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { regrasCguConvenios, type CguConvenioLike } from "@/lib/data/qa";
 import { ensureAdmin, isoToBR, montarVarreduraKey, varrerPaginado } from "@/lib/data/real/sweep";
+import { anoMesDaJanela, type OrigemRodada } from "@/lib/data/historico-rodada";
 
 /**
  * Ingest do endpoint /convenios do Portal da Transparência (CGU).
@@ -20,6 +21,10 @@ import { ensureAdmin, isoToBR, montarVarreduraKey, varrerPaginado } from "@/lib/
  * divergiam em silêncio.
  */
 
+/** Chave de varredura da janela (em `cgu_varredura`) — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraConvenios = (data: { dataInicial: string; dataFinal: string }) =>
+  montarVarreduraKey("convenios", "geral", data.dataInicial, data.dataFinal);
+
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaConvenios(
   data: {
@@ -30,17 +35,21 @@ export async function rodadaConvenios(
     orcamentoMs: number;
   },
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
   const TAM_PAGINA = 15;
-  const varreduraKey = montarVarreduraKey("convenios", "geral", data.dataInicial, data.dataFinal);
+  const varreduraKey = chaveVarreduraConvenios(data);
 
   const r = await varrerPaginado<PortalConvenioRaw, ConvenioCacheRow>({
     entidade: "convenios",
     fonte: "cgu_convenios",
     endpoint: "/convenios",
     orgaoCodLog: "",
-    escopo: "convênios",
+    // Linha única na matriz de cobertura, célula do mês de referência.
+    escopo: "",
     userId: userId,
+    ...anoMesDaJanela(data.dataInicial, data.dataFinal),
+    origem,
     varreduraKey,
     tamPagina: TAM_PAGINA,
     maxPaginas: data.maxPaginas,
@@ -81,6 +90,7 @@ export async function rodadaConvenios(
         ultimaPagina: r.ultimaPagina,
         completa: r.completa,
         haMais: r.haMais,
+        processados: r.processados,
         totalAcumulado: r.totalAcumulado,
         orcamentoEsgotado: r.orcamentoEsgotado,
       },
@@ -88,19 +98,21 @@ export async function rodadaConvenios(
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importConveniosSchema = z.object({
+  dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  maxPaginas: z.number().int().min(1).max(5000).default(5000),
+  delayMs: z.number().int().min(0).max(10000).default(800),
+  orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
+});
+
 export const importConvenios = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        maxPaginas: z.number().int().min(1).max(5000).default(5000),
-        delayMs: z.number().int().min(0).max(10000).default(800),
-        orcamentoMs: z.number().int().min(10000).max(230000).default(180000),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importConveniosSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaConvenios(data, context.userId);

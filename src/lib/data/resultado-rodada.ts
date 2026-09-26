@@ -79,9 +79,13 @@ export type ContextoClassificacao = {
  */
 export function classificarResultado(ctx: ContextoClassificacao): ResultadoClassificado {
   if (ctx.foraDaJanela) return "fora_da_janela";
-  if (ctx.erros.length > 0) {
-    if (pareceErroNosso(ctx.erros)) return "erro_nosso";
-    if (pareceErroDeOrigem(ctx.erros)) return "erro_origem";
+  // Avisos `info:` não são erro: ficam fora, como na conferência. Um descarte
+  // por inconsistência da origem cita o 404 que a origem deu, e não pode virar
+  // "erro nosso" por isso.
+  const erros = ctx.erros.filter((e) => !e.startsWith("info:"));
+  if (erros.length > 0) {
+    if (pareceErroNosso(erros)) return "erro_nosso";
+    if (pareceErroDeOrigem(erros)) return "erro_origem";
     // Erro que não sabemos atribuir conta como nosso: melhor investigar à toa
     // do que deixar passar defeito silencioso.
     return "erro_nosso";

@@ -23,6 +23,56 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.14.0 — 2026-09-26
+
+**Resumo:** as importações oficiais passam a rodar sem o painel. A rota do agendador aceita fonte e janela nomeadas para todas as fontes do roteiro de importação; cada janela termina com uma conferência gravada (aprovada, inconclusiva ou reprovada); e uma ferramenta de linha de comando e uma skill de agente conduzem as importações até a cobertura desejada. A rodada manual pendente desde a v0.7.0 foi feita com essa ferramenta, que serviu de QA dela: cada divergência virou correção nesta release. Evals de dados e e2e de UI saíram da versão, porque dependem de um banco isolado.
+
+**Entregas**
+
+- **Importação sob demanda** (`/api/cron-importar` + `bun run importar`):
+  - Sem corpo, a rota segue a fila do agendador como antes. Com `{tarefa, params}`, executa uma rodada da janela pedida, validada pelos mesmos schemas do painel. Janela já completa só é refeita com `reprocessar`.
+  - 27 tarefas com adaptador: votações, proposições, matérias, CEAP e CEAPS, cadastros de deputados e senadores, trajetória, PNCP, convênios (período, por ente e CSV da origem), CGU (catálogo SIAFI, atividade, contratos e licitações por órgão, emendas), SICONFI (relatório, ano de um ente, varredura por conjunto), IBGE, TSE (arquivo por tipo × eleição × UF, vínculo parlamentar↔candidato) e as tarefas de cruzamento do TSE.
+  - A ferramenta fatia o intervalo em janelas, repete rodadas até o fim, segue a ordem das dependências entre fontes, aplica a política de parada (reprovada para a fonte; inconclusiva é refeita; 429 persistente do Portal pausa as fontes da mesma chave) e retoma sozinha pelas pendentes que o servidor aponta.
+  - Skill `mutirao-de-dados-importar`: pedido por meta, por janela ou por roteiro numa issue; relatório e issues de correção.
+- **Conferência da janela:** terminou, log limpo, contagem igual ao total da origem onde a origem informa (PNCP, Câmara, Senado, IBGE), reflexo na cobertura e findings novos (só informativo). Janela completa importada antes pelo painel é só conferida, sem reimportar.
+- **Log de importações:** colunas novas de gatilho (`painel`, `cron`, `ferramenta`), execução por janela, conferência e métricas de desempenho de cada rodada (duração, itens, subrequisições, motivo de parada). Toda fonte passa a gravar o resultado da rodada, e CGU e SICONFI passam a aparecer na cobertura.
+- **Histórico do admin:** filtros no topo (fonte, gatilho, resultado, conferência, período, execução, motivo de parada), aplicados no servidor e refletidos na URL; colunas de gatilho, conferência e desempenho; resumo do recorte filtrado.
+- **Desempenho:** teto de subrequisições das varreduras ajustado ao plano pago do Workers (PNCP e Transferegov seguem no teto antigo, pela cota da origem); votações da Câmara (5 por vez) e SICONFI em lote (3 por vez) processam itens em paralelo, sem pular item com falha passageira na retomada.
+- **Qualidade de dados:** alerta novo "Votação listada sem detalhe", para votação que a Câmara lista mas cujo detalhe responde 404. A regra geral foi documentada: erro nosso se corrige no código; problema do dado na origem vira sinal e conta como descartado na conferência.
+- **Migrations:** passam a nascer no PR (`drizzle-kit generate --custom`) e são aplicadas pelo mantenedor, registradas em `drizzle.__drizzle_migrations` na mesma transação. O Lovable não participa mais.
+
+**Correções**
+
+- TSE: o total de bens do candidato ficava com a soma da última rodada numa importação retomada, e cada corte por tempo perdia uma linha (bens, receitas e despesas).
+- Câmara: consulta que seguia falhando depois das novas tentativas não era tratada como passageira (a CEAP pulava o deputado; proposições encerravam a varredura; falha de rede virava erro nosso).
+- Trajetória dos deputados e cadastro de senadores: falha na consulta de um parlamentar apagava os dados dele sem registrar erro (no Senado, também o marcava como "Nunca exerceu").
+- Limpeza por fonte: passa a apagar os checkpoints de varredura da fonte limpa, em vez de deixar a janela "completa" sem dados.
+- Conferência de janela vazia importada antes do Histórico existir: deixa de ser reprovada quando a origem confirma zero.
+- SICONFI em lote: a rodada com 3 consultas por vez derrubava o Worker (502), e passou a ter teto de custo próprio; a contagem da conferência estourava o tempo do banco, e ganhou um índice por exercício e ente. Erros do banco nas conferências passam a trazer código e mensagem.
+- Sync com o repositório público a partir de um git worktree.
+
+**Decisões**
+
+- **Sem teste de importação contra o banco de produção no workflow.** Com um banco só (o preview e a produção compartilham o mesmo), evals de dados e e2e de UI esperam um banco isolado e voltaram ao backlog. A necessidade real da versão era operar as importações oficiais sem o painel, e a verificação passou a ser parte da importação (a conferência), não um teste à parte.
+- **Agendamento continua desligado.** A rota foi exercida pela ferramenta; ligar o pg_cron fica para depois.
+- **Nada destrutivo pela ferramenta.** Limpeza segue manual no painel.
+- **Cobertura completa das fontes fora da versão.** O plano (ordem em ondas, comandos, estimativas, decisões pendentes sobre CGU por órgão, municípios do SICONFI e TSE 2026) segue em paralelo ao programa do ROADMAP, sem versão.
+- **Limite de CPU do Worker a confirmar.** O `wrangler.jsonc` declara 5 minutos de CPU por requisição, mas a queda do SICONFI com paralelismo indica que o teto efetivo em produção pode ser o padrão de 30 s. Confirmar com a plataforma antes da carga histórica do TSE.
+- **Commits do Lovable revisados:** a migration das colunas de gatilho foi aplicada pelo Lovable e ganhou uma cópia (`0006` e `0007`, SQL idêntico e idempotente, as duas mantidas); os tipos foram regenerados a partir do banco; e a sessão do preview do Lovable passou a sincronizar o valor devolvido pelo editor.
+
+**Checks executados**
+
+- `bun run lint` ✓ 0 erros (17 warnings do padrão shadcn/ui).
+- `bunx tsc --noEmit` ✓.
+- `bun run build` ✓.
+- `bun run test` ✓ — 125 arquivos, 1344 testes.
+- Rodadas reais pela ferramenta contra o site publicado: votações do Senado de 2003 a 2026-09 (285 janelas aprovadas); votações da Câmara de 2023-09 a 2026-09; SICONFI em lote das UFs (2023 a 2025) e das capitais (2025). Migrations da versão aplicadas: `0006`/`0007` pelo Lovable (hashes conferidos contra `drizzle.__drizzle_migrations`), `0008` e `0009` pelo mantenedor, registradas na mesma transação.
+- Rodada manual de telas (convênios, enriquecimento pela origem, `/cobertura`, qualidade, fluxos da v0.12.0 e Histórico filtrado) conferida pelo mantenedor.
+
+**Issues:** milestone `v0.14.0` do repositório privado e o mapa do wayfinder da importação operável.
+
+**PR de sync público:** `sync v0.14.0`.
+
 ## v0.13.0 — 2026-09-25
 
 **Resumo:** rodada de correções, endurecimento e processo antes do programa de busca unificada. Importadores de votações e do RGF voltaram a funcionar, valor ausente deixou de virar zero, permissões de leitura e escrita foram apertadas, e o projeto ganhou um processo com issues, milestones, PRs e roteiros permanentes de QA. Os títulos de aba passaram a seguir o H1 em todas as fichas públicas.

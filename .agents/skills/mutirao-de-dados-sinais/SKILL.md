@@ -9,6 +9,16 @@ description: Sistema de sinais do Mutirão de Dados — os três tipos (alerta d
 
 Resumo operacional da classificação (a fonte da verdade é o doc): cruzamento de dados → `investigativo`; ausência esperada → `lacuna`; inspeção do próprio registro/lote → `qualidade`.
 
+## Problema da origem vira sinal; erro nosso se corrige
+
+O projeto audita dados públicos. Na importação, um problema do dado na origem (a origem respondeu, mas o que publica está inconsistente ou falta — ex.: lista um registro cujo detalhe dá 404) **não é erro nosso**: vira alerta de qualidade ou lacuna, e a importação não reprova por ele. Erro nosso (parser, código, endpoint, contrato da API mal lido) se corrige no código. A regra completa, com o terceiro caso (origem indisponível), está em [`docs/qualidade-dados.md`](/docs/qualidade-dados.md#problema-da-origem--erro-nosso).
+
+Uma janela reprovada por um problema do dado na origem é um **sinal que falta**. Antes de criar a regra, confirme que o problema é da origem (o id e a URL que chamamos são os que a própria origem devolveu). Depois, no ingest:
+
+1. O registro afetado sai da importação com um aviso `info:` no log da rodada (não erro).
+2. O sinal é gravado com `flagQA`, com a evidência em `detalhes` (URL chamada, status, o que a origem trouxe).
+3. O registro conta como **descartado** no total da origem, para a conferência fechar (acumulado + descartados = total). Quando o problema só aparece por item, ao longo de várias rodadas, conte a partir dos sinais gravados — ver `descartesDaJanela` em `src/lib/data/camara/votacoes.functions.ts` e [`docs/importacao.md`](/docs/importacao.md#problema-da-origem-na-conferência).
+
 ## Onde as regras vivem no código
 
 - **Contrato de dados:** `QaFinding` em `src/lib/data/qa.ts`, com campo `tipo: QaTipoSinal` (`'qualidade' | 'lacuna' | 'investigativo'`, default `'qualidade'`). Persistência idempotente via `flagQA` na tabela `qa_findings` (coluna `tipo`, migration `20260706120000`).

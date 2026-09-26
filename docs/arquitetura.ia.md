@@ -39,7 +39,7 @@ Server (`process.env`):
 
 - Cloudflare Workers (configuração em `wrangler.jsonc`).
 - `nodejs_compat` ativo; evite pacotes que exijam binários nativos (sharp, canvas, puppeteer) ou subprocessos.
-- Migrations rodam automaticamente quando aplicadas via ferramenta de migração do Lovable.
+- Migrations nascem no PR e são aplicadas à mão pelo mantenedor, que as registra na tabela do drizzle-kit na mesma transação ([migrations](./padroes/migrations.md)).
 
 ## RLS
 

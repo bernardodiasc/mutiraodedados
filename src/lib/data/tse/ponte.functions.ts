@@ -7,17 +7,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/**
+ * Um lote do vínculo: a casa e onde começar no cadastro dela. O painel e o
+ * modo nomeado de `/api/cron-importar` validam com o mesmo schema.
+ */
+export const ponteParlamentarSchema = z.object({
+  casa: z.enum(["camara", "senado"]),
+  offset: z.number().int().min(0).default(0),
+});
+
 /** Vincula parlamentares em exercício às suas candidaturas no cache TSE. */
 export const sincronizarPonteParlamentarFn = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
-    z
-      .object({
-        casa: z.enum(["camara", "senado"]),
-        offset: z.number().int().min(0).default(0),
-      })
-      .parse(data),
-  )
+  .inputValidator((data: unknown) => ponteParlamentarSchema.parse(data))
   .handler(async ({ context, data }) => {
     const { ensureAdmin } = await import("@/lib/data/tse/ingest.server");
     await ensureAdmin(context.userId);

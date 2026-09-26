@@ -15,10 +15,39 @@ Se o Lovable ainda lê `supabase/migrations/`, o repositório não mostra — e 
 
 Regras que decorrem disso:
 
-- **Migration nova é criada e aplicada pelo Lovable**, que gera o `.sql`, a entrada do journal e o snapshot em `meta/` no mesmo commit. Não crie esses arquivos à mão nem renumere os existentes.
+- **Migration nova nasce no PR**, junto com o código que a usa, pelo fluxo da seção seguinte. Não renumere nem edite as existentes.
 - **Imutável também aqui**: editar um arquivo já aplicado não o reaplica (o registro no banco não muda) e deixa o repositório descrevendo um banco que não existe.
-- **Escreva SQL idempotente** (`IF NOT EXISTS`, `CREATE OR REPLACE`, `DROP ... IF EXISTS`). Na transição, `0000` já estava aplicada e rodou outra vez — só não quebrou porque usava `IF NOT EXISTS`.
-- `drizzle/schema.ts` fica vazio de propósito: o esquema é descrito pelo SQL, não por modelos Drizzle. Os tipos continuam gerados em `src/integrations/supabase/types.ts`.
+- **SQL idempotente é obrigatório** (`IF NOT EXISTS`, `CREATE OR REPLACE`, `DROP ... IF EXISTS` antes de `CREATE POLICY`/`CREATE TRIGGER`, bloco `DO` que confere o catálogo antes de `ADD CONSTRAINT`): uma migration aplicada à mão sem o registro, ou reaplicada pelo drizzle-kit, roda duas vezes. Na transição, `0000` já estava aplicada e rodou outra vez — só não quebrou porque usava `IF NOT EXISTS`.
+- `drizzle/schema.ts` fica vazio de propósito: o esquema é descrito pelo SQL, não por modelos Drizzle. Os tipos ficam em `src/integrations/supabase/types.ts`: o PR os atualiza à mão (o Lovable os regenera a partir do banco quando mexe no projeto).
+
+## Fluxo de uma migration
+
+A migration nasce no PR e o mantenedor a aplica à mão, **registrando-a na mesma transação** em `drizzle.__drizzle_migrations` — exatamente o que o drizzle-kit faria. O Lovable não participa: pedir a ele a cada mudança seria um gargalo (os pedidos são poucos por dia) e as alterações dele passam por fora do fluxo de PR.
+
+Por que o registro evita duplicação: o drizzle-kit lê só a **última** linha de `drizzle.__drizzle_migrations` (por `created_at`) e aplica toda entrada do journal com `when` maior; o `hash` é gravado mas não comparado. Sem o registro, uma migration aplicada à mão continua "pendente", e a ferramenta do Lovable a recria com outro número — foi assim que surgiu `0007`, cópia de `0006`.
+
+1. **No PR (agente ou pessoa).** `bunx drizzle-kit generate --custom --name <slug>` cria o `.sql` vazio, a entrada do journal e o snapshot em `meta/`; escreva o SQL no `.sql`. Atualize à mão `src/integrations/supabase/types.ts` com o que a migration cria. No corpo do PR, uma seção **Migration** com o bloco pronto para colar e a consulta que confere o resultado:
+
+   ```sql
+   BEGIN;
+   -- conteúdo integral de drizzle/migrations/NNNN_<slug>.sql
+   INSERT INTO drizzle.__drizzle_migrations (hash, created_at)
+   VALUES ('<sha256 do arquivo>', <when da entrada no _journal.json>);
+   COMMIT;
+   ```
+
+   O hash é `shasum -a 256 drizzle/migrations/NNNN_<slug>.sql` sobre o arquivo final, como está no commit (o drizzle-kit calcula sobre o conteúdo inteiro, com os `--> statement-breakpoint`); o `when` é o da entrada `NNNN_<slug>` em `meta/_journal.json`. Se o `.sql` mudar durante a revisão, o bloco é recalculado.
+
+2. **Depois do merge, antes de publicar (mantenedor).** Colar o bloco no SQL editor do Lovable (More → Cloud → SQL editor) e rodar a consulta de conferência do PR. Código que depende da migration só funciona depois deste passo.
+3. **Conferir o registro:**
+
+   ```sql
+   SELECT id, hash, created_at FROM drizzle.__drizzle_migrations ORDER BY created_at DESC LIMIT 5;
+   ```
+
+   O número de linhas da tabela deve igualar o número de entradas em `drizzle/migrations/meta/_journal.json`. Fechar uma release exige as duas iguais.
+
+O SQL continua **idempotente** mesmo assim: se o registro ficar para trás, ou se alguém rodar o drizzle-kit, a migration roda de novo sem quebrar.
 
 ### A transição de 2026-09-25
 

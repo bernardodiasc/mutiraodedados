@@ -3,8 +3,11 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 import { ensureAdminBeforeLoad } from "@/lib/admin-guard";
 import { AdminImportPanel } from "@/components/AdminImportPanel";
 import { AdminHeader } from "@/components/AdminHeader";
+import { lerFiltrosHistorico } from "@/lib/admin-import/historico-filtros";
 
 export const Route = createFileRoute("/_authenticated/admin_/dados")({
+  // Filtros do Histórico na URL: um link com filtros abre a aba já filtrada.
+  validateSearch: lerFiltrosHistorico,
   beforeLoad: ensureAdminBeforeLoad,
   component: DadosPage,
   head: () => ({ meta: [{ title: "Dados — Admin" }] }),

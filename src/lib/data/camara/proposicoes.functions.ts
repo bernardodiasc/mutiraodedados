@@ -4,8 +4,10 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
-import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { PREFIXO_TRANSITORIO, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
+import type { OrigemRodada } from "@/lib/data/historico-rodada";
+import { totalDoHeader } from "@/lib/data/camara/votacoes-api";
 import { JANELA_ORCAMENTO_MS, JANELA_TETO_SUBREQUISICOES } from "@/lib/data/janela-varredura";
 
 const BASE = "https://dadosabertos.camara.leg.br/api/v2";
@@ -14,12 +16,16 @@ const UA = "MutiraoDeDados/1.0 (+https://mutiraodedados.com.br)";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 // GET com retry/backoff (500 → 1500 → 4500 ms) para 429/5xx e erros de rede
-// transitórios (ex.: 504 do gateway); 4xx é erro definitivo.
-async function camaraGet<T = unknown>(
+// transitórios (ex.: 504 do gateway); 4xx é erro definitivo. Esgotadas as
+// tentativas, a falha sai com `TRANSIENT:`, para a varredura parar sem
+// encerrar (a próxima rodada refaz) e contar como falha da origem. Devolve também o
+// total da consulta (header `X-Total-Count`), que a conferência da janela
+// compara com o importado.
+async function camaraGetComTotal<T = unknown>(
   path: string,
   params: Record<string, string> = {},
   tentativas = 4,
-): Promise<T> {
+): Promise<{ corpo: T; totalOrigem: number | null }> {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE}${path}${qs ? `?${qs}` : ""}`;
   let ultimoErro = "sem resposta";
@@ -32,7 +38,12 @@ async function camaraGet<T = unknown>(
       ultimoErro = (e as Error).message;
       continue;
     }
-    if (res.ok) return (await res.json()) as T;
+    if (res.ok) {
+      return {
+        corpo: (await res.json()) as T,
+        totalOrigem: totalDoHeader(res.headers.get("x-total-count")),
+      };
+    }
     if (res.status === 429 || res.status >= 500) {
       ultimoErro = `${res.status}`;
       continue;
@@ -40,8 +51,13 @@ async function camaraGet<T = unknown>(
     const body = await res.text().catch(() => "");
     throw new Error(`Câmara API ${res.status}: ${body.slice(0, 200)}`);
   }
-  throw new Error(`Câmara API indisponível após ${tentativas} tentativas (último: ${ultimoErro}).`);
+  throw new Error(
+    `${PREFIXO_TRANSITORIO} Câmara API indisponível após ${tentativas} tentativas (último: ${ultimoErro}).`,
+  );
 }
+
+const camaraGet = async <T = unknown>(path: string, params: Record<string, string> = {}) =>
+  (await camaraGetComTotal<T>(path, params)).corpo;
 
 type Env<T> = { dados: T };
 
@@ -94,6 +110,35 @@ type AutorItem = {
   proponente?: number; // 0/1
 };
 
+/** Chave de varredura do ano + tipo — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraProposicoes = (data: { ano: number; siglaTipo: string }) =>
+  `camara_props#${data.ano}#${data.siglaTipo}`;
+
+/** Parâmetros de uma página da listagem — ordenação estável por id. */
+const paramsDaListagem = (data: { ano: number; siglaTipo: string }, pagina: number) => ({
+  ano: String(data.ano),
+  siglaTipo: data.siglaTipo,
+  itens: "100",
+  pagina: String(pagina),
+  ordem: "ASC",
+  ordenarPor: "id",
+});
+
+/**
+ * Total da origem do ano + tipo numa chamada só (página de um item, lendo o
+ * `X-Total-Count`), para conferir sem reimportar. `null` sem o header.
+ */
+export async function totalDaOrigemProposicoes(data: {
+  ano: number;
+  siglaTipo: string;
+}): Promise<{ total: number; descartados: number } | null> {
+  const { totalOrigem } = await camaraGetComTotal("/proposicoes", {
+    ...paramsDaListagem(data, 1),
+    itens: "1",
+  });
+  return totalOrigem === null ? null : { total: totalOrigem, descartados: 0 };
+}
+
 /**
  * Importa proposições de um ano + tipo (PL, PEC, MPV, PLP, PDL...).
  * Para cada proposição: busca detalhe + autores e popula autores_cache.
@@ -102,9 +147,13 @@ type AutorItem = {
 export async function rodadaProposicoes(
   data: { ano: number; siglaTipo: string; maxPaginas: number },
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
   let totalAutores = 0;
   const erros: string[] = [];
+  // Total que a Câmara informa para o ano + tipo, lido na primeira página da
+  // listagem que a rodada buscar.
+  let totalOrigem: number | null = null;
 
   // Cada proposição custa ~4 subrequisições (detalhe + autores + 2 gravações),
   // então uma página inteira da listagem estouraria o limite do Worker numa
@@ -118,7 +167,7 @@ export async function rodadaProposicoes(
 
   const inicioRodada = Date.now();
   const rodada = await rodarComOrcamento({
-    chave: `camara_props#${data.ano}#${data.siglaTipo}`,
+    chave: chaveVarreduraProposicoes(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
     orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
@@ -131,15 +180,11 @@ export async function rodadaProposicoes(
       let arr = paginasCache.get(pagina);
       if (!arr) {
         try {
-          const json = await camaraGet<Env<ProposicaoListItem[]>>("/proposicoes", {
-            ano: String(data.ano),
-            siglaTipo: data.siglaTipo,
-            itens: "100",
-            pagina: String(pagina),
-            ordem: "ASC",
-            ordenarPor: "id",
-          });
+          const { corpo: json, totalOrigem: total } = await camaraGetComTotal<
+            Env<ProposicaoListItem[]>
+          >("/proposicoes", paramsDaListagem(data, pagina));
           custo++;
+          totalOrigem ??= total;
           arr = json.dados ?? [];
           paginasCache.set(pagina, arr);
         } catch (e) {
@@ -233,21 +278,29 @@ export async function rodadaProposicoes(
   const avisoHistorico = await registrarRodadaImportacao(
     {
       fonte: "camara_props",
+      // O tipo: cada um é uma varredura e uma conferência próprias.
+      escopo: data.siglaTipo,
       ano: data.ano,
       mes: 1, // fonte anual — âncora da matriz de cobertura
       endpoint: `GET https://dadosabertos.camara.leg.br/api/v2/proposicoes?ano=${data.ano}&siglaTipo=${data.siglaTipo} (+ detalhe e autores por proposição)`,
       unidade: "proposições",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
   );
   if (avisoHistorico) erros.push(avisoHistorico);
 
+  // A importação não descarta proposição nenhuma: falha vira erro. (A
+  // anotação desfaz o estreitamento para `null`: quem atribui é a closure.)
+  const total = totalOrigem as number | null;
+
   return {
     importados: rodada.processados,
     autores: totalAutores,
     erros,
+    origem: total === null ? null : { total, descartados: 0 },
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -258,20 +311,22 @@ export async function rodadaProposicoes(
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarProposicoesSchema = z.object({
+  ano: z.number().int().min(1990).max(2100),
+  siglaTipo: z.string().min(2).max(10).default("PL"),
+  // Páginas da LISTAGEM (100 proposições cada). O teto alto só é
+  // alcançável porque a varredura é retomável — cada rodada processa
+  // algumas proposições e a próxima continua.
+  maxPaginas: z.number().int().min(1).max(200).default(200),
+});
+
 export const importarProposicoes = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        ano: z.number().int().min(1990).max(2100),
-        siglaTipo: z.string().min(2).max(10).default("PL"),
-        // Páginas da LISTAGEM (100 proposições cada). O teto alto só é
-        // alcançável porque a varredura é retomável — cada rodada processa
-        // algumas proposições e a próxima continua.
-        maxPaginas: z.number().int().min(1).max(200).default(200),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarProposicoesSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaProposicoes(data, context.userId);

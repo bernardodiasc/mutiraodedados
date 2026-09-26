@@ -18,6 +18,22 @@ Atalhos para as outras seções e visão rápida do estado da ingestão.
 
 Tela principal de importação. Componente: `AdminImportPanel`. Permite disparar ingestão por fonte, intervalo de datas e filtros (UF, IBGE, órgão). Cada fonte aparece como uma seção própria — veja [`importacao.md`](./importacao.md) para o fluxo comum.
 
+A aba **Histórico** lista as linhas de rodada de `importacoes`, da mais recente para a mais antiga, com o [gatilho](./importacao.md#gatilho-e-execução) de cada uma e, na última rodada de uma execução, o veredito da conferência com o motivo. Os filtros do topo são aplicados no servidor (a rolagem continua carregando páginas do mesmo recorte) e ficam na URL, então um link já abre o Histórico filtrado:
+
+| Parâmetro     | Valores                                                                  |
+| ------------- | ------------------------------------------------------------------------ |
+| `fonte`       | id da fonte em `importacoes.fonte` (ex.: `camara_vot`)                   |
+| `gatilho`     | `painel`, `cron` ou `ferramenta`                                         |
+| `resultado`   | classificação da rodada (ex.: `erro_nosso`, `erro_origem`, `sem_dados`)  |
+| `conferencia` | `aprovada`, `inconclusiva` ou `reprovada` (`conferencia->>estado`)       |
+| `de` / `ate`  | período de `consultado_em`, `AAAA-MM-DD`, dias de Brasília, fim incluído |
+| `execucao`    | `execucao_id` da janela pedida pela ferramenta                           |
+| `parada`      | motivo de parada: `fim`, `tempo`, `subrequisicoes`, `erro` ou `passos`   |
+
+Cada linha de rodada mostra também as [métricas de desempenho](./importacao.md#métricas-da-rodada): duração, itens, itens por segundo (derivado na tela), subrequisições e motivo de parada. Linhas anteriores a essas colunas, e as linhas por consulta do SICONFI, mostram "—". Acima da tabela, um **resumo do recorte** soma as métricas de todas as rodadas que passam nos filtros (não só das carregadas) e dá a média por rodada, os itens por segundo do recorte e quantas rodadas pararam por cada motivo — filtre a fonte e o período para comparar antes × depois. O resumo vem da função `resumo_historico_importacoes`, com os mesmos filtros da listagem.
+
+Exemplo: `/admin/dados?fonte=camara_vot&execucao=<uuid>` mostra todas as rodadas daquela janela. Valor desconhecido é ignorado; um link com filtros abre direto na aba Histórico. A lógica fica em `src/lib/admin-import/historico-filtros.ts`.
+
 ### `/admin/qualidade` — Curadoria de QA
 
 Lista todos os `qa_findings`. Permite marcar como `falso_positivo`, `resolvido` ou anotar resposta do canal oficial. Detalhado em [`qualidade-dados.md`](./qualidade-dados.md).

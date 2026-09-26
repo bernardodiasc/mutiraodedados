@@ -102,6 +102,9 @@ function urlOficialPara(fonte: string, tipo: string, id: string): string | undef
     return `https://portaldatransparencia.gov.br/convenios/consulta`;
   if (fonte === "transferegov" && tipo === "emenda")
     return `https://portaldatransparencia.gov.br/emendas/consulta?codigoEmenda=${encodeURIComponent(id)}`;
+  // O detalhe na API é a própria evidência do alerta (responde 404).
+  if (fonte === "camara_vot" && tipo === "votacao")
+    return `https://dadosabertos.camara.leg.br/api/v2/votacoes/${encodeURIComponent(id)}`;
   return undefined;
 }
 

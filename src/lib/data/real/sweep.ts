@@ -3,6 +3,8 @@ import { portalGet, PORTAL_BASE } from "@/lib/data/real/portal-client";
 import { flagQA, type QaFinding } from "@/lib/data/qa";
 import { AVISO_SEM_RETOMADA, rodarComOrcamento, type Checkpoint } from "@/lib/data/runner";
 import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
+import { inserirImportacoes } from "@/lib/data/historico.server";
+import { montarLinhaRodada, type OrigemRodada } from "@/lib/data/historico-rodada";
 
 /**
  * Maquinaria compartilhada de varredura do Portal da Transparência (CGU).
@@ -14,13 +16,21 @@ import { reacaoAoErroDeLista } from "@/lib/data/erro-origem";
  *
  * Este módulo extrai dessa mecânica o que é genérico (independente de qual
  * entidade). Licitações, convênios e emendas usam o motor `varrerPaginado`
- * abaixo. O ingest de contratos (`real/portal.functions.ts`) segue com loop
- * próprio por causa da conferência-por-detalhe (listagem × `/contratos/id`)
- * específica de contratos — a unificação foi avaliada e adiada de propósito
- * (o caminho mais crítico do site não muda de estrutura sem necessidade);
- * contratos reaproveitam daqui apenas os helpers (chave de varredura,
- * persistência, logs).
+ * abaixo. O ingest de contratos (`rodadaContratosCgu`, em
+ * `real/portal.functions.ts`) tem o passo próprio por causa da
+ * conferência-por-detalhe (listagem × `/contratos/id`), sobre o mesmo runner
+ * e o mesmo checkpoint; reaproveita daqui a chave de varredura, os logs e o
+ * teto de custo.
  */
+
+/**
+ * Teto de custo (subrequisições) de uma rodada nas fontes do Portal que o
+ * aplicam: contratos por órgão, catálogo SIAFI e atividade dos órgãos. O
+ * Worker permite 10.000 subrequisições por invocação; o teto fica muito
+ * abaixo disso, com folga para o custo do último passo (conferido depois
+ * dele) e para as gravações que a estimativa não conta.
+ */
+export const TETO_SUBREQUISICOES_PORTAL = 500;
 
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
@@ -208,6 +218,10 @@ export function parseVarreduraKey(key: string): VarreduraKeyParts {
 // página, e uma linha de rodada em `importacoes` (log_kind NULL → Histórico).
 
 export type SweepRodada = {
+  /** Registros processados nesta rodada. */
+  processados: number;
+  /** Onde a varredura parou (última página contada pelo runner). */
+  cursor: number;
   totalAcumulado: number;
   ultimaPagina: number;
   completa: boolean;
@@ -232,9 +246,24 @@ export type VarrerPaginadoOpts<TRaw, TRow> = {
   endpoint: string;
   /** Valor de `importacoes.orgao_cod` (código do órgão, ou "" p/ varredura por ano). */
   orgaoCodLog: string;
-  /** Rótulo do escopo (sigla do órgão, ou ano). */
+  /**
+   * Linha da matriz de cobertura que a rodada marca (`importacoes.escopo`):
+   * o código do órgão nas varreduras por órgão, "" nas de linha única.
+   */
   escopo: string;
+  /**
+   * Célula da cobertura que a rodada ancora: o mês da janela, ou o ano com
+   * `mes = 1` nas fontes anuais. Nulos = a linha não marca célula.
+   */
+  ano: number | null;
+  mes: number | null;
+  /** Omitido: deduzido de `ano`/`mes` (ver `ehPeriodoRecente`). */
+  periodoRecente?: boolean;
   userId: string | null;
+  /** Gatilho e execução, quando a ferramenta pediu a rodada. */
+  origem?: OrigemRodada;
+  /** Avisos `info:` de quem chamou, gravados na linha de rodada junto com os da varredura. */
+  avisos?: string[];
   /** Chave composta de retomada (ver `montarVarreduraKey`). */
   varreduraKey: string;
   /** Tamanho fixo de página do endpoint (página menor que isso = última). */
@@ -263,7 +292,12 @@ export async function varrerPaginado<TRaw, TRow>(
     endpoint,
     orgaoCodLog,
     escopo,
+    ano,
+    mes,
+    periodoRecente,
     userId,
+    origem,
+    avisos: avisosDeQuemChamou = [],
     varreduraKey,
     tamPagina,
     maxPaginas,
@@ -280,6 +314,7 @@ export async function varrerPaginado<TRaw, TRow>(
   // que é do Portal — buscar a página, mapear, gravar e registrar.
   const datasRodada: string[] = [];
   let ultimaPaginaComDados = 0;
+  const inicioRodada = Date.now();
 
   const rodada = await rodarComOrcamento({
     chave: varreduraKey,
@@ -383,7 +418,7 @@ export async function varrerPaginado<TRaw, TRow>(
   // O runner já avisa quando o checkpoint falhou; aqui a mensagem vira a do
   // Portal, com a página alcançada. Não duplicamos as duas.
   const erros = rodada.erros.filter((e) => e !== AVISO_SEM_RETOMADA);
-  const avisos: string[] = [];
+  const avisos: string[] = [...avisosDeQuemChamou];
   if (!rodada.concluido) {
     avisos.push(
       rodada.semRetomada
@@ -392,23 +427,38 @@ export async function varrerPaginado<TRaw, TRow>(
     );
   }
 
-  // Log da RODADA (uma linha, log_kind NULL → aparece no Histórico).
+  // Log da RODADA (uma linha, log_kind NULL → aparece no Histórico). Com
+  // `resultado`, `ano` e `mes`, como as demais fontes: é o que marca a célula
+  // da cobertura e o que a conferência da janela lê.
   datasRodada.sort();
-  await supabaseAdmin.from("importacoes").insert({
-    fonte,
-    orgao_cod: orgaoCodLog || null,
-    escopo,
+  const linha = montarLinhaRodada(
+    {
+      fonte,
+      escopo,
+      orgaoCod: orgaoCodLog || null,
+      ano,
+      mes,
+      periodoRecente,
+      endpoint: `GET ${PORTAL_BASE}${endpoint} (varredura ${entidade})`,
+      unidade: "páginas",
+      userId,
+      ...origem,
+      duracaoMs: Date.now() - inicioRodada,
+    },
+    { ...rodada, erros },
+  );
+  const erroHistorico = await inserirImportacoes({
+    ...linha,
+    erros: [...erros, ...avisos],
     data_inicial: datasRodada[0] ?? null,
     data_final: datasRodada[datasRodada.length - 1] ?? null,
-    total_bruto: rodada.processados,
-    importados: rodada.processados,
-    erros: [...erros, ...avisos],
     consultado_em: new Date().toISOString(),
-    endpoint: `GET ${PORTAL_BASE}${endpoint} (varredura ${entidade}, pág. ${rodada.cursorInicial}–${ultimaPaginaComDados}${rodada.concluido ? " — completa" : " — parcial"})`,
-    user_id: userId,
   });
+  if (erroHistorico) erros.push(`historico: ${erroHistorico}`);
 
   return {
+    processados: rodada.processados,
+    cursor: rodada.cursorFinal,
     totalAcumulado: rodada.totalAcumulado,
     ultimaPagina: ultimaPaginaComDados,
     completa: rodada.concluido,

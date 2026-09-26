@@ -8,11 +8,11 @@ import { rodarComOrcamento } from "@/lib/data/runner";
 import { checkpointImportacao } from "@/lib/data/checkpoint.server";
 import { reacaoAoErro, reacaoAoErroDeLista } from "@/lib/data/erro-origem";
 import { registrarRodadaImportacao } from "@/lib/data/historico.server";
-import { anoMesDaJanela } from "@/lib/data/historico-rodada";
+import { anoMesDaJanela, type OrigemRodada } from "@/lib/data/historico-rodada";
 import {
   chaveVarreduraJanela,
   JANELA_ORCAMENTO_MS,
-  JANELA_TETO_SUBREQUISICOES,
+  JANELA_TETO_SUBREQUISICOES_COM_COTA,
 } from "@/lib/data/janela-varredura";
 import { ehStatusTransitorio, fetchComRetry } from "@/lib/data/http-retry";
 
@@ -130,35 +130,70 @@ function poderLabel(id?: string): string | null {
  * não existe — devolvia 404 e toda importação de PNCP voltava vazia)
  * Limite: 500 registros por página, 30 req/min.
  */
+type JanelaPNCP = {
+  dataInicial: string;
+  dataFinal: string;
+  uf?: string;
+  municipioIbge?: string;
+  cnpjOrgao?: string;
+};
+
+/** Chave de varredura da janela — a mesma para painel, fila e ferramenta. */
+export const chaveVarreduraPNCP = (data: JanelaPNCP) =>
+  chaveVarreduraJanela("pncp", data.dataInicial, data.dataFinal, {
+    uf: data.uf,
+    ibge: data.municipioIbge,
+    cnpj: data.cnpjOrgao,
+  });
+
+/**
+ * UF e município são recortados depois da busca (o endpoint não os aceita),
+ * então com eles o `totalRegistros` da origem não se compara com o importado.
+ */
+const totalSeComparavel = (data: JanelaPNCP, total: number | null) =>
+  total === null || data.uf || data.municipioIbge ? null : { total, descartados: 0 };
+
+/**
+ * Total da origem da janela numa chamada só (página de 10 itens, lendo o
+ * `totalRegistros`), para conferir sem reimportar. `null` com filtro de ente.
+ */
+export async function totalDaOrigemPNCP(
+  data: JanelaPNCP,
+): Promise<{ total: number; descartados: number } | null> {
+  if (data.uf || data.municipioIbge) return null;
+  const params: Record<string, string | number> = {
+    dataInicial: fmtDate(data.dataInicial),
+    dataFinal: fmtDate(data.dataFinal),
+    pagina: 1,
+    tamanhoPagina: 10,
+  };
+  if (data.cnpjOrgao) params.cnpjOrgao = data.cnpjOrgao;
+  const json = await pncpGet<{ totalRegistros?: number }>("/v1/contratos", params);
+  return totalSeComparavel(data, json.totalRegistros ?? null);
+}
+
 /** Núcleo chamável sem browser (v0.11.0) — usado pela casca autenticada e pelo agendador. */
 export async function rodadaContratosPNCP(
-  data: {
-    dataInicial: string;
-    dataFinal: string;
-    uf?: string;
-    municipioIbge?: string;
-    cnpjOrgao?: string;
-    maxPaginas: number;
-  },
+  data: JanelaPNCP & { maxPaginas: number },
   userId: string | null,
+  origem: OrigemRodada = {},
 ) {
   const di = fmtDate(data.dataInicial);
   const df = fmtDate(data.dataFinal);
   const erros: string[] = [];
+  // Total que o PNCP informa para a consulta (`totalRegistros`), lido na
+  // primeira página que a rodada buscar.
+  let totalOrigem: number | null = null;
 
   // Um passo = uma página. Antes o laço ia até 2000 páginas numa chamada só,
   // sem orçamento nem retomada, e um erro de banco derrubava a rodada
   // inteira — o que na prática obrigava a UI a limitar a 3 páginas.
   const inicioRodada = Date.now();
   const rodada = await rodarComOrcamento({
-    chave: chaveVarreduraJanela("pncp", data.dataInicial, data.dataFinal, {
-      uf: data.uf,
-      ibge: data.municipioIbge,
-      cnpj: data.cnpjOrgao,
-    }),
+    chave: chaveVarreduraPNCP(data),
     checkpoint: checkpointImportacao,
     orcamentoMs: JANELA_ORCAMENTO_MS,
-    orcamentoCusto: JANELA_TETO_SUBREQUISICOES,
+    orcamentoCusto: JANELA_TETO_SUBREQUISICOES_COM_COTA,
     maxPassos: data.maxPaginas,
     passo: async (pagina) => {
       const params: Record<string, string | number> = {
@@ -192,6 +227,9 @@ export async function rodadaContratosPNCP(
         };
       }
 
+      if (totalOrigem === null && typeof json.totalRegistros === "number") {
+        totalOrigem = json.totalRegistros;
+      }
       const lista = json.data ?? [];
       if (lista.length === 0) return { processados: 0, fim: true, custo };
 
@@ -293,6 +331,7 @@ export async function rodadaContratosPNCP(
       endpoint: `GET ${BASE}/v1/contratos?dataInicial=${di}&dataFinal=${df}`,
       unidade: "páginas",
       userId: userId,
+      ...origem,
       duracaoMs: Date.now() - inicioRodada,
     },
     rodada,
@@ -303,6 +342,9 @@ export async function rodadaContratosPNCP(
     importados: rodada.processados,
     paginas: rodada.cursorFinal,
     erros,
+    // Contrato sem número de controle não é gravado; a conferência o veria
+    // como divergência — até hoje a origem não mandou nenhum assim.
+    origem: totalSeComparavel(data, totalOrigem as number | null),
     varredura: {
       haMais: !rodada.concluido,
       cursor: rodada.cursorFinal,
@@ -313,24 +355,26 @@ export async function rodadaContratosPNCP(
   };
 }
 
+/**
+ * Parâmetros da importação — fonte única da validação: a casca autenticada e
+ * o modo nomeado de `/api/cron-importar` usam este mesmo schema.
+ */
+export const importarContratosPNCPSchema = z.object({
+  dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  uf: z.string().length(2).optional(),
+  /** Código IBGE de 7 dígitos — filtra pelo município da unidade. */
+  municipioIbge: z
+    .string()
+    .regex(/^\d{7}$/)
+    .optional(),
+  cnpjOrgao: z.string().optional(),
+  maxPaginas: z.number().int().min(1).max(2000).default(2000),
+});
+
 export const importarContratosPNCP = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
-    z
-      .object({
-        dataInicial: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        dataFinal: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        uf: z.string().length(2).optional(),
-        /** Código IBGE de 7 dígitos — filtra pelo município da unidade. */
-        municipioIbge: z
-          .string()
-          .regex(/^\d{7}$/)
-          .optional(),
-        cnpjOrgao: z.string().optional(),
-        maxPaginas: z.number().int().min(1).max(2000).default(2000),
-      })
-      .parse(input),
-  )
+  .inputValidator((input) => importarContratosPNCPSchema.parse(input))
   .handler(async ({ data, context }) => {
     await ensureAdmin(context.userId);
     return rodadaContratosPNCP(data, context.userId);

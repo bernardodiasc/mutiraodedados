@@ -109,3 +109,18 @@ export function mapearVotacaoSenado(v: SessaoVotacaoApi) {
       })),
   };
 }
+
+/**
+ * Total da origem de uma janela de votações: a lista vem inteira numa
+ * chamada, então o tamanho dela é o total. Sessão que o mapeamento não grava
+ * (sem código) é descarte por regra, não erro.
+ */
+export function origemDaListaDeVotacoes(lista: readonly SessaoVotacaoApi[]): {
+  total: number;
+  descartados: number;
+} {
+  return {
+    total: lista.length,
+    descartados: lista.filter((v) => mapearVotacaoSenado(v) === null).length,
+  };
+}

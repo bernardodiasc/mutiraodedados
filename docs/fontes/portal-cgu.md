@@ -17,7 +17,7 @@ API oficial da Controladoria-Geral da União. É a principal fonte de dados do E
 
 Também importamos os **órgãos** SIAFI (catálogo das páginas de órgão).
 
-> A máquina genérica de varredura vive em [`src/lib/data/real/sweep.ts`](../../src/lib/data/real/sweep.ts) (`varrerPaginado`): retomável por orçamento de tempo, progresso por página em `cgu_varredura` (chave composta `<entidade>#<cod|ano>#…`), upsert + QA + log por página. Contratos têm o ingest próprio (`real/portal.functions.ts`) por causa da conferência-por-detalhe; as demais entidades reaproveitam o motor.
+> A máquina genérica de varredura vive em [`src/lib/data/real/sweep.ts`](../../src/lib/data/real/sweep.ts) (`varrerPaginado`): retomável por orçamento de tempo, progresso por página em `cgu_varredura` (chave composta `<entidade>#<cod|ano>#…`), upsert + QA + log por página, e uma linha de rodada com `resultado`, `ano`/`mes` e o `escopo` da linha da matriz (o código do órgão nas licitações, vazio em emendas e convênios) — é o que marca a célula da cobertura e o que a [conferência](../importacao.md#conferência) lê. Contratos têm o passo próprio (`rodadaContratosCgu`, em `real/portal.functions.ts`) por causa da conferência-por-detalhe, sobre o mesmo runner e o mesmo `cgu_varredura`, com teto de custo além do de tempo; as demais entidades reaproveitam o motor.
 
 ## Campos por endpoint (travados por inspeção ao vivo)
 
@@ -32,10 +32,12 @@ Os nomes de campo abaixo foram confirmados inspecionando o JSON real de cada end
 
 - **Filtro por vigência, não por assinatura** (`/contratos`): `dataInicial`/`dataFinal` filtram pela vigência. Por isso contratos rodam em varredura completa por órgão e alocam pela `dataAssinatura`. (`/licitacoes` filtra por data de abertura; `/convenios` por `dataReferencia`; `/emendas` por `ano`.)
 - **`uf` com sigla/nome trocados**: em `/licitacoes` e `/convenios`, o objeto `uf` vem como `{sigla: "RIO DE JANEIRO", nome: "RJ"}` — a sigla de 2 letras está em `uf.nome`. Os mappers pegam robustamente o valor que tiver 2 letras.
-- **`/emendas` é por ano**, não por órgão. A varredura usa `ano` como dimensão. Há **sobreposição** com `transferegov_emendas_cache` (finalidade definida) — aceita por decisão de projeto para isolar pipelines.
+- **`/emendas` é por ano**, não por órgão. A varredura usa `ano` como dimensão. A cada rodada, antes da varredura, busca o plano de ação das Transferências Especiais do ano (API do Transferegov); essa pré-busca conta no orçamento de tempo — usa no máximo metade dele, e a varredura fica com o resto. Cortada pelo tempo ou por falha da API, vira aviso `info:` e as emendas que faltaram ficam sem o detalhe. Há **sobreposição** com `transferegov_emendas_cache` (finalidade definida) — aceita por decisão de projeto para isolar pipelines.
 - **Parser de valores BR**: `parseValorPortal` (em `portal-client.ts`) normaliza número/strings pt-BR; números com 4 casas decimais sinalizam o bug de escala ÷10000 da CGU (corrigido só em contratos, via conferência por detalhe).
 - **Valor não informado**: a CGU devolve `"-"` quando não tem o valor. Ele é gravado como `NULL` (nunca 0) em `contratos_cache`, `cgu_licitacoes_cache`, `cgu_transferegov_emendas_cache` e `convenios_cache`, e aparece como "Não informado" nas páginas. Somas ignoram registros sem valor; médias, tetos (ex.: fracionamento) e regras de QA não os consideram. Ver abaixo, em "Dados gravados antes de 2026-09-25".
 - **Varredura retomável + throttling**: cada rodada roda ~3 min, salva progresso em `cgu_varredura`, retoma depois; retry com backoff em 5xx/429/rede.
+- **Sem total na consulta**: a API não informa quantos registros a consulta tem; a varredura acaba na página com menos de 15 itens. Na [conferência](../importacao.md#conferência), a contagem contra a origem não se aplica.
+- **Cota da chave**: todos os endpoints dividem a mesma chave. Um 429 que sobrevive às novas tentativas é a cota acabando; a ferramenta `bun run importar` para a fonte e pede a pausa das fontes da chave ([automação](../automacao.md#a-ferramenta)).
 
 ## Dados gravados antes de 2026-09-25 (reprocessamento)
 

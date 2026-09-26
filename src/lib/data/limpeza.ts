@@ -43,7 +43,63 @@ export type FonteLimpeza = {
    * Quando ausente, o comportamento padrão da tabela é aplicado (apagar tudo).
    */
   logKind?: "ativos" | "vazios";
+  /**
+   * Checkpoints de varredura que a fonte grava. A limpeza apaga os dela junto
+   * com o cache — sem isso a janela continua "completa" sem dados nem Histórico.
+   * O TSE fica de fora: tem tabela própria (`tse_varredura`), zerada pelo tipo.
+   */
+  checkpoints?: readonly CheckpointLimpeza[];
 };
+
+/** Tabelas de checkpoint zeradas pela limpeza por fonte. */
+export type TabelaCheckpoint = "importacao_varredura" | "cgu_varredura";
+
+export type CheckpointLimpeza = {
+  tabela: TabelaCheckpoint;
+  /** Casa as chaves da fonte na tabela. */
+  chave: RegExp;
+  /**
+   * Onde a chave guarda o período, para a limpeza por ano apagar só o dele:
+   * - "datas": janela `#AAAA-MM-DD#AAAA-MM-DD`;
+   * - "ano": ano logo depois do prefixo (`camara_ceap#2026#01`);
+   * - "exercicios": intervalo `#AAAA-AAAA` (SICONFI).
+   * Chave sem período (ou sem o trecho esperado) cobre todos os anos e é
+   * apagada em qualquer limpeza por ano.
+   */
+  periodo?: "datas" | "ano" | "exercicios";
+};
+
+const RX_PERIODO = {
+  datas: /#(\d{4})-\d{2}-\d{2}#(\d{4})-\d{2}-\d{2}(#|$)/,
+  ano: /^[^#]+#(\d{4})(#|$)/,
+  exercicios: /#(\d{4})-(\d{4})(#|$)/,
+} as const;
+
+/**
+ * Chaves de checkpoint que limpar a fonte `fonteId` apaga em `tabela`, dentre
+ * as `chaves` existentes. Com período, fica só o que toca [anoIni, anoFim].
+ */
+export function checkpointsALimpar(
+  fonteId: string,
+  tabela: TabelaCheckpoint,
+  chaves: readonly string[],
+  periodo?: { anoIni: number; anoFim: number },
+): string[] {
+  const regras = (FONTES_LIMPEZA.find((f) => f.id === fonteId)?.checkpoints ?? []).filter(
+    (c) => c.tabela === tabela,
+  );
+  return chaves.filter((chave) =>
+    regras.some((r) => {
+      if (!r.chave.test(chave)) return false;
+      if (!periodo || !r.periodo) return true;
+      const m = RX_PERIODO[r.periodo].exec(chave);
+      if (!m) return true;
+      const ini = Number(m[1]);
+      const fim = r.periodo === "ano" ? ini : Number(m[2]);
+      return ini <= periodo.anoFim && fim >= periodo.anoIni;
+    }),
+  );
+}
 
 export const FONTES_LIMPEZA: FonteLimpeza[] = [
   {
@@ -53,6 +109,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "contratos_cache",
     yearCol: "ano",
     tentativaFonte: "cgu",
+    checkpoints: [{ tabela: "cgu_varredura", chave: /^\d/, periodo: "datas" }],
   },
   {
     id: "cgu_licitacoes",
@@ -61,6 +118,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "cgu_licitacoes_cache",
     yearCol: "ano",
     tentativaFonte: "cgu_licitacoes",
+    checkpoints: [{ tabela: "cgu_varredura", chave: /^licitacoes#/, periodo: "datas" }],
   },
   {
     id: "cgu_emendas",
@@ -70,6 +128,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "cgu_transferegov_emendas_cache",
     yearCol: "ano",
     tentativaFonte: "cgu_emendas",
+    checkpoints: [{ tabela: "cgu_varredura", chave: /^emendas#/, periodo: "ano" }],
   },
   {
     id: "convenios",
@@ -79,6 +138,11 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "convenios_cache",
     yearCol: "ano",
     tentativaFonte: ["cgu_convenios", "transferegov"],
+    checkpoints: [
+      { tabela: "cgu_varredura", chave: /^convenios#/, periodo: "datas" },
+      { tabela: "importacao_varredura", chave: /^transferegov#/, periodo: "datas" },
+      { tabela: "importacao_varredura", chave: /^convenios_origem#/ },
+    ],
   },
   {
     id: "fornecedores",
@@ -91,6 +155,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     label: "Órgãos (cadastro)",
     descricao: "Cadastro de órgãos persistidos via importação.",
     table: "orgaos_cache",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^orgaos_siafi#/ }],
   },
   {
     id: "camara_deputados",
@@ -113,6 +178,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "camara_despesas_cache",
     yearCol: "ano",
     tentativaFonte: "camara_ceap",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^camara_ceap#/, periodo: "ano" }],
   },
   {
     id: "camara_vot",
@@ -124,6 +190,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childRef: "votacao_id",
     parentPk: "id",
     tentativaFonte: "camara_vot",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^camara_vot#/, periodo: "datas" }],
   },
   {
     id: "camara_props",
@@ -135,6 +202,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childRef: "proposicao_id",
     parentPk: "id",
     tentativaFonte: "camara_props",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^camara_props#/, periodo: "ano" }],
   },
   {
     id: "senado_senadores",
@@ -157,6 +225,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "senado_despesas_cache",
     yearCol: "ano",
     tentativaFonte: "senado_ceaps",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^senado_ceaps#/, periodo: "ano" }],
   },
   {
     id: "senado_vot",
@@ -168,6 +237,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childRef: "votacao_id",
     parentPk: "id",
     tentativaFonte: "senado_vot",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^senado_vot#/, periodo: "datas" }],
   },
   {
     id: "senado_mat",
@@ -179,6 +249,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     childRef: "materia_id",
     parentPk: "id",
     tentativaFonte: "senado_mat",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^senado_mat#/, periodo: "ano" }],
   },
   {
     id: "pncp",
@@ -187,6 +258,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "pncp_contratos_cache",
     yearCol: "ano",
     tentativaFonte: "pncp",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^pncp#/, periodo: "datas" }],
   },
   {
     id: "siconfi",
@@ -195,6 +267,9 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     table: "siconfi_relatorios_cache",
     yearCol: "exercicio",
     tentativaFonte: "siconfi",
+    checkpoints: [
+      { tabela: "importacao_varredura", chave: /^siconfi_varredura#/, periodo: "exercicios" },
+    ],
   },
   {
     id: "ibge",
@@ -202,6 +277,7 @@ export const FONTES_LIMPEZA: FonteLimpeza[] = [
     descricao: "Cadastro de municípios (código IBGE, nome, UF). Reimportável a qualquer momento.",
     table: "ibge_municipios_cache",
     tentativaFonte: "ibge",
+    checkpoints: [{ tabela: "importacao_varredura", chave: /^ibge#/ }],
   },
   {
     id: "tse_candidatos",

@@ -41,3 +41,23 @@ export function mensagemColunaAusente(tabela: string, msg: string): string | nul
   if (!coluna) return null;
   return `${tabela}: a coluna "${coluna}" ainda não existe no banco. Aplique as migrations pendentes (supabase db push) e importe de novo.`;
 }
+
+/**
+ * O texto de um erro do PostgREST para uma mensagem nossa — nunca vazio.
+ *
+ * Uma contagem em HEAD (`head: true` no supabase-js) volta sem corpo quando
+ * falha, e o supabase-js entrega `{ message: "" }`: o tempo-limite da consulta
+ * (`57014`) chegava como um erro em branco. Por isso as contagens da
+ * conferência vão em GET, que traz o corpo; se ainda assim nada vier, fica ao
+ * menos o status HTTP.
+ */
+export function textoDoErroDoBanco(
+  erro: { code?: string; message?: string; details?: string | null; hint?: string | null },
+  status?: number,
+): string {
+  const extras = [erro.details, erro.hint].filter(Boolean).join("; ");
+  const texto = [erro.code, erro.message].filter(Boolean).join(": ");
+  if (texto) return extras ? `${texto} (${extras})` : texto;
+  if (extras) return extras;
+  return status ? `HTTP ${status}, resposta sem corpo` : "resposta sem corpo";
+}

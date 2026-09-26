@@ -264,7 +264,8 @@ export function AdminEntesContainer({
         )
       }
       onImportSiconfiConjunto={() =>
-        run("SICONFI conjunto", () =>
+        // O ano todo é retomável: rodadas limitadas por tempo até terminar.
+        runVarredura("SICONFI conjunto", () =>
           siconfiConjunto({
             data: {
               codIbge: ibge,

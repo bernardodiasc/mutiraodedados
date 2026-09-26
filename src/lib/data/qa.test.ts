@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   cguAindaSuspeito,
   findingValorCorrigidoListagem,
+  findingVotacaoListadaSemDetalhe,
   razaoEscala,
   regrasCgu,
   valorAutoritativoCgu,
@@ -153,6 +154,51 @@ describe("findingValorCorrigidoListagem", () => {
     expect(f.valor_esperado).toBe(5_760_000);
     expect(f.detalhes?.razao_escala).toBe(10000);
     expect(f.detalhes?.evidencia_bruta).toHaveLength(2);
+  });
+});
+
+describe("findingVotacaoListadaSemDetalhe", () => {
+  // Caso real (julho de 2026): a listagem da Câmara traz a votação, com a URI
+  // do próprio detalhe, e o detalhe responde 404.
+  const listada = {
+    id: "2129817-26",
+    data: "2026-07-15",
+    dataHoraRegistro: "2026-07-15T13:56:54",
+    siglaOrgao: "PLEN",
+    proposicaoObjeto: "PL 7433/2017",
+    descricao: "Alteração do Regime de Tramitação desta proposição",
+  };
+
+  it("é alerta de qualidade da Câmara sobre a votação, com severidade aviso", () => {
+    const f = findingVotacaoListadaSemDetalhe(listada);
+    expect(f).toMatchObject({
+      fonte: "camara_vot",
+      entidade_tipo: "votacao",
+      entidade_id: "2129817-26",
+      regra: "votacao_listada_sem_detalhe",
+      tipo: "qualidade",
+      severidade: "aviso",
+    });
+  });
+
+  it("guarda a evidência: a URL do detalhe, o status e o que a listagem trouxe", () => {
+    const f = findingVotacaoListadaSemDetalhe(listada);
+    expect(f.detalhes).toMatchObject({
+      data: "2026-07-15",
+      url_detalhe: "https://dadosabertos.camara.leg.br/api/v2/votacoes/2129817-26",
+      status_detalhe: 404,
+      sigla_orgao: "PLEN",
+      proposicao_objeto: "PL 7433/2017",
+      descricao: "Alteração do Regime de Tramitação desta proposição",
+    });
+  });
+
+  it("sem `data` na listagem, a data sai do registro (a conferência filtra por ela)", () => {
+    const f = findingVotacaoListadaSemDetalhe({
+      id: "1-1",
+      dataHoraRegistro: "2026-07-07T19:03:17",
+    });
+    expect(f.detalhes?.data).toBe("2026-07-07");
   });
 });
 

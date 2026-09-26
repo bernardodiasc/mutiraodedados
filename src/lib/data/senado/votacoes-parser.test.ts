@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { mapearVotacaoSenado, type SessaoVotacaoApi } from "@/lib/data/senado/parsers";
+import {
+  mapearVotacaoSenado,
+  origemDaListaDeVotacoes,
+  type SessaoVotacaoApi,
+} from "@/lib/data/senado/parsers";
 
 // Amostra real de GET /dadosabertos/votacao?v=2 (junho/2025): uma votação
 // secreta (6944, totais preenchidos) e uma nominal aberta (6950, totais nulos).
@@ -56,5 +60,19 @@ describe("mapearVotacaoSenado — amostra real de /votacao", () => {
 
   it("sem código de votação não há o que gravar", () => {
     expect(mapearVotacaoSenado({ ...porCodigo(6950), codigoSessaoVotacao: null })).toBeNull();
+  });
+});
+
+describe("origemDaListaDeVotacoes — total da origem da janela", () => {
+  it("o tamanho da lista é o total; sessão sem código é descartada", () => {
+    const lista = [...amostra, { ...porCodigo(6950), codigoSessaoVotacao: null }];
+    expect(origemDaListaDeVotacoes(lista)).toEqual({
+      total: amostra.length + 1,
+      descartados: 1,
+    });
+  });
+
+  it("lista vazia: total zero", () => {
+    expect(origemDaListaDeVotacoes([])).toEqual({ total: 0, descartados: 0 });
   });
 });
