@@ -1,14 +1,12 @@
 import type { ReactNode } from "react";
-import { ExternalLink, Loader2, Vote, Wallet } from "lucide-react";
-import { EmptyState } from "@/components/EmptyState";
+import { ExternalLink, Vote, Wallet } from "lucide-react";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
 import type { CandidatoDetalhe } from "@/lib/data/tse/queries.functions";
-import type { Estado } from "@/lib/candidato-ficha/logic";
 import { h1DoCandidato, subtituloFicha, totalPatrimonio } from "@/lib/candidato-ficha/logic";
 
+/** Carregando, erro e "não encontrada" ficam com a rota (loader + errorComponent/notFoundComponent). */
 export type CandidatoFichaViewProps = {
-  estado: Estado;
-  detalhe: CandidatoDetalhe | null;
+  detalhe: CandidatoDetalhe;
   urlOficial: string;
   /** Seções compostas pelo Container. */
   vinculoParlamentar?: ReactNode;
@@ -18,7 +16,6 @@ export type CandidatoFichaViewProps = {
 };
 
 export function CandidatoFichaView({
-  estado,
   detalhe,
   urlOficial,
   vinculoParlamentar,
@@ -26,27 +23,6 @@ export function CandidatoFichaView({
   historico,
   comparador,
 }: CandidatoFichaViewProps) {
-  if (estado === "carregando") {
-    return (
-      <div className="flex items-center gap-2 text-muted-foreground py-10 justify-center">
-        <Loader2 className="size-4 animate-spin" /> Carregando ficha do candidato…
-      </div>
-    );
-  }
-  if (estado === "erro") {
-    return (
-      <div className="text-destructive py-10 text-center">Não consegui carregar esta ficha.</div>
-    );
-  }
-  if (estado === "nao-encontrado" || !detalhe) {
-    return (
-      <EmptyState
-        title="Candidatura não encontrada"
-        hint="Confira o ano na URL — a mesma pessoa tem um registro por eleição. Se a eleição ainda não foi importada, a ficha não existe aqui."
-      />
-    );
-  }
-
   const c = detalhe.candidato;
   // null quando não há nem agregado nem linhas: "não sabemos" não pode virar
   // "R$ 0,00", que é o que o leitor entende como patrimônio zerado.

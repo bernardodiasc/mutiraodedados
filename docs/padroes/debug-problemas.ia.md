@@ -129,3 +129,17 @@ Contagem que alimenta uma mensagem de erro vai em GET com `.limit(0)`, que traz 
 
 **Como verificar**
 Reproduza em GET (`Prefer: count=exact`, `limit=0`) com o mesmo filtro: o corpo traz `code` e `message`, e o tempo total mostra se passou dos 8 s.
+
+## 7. Erro de hidratação em página que carrega dados no loader
+
+**Sintoma**
+Console do navegador: `Hydration failed because the server rendered HTML didn't match the client`. O HTML do servidor já mostra o conteúdo, mas no cliente a página pisca "Carregando…" e busca o dado de novo.
+
+**Causa**
+O projeto não tem integração SSR do TanStack Query: o cache que o `loader` preenche com `queryClient.ensureQueryData` no servidor **não chega ao cliente**. Um `useQuery` com a mesma `queryKey` no componente começa vazio na hidratação (`isLoading = true`), então o cliente renderiza outra árvore. Só os **dados devolvidos pelo loader** são serializados para o cliente.
+
+**Regra**
+Dado que a página precisa na primeira renderização sai do `loader` (`return { ... }`) e o componente lê com `Route.useLoaderData()`, passando ao container por prop. Ausência vira `throw notFound()` no loader; falha chega ao `errorComponent` da rota. Nas fichas (parlamentar, votação, proposição, matéria, fornecedor, emenda, convênio, licitação, candidatura, artigo) isso é o `carregarFicha` de `src/lib/titulo-pagina/loader.ts`, que devolve `{ dado, h1 }` — o H1 alimenta o título da aba no `head`. `useQuery` fica para o que pode carregar depois da hidratação (abas, listas secundárias).
+
+**Como verificar**
+`bun run dev`, abrir a página direto pela URL e conferir no console que não há erro de hidratação e, na aba de rede, que o cliente não chama `_serverFn` para o dado principal.

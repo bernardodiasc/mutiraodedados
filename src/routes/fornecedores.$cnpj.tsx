@@ -1,6 +1,4 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { BlocoLacuna } from "@/components/BlocoLacuna";
@@ -28,21 +26,20 @@ import { formatarCnpj, soDigitos } from "@/lib/cnpj";
 import { fmtBRL } from "@/lib/fmt";
 import { sanitizarTextoPublico } from "@/lib/sanitize";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 
 export const Route = createFileRoute("/fornecedores/$cnpj")({
   component: FornecedorDetail,
-  // Pré-carrega a mesma query do componente só para o título da aba seguir o
-  // H1; falha ou CNPJ inexistente ficam com o componente, como antes.
-  loader: ({ params, context }) =>
-    carregarH1(context.queryClient, {
+  loader: async ({ params, context }) => {
+    const r = await carregarFicha(context.queryClient, {
       queryKey: ["fornecedor-ficha", params.cnpj],
       queryFn: () => obterFornecedor({ data: { cnpj: params.cnpj } }),
-      h1: (ficha) =>
-        derivarEstadoFicha(ficha) === "inexistente"
-          ? null
-          : h1DoFornecedor(params.cnpj, ficha.cadastro),
-    }),
+      h1: (ficha) => h1DoFornecedor(params.cnpj, ficha.cadastro),
+    });
+    // CNPJ sem nada em nenhuma fonte: a ficha volta vazia, não nula.
+    if (derivarEstadoFicha(r.dado) === "inexistente") throw notFound();
+    return r;
+  },
   head: ({ loaderData }) => ({
     meta: [
       { title: tituloDaPagina(loaderData?.h1, "Fornecedor") },
@@ -72,23 +69,8 @@ export const Route = createFileRoute("/fornecedores/$cnpj")({
 
 function FornecedorDetail() {
   const { cnpj } = Route.useParams();
-  const buscar = useServerFn(obterFornecedor);
-  const { data: ficha, isLoading } = useQuery({
-    queryKey: ["fornecedor-ficha", cnpj],
-    staleTime: 5 * 60_000,
-    queryFn: () => buscar({ data: { cnpj } }),
-  });
-
-  if (isLoading || !ficha) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
-        Carregando…
-      </div>
-    );
-  }
-
+  const { dado: ficha } = Route.useLoaderData();
   const estado = derivarEstadoFicha(ficha);
-  if (estado === "inexistente") throw notFound();
 
   const cnpjFmt = formatarCnpj(cnpj);
   const nome = h1DoFornecedor(cnpj, ficha.cadastro);

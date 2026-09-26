@@ -25,6 +25,18 @@ Números com 10–11 dígitos sem contexto podem ser matrícula funcional, núme
 
 Se descobrimos um padrão novo de PII, podemos rodar `ressanitizarContratosCache` (server function admin) para varrer registros antigos e reaplicar as máscaras. Idempotente.
 
+## Na busca
+
+A busca do site (`/buscar`) segue uma regra conservadora, por segurança jurídica: **ela nunca mostra mais do que a ficha pública do registro**.
+
+- **CPF e título de eleitor** não são pesquisáveis e não aparecem nos resultados. Uma candidatura é achada pelo nome, pela UF e pelo ano.
+- **Fornecedor ou doador pessoa física** é achado pelo nome. O CPF, quando aparece, vem mascarado (`***.456.789-**`), mesmo que a fonte oficial o publique completo.
+- **Bens declarados** entram pelo tipo e pelo valor. A descrição do bem, que pode trazer endereço, não é pesquisável.
+- **Cor/raça, gênero, grau de instrução e ocupação** de candidatos não viram filtro nem termo de busca.
+- **Rascunhos e conteúdo despublicado** nunca aparecem, nem nas contagens.
+
+Quando um registro é despublicado, limpo ou retirado por conter dado pessoal, ele sai da busca na hora. Isso vale também para uma lista de resultados que já estava aberta.
+
 ## Cidadão pode pedir remoção?
 
 Se um dado pessoal vazou para o cache mesmo após sanitização, o cidadão pode pedir remoção via `/contestar`. Avaliamos caso a caso conforme as bases legais da LGPD.

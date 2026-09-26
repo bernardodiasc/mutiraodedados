@@ -46,7 +46,6 @@ type PortalLicitacao = {
   };
   unidadeGestora?: {
     nome?: string;
-    orgaoMaximo?: { codigo?: string };
     orgaoVinculado?: { codigoSIAFI?: string; cnpj?: string };
   };
 };
@@ -87,13 +86,18 @@ function ufDe(uf: { sigla?: string; nome?: string } | undefined): string | null 
   return null;
 }
 
-function mapearLicitacao(raw: PortalLicitacao, codigoOrgaoFallback: string): LicitacaoRow {
+/**
+ * `orgaoCod` é o órgão pedido na consulta, como nos contratos: é a linha da
+ * matriz de cobertura e a célula que a conferência conta. O órgão máximo da
+ * unidade gestora (26000 para uma universidade 26231) deixava a célula do
+ * órgão pedido vazia.
+ */
+function mapearLicitacao(raw: PortalLicitacao, orgaoCod: string): LicitacaoRow {
   const dataAbertura = parseDatePortal(raw.dataAbertura ?? undefined);
   const dataPublicacao = parseDatePortal(raw.dataPublicacao ?? undefined);
   const dataResultado = parseDatePortal(raw.dataResultadoCompra ?? undefined);
   const ref = dataAbertura || dataPublicacao;
   const ano = ref ? Number(ref.slice(0, 4)) : new Date().getFullYear();
-  const orgaoCod = raw.unidadeGestora?.orgaoMaximo?.codigo || codigoOrgaoFallback;
   const id = String(
     raw.id ?? `${orgaoCod}-${raw.licitacao?.numero ?? Math.random().toString(36).slice(2)}`,
   );

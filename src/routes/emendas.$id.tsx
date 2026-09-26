@@ -16,15 +16,13 @@ import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { fmtBRL } from "@/lib/fmt";
 import { h1DaEmenda } from "@/lib/ficha-h1/logic";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
-import { carregarH1 } from "@/lib/titulo-pagina/loader";
+import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 
 export const Route = createFileRoute("/emendas/$id")({
   component: EmendaDetalhe,
-  // Pré-carrega a mesma query do componente só para o título da aba seguir o
-  // H1; falha ou registro ausente ficam com o componente, como antes.
   loader: ({ params, context }) =>
-    carregarH1(context.queryClient, {
+    carregarFicha(context.queryClient, {
       queryKey: ["emenda", params.id],
       queryFn: () => getEmendaPorId({ data: { id: params.id } }),
       h1: (r) => (r.emenda ? h1DaEmenda(r.emenda) : null),
@@ -46,15 +44,11 @@ export const Route = createFileRoute("/emendas/$id")({
 
 function EmendaDetalhe() {
   const { id } = useParams({ from: "/emendas/$id" });
-  const fetchFn = useServerFn(getEmendaPorId);
-  const { data, isLoading } = useQuery({
-    queryKey: ["emenda", id],
-    queryFn: () => fetchFn({ data: { id } }),
-  });
+  const { dado: data } = Route.useLoaderData();
 
   // Autor da emenda → ficha do parlamentar (match por nome, sempre "inferido").
   const casar = useServerFn(casarAutorParlamentar);
-  const autor = data?.emenda?.autor ?? null;
+  const autor = data.emenda?.autor ?? null;
   const { data: autorMatch } = useQuery({
     queryKey: ["emenda-autor", autor],
     enabled: !!autor && autor.length >= 3,
@@ -62,11 +56,7 @@ function EmendaDetalhe() {
     queryFn: () => casar({ data: { nome: autor! } }),
   });
 
-  if (isLoading)
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-10 text-sm text-muted-foreground">Carregando…</div>
-    );
-  const e = data?.emenda;
+  const e = data.emenda;
   if (!e)
     return (
       <div className="mx-auto max-w-3xl px-4 py-10">

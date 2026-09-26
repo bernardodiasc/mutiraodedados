@@ -1,10 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArtigoDetalhe } from "@/components/ArtigoDetalhe";
-import { carregarH1DoArtigo } from "@/lib/artigo-detalhe/loader";
+import { carregarArtigo } from "@/lib/artigo-detalhe/loader";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 
 export const Route = createFileRoute("/tutoriais/$slug")({
-  loader: ({ params, context }) => carregarH1DoArtigo(context.queryClient, params.slug),
+  loader: ({ params, context }) => carregarArtigo(context.queryClient, params.slug),
   head: ({ loaderData }) => ({
     meta: [{ title: tituloDaPagina(loaderData?.h1, "Tutorial") }],
   }),
@@ -26,6 +26,6 @@ export const Route = createFileRoute("/tutoriais/$slug")({
 });
 
 function TutorialDetalhe() {
-  const { slug } = Route.useParams();
-  return <ArtigoDetalhe slug={slug} voltarTo="/tutoriais" voltarLabel="Tutoriais" />;
+  const { artigo } = Route.useLoaderData();
+  return <ArtigoDetalhe artigo={artigo} voltarTo="/tutoriais" voltarLabel="Tutoriais" />;
 }

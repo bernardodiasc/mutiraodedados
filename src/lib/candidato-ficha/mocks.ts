@@ -129,7 +129,6 @@ const candidaturas: CandidaturaHistorico[] = detalhe.historico.map((h) => ({
 }));
 
 const base: CandidatoFichaViewProps = {
-  estado: "pronto",
   detalhe,
   urlOficial:
     "https://divulgacandcontas.tse.jus.br/divulga/#/candidato/2022/2040602022/AC/10001642313",
@@ -151,9 +150,6 @@ export const candidatoFichaVariants: ViewVariants<CandidatoFichaViewProps> = [
       },
     },
   },
-  { label: "carregando", props: { ...base, estado: "carregando", detalhe: null } },
-  { label: "não encontrada", props: { ...base, estado: "nao-encontrado", detalhe: null } },
-  { label: "erro", props: { ...base, estado: "erro", detalhe: null } },
 ];
 
 export const historicoCandidaturasVariants: ViewVariants<HistoricoCandidaturasViewProps> = [

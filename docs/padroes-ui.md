@@ -52,6 +52,35 @@ Textos vindos das APIs oficiais já chegam sanitizados do banco (ver [`importaca
 - Grupos do menu definidos em `src/lib/nav-groups.ts`.
 - Admin tem nav própria em `src/components/AdminNav.tsx`.
 
+## Busca unificada (`/buscar`)
+
+A `/buscar` segue um padrão próprio, diferente das listagens, porque atravessa várias categorias ao mesmo tempo.
+
+- **Dois modos:**
+  - Sem `tipo` na URL, é a **visão geral**: todas as categorias ativas em ordem fixa, cada uma com contagem e até 3 prévias. Os dois primeiros grupos com resultado começam abertos, e a categoria sem resultado aparece só com título e contagem.
+  - Com `tipo`, é **uma categoria** paginada em 20/50/100 (padrão 20), com paginação acima e abaixo.
+- **Filtros:**
+  - Na lateral, no desktop, a seleção aplica na hora. No mobile, "Filtrar (N)" abre um painel com rascunho, "Aplicar filtros" e "Cancelar".
+  - As contagens valem para todo o resultado. Dentro de um filtro as opções somam; entre filtros, restringem. Um filtro selecionado continua na lista mesmo com zero.
+  - Na visão geral, um filtro próprio de algumas categorias aparece como chip com o aviso "só em …".
+  - Ao ir para uma categoria onde um filtro não vale, a página pede confirmação antes de retirá-lo.
+- **URL e corte:**
+  - Só o estado aplicado vai para a URL; rascunhos ficam na tela.
+  - Os links de página levam o corte `ate`; qualquer mudança de termo, filtro, ordem ou quantidade volta à página 1 sem corte.
+  - Com corte, aparece o aviso "N resultados novos · Atualizar".
+- **Estados:**
+  - Contagem indisponível: totais nulos, sem filtros, e navegação por anterior/próxima.
+  - Nada encontrado: explica que o acervo é parcial e aponta cobertura e fontes.
+  - Nada com os filtros: oferece limpar os filtros mantendo o termo.
+- **Cartão:** o trecho vem com marcadores do banco e é renderizado sem HTML (`segmentosDoTrecho`). O destino interno e o link da fonte oficial são separados.
+- **Ações:**
+  - "Salvar busca" guarda a consulta sem página nem corte, e a busca salva abre ao vivo.
+  - Cada item salva no caderno como link, sem snapshot: o item do índice é uma projeção, e a prova fica na ficha.
+  - "Selecionar resultados" é optativo; "Selecionar esta página" não seleciona o resultado inteiro. A seleção fica presa ao recorte em que foi feita: ao mudar termo, categoria ou filtro, a página pede para salvá-la no caderno ou limpá-la antes de selecionar de novo.
+  - "Copiar referências" e "Exportar" (CSV ou Markdown) distinguem esta página, a seleção e o conjunto completo (até 1.000 itens, no mesmo corte), e registram consulta, filtros, totais, corte e data de geração.
+
+Lógica em `src/lib/buscar/logic.ts`, View em `src/components/BuscarView.tsx`, variantes em `/estilo` (composição "Buscar").
+
 ## Container × View × logic.ts
 
 Padrão de arquitetura aplicado a componentes com estado, efeitos ou queries.

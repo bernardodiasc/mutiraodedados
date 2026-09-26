@@ -53,6 +53,8 @@ import { SecaoLista } from "@/components/SecaoLista";
 import { filtroAbasVariants, secaoListaVariants } from "@/lib/secao-lista/mocks";
 import { EleicoesHubView } from "@/components/EleicoesHubView";
 import { eleicoesHubVariants } from "@/lib/eleicoes-hub/mocks";
+import { BuscarView } from "@/components/BuscarView";
+import { buscarVariants } from "@/lib/buscar/mocks";
 import { CandidatosListaView } from "@/components/CandidatosListaView";
 import { candidatosListaVariants } from "@/lib/candidatos-lista/mocks";
 import { CandidatoFichaView } from "@/components/CandidatoFichaView";
@@ -179,6 +181,13 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
       "Ficha eleitoral de um candidato (TSE): identidade, votação, bens declarados e histórico de candidaturas.",
     View: CandidatoFichaView,
     variants: candidatoFichaVariants,
+  },
+  {
+    name: "Buscar",
+    description:
+      "Busca unificada (/buscar): visão geral em grupos colapsáveis, categoria paginada, filtros com contagem sobre todo o resultado e estados de zero, contagem indisponível e erro.",
+    View: BuscarView,
+    variants: buscarVariants,
   },
   {
     name: "CandidatosLista",
