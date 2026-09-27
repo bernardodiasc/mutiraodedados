@@ -3,14 +3,27 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 import { inserirImportacoes } from "@/lib/data/historico.server";
+import { estadoAgregado, estadoDaJanela, type EstadoCobertura } from "@/lib/data/cobertura-estado";
+import {
+  linhasDaFonte,
+  resumoDaLinha,
+  type LinhaJanela,
+} from "@/lib/data/cobertura-estados.server";
 
 export type Celula = {
   ano: number;
   mes: number;
   qtd: number;
   ultimo: string | null;
+  /** A janela tem rodada no Histórico. */
   tentado?: boolean;
   tentativaEm?: string | null;
+  /** Estado de cobertura da janela (o mesmo da `/cobertura`). */
+  estado?: EstadoCobertura;
+  /** Motivo da conferência mais recente, quando houver. */
+  motivo?: string | null;
+  /** Execução da conferência mais recente, para o Histórico filtrado. */
+  execucaoId?: string | null;
 };
 export type Linha = { id: string; label: string; sublabel?: string; celulas: Celula[] };
 export type Fonte = {
@@ -68,17 +81,25 @@ type RpcSiconfi = {
   qtd: number;
   ultimo: string | null;
 };
+/** As fontes da matriz, na ordem das linhas. */
+const FONTES_DA_MATRIZ: Fonte["fonte"][] = [
+  "cgu",
+  "cgu_licitacoes",
+  "cgu_emendas",
+  "cgu_convenios",
+  "camara_ceap",
+  "camara_vot",
+  "camara_props",
+  "senado_ceaps",
+  "senado_vot",
+  "senado_mat",
+  "pncp",
+  "transferegov",
+  "siconfi",
+];
+
 /** Fontes anuais cujas rodadas gravam a sigla (ou o tipo) no `escopo`. */
 const FONTES_COM_SIGLA_NO_ESCOPO = new Set(["camara_props", "senado_mat"]);
-
-type RpcTentativa = {
-  fonte: string;
-  escopo: string;
-  ano: number;
-  mes: number;
-  tentativas: number;
-  ultimo: string | null;
-};
 
 export const statusCobertura = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -99,7 +120,7 @@ export const statusCobertura = createServerFn({ method: "GET" })
       pncp,
       transf,
       siconfi,
-      tentativas,
+      historico,
     ] = await Promise.all([
       supabaseAdmin.rpc("cobertura_cgu"),
       supabaseAdmin.rpc("cobertura_cgu_licitacoes"),
@@ -114,48 +135,68 @@ export const statusCobertura = createServerFn({ method: "GET" })
       supabaseAdmin.rpc("cobertura_pncp"),
       supabaseAdmin.rpc("cobertura_transferegov"),
       supabaseAdmin.rpc("cobertura_siconfi"),
-      supabaseAdmin.rpc("cobertura_tentativas"),
+      Promise.all(FONTES_DA_MATRIZ.map(async (f) => [f, await linhasDaFonte(f)] as const)),
     ]);
 
-    // Index attempts: key = `${fonte}|${escopo}|${ano}|${mes}`
-    const tentMap = new Map<string, { ultimo: string | null }>();
-    for (const t of (tentativas.data as RpcTentativa[] | null) ?? []) {
-      // Proposições e matérias gravam o tipo ou a sigla no escopo, mas a
-      // matriz tem uma linha anual só para cada uma: toda sigla marca a célula.
-      const escopo = FONTES_COM_SIGLA_NO_ESCOPO.has(t.fonte) ? "" : t.escopo;
-      const k = `${t.fonte}|${escopo}|${t.ano}|${t.mes}`;
-      const atual = tentMap.get(k);
-      if (!atual || (t.ultimo && (!atual.ultimo || t.ultimo > atual.ultimo))) {
-        tentMap.set(k, { ultimo: t.ultimo });
+    // Estado de cada janela, lido do Histórico (a mesma função da
+    // `/cobertura`). Chave: `fonte|escopo|ano|mes`.
+    // Janelas por fonte e escopo (`fonte|escopo`), e por fonte (`fonte|*`).
+    const janelas = new Map<string, LinhaJanela[]>();
+    const guardar = (k: string, l: LinhaJanela) => janelas.set(k, [...(janelas.get(k) ?? []), l]);
+    for (const [fonte, linhas] of historico) {
+      for (const l of linhas) {
+        guardar(`${fonte}|${l.escopo}`, l);
+        guardar(`${fonte}|*`, l);
       }
     }
-    const marcarTentativas = (fonte: string, escopo: string, celulas: Celula[]): Celula[] => {
+    const agora = new Date();
+    const celulaDaJanela = (c: Celula, l: LinhaJanela | undefined): Celula => ({
+      ...c,
+      tentado: !!l?.ultima_rodada_em,
+      tentativaEm: l?.ultima_rodada_em ?? null,
+      estado: estadoDaJanela(resumoDaLinha(l, c.qtd > 0), agora),
+      motivo: l?.conferencia_motivo ?? null,
+      execucaoId: l?.conferencia_execucao_id ?? null,
+    });
+
+    /**
+     * Marca o estado nas células da linha e acrescenta as janelas consultadas
+     * que não têm registro. Proposições e matérias gravam a sigla no escopo,
+     * mas a matriz tem uma linha anual só: a célula do ano agrega o estado de
+     * todas as siglas.
+     */
+    const marcarEstados = (fonte: string, escopo: string, celulas: Celula[]): Celula[] => {
+      const agregada = FONTES_COM_SIGLA_NO_ESCOPO.has(fonte);
+      const daLinha = janelas.get(`${fonte}|${agregada ? "*" : escopo}`) ?? [];
+      const porCelula = new Map<string, LinhaJanela[]>();
+      for (const l of daLinha) {
+        const k = `${l.ano}|${l.mes}`;
+        porCelula.set(k, [...(porCelula.get(k) ?? []), l]);
+      }
       const out = celulas.map((c) => {
-        const k = `${fonte}|${escopo}|${c.ano}|${c.mes}`;
-        const t = tentMap.get(k);
-        if (t) {
-          tentMap.delete(k);
-          return { ...c, tentado: true, tentativaEm: t.ultimo };
-        }
-        return c;
+        const ls = porCelula.get(`${c.ano}|${c.mes}`) ?? [];
+        porCelula.delete(`${c.ano}|${c.mes}`);
+        if (!agregada) return celulaDaJanela(c, ls[0]);
+        const cels = ls.map((l) => celulaDaJanela(c, l));
+        return {
+          ...celulaDaJanela(c, ls[0]),
+          estado: estadoAgregado(cels.map((x) => x.estado!)),
+        };
       });
-      // Add empty cells for attempts with no data
-      for (const [k, t] of tentMap) {
-        const [f, e, a, m] = k.split("|");
-        if (f === fonte && e === escopo) {
-          out.push({
-            ano: Number(a),
-            mes: Number(m),
-            qtd: 0,
-            ultimo: null,
-            tentado: true,
-            tentativaEm: t.ultimo,
-          });
-          tentMap.delete(k);
-        }
+      for (const [k, ls] of porCelula) {
+        const [ano, mes] = k.split("|").map(Number);
+        if (!ano) continue;
+        const vazia: Celula = { ano, mes, qtd: 0, ultimo: null };
+        const cels = ls.map((l) => celulaDaJanela(vazia, l));
+        out.push({ ...cels[0], estado: estadoAgregado(cels.map((x) => x.estado!)) });
       }
       return out;
     };
+
+    /** Escopos com janela no Histórico, para criar linhas sem registro (CGU por órgão). */
+    const escoposComJanela = (fonte: string): string[] => [
+      ...new Set((janelas.get(`${fonte}|*`) ?? []).map((l) => l.escopo).filter(Boolean)),
+    ];
 
     const anosSet = new Set<number>();
     const colher = (rows: { ano: number }[] | null) => {
@@ -174,7 +215,7 @@ export const statusCobertura = createServerFn({ method: "GET" })
     colher((pncp.data as RpcRow[] | null) ?? []);
     colher((transf.data as RpcRow[] | null) ?? []);
     for (const r of (siconfi.data as RpcSiconfi[] | null) ?? []) if (r.ano) anosSet.add(r.ano);
-    for (const t of (tentativas.data as RpcTentativa[] | null) ?? []) if (t.ano) anosSet.add(t.ano);
+    for (const [, linhas] of historico) for (const l of linhas) if (l.ano) anosSet.add(l.ano);
 
     const anoAtual = new Date().getFullYear();
     anosSet.add(anoAtual);
@@ -189,15 +230,12 @@ export const statusCobertura = createServerFn({ method: "GET" })
         .get(r.orgao_cod)!
         .push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
     }
-    // Ensure rows exist for any orgao that has only attempts (no contracts yet)
-    for (const [k] of tentMap) {
-      const [f, e] = k.split("|");
-      if (f === "cgu" && e && !cguMap.has(e)) cguMap.set(e, []);
-    }
+    // Órgão só com janelas consultadas (nenhum contrato ainda) também vira linha.
+    for (const e of escoposComJanela("cgu")) if (!cguMap.has(e)) cguMap.set(e, []);
     const linhasCgu: Linha[] = Array.from(cguMap.entries()).map(([cod, celulas]) => ({
       id: cod,
       label: cod,
-      celulas: marcarTentativas("cgu", cod, celulas),
+      celulas: marcarEstados("cgu", cod, celulas),
     }));
 
     // ===== CGU licitações: linhas por órgão (mesma forma de contratos) =====
@@ -209,21 +247,18 @@ export const statusCobertura = createServerFn({ method: "GET" })
         .get(r.orgao_cod)!
         .push({ ano: r.ano, mes: r.mes, qtd: Number(r.qtd), ultimo: r.ultimo });
     }
-    for (const [k] of tentMap) {
-      const [f, e] = k.split("|");
-      if (f === "cgu_licitacoes" && e && !cguLicMap.has(e)) cguLicMap.set(e, []);
-    }
+    for (const e of escoposComJanela("cgu_licitacoes")) if (!cguLicMap.has(e)) cguLicMap.set(e, []);
     const linhasCguLic: Linha[] = Array.from(cguLicMap.entries()).map(([cod, celulas]) => ({
       id: cod,
       label: cod,
-      celulas: marcarTentativas("cgu_licitacoes", cod, celulas),
+      celulas: marcarEstados("cgu_licitacoes", cod, celulas),
     }));
 
     const linhaUnica = (rows: RpcRow[] | null, id: string, label: string): Linha[] => [
       {
         id,
         label,
-        celulas: marcarTentativas(
+        celulas: marcarEstados(
           id,
           "",
           (rows ?? []).map((r) => ({
@@ -256,7 +291,7 @@ export const statusCobertura = createServerFn({ method: "GET" })
         qtd: v.qtd,
         ultimo: v.ultimo,
       }));
-      return [{ id, label, celulas: marcarTentativas(id, "", celulas) }];
+      return [{ id, label, celulas: marcarEstados(id, "", celulas) }];
     };
 
     // ===== SICONFI: linhas por tipo de relatório =====
@@ -274,7 +309,7 @@ export const statusCobertura = createServerFn({ method: "GET" })
     const linhasSiconfi: Linha[] = Array.from(siconfiMap.entries()).map(([tipo, celulas]) => ({
       id: tipo,
       label: tipo,
-      celulas: marcarTentativas("siconfi", tipo, celulas),
+      celulas: marcarEstados("siconfi", tipo, celulas),
     }));
 
     return {

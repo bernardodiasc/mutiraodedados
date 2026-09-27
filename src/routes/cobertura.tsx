@@ -48,6 +48,20 @@ function CoberturaPage() {
         <strong className="text-foreground">Como ler esta página</strong>
         <ul className="mt-2 space-y-1 list-disc list-inside">
           <li>
+            <strong className="text-foreground">Janelas concluídas</strong>: cada fonte é dividida
+            em janelas (um mês, um ano, um órgão num mês). Uma janela conta como concluída quando
+            foi importada e conferida contra a origem — ou quando a origem confirmou que não há nada
+            nela. As demais aparecem pelo estado: processando, parcial (importada pela metade ou
+            ainda não conferida), indisponível (a origem falhou ou ainda não publicou), erro ou não
+            consultada. &ldquo;Sem total da origem&rdquo; quer dizer que a origem não informa
+            quantos registros existem, então não há como dizer se é tudo.
+          </li>
+          <li>
+            <strong className="text-foreground">Desatualizada</strong>: a última importação
+            conferida da fonte passou do prazo dela (45 dias nas fontes mensais, 400 nas anuais, 30
+            nos cadastros).
+          </li>
+          <li>
             <strong className="text-foreground">Frescor</strong>: verde até 30 dias, âmbar até 90
             dias, vermelho acima de 90 dias desde a última gravação.
           </li>

@@ -76,9 +76,61 @@ export function tipoNoCaderno(item: ItemBusca): EntidadeTipo {
       return "fornecedor";
     case "tse_candidatos_cache":
       return "candidatura";
+    case "tse_bens_candidato_cache":
+      return "bem_declarado";
+    case "tse_receitas_campanha_cache":
+      return "receita_campanha";
+    case "tse_despesas_campanha_cache":
+      return "despesa_campanha";
+    case "tse_resultados_cache":
+      return "resultado_eleitoral";
+    case "camara_deputados_cache":
+    case "senado_senadores_cache":
+      return "parlamentar";
+    case "orgaos_cache":
+      return "orgao";
+    case "ibge_municipios_cache":
+      return "ente";
+    case "perguntas":
+      return "pergunta";
+    case "pergunta_modelos":
+      return "modelo_pergunta";
+    case "roadmap_itens":
+    case "paginas_publicas":
+      return "pagina";
+    case "lacunas":
+      return "lacuna";
+    case "mapa_prompts":
+      return "prompt";
+    case "camara_proposicoes_cache":
+      return "proposicao";
+    case "senado_materias_cache":
+      return "materia";
+    case "camara_votacoes_cache":
+    case "senado_votacoes_cache":
+      return "votacao";
+    case "camara_votos_cache":
+    case "senado_votos_cache":
+      return "voto";
+    case "siconfi_relatorios":
+      return "relatorio_fiscal";
+    case "qa_findings":
+      return "alerta_qualidade";
+    case "camara_despesas_cache":
+    case "senado_despesas_cache":
+      return "despesa";
     default:
       return item.subtipo === "mapa" ? "mapa" : item.subtipo === "tutorial" ? "tutorial" : "artigo";
   }
+}
+
+/**
+ * Id do item no caderno. O prompt do Kit entra no índice uma vez por mapa
+ * (`<prompt>:<mapa>`), mas no caderno é o mesmo item salvo pelo Kit do mapa:
+ * o id do prompt.
+ */
+export function idNoCaderno(item: ItemBusca): string {
+  return item.colecao === "mapa_prompts" ? item.id.split(":")[0] : item.id;
 }
 
 export type ContextoExportacao = {

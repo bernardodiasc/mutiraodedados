@@ -4,6 +4,7 @@ import {
   type AgregadoCategoria,
   type CategoriaBem,
 } from "@/lib/data/tse/categorias-bens";
+import { ID_LANCAMENTO_RE } from "@/lib/contas-campanha/logic";
 
 export type BemDeclarado = {
   ordem: number;
@@ -252,3 +253,34 @@ export function h1DoCandidato(c: {
 }): string | null {
   return c.nome_urna ?? c.nome_completo;
 }
+
+export type CandidatoSearch = {
+  ano?: number;
+  /** Ordem do bem indicado pelo link. */
+  bem?: number;
+  /** Id da receita ou da despesa indicada pelo link. */
+  receita?: string;
+  despesa?: string;
+};
+
+/** Search da ficha da candidatura; valores inválidos são descartados. */
+export function validarSearchCandidato(search: Record<string, unknown>): CandidatoSearch {
+  const r: CandidatoSearch = {};
+  if (typeof search.ano === "number") r.ano = search.ano;
+  if (typeof search.bem === "number" && Number.isInteger(search.bem) && search.bem >= 0) {
+    r.bem = search.bem;
+  }
+  for (const chave of ["receita", "despesa"] as const) {
+    const v = search[chave];
+    if (typeof v === "string" && ID_LANCAMENTO_RE.test(v)) r[chave] = v;
+  }
+  return r;
+}
+
+/** Âncora da linha do bem na ficha — o destino da busca aponta para ela (`#bem-<ordem>`). */
+export function ancoraBem(ordem: number): string {
+  return `bem-${ordem}`;
+}
+
+/** Âncora da seção de votação — destino do resultado eleitoral na busca. */
+export const ANCORA_VOTACAO = "votacao";

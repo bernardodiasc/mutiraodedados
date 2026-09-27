@@ -60,6 +60,9 @@ const ORDEM_PADRAO = "exercicio-desc";
 // Filtros e paginação na URL: compartilhável e página estável no tempo
 // (corte `ate` — ver src/lib/listagem/logic.ts).
 type RelatoriosSearch = SearchListagem & {
+  /** Ente (código IBGE) e período: o destino de um relatório achado na busca. */
+  codIbge?: number;
+  periodo?: number;
   uf?: string;
   exercicio?: number;
   tipo?: string;
@@ -69,6 +72,12 @@ type RelatoriosSearch = SearchListagem & {
 export const Route = createFileRoute("/relatorios-fiscais")({
   validateSearch: (s: Record<string, unknown>): RelatoriosSearch => ({
     ...parseSearchListagem(s, { ordens: ORDENS, ordemPadrao: ORDEM_PADRAO }),
+    // Número na URL (o roteador converte "35" em número e poria aspas num texto).
+    codIbge: /^\d{1,7}$/.test(String(s.codIbge ?? "")) ? Number(s.codIbge) : undefined,
+    periodo:
+      Number.isInteger(Number(s.periodo)) && s.periodo !== undefined && s.periodo !== ""
+        ? Number(s.periodo)
+        : undefined,
     uf: typeof s.uf === "string" && s.uf ? s.uf : undefined,
     exercicio: Number(s.exercicio) || undefined,
     tipo: typeof s.tipo === "string" && s.tipo ? s.tipo : undefined,
@@ -91,6 +100,8 @@ function RelatoriosFiscaisPage() {
   const buscar = useServerFn(listarRelatoriosSICONFI);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
+  const codIbge = search.codIbge;
+  const periodo = search.periodo;
   const uf = search.uf ?? "";
   const exercicio = search.exercicio ?? 0;
   const tipo = search.tipo ?? "";
@@ -107,11 +118,25 @@ function RelatoriosFiscaisPage() {
     });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["siconfi", uf, exercicio, tipo, ordem, q, pagina, itens, search.ate],
+    queryKey: [
+      "siconfi",
+      codIbge,
+      periodo,
+      uf,
+      exercicio,
+      tipo,
+      ordem,
+      q,
+      pagina,
+      itens,
+      search.ate,
+    ],
     placeholderData: keepPreviousData,
     queryFn: () =>
       buscar({
         data: {
+          codIbge: codIbge !== undefined ? String(codIbge) : undefined,
+          periodo,
           uf: uf || undefined,
           exercicio: exercicio || undefined,
           tipoRelatorio: tipo || undefined,
@@ -218,6 +243,31 @@ function RelatoriosFiscaisPage() {
           className="rounded-md border bg-background px-3 py-2 text-sm"
         />
       </BarraDeFiltros>
+
+      {(codIbge || periodo !== undefined) && (
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-muted-foreground">Relatório de</span>
+          <strong>
+            {/* No RGF o nome varia por poder e órgão; o mais curto é o do ente. */}
+            {lista.reduce<string | null>(
+              (curto, r) => (!curto || r.ente_nome.length < curto.length ? r.ente_nome : curto),
+              null,
+            ) ?? `ente ${codIbge}`}
+          </strong>
+          {periodo !== undefined && (
+            <span className="text-muted-foreground">
+              · {periodo === 0 ? "anual" : `${periodo}º período`}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setFiltro({ codIbge: undefined, periodo: undefined })}
+            className="text-xs underline"
+          >
+            Ver todos os entes
+          </button>
+        </p>
+      )}
 
       <section className="space-y-3">
         <ControlePaginacao

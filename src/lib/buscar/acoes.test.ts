@@ -3,6 +3,7 @@ import type { ItemBusca } from "@/lib/busca/consulta";
 import {
   cabecalhoCsv,
   chaveDoRecorte,
+  idNoCaderno,
   linhasCsv,
   nomeDoArquivo,
   referenciasMarkdown,
@@ -68,12 +69,45 @@ describe("busca salva e recorte", () => {
   });
 });
 
+describe("idNoCaderno", () => {
+  it("usa o id do prompt para o Kit e o id de origem para o resto", () => {
+    expect(idNoCaderno({ ...item, colecao: "mapa_prompts", id: "p1:m1" })).toBe("p1");
+    expect(idNoCaderno({ ...item, id: "c1" })).toBe("c1");
+  });
+});
+
 describe("tipoNoCaderno", () => {
   it("mapeia cada coleção para um tipo do caderno", () => {
     expect(tipoNoCaderno(item)).toBe("contrato");
     expect(tipoNoCaderno({ ...item, colecao: "tse_candidatos_cache" })).toBe("candidatura");
     expect(tipoNoCaderno({ ...item, colecao: "artigos", subtipo: "mapa" })).toBe("mapa");
     expect(tipoNoCaderno({ ...item, colecao: "artigos", subtipo: "nota" })).toBe("artigo");
+    expect(tipoNoCaderno({ ...item, colecao: "camara_deputados_cache" })).toBe("parlamentar");
+    expect(tipoNoCaderno({ ...item, colecao: "senado_senadores_cache" })).toBe("parlamentar");
+    expect(tipoNoCaderno({ ...item, colecao: "orgaos_cache" })).toBe("orgao");
+    expect(tipoNoCaderno({ ...item, colecao: "ibge_municipios_cache" })).toBe("ente");
+    expect(tipoNoCaderno({ ...item, colecao: "perguntas" })).toBe("pergunta");
+    expect(tipoNoCaderno({ ...item, colecao: "pergunta_modelos" })).toBe("modelo_pergunta");
+    expect(tipoNoCaderno({ ...item, colecao: "roadmap_itens" })).toBe("pagina");
+    expect(tipoNoCaderno({ ...item, colecao: "paginas_publicas" })).toBe("pagina");
+    expect(tipoNoCaderno({ ...item, colecao: "lacunas" })).toBe("lacuna");
+    expect(tipoNoCaderno({ ...item, colecao: "mapa_prompts", subtipo: "prompt" })).toBe("prompt");
+    expect(tipoNoCaderno({ ...item, colecao: "camara_proposicoes_cache" })).toBe("proposicao");
+    expect(tipoNoCaderno({ ...item, colecao: "senado_materias_cache" })).toBe("materia");
+    expect(tipoNoCaderno({ ...item, colecao: "senado_votacoes_cache" })).toBe("votacao");
+    expect(tipoNoCaderno({ ...item, colecao: "camara_votos_cache" })).toBe("voto");
+    expect(tipoNoCaderno({ ...item, colecao: "siconfi_relatorios" })).toBe("relatorio_fiscal");
+    expect(tipoNoCaderno({ ...item, colecao: "qa_findings" })).toBe("alerta_qualidade");
+    expect(tipoNoCaderno({ ...item, colecao: "camara_despesas_cache" })).toBe("despesa");
+    expect(tipoNoCaderno({ ...item, colecao: "senado_despesas_cache" })).toBe("despesa");
+    expect(tipoNoCaderno({ ...item, colecao: "tse_bens_candidato_cache" })).toBe("bem_declarado");
+    expect(tipoNoCaderno({ ...item, colecao: "tse_receitas_campanha_cache" })).toBe(
+      "receita_campanha",
+    );
+    expect(tipoNoCaderno({ ...item, colecao: "tse_despesas_campanha_cache" })).toBe(
+      "despesa_campanha",
+    );
+    expect(tipoNoCaderno({ ...item, colecao: "tse_resultados_cache" })).toBe("resultado_eleitoral");
   });
 });
 

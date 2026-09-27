@@ -31,6 +31,18 @@ export function mesesDisponiveis(
   return [...new Set(base.map((d) => d.mes))].sort((a, b) => a - b);
 }
 
+/**
+ * Filtro de ano e mês vindo da URL da ficha (`?ano=2024&mes=3`). O resultado
+ * da busca abre a ficha no mês da despesa, com âncora na linha
+ * (`#despesa-<id>`). Valor inválido é ignorado; o mês só vale com o ano.
+ */
+export function filtroDeDespesasDaUrl(s: Record<string, unknown>): { ano?: number; mes?: number } {
+  const ano = Number(s.ano);
+  const mes = Number(s.mes);
+  if (!Number.isInteger(ano) || ano < 2000 || ano > 2100) return {};
+  return Number.isInteger(mes) && mes >= 1 && mes <= 12 ? { ano, mes } : { ano };
+}
+
 /** Genérica: preserva o tipo de item (CEAP ou CEAPS) para as duas rotas. */
 export function filtrarDespesas<T extends { ano: number; mes: number }>(
   despesas: T[],

@@ -378,7 +378,15 @@ async function buscarMandatosSenador(cod: number): Promise<MandatoSenador[]> {
 }
 
 export const getSenadorDetalhe = createServerFn({ method: "GET" })
-  .inputValidator((input) => z.object({ id: z.number().int().positive() }).parse(input))
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.number().int().positive(),
+        ano: z.number().int().optional(),
+        mes: z.number().int().min(1).max(12).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
     const { data: s, error } = await supabaseAdmin
       .from("senado_senadores_cache")
@@ -388,16 +396,30 @@ export const getSenadorDetalhe = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!s) return null;
 
+    const colunasDespesa =
+      "id,ano,mes,tipo_despesa,data_documento,valor_reembolsado,fornecedor_nome,fornecedor_cnpj,num_documento,detalhamento";
     const { data: desps } = await supabaseAdmin
       .from("senado_despesas_cache")
-      .select(
-        "id,ano,mes,tipo_despesa,data_documento,valor_reembolsado,fornecedor_nome,fornecedor_cnpj,num_documento,detalhamento",
-      )
+      .select(colunasDespesa)
       .eq("senador_id", data.id)
       .order("data_documento", { ascending: false })
       .limit(5000);
+    let linhas = desps ?? [];
+    // A ficha aberta num mês (destino da busca) traz as despesas desse mês
+    // mesmo quando a lista acima trunca.
+    if (data.ano != null && data.mes != null) {
+      const { data: doMes } = await supabaseAdmin
+        .from("senado_despesas_cache")
+        .select(colunasDespesa)
+        .eq("senador_id", data.id)
+        .eq("ano", data.ano)
+        .eq("mes", data.mes)
+        .order("data_documento", { ascending: false });
+      const vistos = new Set(linhas.map((r) => r.id));
+      linhas = [...linhas, ...(doMes ?? []).filter((r) => !vistos.has(r.id))];
+    }
 
-    const despesas: DespesaCEAPS[] = (desps ?? []).map((r) => ({
+    const despesas: DespesaCEAPS[] = linhas.map((r) => ({
       id: r.id as string,
       senadorId: data.id,
       ano: r.ano as number,

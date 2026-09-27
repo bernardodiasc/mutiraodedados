@@ -190,7 +190,11 @@ function VotacaoSenadoDetalhe() {
             </thead>
             <tbody>
               {votosFiltrados.map((v) => (
-                <tr key={v.senadorId} className="border-t border-border">
+                <tr
+                  key={v.senadorId}
+                  id={`voto-${v.senadorId}`}
+                  className="border-t border-border scroll-mt-28 target:bg-accent/10"
+                >
                   <td className="px-4 py-2">
                     <Link
                       to="/senado/senadores/$id"

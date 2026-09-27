@@ -15,6 +15,7 @@ import {
   referenciasMarkdown,
   searchParaSalvar,
   tipoNoCaderno,
+  idNoCaderno,
   type ContextoExportacao,
   type EscopoAcao,
 } from "@/lib/buscar/acoes";
@@ -46,6 +47,7 @@ import {
   exportarBusca,
   listaBusca,
   opcoesFacetaBusca,
+  desatualizadasBusca,
   resumoBusca,
 } from "@/lib/data/busca-indice.functions";
 
@@ -83,6 +85,7 @@ export function BuscarContainer({
   onSearchChange: (next: BuscarSearch) => void;
 }) {
   const resumoFn = useServerFn(resumoBusca);
+  const desatualizadasFn = useServerFn(desatualizadasBusca);
   const listaFn = useServerFn(listaBusca);
   const opcoesFn = useServerFn(opcoesFacetaBusca);
   const exportarFn = useServerFn(exportarBusca);
@@ -92,6 +95,14 @@ export function BuscarContainer({
   const q = search.q ?? "";
   const temConsulta = q.length >= 2;
   const filtros = filtrosDaSearch(search);
+
+  // Coleções desatualizadas: independem da consulta; uma leitura por visita.
+  const desatualizadas = useQuery({
+    queryKey: ["buscar", "desatualizadas"],
+    enabled: temConsulta,
+    staleTime: 10 * 60 * 1000,
+    queryFn: () => desatualizadasFn(),
+  });
 
   const resumo = useQuery({
     queryKey: ["buscar", "resumo", q, filtros, search.ate ?? null],
@@ -250,6 +261,7 @@ export function BuscarContainer({
       atualizando={ativa.isFetching && ativa.isPlaceholderData}
       resumo={dadosResumo}
       lista={dadosLista}
+      desatualizadas={desatualizadas.data ?? {}}
       mensagemErro={ativa.error instanceof Error ? ativa.error.message : null}
       trocaPendente={trocaPendente}
       gruposAbertos={gruposAbertos}
@@ -291,7 +303,7 @@ export function BuscarContainer({
       renderAcoesItem={(item) => (
         <BotaoSalvarItem
           entidadeTipo={tipoNoCaderno(item)}
-          entidadeId={item.id}
+          entidadeId={idNoCaderno(item)}
           titulo={item.titulo}
           url={item.href}
           contexto={[item.fonte, item.identificador].filter(Boolean).join(" · ")}
@@ -325,7 +337,7 @@ export function BuscarContainer({
             await salvarFn({
               data: {
                 entidade_tipo: tipoNoCaderno(i),
-                entidade_id: i.id,
+                entidade_id: idNoCaderno(i),
                 titulo: i.titulo.slice(0, 300),
                 url: i.href,
                 contexto: [i.fonte, i.identificador].filter(Boolean).join(" · "),

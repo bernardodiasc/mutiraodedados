@@ -47,6 +47,7 @@ const base: KitInvestigacaoViewProps = {
     }),
   ],
   promptsLoading: false,
+  promptAlvo: null,
   pastas: [],
 };
 
@@ -56,6 +57,7 @@ export const kitInvestigacaoVariants: ViewVariants<KitInvestigacaoViewProps> = [
     label: "com pastas em uso",
     props: { ...base, pastas: [{ id: "f1", titulo: "Ciro Nogueira — emendas" }] },
   },
+  { label: "prompt aberto pela âncora da busca", props: { ...base, promptAlvo: "pm2" } },
   { label: "carregando prompts", props: { ...base, prompts: [], promptsLoading: true } },
   { label: "sem prompts", props: { ...base, prompts: [] } },
 ];

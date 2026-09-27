@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useRolarAteAncora } from "@/hooks/use-rolar-ate-ancora";
 import * as React from "react";
 import { CheckCircle2, Circle, Loader2, Sparkles, ListChecks } from "lucide-react";
 import {
@@ -46,6 +47,8 @@ function RoadmapPage() {
     queryKey: ["roadmap-publico"],
     queryFn: () => fetch(),
   });
+  // A busca aponta para `/roadmap#item-<id>`; os itens chegam no cliente.
+  useRolarAteAncora(!isLoading);
   const [aba, setAba] = React.useState<Aba>("tudo");
 
   // Concluídos: por data de conclusão (mais recente primeiro) e, dentro do mesmo
@@ -153,7 +156,7 @@ function ItemCard({ item }: { item: RoadmapItem }) {
         ? "text-accent"
         : "text-muted-foreground";
   return (
-    <li className="rounded-xl border border-border bg-card p-5">
+    <li id={`item-${item.id}`} className="rounded-xl border border-border bg-card p-5 scroll-mt-28">
       <div className="flex items-start gap-3">
         <Icon className={`size-5 mt-0.5 shrink-0 ${iconCls}`} />
         <div className="flex-1 min-w-0">

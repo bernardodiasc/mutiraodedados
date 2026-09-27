@@ -92,6 +92,111 @@
       "when": 1790452184765,
       "tag": "0012_busca_projecoes_pncp_candidaturas",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790460727141,
+      "tag": "0013_cobertura_janelas",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790463331477,
+      "tag": "0014_cobertura_janelas_motivo",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1790465465966,
+      "tag": "0015_busca_diagnostico",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1790466782484,
+      "tag": "0016_busca_pessoas_orgaos_entes",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1790467407786,
+      "tag": "0017_busca_perguntas_roadmap_lacunas",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790467851192,
+      "tag": "0018_qa_findings_leitura_publica",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790467948748,
+      "tag": "0019_artigo_referencias",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790469576507,
+      "tag": "0020_artigos_fontes_controladas",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790470219376,
+      "tag": "0021_busca_legislativo",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1790471012144,
+      "tag": "0022_busca_kit_investigacao",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1790471131031,
+      "tag": "0023_busca_paginas_publicas",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790471763570,
+      "tag": "0024_busca_despesas_cota",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1790472046831,
+      "tag": "0025_busca_eleitoral",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1790472206279,
+      "tag": "0026_busca_siconfi_relatorios",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1790472785546,
+      "tag": "0027_busca_findings",
+      "breakpoints": true
     }
   ]
 }

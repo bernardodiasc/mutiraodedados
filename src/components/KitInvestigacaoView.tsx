@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -21,6 +22,8 @@ export type KitInvestigacaoViewProps = {
   obterTextoMapa: () => string;
   prompts: PromptModelo[];
   promptsLoading: boolean;
+  /** Prompt da âncora da URL (`#prompt-<id>`): começa aberto e destacado. */
+  promptAlvo: string | null;
   /** Pastas do caderno que já contêm prompts deste mapa (só quando logado). */
   pastas: PastaResumo[];
 };
@@ -36,6 +39,7 @@ export function KitInvestigacaoView({
   obterTextoMapa,
   prompts,
   promptsLoading,
+  promptAlvo,
   pastas,
 }: KitInvestigacaoViewProps) {
   const urlMapa = `/mapas/${slug}`;
@@ -104,72 +108,7 @@ export function KitInvestigacaoView({
         ) : (
           <ul className="space-y-2">
             {prompts.map((p) => (
-              <li key={p.id} className="rounded-md border">
-                <Collapsible>
-                  <CollapsibleTrigger className="group flex w-full items-center gap-2 p-3 text-left hover:bg-muted/40">
-                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
-                    <span className="text-sm font-medium leading-snug">{p.titulo}</span>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="px-3 pb-3 space-y-3">
-                    {p.descricao && (
-                      <p className="text-xs text-muted-foreground leading-relaxed">{p.descricao}</p>
-                    )}
-
-                    {p.variaveis.length > 0 && (
-                      <div className="space-y-1.5">
-                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                          O que preencher
-                        </div>
-                        <ul className="space-y-1.5">
-                          {descreverVariaveis(p.variaveis).map((v) => (
-                            <li key={v.nome} className="text-xs leading-relaxed">
-                              <code className="px-1 py-0.5 rounded bg-muted text-muted-foreground">
-                                {`{{${v.nome}}}`}
-                              </code>{" "}
-                              <span className="font-medium">{v.rotulo}</span> — {v.dica}
-                              {v.href && (
-                                <>
-                                  {" "}
-                                  <a
-                                    href={v.href}
-                                    className="inline-flex items-center gap-0.5 text-accent hover:underline"
-                                  >
-                                    {v.hrefLabel ?? "Abrir"} <ExternalLink className="size-3" />
-                                  </a>
-                                </>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                        Prompt
-                      </div>
-                      <pre className="text-[11px] leading-relaxed bg-muted rounded-md p-3 whitespace-pre-wrap max-h-64 overflow-auto">
-                        {p.prompt_template}
-                      </pre>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      <BotaoCopiar
-                        obterTexto={() => p.prompt_template}
-                        rotulo="Copiar prompt"
-                        mensagemToast="Prompt copiado — preencha as variáveis e cole na sua IA"
-                      />
-                      <BotaoSalvarItem
-                        entidadeTipo="prompt"
-                        entidadeId={p.id}
-                        titulo={p.titulo}
-                        url={urlMapa}
-                        contexto={p.descricao ?? undefined}
-                      />
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              </li>
+              <PromptDoKit key={p.id} prompt={p} urlMapa={urlMapa} alvo={p.id === promptAlvo} />
             ))}
           </ul>
         )}
@@ -182,3 +121,93 @@ export function KitInvestigacaoView({
   );
 }
 KitInvestigacaoView.displayName = "KitInvestigacaoView";
+
+/**
+ * Um prompt do Kit. Com âncora (`id="prompt-<id>"`) para a busca levar direto
+ * a ele: o prompt-alvo abre sozinho e fica destacado.
+ */
+function PromptDoKit({
+  prompt: p,
+  urlMapa,
+  alvo,
+}: {
+  prompt: PromptModelo;
+  urlMapa: string;
+  alvo: boolean;
+}) {
+  const [aberto, setAberto] = useState(alvo);
+  useEffect(() => {
+    if (alvo) setAberto(true);
+  }, [alvo]);
+  return (
+    <li
+      id={`prompt-${p.id}`}
+      className={`rounded-md border scroll-mt-28 target:border-accent target:bg-accent/5 ${
+        alvo ? "border-accent bg-accent/5" : ""
+      }`}
+    >
+      <Collapsible open={aberto} onOpenChange={setAberto}>
+        <CollapsibleTrigger className="group flex w-full items-center gap-2 p-3 text-left hover:bg-muted/40">
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+          <span className="text-sm font-medium leading-snug">{p.titulo}</span>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-3 pb-3 space-y-3">
+          {p.descricao && (
+            <p className="text-xs text-muted-foreground leading-relaxed">{p.descricao}</p>
+          )}
+
+          {p.variaveis.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                O que preencher
+              </div>
+              <ul className="space-y-1.5">
+                {descreverVariaveis(p.variaveis).map((v) => (
+                  <li key={v.nome} className="text-xs leading-relaxed">
+                    <code className="px-1 py-0.5 rounded bg-muted text-muted-foreground">
+                      {`{{${v.nome}}}`}
+                    </code>{" "}
+                    <span className="font-medium">{v.rotulo}</span> — {v.dica}
+                    {v.href && (
+                      <>
+                        {" "}
+                        <a
+                          href={v.href}
+                          className="inline-flex items-center gap-0.5 text-accent hover:underline"
+                        >
+                          {v.hrefLabel ?? "Abrir"} <ExternalLink className="size-3" />
+                        </a>
+                      </>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Prompt</div>
+            <pre className="text-[11px] leading-relaxed bg-muted rounded-md p-3 whitespace-pre-wrap max-h-64 overflow-auto">
+              {p.prompt_template}
+            </pre>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <BotaoCopiar
+              obterTexto={() => p.prompt_template}
+              rotulo="Copiar prompt"
+              mensagemToast="Prompt copiado — preencha as variáveis e cole na sua IA"
+            />
+            <BotaoSalvarItem
+              entidadeTipo="prompt"
+              entidadeId={p.id}
+              titulo={p.titulo}
+              url={urlMapa}
+              contexto={p.descricao ?? undefined}
+            />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </li>
+  );
+}

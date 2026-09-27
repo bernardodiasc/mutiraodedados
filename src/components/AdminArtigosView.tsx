@@ -18,6 +18,7 @@ import {
   type Aba,
   type FormState,
 } from "@/lib/admin-artigos/logic";
+import { FONTES_DO_ACERVO, FONTES_EXTERNAS, alternarFonte } from "@/lib/artigos/fontes";
 
 export type AdminArtigosViewProps = {
   isLoading: boolean;
@@ -47,6 +48,13 @@ export type AdminArtigosViewProps = {
   onDelete: (a: Artigo) => void;
   onDownloadLista: () => void;
   onCopiarArtigo: (a: Artigo) => void;
+  // Referências e revisão
+  /** Artigos que pedem revisão → quantas referências afetadas. */
+  revisao: Record<string, number>;
+  soRevisao: boolean;
+  onSoRevisao: (v: boolean) => void;
+  /** Seção de referências na edição (container próprio). */
+  renderReferencias?: (artigoId: string) => React.ReactNode;
 };
 
 export function AdminArtigosView({
@@ -74,6 +82,10 @@ export function AdminArtigosView({
   onDelete,
   onDownloadLista,
   onCopiarArtigo,
+  revisao,
+  soRevisao,
+  onSoRevisao,
+  renderReferencias,
 }: AdminArtigosViewProps) {
   const podeArrastar = editandoId === null;
   return (
@@ -139,6 +151,14 @@ export function AdminArtigosView({
               </button>
             ))}
           </nav>
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={soRevisao}
+              onChange={(e) => onSoRevisao(e.target.checked)}
+            />
+            Só os que precisam de revisão ({Object.keys(revisao).length})
+          </label>
           <Button
             type="button"
             variant="outline"
@@ -188,6 +208,7 @@ export function AdminArtigosView({
                       </Button>
                     </div>
                   </form>
+                  {renderReferencias && <div className="mt-4">{renderReferencias(a.id)}</div>}
                 </div>
               ) : (
                 <div className="rounded-xl border border-border bg-card p-4 flex flex-wrap items-start gap-3">
@@ -207,6 +228,11 @@ export function AdminArtigosView({
                         </span>
                       )}
                       <code className="text-[10px] text-muted-foreground">/{a.slug}</code>
+                      {revisao[a.id] && (
+                        <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+                          necessita revisão ({revisao[a.id]})
+                        </span>
+                      )}
                     </div>
                     {a.resumo && <p className="text-xs text-muted-foreground mt-1">{a.resumo}</p>}
                     {a.notas_internas && (
@@ -349,15 +375,32 @@ function CamposArtigo({
         </div>
       </div>
 
-      <div>
-        <Label className="text-xs">Fontes usadas (separe por vírgula)</Label>
-        <Input
-          value={form.fontes_usadas}
-          onChange={(e) => setForm((f) => ({ ...f, fontes_usadas: e.target.value }))}
-          disabled={busy}
-          placeholder="PNCP, Portal da Transparência, SICONFI"
-        />
-      </div>
+      <fieldset>
+        <legend className="text-xs font-medium">Fontes usadas</legend>
+        {(
+          [
+            ["Do acervo", FONTES_DO_ACERVO],
+            ["Oficiais externas", FONTES_EXTERNAS],
+          ] as const
+        ).map(([grupo, fontes]) => (
+          <div key={grupo} className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+            <span className="text-muted-foreground">{grupo}:</span>
+            {fontes.map((fonte) => (
+              <label key={fonte} className="flex items-center gap-1">
+                <input
+                  type="checkbox"
+                  checked={form.fontes_usadas.includes(fonte)}
+                  onChange={() =>
+                    setForm((f) => ({ ...f, fontes_usadas: alternarFonte(f.fontes_usadas, fonte) }))
+                  }
+                  disabled={busy}
+                />
+                {fonte}
+              </label>
+            ))}
+          </div>
+        ))}
+      </fieldset>
 
       <div>
         <Label className="text-xs" htmlFor={`${idPrefixo}-conteudo`}>

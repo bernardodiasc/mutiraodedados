@@ -32,6 +32,17 @@ export const TIPOS_ENTIDADE = [
   "emenda",
   "licitacao",
   "candidatura",
+  "ente",
+  "modelo_pergunta",
+  "pagina",
+  "voto",
+  "relatorio_fiscal",
+  "alerta_qualidade",
+  "despesa",
+  "bem_declarado",
+  "receita_campanha",
+  "despesa_campanha",
+  "resultado_eleitoral",
 ] as const;
 
 export type EntidadeTipo = (typeof TIPOS_ENTIDADE)[number];

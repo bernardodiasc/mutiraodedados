@@ -1,4 +1,5 @@
 import type { Artigo, ArtigoCategoria, ArtigoDificuldade } from "@/lib/data/artigos.functions";
+import { eFonteArtigo, type FonteArtigo } from "@/lib/artigos/fontes";
 
 export type Aba = "tudo" | "mapa" | "tutorial" | "nota";
 
@@ -84,7 +85,7 @@ export type FormState = {
   categoria: ArtigoCategoria;
   dificuldade: ArtigoDificuldade | "";
   tempo_estimado_min: string;
-  fontes_usadas: string;
+  fontes_usadas: FonteArtigo[];
   notas_internas: string;
   publico: boolean;
 };
@@ -97,7 +98,7 @@ export const FORM_INICIAL: FormState = {
   categoria: "mapa",
   dificuldade: "",
   tempo_estimado_min: "",
-  fontes_usadas: "",
+  fontes_usadas: [],
   notas_internas: "",
   publico: false,
 };
@@ -128,7 +129,8 @@ export function formFromArtigo(a: Artigo): FormState {
     categoria: a.categoria,
     dificuldade: a.dificuldade ?? "",
     tempo_estimado_min: a.tempo_estimado_min != null ? String(a.tempo_estimado_min) : "",
-    fontes_usadas: (a.fontes_usadas ?? []).join(", "),
+    // Valor fora da lista controlada (anterior à normalização) não volta ao form.
+    fontes_usadas: (a.fontes_usadas ?? []).filter(eFonteArtigo),
     notas_internas: a.notas_internas ?? "",
     publico: a.publico,
   };
@@ -143,7 +145,7 @@ export type SavePayload = {
   categoria: ArtigoCategoria;
   dificuldade: ArtigoDificuldade | null;
   tempo_estimado_min: number | null;
-  fontes_usadas: string[];
+  fontes_usadas: FonteArtigo[];
   notas_internas: string | null;
   publico: boolean;
 };
@@ -165,10 +167,7 @@ export function buildSavePayload(form: FormState, editingId?: string): SavePaylo
         : form.tempo_estimado_min
           ? Number(form.tempo_estimado_min)
           : null,
-    fontes_usadas: form.fontes_usadas
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean),
+    fontes_usadas: form.fontes_usadas,
     notas_internas: form.notas_internas.trim() || null,
     publico: form.publico,
   };

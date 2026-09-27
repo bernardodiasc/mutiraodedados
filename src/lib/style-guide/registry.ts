@@ -19,6 +19,14 @@ import { AdminLacunasView } from "@/components/AdminLacunasView";
 import { AnomaliaInvestigacaoView } from "@/components/AnomaliaInvestigacaoView";
 import { anomaliaInvestigacaoVariants } from "@/lib/anomalia-investigacao/mocks";
 import { CoberturaMatrixView } from "@/components/CoberturaMatrixView";
+import { DiagnosticoBuscaView } from "@/components/DiagnosticoBuscaView";
+import { ReferenciasArtigoView } from "@/components/ReferenciasArtigoView";
+import { AprendaAInvestigarView } from "@/components/AprendaAInvestigarView";
+import { aprendaAInvestigarVariants } from "@/lib/artigo-referencias/mocks-aprenda";
+import { referenciasArtigoVariants } from "@/lib/artigo-referencias/mocks";
+import { diagnosticoBuscaVariants } from "@/lib/diagnostico-busca/mocks";
+import { PaginasPublicasSyncView } from "@/components/PaginasPublicasSyncView";
+import { paginasPublicasSyncVariants } from "@/lib/paginas-publicas/mocks";
 import { coberturaMatrixVariants } from "@/lib/cobertura-matrix/mocks";
 import { ArtigosIndexListView } from "@/components/ArtigosIndexListView";
 import { artigosIndexListVariants } from "@/lib/artigos-index/mocks";
@@ -201,6 +209,34 @@ export const composicoesRegistry: ReadonlyArray<ComposicaoEntry<any>> = [
     description: "Matriz ano × mês × fonte com ações de re-importação por célula, linha e coluna.",
     View: CoberturaMatrixView,
     variants: coberturaMatrixVariants,
+  },
+  {
+    name: "AprendaAInvestigar",
+    description:
+      "Bloco das fichas com os artigos publicados que citam o registro. Sem artigo, não renderiza.",
+    View: AprendaAInvestigarView,
+    variants: aprendaAInvestigarVariants,
+  },
+  {
+    name: "ReferenciasArtigo",
+    description:
+      "Referências de um artigo a registros e consultas no /admin/artigos: sugestões a partir dos links, cadastro manual, verificação e alerta de revisão.",
+    View: ReferenciasArtigoView,
+    variants: referenciasArtigoVariants,
+  },
+  {
+    name: "DiagnosticoBusca",
+    description:
+      "Diagnóstico da busca no admin: cache × publicáveis × índice por coleção, defasagem da importação e reindexar recorte.",
+    View: DiagnosticoBuscaView,
+    variants: diagnosticoBuscaVariants,
+  },
+  {
+    name: "PaginasPublicasSync",
+    description:
+      "Páginas do site na busca, no admin: a tabela de páginas públicas × a lista do código, e o botão de sincronizar.",
+    View: PaginasPublicasSyncView,
+    variants: paginasPublicasSyncVariants,
   },
   {
     name: "CoberturaResumo",

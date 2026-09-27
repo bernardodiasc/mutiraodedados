@@ -178,7 +178,11 @@ function TrilhasPage() {
 
       <div className="mt-10 space-y-6">
         {TRILHAS.map((t) => (
-          <article key={t.id} className="border border-border rounded-xl p-6 bg-card">
+          <article
+            key={t.id}
+            id={t.id}
+            className="scroll-mt-28 border border-border rounded-xl p-6 bg-card"
+          >
             <h2 className="font-display text-2xl">{t.titulo}</h2>
             <p className="text-sm text-muted-foreground mt-2">{t.intro}</p>
 

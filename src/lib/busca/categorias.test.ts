@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
+import { categoriaDasProjecoes } from "./migracoes-indice.test-util";
 import { join } from "node:path";
 import { CATEGORIAS_BUSCA, ROTULO_NATUREZA_DATA } from "./categorias";
 
@@ -37,9 +38,10 @@ describe("categorias da busca", () => {
     );
   });
 
-  it("toda categoria ativa tem projeção na migration", () => {
+  it("toda categoria ativa tem projeção em alguma migration", () => {
+    const gravadas = new Set(categoriaDasProjecoes().values());
     const ativas = CATEGORIAS_BUSCA.filter((c) => c.ativa).map((c) => c.id);
-    for (const id of ativas) expect(sql).toMatch(new RegExp(`, '${id}', `));
+    for (const id of ativas) expect(gravadas, id).toContain(id);
   });
 
   it("chaves de faceta são únicas dentro de cada categoria", () => {

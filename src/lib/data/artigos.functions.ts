@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { z } from "zod";
 import { montarPayloadArtigo } from "./artigos-payload";
+import { FONTES_ARTIGO } from "@/lib/artigos/fontes";
 
 export type ArtigoCategoria = "mapa" | "tutorial" | "nota";
 export type ArtigoDificuldade = "iniciante" | "intermediario" | "avancado";
@@ -57,7 +58,7 @@ const SalvarSchema = z.object({
   capa_url: z.string().url().max(500).nullable().optional(),
   dificuldade: z.enum(["iniciante", "intermediario", "avancado"]).nullable().optional(),
   tempo_estimado_min: z.number().int().min(0).max(1000).nullable().optional(),
-  fontes_usadas: z.array(z.string().min(1).max(120)).max(20).default([]),
+  fontes_usadas: z.array(z.enum(FONTES_ARTIGO)).max(FONTES_ARTIGO.length).default([]),
   notas_internas: z.string().max(8000).nullable().optional(),
   publico: z.boolean().default(false),
   publicado_em: z.string().datetime().nullable().optional(),

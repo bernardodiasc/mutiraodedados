@@ -28,6 +28,8 @@ import {
 import { downloadCSV } from "@/lib/csv";
 import { mesclarOrdemFiltrada } from "@/lib/lista-ordenavel/logic";
 import { AdminArtigosView } from "@/components/AdminArtigosView";
+import { ReferenciasArtigoContainer } from "@/containers/ReferenciasArtigoContainer";
+import { artigosComRevisao } from "@/lib/data/artigo-referencias.functions";
 
 export function AdminArtigosContainer() {
   const { loading, isAdmin } = useIsAdmin();
@@ -36,12 +38,21 @@ export function AdminArtigosContainer() {
   const save = useServerFn(salvarArtigo);
   const remove = useServerFn(excluirArtigo);
   const reordenar = useServerFn(reordenarArtigos);
+  const revisaoFn = useServerFn(artigosComRevisao);
 
   const { data: items = [], isLoading } = useQuery({
     queryKey: ["admin-artigos"],
     queryFn: () => fetchAll(),
     enabled: isAdmin,
   });
+
+  // Artigos cujas referências pedem revisão (registro sumiu ou mudou, consulta vazia).
+  const { data: revisao = {} } = useQuery({
+    queryKey: ["admin-artigos-revisao"],
+    queryFn: () => revisaoFn(),
+    enabled: isAdmin,
+  });
+  const [soRevisao, setSoRevisao] = React.useState(false);
 
   const [criarAberto, setCriarAberto] = React.useState(false);
   const [criarForm, setCriarForm] = React.useState<FormState>(FORM_INICIAL);
@@ -187,7 +198,7 @@ export function AdminArtigosContainer() {
 
   if (loading) return <div className="p-10 text-muted-foreground">Verificando permissões…</div>;
 
-  const filtrados = filtrarPorAba(items, aba);
+  const filtrados = filtrarPorAba(items, aba).filter((a) => !soRevisao || revisao[a.id]);
   const counts = contarPorCategoria(items);
 
   return (
@@ -195,6 +206,10 @@ export function AdminArtigosContainer() {
       isLoading={isLoading}
       busy={busy}
       filtrados={filtrados}
+      revisao={revisao}
+      soRevisao={soRevisao}
+      onSoRevisao={setSoRevisao}
+      renderReferencias={(id) => <ReferenciasArtigoContainer artigoId={id} />}
       counts={counts}
       aba={aba}
       onAbaChange={setAba}

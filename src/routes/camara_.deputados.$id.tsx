@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
@@ -7,6 +8,7 @@ import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
+import { useRolarAteAncora } from "@/hooks/use-rolar-ate-ancora";
 import { getDeputadoDetalhe } from "@/lib/data/camara/queries.functions";
 import { proposicoesDoDeputado } from "@/lib/data/camara/proposicoes.functions";
 import { SituacaoBadge, Trajetoria } from "@/components/Trajetoria";
@@ -22,6 +24,7 @@ import {
   anosDisponiveis,
   despesasParaCsv,
   filtrarDespesas,
+  filtroDeDespesasDaUrl,
   mesesDisponiveis,
 } from "@/lib/cota-parlamentar/logic";
 
@@ -32,11 +35,15 @@ function anosDaLegislatura(n: number): string {
 
 export const Route = createFileRoute("/camara_/deputados/$id")({
   component: DeputadoDetalhe,
-  loader: ({ params, context }) => {
+  // `?ano=&mes=` abrem a lista de despesas nesse mês: é o destino da busca,
+  // com âncora na linha (`#despesa-<id>`).
+  validateSearch: filtroDeDespesasDaUrl,
+  loaderDeps: ({ search }) => ({ ano: search.ano, mes: search.mes }),
+  loader: ({ params, context, deps }) => {
     const numId = Number(params.id);
     return carregarFicha(context.queryClient, {
-      queryKey: ["camara", "dep", numId],
-      queryFn: () => getDeputadoDetalhe({ data: { id: numId } }),
+      queryKey: ["camara", "dep", numId, deps.ano, deps.mes],
+      queryFn: () => getDeputadoDetalhe({ data: { id: numId, ano: deps.ano, mes: deps.mes } }),
       h1: (data) => h1DoParlamentar(data.deputado),
     });
   },
@@ -64,10 +71,12 @@ function DeputadoDetalhe() {
     queryKey: ["camara", "dep-props", numId],
     queryFn: () => propsFn({ data: { deputadoId: numId } }),
   });
-  const [ano, setAno] = useState<number | null>(null);
-  const [mes, setMes] = useState<number | null>(null);
+  const busca = Route.useSearch();
+  const [ano, setAno] = useState<number | null>(busca.ano ?? null);
+  const [mes, setMes] = useState<number | null>(busca.mes ?? null);
 
   const { deputado, perfil, mandatos, despesas } = data;
+  useRolarAteAncora(despesas.length > 0);
   const anos = anosDisponiveis(despesas);
   const meses = mesesDisponiveis(despesas, ano);
   const visiveis = filtrarDespesas(despesas, ano, mes);
@@ -106,6 +115,7 @@ function DeputadoDetalhe() {
             </div>
             <div className="mt-3">
               <QualidadeBanner agregado="deputado" agregadoId={String(deputado.id)} />
+              <AprendaAInvestigar colecao="camara_deputados_cache" idOrigem={String(deputado.id)} />
             </div>
             {deputado.email && (
               <a
@@ -474,7 +484,11 @@ function DeputadoDetalhe() {
                 </thead>
                 <tbody>
                   {visiveis.slice(0, 500).map((d) => (
-                    <tr key={d.id} className="border-t border-border">
+                    <tr
+                      key={d.id}
+                      id={`despesa-${d.id}`}
+                      className="border-t border-border scroll-mt-28 target:bg-accent/10"
+                    >
                       <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">
                         {d.dataDocumento ?? `${d.ano}-${String(d.mes).padStart(2, "0")}`}
                       </td>

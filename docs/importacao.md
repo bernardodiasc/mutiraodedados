@@ -155,7 +155,30 @@ Janela que a varredura já dá como completa, mas sem conferência aprovada — 
 
 ## Cobertura
 
-A tela [`/cobertura`](./dominios/busca-e-exploracao.md) cruza o log de `importacoes` com os caches para mostrar: meses sincronizados, meses com dados, meses sem dados confirmados, meses ainda não consultados.
+Desde a v0.16.0 a cobertura é **estruturada**. O estado de cada janela (fonte × recorte × período) é derivado na leitura do que a importação já grava, sem tabela própria de estado:
+
+- **Linha:** cada entrada de `CATALOGO_COBERTURA` (`src/lib/data/cobertura-catalogo.ts`) declara as tarefas da ferramenta que a alimentam, as tabelas cache, a janela de disponibilidade (`janelas.ts`), o recorte (órgão, ente, sigla, relatório, eleição), as coleções do índice de busca e o limiar de defasagem. O teste-guarda cruza o catálogo com a tabela de dependências e com os gatilhos do índice.
+- **Dados por janela:** a RPC `cobertura_janelas(fonte)` devolve, por `(escopo, ano, mes)`, a última rodada (`resultado`, `motivo_parada`, horário) e a conferência mais recente (estado, situação da contagem, horário).
+- **Estado:** `estadoDaJanela` (`src/lib/data/cobertura-estado.ts`) classifica, nesta precedência:
+
+| Estado                         | Quando                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| Erro                           | `erro_nosso` na última rodada, ou conferência reprovada                              |
+| Indisponível                   | última rodada `erro_origem` ou `nao_publicado`, ou conferência inconclusiva          |
+| Processando                    | varredura parada no meio (`motivo_parada` ≠ `fim`) há menos de 24 h, sem conferência |
+| Parcial                        | há rodada ou registros, mas sem conferência aprovada                                 |
+| Vazio confirmado               | conferência aprovada e nenhum registro na célula                                     |
+| Concluído                      | conferência aprovada com a contagem conferida contra o total da origem               |
+| Concluído, sem total da origem | conferência aprovada, mas a origem não informa o total                               |
+| Não consultado                 | nenhuma rodada nem registro                                                          |
+
+A conferência só vale se não for mais antiga que a última rodada: uma rodada mais nova é uma execução ainda não conferida.
+
+- **Universo:** as pendentes da ferramenta (`consultarPendentes`) mais as janelas com conferência aprovada. Onde as pendentes não enumeram sem parâmetro (SICONFI, por ente e relatório) ou a fonte depende do pedido (TSE, uma fonte por tipo de arquivo), o resumo cobre só as janelas já consultadas, e a página diz isso.
+- **Pendentes da ferramenta × estado:** as pendentes seguem a regra "última conferência não aprovada". Ela coincide com "não concluída", com uma exceção: uma janela aprovada que recebe rodada nova (reimportação pelo painel) aparece como parcial ou processando na cobertura, mas não volta às pendentes enquanto a conferência aprovada for a última.
+- **Última importação válida:** o horário da conferência aprovada mais recente. A fonte fica **desatualizada** quando ele passa do limiar (padrão: 45 dias nas mensais, 400 nas anuais, 30 nos cadastros).
+
+A tela [`/cobertura`](./dominios/busca-e-exploracao.md) mostra, por fonte, "X de Y janelas concluídas" (concluídas = concluído, concluído sem total e vazio confirmado), a barra por estado com legenda, a última importação conferida e o selo de desatualizada; o ano corrente das fontes mensais sem recorte sai colorido pelo estado de cada mês. Registros aparecem só como contagem, nunca como percentual: o total de janelas é conhecido, o de registros na origem nem sempre.
 
 ## Limpeza
 

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { AcoesDaEntidade } from "@/components/AcoesDaEntidade";
 import { BlocoLacuna } from "@/components/BlocoLacuna";
@@ -84,6 +85,7 @@ function FornecedorDetail() {
       <div className="font-mono text-sm text-muted-foreground">CNPJ {cnpjFmt}</div>
       <div className="mt-3">
         <QualidadeBanner agregado="fornecedor" agregadoId={cnpjFmt} />
+        <AprendaAInvestigar colecao="fornecedores_cache" idOrigem={cnpjFmt} />
       </div>
       <AcoesDaEntidade
         className="mt-4"

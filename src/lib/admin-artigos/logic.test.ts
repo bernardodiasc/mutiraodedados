@@ -50,11 +50,11 @@ describe("admin-artigos/logic", () => {
       categoria: "nota",
       dificuldade: "avancado",
       tempo_estimado_min: "30",
-      fontes_usadas: "A, B ,, C",
+      fontes_usadas: ["PNCP", "CGU"],
     });
     expect(p.dificuldade).toBeNull();
     expect(p.tempo_estimado_min).toBeNull();
-    expect(p.fontes_usadas).toEqual(["A", "B", "C"]);
+    expect(p.fontes_usadas).toEqual(["PNCP", "CGU"]);
     expect(p.titulo).toBe("Título");
     expect(p.id).toBeUndefined();
   });
@@ -103,7 +103,11 @@ describe("admin-artigos/logic", () => {
 
   it("formFromArtigo preserva campos com fallback", () => {
     const f = formFromArtigo(baseArtigo);
-    expect(f.fontes_usadas).toBe("PNCP, CGU");
+    expect(f.fontes_usadas).toEqual(["PNCP", "CGU"]);
+    // Valor antigo fora da lista não volta ao formulário.
+    expect(
+      formFromArtigo({ ...baseArtigo, fontes_usadas: ["PNCP", "Lei 14.133/2021"] }).fontes_usadas,
+    ).toEqual(["PNCP"]);
     expect(f.tempo_estimado_min).toBe("5");
     expect(f.publico).toBe(true);
   });

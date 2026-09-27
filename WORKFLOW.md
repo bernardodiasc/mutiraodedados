@@ -132,11 +132,11 @@ Contribuidores nunca editam ROADMAP.md, RELEASES.md ou tags — isso é papel do
 
 ## 7. Estado atual
 
-- **Release em andamento:** nenhuma; a próxima é a v0.16.0 (cobertura de todo o acervo público existente), promovida quando a primeira issue dela começar — ver [ROADMAP](./ROADMAP.md).
-- **Última release fechada:** v0.15.0, em 2026-09-26 ([RELEASES.md](./RELEASES.md)).
+- **Release em andamento:** nenhuma. A próxima é a v0.17.0 (trajetórias legislativas nas duas Casas), promovida quando a primeira issue dela começar — ver [ROADMAP](./ROADMAP.md).
+- **Última release fechada:** v0.16.0, em 2026-09-26 ([RELEASES.md](./RELEASES.md)).
 - **Em paralelo, fora de release:**
-  - Tickets de decisão do programa v0.16.0–v0.23.0, nas issues do privado; resumos no ROADMAP.
-  - Cobertura completa das fontes pela ferramenta de importação, executada pelo mantenedor a partir do plano nas issues do privado (milestone Cobertura, sem versão).
+  - Tickets de decisão do programa v0.17.0–v0.23.0, nas issues do privado; resumos no ROADMAP.
+  - Cobertura completa das fontes pela ferramenta de importação, executada pelo mantenedor a partir do plano nas issues do privado (milestone Cobertura, sem versão). No mesmo milestone: as cargas no índice de busca dos votos, dos bens declarados e dos relatórios fiscais do SICONFI já importados, e a publicação do tutorial "Quais dados a busca encontra e como conferir a cobertura", que depende delas.
 - **Outras pendências:**
   - Registrar em `drizzle/migrations/` as quatro alterações da v0.13.0 aplicadas direto no banco, pelo fluxo de migration (SQL idempotente, então rodar de novo é seguro).
   - Ativação da automação: o `CRON_SECRET` já está configurado; falta a linha de `automacao_config` para ligar o agendamento (papel do mantenedor, ver docs/automacao.md).

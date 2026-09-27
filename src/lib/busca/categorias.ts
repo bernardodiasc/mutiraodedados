@@ -62,10 +62,37 @@ export type CategoriaBusca = {
 };
 
 export const CATEGORIAS_BUSCA: readonly CategoriaBusca[] = [
-  { id: "propostas", rotulo: "Propostas", rotuloData: "Apresentação", facetas: [], ativa: false },
+  {
+    id: "propostas",
+    rotulo: "Propostas",
+    rotuloData: "Apresentação",
+    facetas: [
+      { chave: "tipo_proposta", rotulo: "Tipo" },
+      { chave: "situacao", rotulo: "Situação" },
+    ],
+    ativa: true,
+  },
   { id: "normas", rotulo: "Normas", rotuloData: "Publicação", facetas: [], ativa: false },
-  { id: "votacoes", rotulo: "Votações", rotuloData: "Data da votação", facetas: [], ativa: false },
-  { id: "votos", rotulo: "Votos", rotuloData: "Data da votação", facetas: [], ativa: false },
+  {
+    id: "votacoes",
+    rotulo: "Votações",
+    rotuloData: "Data da votação",
+    facetas: [
+      { chave: "orgao", rotulo: "Órgão", longa: true },
+      { chave: "resultado", rotulo: "Resultado" },
+    ],
+    ativa: true,
+  },
+  {
+    id: "votos",
+    rotulo: "Votos",
+    rotuloData: "Data da votação",
+    facetas: [
+      { chave: "voto", rotulo: "Voto" },
+      { chave: "partido", rotulo: "Partido", longa: true },
+    ],
+    ativa: true,
+  },
   {
     id: "documentos",
     rotulo: "Documentos e debates",
@@ -81,11 +108,21 @@ export const CATEGORIAS_BUSCA: readonly CategoriaBusca[] = [
     facetas: [
       { chave: "cargo", rotulo: "Cargo" },
       { chave: "partido", rotulo: "Partido" },
-      { chave: "situacao", rotulo: "Situação" },
+      { chave: "situacao", rotulo: "Situação na eleição" },
+      { chave: "mandato", rotulo: "Situação no mandato" },
     ],
     ativa: true,
   },
-  { id: "organizacoes", rotulo: "Organizações", rotuloData: null, facetas: [], ativa: true },
+  {
+    id: "organizacoes",
+    rotulo: "Organizações",
+    rotuloData: null,
+    facetas: [
+      { chave: "tipo_organizacao", rotulo: "Tipo" },
+      { chave: "poder", rotulo: "Poder" },
+    ],
+    ativa: true,
+  },
   {
     id: "contratos",
     rotulo: "Contratos",
@@ -139,22 +176,33 @@ export const CATEGORIAS_BUSCA: readonly CategoriaBusca[] = [
     id: "despesas",
     rotulo: "Despesas",
     rotuloData: "Data do documento",
-    facetas: [],
-    ativa: false,
+    facetas: [
+      { chave: "parlamentar", rotulo: "Parlamentar", longa: true },
+      { chave: "tipo_despesa", rotulo: "Categoria" },
+    ],
+    ativa: true,
   },
   {
     id: "eleicoes",
     rotulo: "Eleições e campanhas",
     rotuloData: "Eleição",
-    facetas: [],
-    ativa: false,
+    facetas: [
+      { chave: "registro", rotulo: "Registro" },
+      { chave: "cargo", rotulo: "Cargo" },
+      { chave: "partido", rotulo: "Partido", longa: true },
+      { chave: "tipo_bem", rotulo: "Tipo de bem", longa: true },
+    ],
+    ativa: true,
   },
   {
     id: "financas",
     rotulo: "Finanças públicas",
     rotuloData: "Exercício",
-    facetas: [],
-    ativa: false,
+    facetas: [
+      { chave: "tipo_relatorio", rotulo: "Relatório" },
+      { chave: "esfera", rotulo: "Esfera" },
+    ],
+    ativa: true,
   },
   {
     id: "estudos",
@@ -174,17 +222,32 @@ export const CATEGORIAS_BUSCA: readonly CategoriaBusca[] = [
     id: "perguntas",
     rotulo: "Perguntas e investigações",
     rotuloData: "Publicação",
-    facetas: [],
-    ativa: false,
+    facetas: [{ chave: "tipo_pergunta", rotulo: "Tipo" }],
+    ativa: true,
   },
   {
     id: "qualidade",
     rotulo: "Qualidade e sinais",
     rotuloData: "Detecção",
-    facetas: [],
-    ativa: false,
+    facetas: [
+      { chave: "tipo_sinal", rotulo: "Tipo" },
+      { chave: "tipo_lacuna", rotulo: "Tipo de lacuna" },
+      { chave: "ciclo", rotulo: "Ciclo" },
+      { chave: "resolvida", rotulo: "Situação da lacuna" },
+      { chave: "status", rotulo: "Situação do alerta" },
+    ],
+    ativa: true,
   },
-  { id: "paginas", rotulo: "Páginas e ajuda", rotuloData: null, facetas: [], ativa: false },
+  {
+    id: "paginas",
+    rotulo: "Páginas e ajuda",
+    rotuloData: "Conclusão",
+    facetas: [
+      { chave: "pagina_site", rotulo: "Página" },
+      { chave: "status", rotulo: "Situação" },
+    ],
+    ativa: true,
+  },
 ];
 
 /** Rótulo curto da natureza da data, para a visão geral (onde o significado varia por tipo). */

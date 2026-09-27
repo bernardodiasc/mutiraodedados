@@ -1,6 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { entradaCatalogoCobertura } from "@/lib/data/cobertura-catalogo";
+import { estadosDaFonte, type RegistrosPorCelula } from "@/lib/data/cobertura-estados.server";
+import type { EstadosDaFonte } from "@/lib/data/cobertura-estado";
 
 export type FonteCobertura = {
   id: string;
@@ -19,6 +21,11 @@ export type FonteCobertura = {
   mesesAnoCorrente: number[];
   /** rota interna para explorar essa fonte */
   rota?: string;
+  /**
+   * Estado de cada janela do universo (modelo de cobertura estruturada);
+   * null quando não foi possível calcular — a página mostra só os volumes.
+   */
+  estados: EstadosDaFonte | null;
 };
 
 export type CoberturaPublicaResult = {
@@ -252,6 +259,27 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
       qtd: Number(r.qtd),
     }));
 
+    /**
+     * Registros por célula para o estado das janelas. Fonte anual: a célula é
+     * o ano (`mes` 1, a âncora das pendentes). CGU por órgão: a célula leva o
+     * órgão no escopo.
+     */
+    const registrosPorCelula = (
+      id: string,
+      rows: { ano: number; mes: number; qtd: number }[],
+      porOrgao?: RpcRowOrgao[] | null,
+    ): RegistrosPorCelula => {
+      const anual = entradaCatalogoCobertura(id).granularidade === "ano";
+      const m = new Map<string, number>();
+      const somar = (k: string, n: number) => m.set(k, (m.get(k) ?? 0) + n);
+      if (porOrgao) {
+        for (const r of porOrgao) somar(`${r.orgao_cod}|${r.ano}|${r.mes}`, Number(r.qtd));
+      } else {
+        for (const r of rows) somar(`*|${r.ano}|${anual ? 1 : r.mes}`, r.qtd);
+      }
+      return m;
+    };
+
     const ultimo = (rows: { ultimo: string | null }[]): string | null => {
       let max: string | null = null;
       for (const r of rows) {
@@ -286,6 +314,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
           .map((r) => ({ ano: r.ano, mes: r.mes, qtd: r.qtd })),
         mesesAnoCorrente: mesesPresentes(rows, anoCorrente),
         rota: meta.rota ?? undefined,
+        estados: null,
       };
     };
 
@@ -305,6 +334,7 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         porAnoMes: [],
         mesesAnoCorrente: [],
         rota: meta.rota ?? undefined,
+        estados: null,
       };
     };
 
@@ -343,6 +373,38 @@ export const coberturaPublica = createServerFn({ method: "GET" }).handler(
         `Além das candidaturas, o cache guarda ${countTseReceitas.toLocaleString("pt-BR")} receitas e ${countTseDespesas.toLocaleString("pt-BR")} despesas de campanha.`,
       ),
     ];
+
+    // Estado das janelas de cada fonte. Falha numa fonte não derruba a página:
+    // ela fica só com os volumes.
+    const registros: Record<string, RegistrosPorCelula> = {
+      cgu: registrosPorCelula("cgu", cguRows, cgu.data as RpcRowOrgao[] | null),
+      cgu_licitacoes: registrosPorCelula(
+        "cgu_licitacoes",
+        cguLicRows,
+        cguLic.data as RpcRowOrgao[] | null,
+      ),
+    };
+    const agora = new Date();
+    await Promise.all(
+      fontes.map(async (f) => {
+        const celulas =
+          registros[f.id] ??
+          (f.granularidade === "cadastro"
+            ? new Map([["*|0|0", f.totalRegistros]])
+            : registrosPorCelula(f.id, f.porAnoMes));
+        try {
+          const estados = await estadosDaFonte(entradaCatalogoCobertura(f.id), celulas, agora);
+          // A página só pinta o ano corrente da linha única; o resto das
+          // células fica no servidor — as fontes por órgão passam de 40 mil.
+          f.estados = {
+            ...estados,
+            celulas: estados.celulas.filter((c) => c.escopo === "" && c.ano === anoCorrente),
+          };
+        } catch (e) {
+          console.error(`[cobertura] estados de ${f.id}:`, (e as Error).message);
+        }
+      }),
+    );
 
     return { geradoEm: new Date().toISOString(), anoCorrente, fontes };
   },

@@ -53,6 +53,59 @@ export type Database = {
         }
         Relationships: []
       }
+      artigo_referencias: {
+        Row: {
+          artigo_id: string
+          colecao: string | null
+          consulta_url: string | null
+          created_at: string
+          id: string
+          id_origem: string | null
+          ordem: number
+          rotulo: string | null
+          tipo: string
+          titulo_citado: string | null
+          updated_at: string
+          verificado_em: string | null
+        }
+        Insert: {
+          artigo_id: string
+          colecao?: string | null
+          consulta_url?: string | null
+          created_at?: string
+          id?: string
+          id_origem?: string | null
+          ordem?: number
+          rotulo?: string | null
+          tipo: string
+          titulo_citado?: string | null
+          updated_at?: string
+          verificado_em?: string | null
+        }
+        Update: {
+          artigo_id?: string
+          colecao?: string | null
+          consulta_url?: string | null
+          created_at?: string
+          id?: string
+          id_origem?: string | null
+          ordem?: number
+          rotulo?: string | null
+          tipo?: string
+          titulo_citado?: string | null
+          updated_at?: string
+          verificado_em?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "artigo_referencias_artigo_id_fkey"
+            columns: ["artigo_id"]
+            isOneToOne: false
+            referencedRelation: "artigos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artigos: {
         Row: {
           autor_id: string | null
@@ -1368,6 +1421,42 @@ export type Database = {
         }
         Relationships: []
       }
+      paginas_publicas: {
+        Row: {
+          ancora: string | null
+          atualizado_em: string
+          id: string
+          pagina: string
+          palavras: string | null
+          resumo: string | null
+          rota: string
+          texto: string | null
+          titulo: string
+        }
+        Insert: {
+          ancora?: string | null
+          atualizado_em?: string
+          id: string
+          pagina: string
+          palavras?: string | null
+          resumo?: string | null
+          rota: string
+          texto?: string | null
+          titulo: string
+        }
+        Update: {
+          ancora?: string | null
+          atualizado_em?: string
+          id?: string
+          pagina?: string
+          palavras?: string | null
+          resumo?: string | null
+          rota?: string
+          texto?: string | null
+          titulo?: string
+        }
+        Relationships: []
+      }
       pergunta_itens: {
         Row: {
           created_at: string
@@ -2598,6 +2687,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      busca_diagnostico: {
+        Args: { p_colecao: string; p_medida: string }
+        Returns: number
+      }
       busca_indexar: {
         Args: { p_colecao: string; p_forcar?: boolean; p_ids: string[] }
         Returns: number
@@ -2750,6 +2843,22 @@ export type Database = {
           qtd: number
           tipo_relatorio: string
           ultimo: string
+        }[]
+      }
+      cobertura_janelas: {
+        Args: { p_fonte: string }
+        Returns: {
+          ano: number
+          conferencia_contagem: string | null
+          conferencia_em: string | null
+          conferencia_estado: string | null
+          conferencia_execucao_id: string | null
+          conferencia_motivo: string | null
+          escopo: string
+          mes: number
+          ultima_rodada_em: string | null
+          ultimo_motivo_parada: string | null
+          ultimo_resultado: string | null
         }[]
       }
       cobertura_tentativas: {

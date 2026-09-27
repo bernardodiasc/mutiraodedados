@@ -22,6 +22,7 @@ O projeto **não embute LLM** (por custo): a experiência é levar o cidadão at
 - Um **mapa** (artigo `categoria='mapa'`) é um procedimento investigativo reutilizável: os passos dizem _onde colher os dados_, por links internos e externos.
 - O **Kit** é o painel lateral que aparece só em mapas (`KitInvestigacao`). Rola junto com a página (não é sticky, porque é alto). No topo: "Copiar texto do mapa", "Adicionar ao caderno" e links para **Meu caderno** e para as **pastas em uso** (as perguntas do usuário que já contêm prompts deste mapa — `listarPastasComPrompts`).
 - Cada prompt é **collapsible**: ao abrir mostra a descrição, a lista **"O que preencher"**, o **texto do prompt visível** e os botões "Copiar prompt" / "Adicionar ao caderno".
+- Cada prompt tem âncora `#prompt-<id>`: é o destino dos prompts na `/buscar`. Com a âncora na URL, o prompt começa aberto, destacado, e a página rola até ele quando os prompts carregam.
 - Um **prompt** (`prompt_modelos`) é um objetivo com placeholders `{{var}}` que o cidadão preenche com o que colheu. Vários prompts servem a um mapa e um prompt serve a vários mapas (N:N via `mapa_prompts`).
 - Primitivos são **contextuais**: `BotaoCopiar` onde há texto/dados copiáveis; `BotaoBaixarCsv` só onde há tabela; `BotaoFonteOficial` em registros com origem oficial; `BotaoSalvarItem` em entidades, artigos e prompts. Não vivem no texto do mapa — vivem nas páginas de destino.
 

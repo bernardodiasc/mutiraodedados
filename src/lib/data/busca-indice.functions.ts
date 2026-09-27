@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Json } from "@/integrations/supabase/types";
 import { CATEGORIAS_BUSCA, type CategoriaBuscaId } from "@/lib/busca/categorias";
 import { LIMITE_EXPORTACAO } from "@/lib/buscar/acoes";
+import { categoriasDesatualizadas, type Desatualizadas } from "@/lib/busca/desatualizadas";
+import { CATALOGO_COBERTURA } from "@/lib/data/cobertura-catalogo";
 import {
   FiltroIncompativelError,
   ITENS_BUSCA,
@@ -86,6 +88,35 @@ function filtrosOuErro(filtros: z.infer<typeof filtrosSchema>, categoria: Catego
     throw e;
   }
 }
+
+/**
+ * Categorias com coleção desatualizada: fonte que alimenta o índice sem
+ * conferência aprovada há mais que o limiar do catálogo. Uma chamada por
+ * visita à /buscar, fora da consulta — falhar aqui não derruba a busca.
+ */
+export const desatualizadasBusca = createServerFn({ method: "GET" }).handler(
+  async (): Promise<Desatualizadas> => {
+    try {
+      const fontes = await Promise.all(
+        CATALOGO_COBERTURA.filter((e) => e.indice.length > 0).map(async (entrada) => {
+          const { data, error } = await supabaseAdmin
+            .from("importacoes")
+            .select("consultado_em")
+            .eq("fonte", entrada.fonteHistorico ?? entrada.id)
+            .eq("conferencia->>estado", "aprovada")
+            .order("consultado_em", { ascending: false })
+            .limit(1);
+          if (error) throw new Error(`${entrada.id}: ${error.message}`);
+          return { entrada, ultima: data?.[0]?.consultado_em ?? null };
+        }),
+      );
+      return categoriasDesatualizadas(fontes);
+    } catch (e) {
+      console.error("[busca] coleções desatualizadas:", (e as Error).message);
+      return {};
+    }
+  },
+);
 
 export const resumoBusca = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => baseSchema.parse(input))

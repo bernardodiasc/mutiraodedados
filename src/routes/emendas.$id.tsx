@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getEmendaPorId } from "@/lib/data/real/queries.functions";
@@ -116,6 +117,7 @@ function EmendaDetalhe() {
       </div>
 
       <QualidadeBanner fonte="cgu_emendas" entidadeTipo="emenda" entidadeId={e.id} />
+      <AprendaAInvestigar colecao="cgu_transferegov_emendas_cache" idOrigem={e.id} />
 
       {/* As três fases da despesa (o "DNA" do gasto). */}
       <div className="grid sm:grid-cols-3 gap-4">

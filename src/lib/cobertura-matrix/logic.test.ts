@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { Linha } from "@/lib/data/cobertura.functions";
 import {
   MESES_CURTO,
+  contornoDoEstado,
   colunasDeGranularidade,
   colHeader,
   colLabelLong,
@@ -107,5 +108,16 @@ describe("intersectarSelecionadas", () => {
   it("mantém apenas ids presentes em ambos", () => {
     const r = intersectarSelecionadas(new Set(["a", "b", "c"]), ["b", "c", "d"]);
     expect(Array.from(r).sort()).toEqual(["b", "c"]);
+  });
+});
+
+describe("contornoDoEstado", () => {
+  it("concluída sem contorno, erro em vermelho, pendências tracejadas", () => {
+    expect(contornoDoEstado("concluido")).toBe("");
+    expect(contornoDoEstado("vazio_confirmado")).toBe("");
+    expect(contornoDoEstado("erro")).toMatch(/ring-destructive/);
+    for (const e of ["parcial", "processando", "indisponivel"] as const) {
+      expect(contornoDoEstado(e)).toMatch(/outline-dashed/);
+    }
   });
 });

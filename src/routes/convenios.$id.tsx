@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { ExternalLink } from "lucide-react";
 import { BlocoRastreabilidade } from "@/components/BlocoRastreabilidade";
 import { TrilhaDeNavegacao } from "@/components/TrilhaDeNavegacao";
@@ -122,6 +123,7 @@ function ConvenioDetalhe() {
       </div>
 
       <QualidadeBanner fonte="cgu_convenios" entidadeTipo="convenio" entidadeId={c.id} />
+      <AprendaAInvestigar colecao="convenios_cache" idOrigem={c.id} />
 
       <div className="grid sm:grid-cols-3 gap-4">
         <Card title="Valor global">{fmtBRL(c.valor)}</Card>

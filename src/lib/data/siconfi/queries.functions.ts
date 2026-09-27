@@ -52,6 +52,7 @@ export const listarRelatoriosSICONFI = createServerFn({ method: "POST" })
     z
       .object({
         codIbge: z.string().optional(),
+        periodo: z.number().int().min(0).max(12).optional(),
         uf: z.string().length(2).optional(),
         exercicio: z.number().int().optional(),
         tipoRelatorio: z.string().optional(),
@@ -84,6 +85,7 @@ export const listarRelatoriosSICONFI = createServerFn({ method: "POST" })
     // Relatórios têm granularidade anual — o corte vale por exercício.
     if (data.ate) q = q.lte("exercicio", Number(data.ate.slice(0, 4)));
     if (data.codIbge) q = q.eq("cod_ibge", data.codIbge);
+    if (data.periodo !== undefined) q = q.eq("periodo", data.periodo);
     if (data.uf) q = q.eq("uf", data.uf.toUpperCase());
     if (data.exercicio) q = q.eq("exercicio", data.exercicio);
     if (data.tipoRelatorio) q = q.eq("tipo_relatorio", data.tipoRelatorio);
