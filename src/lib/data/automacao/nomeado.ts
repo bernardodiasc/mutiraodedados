@@ -332,6 +332,24 @@ export async function executarRodadaNomeada(
   };
 }
 
+/**
+ * A fonte do Histórico que a tarefa grava e o escopo que as janelas dela têm
+ * quando o pedido não traz recorte — o que a consulta de pendentes não põe na
+ * janela. `null` quando a fonte depende do pedido (o TSE grava uma por tipo de
+ * arquivo). Usado pela cobertura estruturada para casar pendentes com as
+ * janelas do Histórico.
+ */
+export function fonteEEscopoDaTarefa(tarefa: string): { fonte: string; escopo: string } | null {
+  const alvo = ADAPTADORES[tarefa];
+  if (!alvo || typeof alvo.fonte !== "string") return null;
+  let escopo = "";
+  if (!alvo.pendentes && alvo.escopo) {
+    const recorte = (alvo.recorte ?? z.object({})).safeParse({});
+    if (recorte.success) escopo = alvo.escopo(recorte.data) ?? "";
+  }
+  return { fonte: alvo.fonte, escopo };
+}
+
 /** O corpo da consulta de pendentes. */
 export const pedidoPendentesSchema = z.object({
   consulta: z.literal("pendentes"),

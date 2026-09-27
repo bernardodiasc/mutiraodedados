@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CandidatoFichaContainer } from "@/containers/CandidatoFichaContainer";
 import { obterCandidatoTse } from "@/lib/data/tse/queries.functions";
-import { h1DoCandidato } from "@/lib/candidato-ficha/logic";
+import { h1DoCandidato, validarSearchCandidato } from "@/lib/candidato-ficha/logic";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 import { carregarFicha } from "@/lib/titulo-pagina/loader";
 
@@ -11,13 +11,15 @@ export const Route = createFileRoute("/eleicoes/candidatos/$sq")({
   // fazia a URL canônica desta rota — que não carrega o ano — abrir em
   // "candidatura não encontrada" para qualquer ficha de outro ano. O sq já
   // identifica a candidatura; quem não informa o ano recebe o do registro.
-  validateSearch: (search: Record<string, unknown>): { ano?: number } =>
-    typeof search.ano === "number" ? { ano: search.ano } : {},
-  loaderDeps: ({ search }) => ({ ano: search.ano }),
+  //
+  // `bem`, `receita` e `despesa` vêm do destino da busca: indicam a linha a
+  // mostrar e destacar mesmo quando ela está fora da primeira página.
+  validateSearch: validarSearchCandidato,
+  loaderDeps: ({ search }) => ({ ano: search.ano, bem: search.bem }),
   loader: ({ params, context, deps }) =>
     carregarFicha(context.queryClient, {
-      queryKey: ["tse", "candidato", params.sq, deps.ano],
-      queryFn: () => obterCandidatoTse({ data: { sq: params.sq, ano: deps.ano } }),
+      queryKey: ["tse", "candidato", params.sq, deps.ano, deps.bem],
+      queryFn: () => obterCandidatoTse({ data: { sq: params.sq, ano: deps.ano, bem: deps.bem } }),
       h1: (data) => h1DoCandidato(data.candidato),
     }),
   head: ({ params, loaderData }) => ({
@@ -64,7 +66,7 @@ export const Route = createFileRoute("/eleicoes/candidatos/$sq")({
 
 function CandidatoPage() {
   const { sq } = Route.useParams();
-  const { ano } = Route.useSearch();
+  const { ano, bem, receita, despesa } = Route.useSearch();
   const { dado } = Route.useLoaderData();
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
@@ -79,7 +81,7 @@ function CandidatoPage() {
       </nav>
       {/* Os banners de sinais vivem no Container: o `entidade_id` deles é
           "<sq>-<ano>", e o ano vem da ficha quando a URL não o informa. */}
-      <CandidatoFichaContainer sq={sq} data={dado} />
+      <CandidatoFichaContainer sq={sq} data={dado} foco={{ bem, receita, despesa }} />
     </div>
   );
 }

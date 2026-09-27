@@ -8,6 +8,8 @@
  * com vários valores separados por "|"; `ordem`, `pagina`, `itens` e o corte
  * `ate`. Só o estado aplicado vai para a URL; rascunhos ficam na tela.
  */
+import { defaultParseSearch } from "@tanstack/react-router";
+import type { Desatualizada } from "@/lib/busca/desatualizadas";
 import {
   CATEGORIAS_BUSCA,
   ROTULO_NATUREZA_DATA,
@@ -63,7 +65,8 @@ const ATE_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})
 export function validarBuscarSearch(s: Record<string, unknown>): BuscarSearch {
   const texto = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
   const out: BuscarSearch = {};
-  const q = texto(s.q);
+  // O roteador converte `q=26000` (código, CNPJ só com dígitos) em número.
+  const q = texto(typeof s.q === "number" ? String(s.q) : s.q);
   if (q) out.q = q.slice(0, 200);
   const tipo = texto(s.tipo);
   if (tipo && categoriaBusca(tipo)?.ativa) out.tipo = tipo as CategoriaBuscaId;
@@ -312,6 +315,26 @@ export function rotuloData(item: ItemBusca): string {
   return natureza ? ROTULO_NATUREZA_DATA[natureza] : "Data";
 }
 
+/**
+ * Destino interno de uma linha do índice (`/caminho?ano=2022#bem-3`) nas partes
+ * que o `Link` do roteador espera: o `to` aceita só o caminho — com busca ou
+ * âncora nele, o parâmetro da rota engole o resto e a ficha errada abre.
+ */
+export function destinoInterno(href: string): {
+  to: string;
+  search: Record<string, unknown>;
+  hash?: string;
+} {
+  const iHash = href.indexOf("#");
+  const semHash = iHash < 0 ? href : href.slice(0, iHash);
+  const iBusca = semHash.indexOf("?");
+  return {
+    to: iBusca < 0 ? semHash : semHash.slice(0, iBusca),
+    search: iBusca < 0 ? {} : defaultParseSearch(semHash.slice(iBusca)),
+    ...(iHash < 0 ? {} : { hash: href.slice(iHash + 1) }),
+  };
+}
+
 export function formatarValor(valor: NonNullable<ItemBusca["valor"]>): string {
   if (valor.unidade === "BRL") {
     return valor.n.toLocaleString("pt-BR", {
@@ -339,4 +362,17 @@ export function intervaloDaPagina(
   const ate = de + quantidade - 1;
   const faixa = `${de.toLocaleString("pt-BR")}–${ate.toLocaleString("pt-BR")}`;
   return total === null ? faixa : `${faixa} de ${total.toLocaleString("pt-BR")}`;
+}
+
+/**
+ * Texto do aviso de coleção desatualizada. A busca lê só o índice local: o que
+ * falta é importação, nunca "fonte fora do ar".
+ */
+export function textoDesatualizada(d: Desatualizada): string {
+  const data = (iso: string) =>
+    new Date(iso).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" });
+  const fontes = d.fontes
+    .map((f) => `${f.titulo} (${f.ultima ? `em ${data(f.ultima)}` : "nunca"})`)
+    .join("; ");
+  return `Coleção desatualizada — última importação conferida: ${fontes}. Registros podem faltar.`;
 }

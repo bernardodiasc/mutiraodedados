@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { compararBensTse } from "@/lib/data/tse/queries.functions";
 import type { CandidatoDetalhe, CandidaturaHistoricoRow } from "@/lib/data/tse/queries.functions";
 import {
   candidaturaComparacaoPadrao,
+  type CandidatoSearch,
   type CandidaturaHistorico,
 } from "@/lib/candidato-ficha/logic";
 import { linkDivulgaCandidato } from "@/lib/links-oficiais";
@@ -14,6 +16,7 @@ import { ComparadorPatrimonioView } from "@/components/ComparadorPatrimonioView"
 import { HistoricoCandidaturasView } from "@/components/HistoricoCandidaturasView";
 import { VinculoParlamentarView } from "@/components/VinculoParlamentarView";
 import { ContasDeCampanhaContainer } from "@/containers/ContasDeCampanhaContainer";
+import { LancamentosCampanhaContainer } from "@/containers/LancamentosCampanhaContainer";
 
 function paraHistorico(row: CandidaturaHistoricoRow, sqAtual: string): CandidaturaHistorico {
   return {
@@ -33,9 +36,11 @@ export type CandidatoFichaContainerProps = {
   sq: string;
   /** Ficha vinda do loader da rota (já hidratada a partir do SSR). */
   data: CandidatoDetalhe;
+  /** Linha indicada pelo link (destino da busca). */
+  foco?: Pick<CandidatoSearch, "bem" | "receita" | "despesa">;
 };
 
-export function CandidatoFichaContainer({ sq, data }: CandidatoFichaContainerProps) {
+export function CandidatoFichaContainer({ sq, data, foco }: CandidatoFichaContainerProps) {
   const compararFn = useServerFn(compararBensTse);
   const [sqEscolhido, setSqEscolhido] = useState<string | null>(null);
 
@@ -71,6 +76,7 @@ export function CandidatoFichaContainer({ sq, data }: CandidatoFichaContainerPro
           entidadeTipo="candidato"
           entidadeId={`${sq}-${anoEfetivo}`}
         />
+        <AprendaAInvestigar colecao="tse_candidatos_cache" idOrigem={`${sq}-${anoEfetivo}`} />
       </div>
       <CandidatoFichaView
         detalhe={data}
@@ -81,7 +87,24 @@ export function CandidatoFichaContainer({ sq, data }: CandidatoFichaContainerPro
           sqCandidato: sq,
         })}
         vinculoParlamentar={<VinculoParlamentarView parlamentares={data.parlamentares} />}
-        contas={<ContasDeCampanhaContainer sq={sq} ano={anoEfetivo} />}
+        bemEmFoco={foco?.bem}
+        contas={
+          <>
+            <ContasDeCampanhaContainer sq={sq} ano={anoEfetivo} />
+            <LancamentosCampanhaContainer
+              sq={sq}
+              ano={anoEfetivo}
+              tipo="receitas"
+              foco={foco?.receita}
+            />
+            <LancamentosCampanhaContainer
+              sq={sq}
+              ano={anoEfetivo}
+              tipo="despesas"
+              foco={foco?.despesa}
+            />
+          </>
+        }
         historico={
           <HistoricoCandidaturasView
             candidaturas={historico}

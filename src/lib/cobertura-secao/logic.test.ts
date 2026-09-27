@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { diasDesde, fmtRelativo, fmtAnoMes, freshness, corFresh } from "./logic";
+import {
+  diasDesde,
+  fmtRelativo,
+  fmtAnoMes,
+  freshness,
+  corFresh,
+  legendaDosEstados,
+  estadosDoAno,
+} from "./logic";
 
 const NOW = new Date("2026-06-09T12:00:00Z").getTime();
 const days = (n: number) => new Date(NOW - n * 86_400_000).toISOString();
@@ -59,5 +67,38 @@ describe("corFresh", () => {
     expect(corFresh("warn")).toContain("amber");
     expect(corFresh("stale")).toContain("rose");
     expect(corFresh("none")).toContain("muted");
+  });
+});
+
+describe("estados de cobertura na página", () => {
+  it("legenda lista só os estados presentes, do melhor ao pior", () => {
+    const porEstado = {
+      erro: 1,
+      indisponivel: 0,
+      processando: 0,
+      parcial: 2,
+      vazio_confirmado: 0,
+      concluido: 5,
+      concluido_sem_total: 0,
+      nao_consultado: 3,
+    };
+    expect(legendaDosEstados(porEstado)).toEqual([
+      { estado: "concluido", qtd: 5 },
+      { estado: "parcial", qtd: 2 },
+      { estado: "erro", qtd: 1 },
+      { estado: "nao_consultado", qtd: 3 },
+    ]);
+  });
+
+  it("estado por mês só considera a linha única da fonte (escopo vazio)", () => {
+    const m = estadosDoAno(
+      [
+        { escopo: "", ano: 2026, mes: 1, estado: "concluido" },
+        { escopo: "26000", ano: 2026, mes: 2, estado: "erro" },
+        { escopo: "", ano: 2025, mes: 3, estado: "parcial" },
+      ],
+      2026,
+    );
+    expect([...m]).toEqual([[1, "concluido"]]);
   });
 });

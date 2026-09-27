@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Download, ExternalLink } from "lucide-react";
@@ -99,6 +100,9 @@ function EntePage() {
       <TrilhaDeNavegacao
         itens={[{ label: "Por estado ou município", to: "/explorar" }, { label: rotulo }]}
       />
+      {ente.tipo === "municipio" && (
+        <AprendaAInvestigar colecao="ibge_municipios_cache" idOrigem={ente.codIbge} />
+      )}
       <header>
         <div className="text-xs text-muted-foreground uppercase tracking-wider">
           {ente.tipo === "municipio" ? "Município" : "Estado"} · código IBGE {ente.codIbge}

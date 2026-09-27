@@ -303,7 +303,7 @@ function AprenderPage() {
 
       <div className="mt-10 space-y-3">
         {TOPICOS.map((t) => (
-          <Accordion key={t.id} type="single" collapsible>
+          <Accordion key={t.id} id={t.id} type="single" collapsible className="scroll-mt-28">
             <AccordionItem value={t.id} className="border border-border rounded-xl bg-card px-5">
               <AccordionTrigger className="hover:no-underline">
                 <div className="flex items-start gap-3 text-left">

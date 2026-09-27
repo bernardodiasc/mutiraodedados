@@ -5,6 +5,7 @@ import {
   filtrarDespesas,
   agregarDespesas,
   despesasParaCsv,
+  filtroDeDespesasDaUrl,
   type DespesaCota,
 } from "./logic";
 
@@ -97,5 +98,20 @@ describe("despesasParaCsv", () => {
     expect(linha.fornecedor).toBe("");
     expect(linha.cnpj_cpf).toBe("");
     expect(linha.valor_liquido).toBe(100);
+  });
+});
+
+describe("filtroDeDespesasDaUrl", () => {
+  it("lê ano e mês, como número ou texto", () => {
+    expect(filtroDeDespesasDaUrl({ ano: 2024, mes: 3 })).toEqual({ ano: 2024, mes: 3 });
+    expect(filtroDeDespesasDaUrl({ ano: "2024", mes: "12" })).toEqual({ ano: 2024, mes: 12 });
+  });
+
+  it("ignora valor inválido e mês sem ano", () => {
+    expect(filtroDeDespesasDaUrl({})).toEqual({});
+    expect(filtroDeDespesasDaUrl({ mes: 3 })).toEqual({});
+    expect(filtroDeDespesasDaUrl({ ano: "abc", mes: 3 })).toEqual({});
+    expect(filtroDeDespesasDaUrl({ ano: 2024, mes: 13 })).toEqual({ ano: 2024 });
+    expect(filtroDeDespesasDaUrl({ ano: 2024.5 })).toEqual({});
   });
 });

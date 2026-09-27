@@ -300,7 +300,15 @@ async function buscarPerfilDeputado(id: number): Promise<PerfilDeputado | null> 
 }
 
 export const getDeputadoDetalhe = createServerFn({ method: "GET" })
-  .inputValidator((input) => z.object({ id: z.number().int().positive() }).parse(input))
+  .inputValidator((input) =>
+    z
+      .object({
+        id: z.number().int().positive(),
+        ano: z.number().int().optional(),
+        mes: z.number().int().min(1).max(12).optional(),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
     const { data: dep, error } = await supabaseAdmin
       .from("camara_deputados_cache")
@@ -310,16 +318,30 @@ export const getDeputadoDetalhe = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     if (!dep) return null;
 
+    const colunasDespesa =
+      "id,ano,mes,tipo_despesa,data_documento,valor_liquido,valor_documento,valor_glosa,fornecedor_nome,fornecedor_cnpj,url_documento";
     const { data: desps } = await supabaseAdmin
       .from("camara_despesas_cache")
-      .select(
-        "id,ano,mes,tipo_despesa,data_documento,valor_liquido,valor_documento,valor_glosa,fornecedor_nome,fornecedor_cnpj,url_documento",
-      )
+      .select(colunasDespesa)
       .eq("deputado_id", data.id)
       .order("data_documento", { ascending: false })
       .limit(5000);
+    let linhas = desps ?? [];
+    // A ficha aberta num mês (destino da busca) traz as despesas desse mês
+    // mesmo quando a lista acima trunca.
+    if (data.ano != null && data.mes != null) {
+      const { data: doMes } = await supabaseAdmin
+        .from("camara_despesas_cache")
+        .select(colunasDespesa)
+        .eq("deputado_id", data.id)
+        .eq("ano", data.ano)
+        .eq("mes", data.mes)
+        .order("data_documento", { ascending: false });
+      const vistos = new Set(linhas.map((r) => r.id));
+      linhas = [...linhas, ...(doMes ?? []).filter((r) => !vistos.has(r.id))];
+    }
 
-    const despesas: DespesaCEAP[] = (desps ?? []).map((r) => ({
+    const despesas: DespesaCEAP[] = linhas.map((r) => ({
       id: r.id as string,
       deputadoId: data.id,
       ano: r.ano as number,

@@ -2,12 +2,21 @@ import type { ReactNode } from "react";
 import { ExternalLink, Vote, Wallet } from "lucide-react";
 import { fmtBRL, fmtNum } from "@/lib/fmt";
 import type { CandidatoDetalhe } from "@/lib/data/tse/queries.functions";
-import { h1DoCandidato, subtituloFicha, totalPatrimonio } from "@/lib/candidato-ficha/logic";
+import {
+  ANCORA_VOTACAO,
+  ancoraBem,
+  h1DoCandidato,
+  subtituloFicha,
+  totalPatrimonio,
+} from "@/lib/candidato-ficha/logic";
+import { cn } from "@/lib/utils";
 
 /** Carregando, erro e "não encontrada" ficam com a rota (loader + errorComponent/notFoundComponent). */
 export type CandidatoFichaViewProps = {
   detalhe: CandidatoDetalhe;
   urlOficial: string;
+  /** Ordem do bem indicado pelo link (destino da busca): a linha fica destacada. */
+  bemEmFoco?: number;
   /** Seções compostas pelo Container. */
   vinculoParlamentar?: ReactNode;
   contas?: ReactNode;
@@ -18,6 +27,7 @@ export type CandidatoFichaViewProps = {
 export function CandidatoFichaView({
   detalhe,
   urlOficial,
+  bemEmFoco,
   vinculoParlamentar,
   contas,
   historico,
@@ -27,6 +37,8 @@ export function CandidatoFichaView({
   // null quando não há nem agregado nem linhas: "não sabemos" não pode virar
   // "R$ 0,00", que é o que o leitor entende como patrimônio zerado.
   const totalBens = totalPatrimonio(c.bens_total_declarado, detalhe.bens);
+  // O bem indicado pelo link (destino da busca) pode vir além dos maiores.
+  const maiores = detalhe.bens.length - (detalhe.bemIndicadoForaDoTopo ? 1 : 0);
 
   return (
     <div className="grid gap-6">
@@ -95,7 +107,10 @@ export function CandidatoFichaView({
 
       {vinculoParlamentar}
 
-      <section className="border border-border rounded-xl p-5 bg-card">
+      <section
+        id={ANCORA_VOTACAO}
+        className="border border-border rounded-xl p-5 bg-card scroll-mt-28 target:ring-2 target:ring-accent/40"
+      >
         <h2 className="font-display text-lg flex items-center gap-2">
           <Vote className="size-4 text-accent" /> Votação
         </h2>
@@ -142,7 +157,11 @@ export function CandidatoFichaView({
               {detalhe.bens.map((b) => (
                 <li
                   key={b.ordem_bem}
-                  className="flex justify-between gap-4 border-b border-border/60 py-1"
+                  id={ancoraBem(b.ordem_bem)}
+                  className={cn(
+                    "flex justify-between gap-4 border-b border-border/60 py-1 scroll-mt-28 target:bg-accent/10",
+                    b.ordem_bem === bemEmFoco && "bg-accent/10",
+                  )}
                 >
                   <span className="text-muted-foreground">
                     {b.tipo_bem ?? "Bem"} — {b.descricao ?? "sem descrição"}
@@ -153,9 +172,10 @@ export function CandidatoFichaView({
                 </li>
               ))}
             </ul>
-            {detalhe.bens.length < detalhe.bensTotalLinhas && (
+            {maiores < detalhe.bensTotalLinhas && (
               <p className="text-xs text-muted-foreground mt-2">
-                Mostrando os {detalhe.bens.length} maiores de {fmtNum(detalhe.bensTotalLinhas)}.
+                Mostrando os {maiores} maiores de {fmtNum(detalhe.bensTotalLinhas)}
+                {detalhe.bemIndicadoForaDoTopo ? ", mais o bem indicado no link" : ""}.
               </p>
             )}
           </>

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { ItemBusca, ResumoBusca } from "@/lib/busca/consulta";
 import {
+  destinoInterno,
+  textoDesatualizada,
   CHAVES_ESPECIFICAS,
   PARAMETROS_RESERVADOS,
   alternarValor,
@@ -50,6 +52,32 @@ describe("validarBuscarSearch", () => {
       tipo: "contratos",
       ano: "2024",
       itens: 50,
+    });
+  });
+});
+
+describe("destinoInterno", () => {
+  it("separa caminho, busca e âncora para o Link", () => {
+    expect(destinoInterno("/eleicoes/candidatos/123?ano=2022&bem=3#bem-3")).toEqual({
+      to: "/eleicoes/candidatos/123",
+      search: { ano: 2022, bem: 3 },
+      hash: "bem-3",
+    });
+    expect(destinoInterno("/camara/votacoes/2345-67#voto-10")).toEqual({
+      to: "/camara/votacoes/2345-67",
+      search: {},
+      hash: "voto-10",
+    });
+    expect(destinoInterno("/contratos/4637-2-004859%2F2026")).toEqual({
+      to: "/contratos/4637-2-004859%2F2026",
+      search: {},
+    });
+  });
+
+  it("id de lançamento com hífen continua texto", () => {
+    expect(destinoInterno("/eleicoes/candidatos/1?ano=2022&despesa=2022-99").search).toEqual({
+      ano: 2022,
+      despesa: "2022-99",
     });
   });
 });
@@ -155,13 +183,22 @@ describe("visão geral", () => {
   it("lista todas as categorias ativas na ordem fixa, com zero nas vazias", () => {
     const grupos = gruposDoResumo(resumo);
     expect(grupos.map((g) => [g.categoria, g.total])).toEqual([
+      ["propostas", 0],
+      ["votacoes", 0],
+      ["votos", 0],
       ["pessoas", 0],
       ["organizacoes", 0],
       ["contratos", 150],
       ["licitacoes", 0],
       ["emendas", 5],
       ["convenios", 0],
+      ["despesas", 0],
+      ["eleicoes", 0],
+      ["financas", 0],
       ["artigos", 2],
+      ["perguntas", 0],
+      ["qualidade", 0],
+      ["paginas", 0],
     ]);
     expect(gruposAbertosIniciais(grupos)).toEqual(["contratos", "emendas"]);
   });
@@ -193,5 +230,29 @@ describe("estados e formatação", () => {
   it("intervalo da página", () => {
     expect(intervaloDaPagina(2, 20, 20, 179)).toBe("21–40 de 179");
     expect(intervaloDaPagina(2, 20, 20, null)).toBe("21–40");
+  });
+});
+
+describe("textoDesatualizada", () => {
+  it("lista cada fonte atrasada com a última importação conferida, em Brasília", () => {
+    expect(
+      textoDesatualizada({
+        fontes: [
+          { titulo: "Portal CGU — contratos", ultima: "2026-07-01T02:00:00Z" },
+          { titulo: "PNCP", ultima: null },
+        ],
+      }),
+    ).toBe(
+      "Coleção desatualizada — última importação conferida: Portal CGU — contratos (em 30/06/2026); PNCP (nunca). Registros podem faltar.",
+    );
+  });
+});
+
+describe("validarBuscarSearch com termo só de dígitos", () => {
+  it("o roteador entrega `q=26000` como número: vira texto, não some", () => {
+    expect(validarBuscarSearch({ q: 26000 })).toEqual({ q: "26000" });
+    expect(validarBuscarSearch({ q: 3550308, tipo: "organizacoes" })).toMatchObject({
+      q: "3550308",
+    });
   });
 });

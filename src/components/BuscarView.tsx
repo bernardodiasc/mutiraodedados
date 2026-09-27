@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Clock,
   ExternalLink,
   RefreshCw,
   Search,
@@ -22,6 +23,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { LIMITE_EXPORTACAO, ROTULO_ESCOPO, chaveDoItem, type EscopoAcao } from "@/lib/buscar/acoes";
 import { categoriaBusca, type CategoriaBuscaId } from "@/lib/busca/categorias";
+import type { Desatualizadas } from "@/lib/busca/desatualizadas";
 import {
   ITENS_BUSCA,
   ITENS_BUSCA_PADRAO,
@@ -35,6 +37,7 @@ import {
 } from "@/lib/busca/consulta";
 import {
   chipsDaSearch,
+  destinoInterno,
   formatarData,
   formatarTotal,
   formatarValor,
@@ -46,6 +49,7 @@ import {
   rotuloFaceta,
   rotuloValor,
   temFiltros,
+  textoDesatualizada,
   valoresDaFaceta,
   type BuscarSearch,
   type EstadoBuscar,
@@ -59,6 +63,8 @@ export type BuscarViewProps = {
   atualizando: boolean;
   resumo: ResumoBusca | null;
   lista: ListaBusca | null;
+  /** Categorias cuja coleção está com a importação atrasada. */
+  desatualizadas: Desatualizadas;
   mensagemErro: string | null;
   /** Troca de categoria esperando confirmação (filtros que serão retirados). */
   trocaPendente: { destino: CategoriaBuscaId | null; incompativeis: Incompativel[] } | null;
@@ -186,8 +192,8 @@ BuscarView.displayName = "BuscarView";
 // ---------------------------------------------------------------------------
 
 function CampoBusca({ q, onBuscar }: { q: string; onBuscar: (q: string) => void }) {
-  const [rascunho, setRascunho] = useState(q);
-  useEffect(() => setRascunho(q), [q]);
+  const [rascunho, setRascunho] = useState(String(q));
+  useEffect(() => setRascunho(String(q)), [q]);
   const curto = rascunho.trim().length > 0 && rascunho.trim().length < 2;
   return (
     <form
@@ -269,6 +275,10 @@ function Resumo(props: BuscarViewProps) {
       ? props.lista && props.lista.total === null
       : props.resumo && !props.resumo.contado) ?? false;
   const novos = (search.tipo ? props.lista?.novos : props.resumo?.novos) ?? 0;
+  const desatualizadaDaCategoria = search.tipo ? props.desatualizadas[search.tipo] : undefined;
+  const avisoDesatualizada = desatualizadaDaCategoria
+    ? textoDesatualizada(desatualizadaDaCategoria)
+    : null;
   return (
     <div className="space-y-2">
       <p aria-live="polite" className="text-sm">
@@ -298,6 +308,17 @@ function Resumo(props: BuscarViewProps) {
             Contagem indisponível: esta busca tem resultados demais para contar a tempo. Os
             resultados abaixo são navegáveis; refine o termo ou os filtros para ver totais e
             filtros.
+          </span>
+        </p>
+      )}
+      {avisoDesatualizada && (
+        <p className="flex items-start gap-2 rounded-md border border-amber-500/50 bg-amber-500/10 p-2 text-xs">
+          <Clock className="size-4 shrink-0 text-amber-600" aria-hidden />
+          <span>
+            {avisoDesatualizada}{" "}
+            <a href="/cobertura" className="underline">
+              Ver a cobertura
+            </a>
           </span>
         </p>
       )}
@@ -701,6 +722,17 @@ function VisaoGeral(props: BuscarViewProps & { resumo: ResumoBusca }) {
                     </span>
                   </button>
                 </h2>
+                {props.desatualizadas[g.categoria] && (
+                  <span
+                    title={textoDesatualizada(props.desatualizadas[g.categoria]!)}
+                    className="mr-auto text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                  >
+                    desatualizada
+                    <span className="sr-only">
+                      : {textoDesatualizada(props.desatualizadas[g.categoria]!)}
+                    </span>
+                  </span>
+                )}
                 {!vazio && (
                   <button
                     type="button"
@@ -980,6 +1012,7 @@ function Item({
   const [expandido, setExpandido] = useState(false);
   const texto = item.trecho ?? item.resumo;
   const longo = (texto?.length ?? 0) > 280;
+  const destino = destinoInterno(item.href);
   return (
     <li className="py-3">
       <div className="flex items-start justify-between gap-3">
@@ -994,7 +1027,12 @@ function Item({
           />
         )}
         <div className="min-w-0 flex-1">
-          <Link to={item.href as never} className="font-medium text-sm hover:underline break-words">
+          <Link
+            to={destino.to as never}
+            search={destino.search as never}
+            hash={destino.hash}
+            className="font-medium text-sm hover:underline break-words"
+          >
             {item.titulo}
           </Link>
           <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap gap-x-1.5">

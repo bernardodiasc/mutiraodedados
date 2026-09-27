@@ -70,6 +70,7 @@ A `/buscar` segue um padrão próprio, diferente das listagens, porque atravessa
   - Com corte, aparece o aviso "N resultados novos · Atualizar".
 - **Estados:**
   - Contagem indisponível: totais nulos, sem filtros, e navegação por anterior/próxima.
+  - Coleção desatualizada: a categoria alimentada por uma fonte sem importação conferida dentro do limiar do catálogo (padrão 45 dias nas mensais, 400 nas anuais, 30 nos cadastros) ganha o selo "desatualizada" na visão geral e, dentro dela, um aviso com cada fonte atrasada e a data da última importação conferida (ou "nunca"). Os resultados continuam visíveis. A lista vem de `desatualizadasBusca`, uma leitura por visita, fora da consulta; a regra fica em `src/lib/busca/desatualizadas.ts`.
   - Nada encontrado: explica que o acervo é parcial e aponta cobertura e fontes.
   - Nada com os filtros: oferece limpar os filtros mantendo o termo.
 - **Cartão:** o trecho vem com marcadores do banco e é renderizado sem HTML (`segmentosDoTrecho`). O destino interno e o link da fonte oficial são separados.

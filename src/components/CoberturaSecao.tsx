@@ -1,10 +1,26 @@
 import { Link } from "@tanstack/react-router";
 import type { FonteCobertura } from "@/lib/data/cobertura-publica.functions";
-import { fmtRelativo, fmtAnoMes, freshness, corFresh } from "@/lib/cobertura-secao/logic";
+import {
+  fmtRelativo,
+  fmtAnoMes,
+  freshness,
+  corFresh,
+  CLASSE_ESTADO,
+  estadosDoAno,
+  legendaDosEstados,
+} from "@/lib/cobertura-secao/logic";
+import {
+  EXPLICACAO_ESTADO_COBERTURA,
+  ROTULO_ESTADO_COBERTURA,
+  type EstadosDaFonte,
+} from "@/lib/data/cobertura-estado";
 
 export { fmtRelativo, freshness } from "@/lib/cobertura-secao/logic";
 
 type Cobertura = { anoCorrente: number; fontes: FonteCobertura[]; geradoEm: string };
+
+/** Estados de preenchimento cheio: a letra do mês vai clara. */
+const ESTADO_ESCURO = new Set(["concluido", "concluido_sem_total", "erro"]);
 
 const MESES = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 const MESES_LONG = [
@@ -82,6 +98,9 @@ export function FonteCard({
   const semDados = fonte.totalRegistros === 0;
   const mesesSet = new Set(fonte.mesesAnoCorrente);
   const anosCobertos = fonte.porAno.length;
+  const estadosMes = fonte.estados
+    ? estadosDoAno(fonte.estados.celulas, anoCorrente)
+    : new Map<number, never>();
 
   return (
     <div className={`border border-border rounded-xl p-4 bg-card ${semDados ? "opacity-70" : ""}`}>
@@ -110,6 +129,8 @@ export function FonteCard({
           </div>
         </div>
       </div>
+
+      {fonte.estados && <EstadosJanelas estados={fonte.estados} />}
 
       {fonte.granularidade !== "cadastro" && (
         <>
@@ -140,6 +161,18 @@ export function FonteCard({
               </div>
               <div className="grid grid-cols-12 gap-0.5">
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => {
+                  const estado = estadosMes.get(m);
+                  if (estado) {
+                    return (
+                      <div
+                        key={m}
+                        title={`${String(m).padStart(2, "0")}/${anoCorrente}: ${ROTULO_ESTADO_COBERTURA[estado]}`}
+                        className={`h-5 rounded text-[9px] flex items-center justify-center ${ESTADO_ESCURO.has(estado) ? "text-primary-foreground" : "text-muted-foreground"} ${CLASSE_ESTADO[estado]}`}
+                      >
+                        {MESES[m - 1]}
+                      </div>
+                    );
+                  }
                   const tem = mesesSet.has(m);
                   return (
                     <div
@@ -173,6 +206,67 @@ export function FonteCard({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+/**
+ * Janelas do universo por estado: "X de Y concluídas", a barra empilhada e a
+ * legenda. Registros nunca viram percentual — só janelas, cujo total é
+ * conhecido.
+ */
+function EstadosJanelas({ estados }: { estados: EstadosDaFonte }) {
+  const { resumo } = estados;
+  if (resumo.total === 0) return null;
+  const legenda = legendaDosEstados(resumo.porEstado);
+  return (
+    <div className="mt-3 text-xs">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <div>
+          <span className="font-mono text-sm text-foreground">
+            {resumo.concluidas.toLocaleString("pt-BR")} de {resumo.total.toLocaleString("pt-BR")}
+          </span>{" "}
+          <span className="text-muted-foreground">
+            {estados.universoEnumerado
+              ? "janelas concluídas"
+              : "janelas concluídas, entre as já consultadas"}
+          </span>
+        </div>
+        <div className="text-muted-foreground">
+          última importação conferida: {fmtRelativo(estados.ultimaImportacaoValida)}
+          {estados.desatualizada && (
+            <span className="ml-2 text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-destructive/15 text-destructive">
+              desatualizada
+            </span>
+          )}
+        </div>
+      </div>
+      <div
+        className="mt-1.5 flex h-2.5 w-full gap-px overflow-hidden rounded"
+        role="img"
+        aria-label={legenda.map((l) => `${ROTULO_ESTADO_COBERTURA[l.estado]}: ${l.qtd}`).join("; ")}
+      >
+        {legenda.map((l) => (
+          <div
+            key={l.estado}
+            className={CLASSE_ESTADO[l.estado]}
+            style={{ width: `${(l.qtd / resumo.total) * 100}%` }}
+            title={`${ROTULO_ESTADO_COBERTURA[l.estado]}: ${l.qtd.toLocaleString("pt-BR")}`}
+          />
+        ))}
+      </div>
+      <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
+        {legenda.map((l) => (
+          <li
+            key={l.estado}
+            className="flex items-center gap-1"
+            title={EXPLICACAO_ESTADO_COBERTURA[l.estado]}
+          >
+            <span className={`inline-block h-2.5 w-2.5 rounded-sm ${CLASSE_ESTADO[l.estado]}`} />
+            {ROTULO_ESTADO_COBERTURA[l.estado]} · {l.qtd.toLocaleString("pt-BR")}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

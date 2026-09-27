@@ -14,6 +14,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { CoberturaResult, Fonte, Linha } from "@/lib/data/cobertura.functions";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
+import {
+  ESTADOS_COBERTURA,
+  EXPLICACAO_ESTADO_COBERTURA,
+  ROTULO_ESTADO_COBERTURA,
+  type EstadoCobertura,
+} from "@/lib/data/cobertura-estado";
+import { CLASSE_ESTADO } from "@/lib/cobertura-secao/logic";
+import { contornoDoEstado } from "@/lib/cobertura-matrix/logic";
 import { fmtBRL } from "@/lib/fmt";
 import {
   colunasDeGranularidade,
@@ -239,6 +247,7 @@ function FonteSecao({
           <div>
             <h3 className="font-display text-lg">{fonte.titulo}</h3>
             <p className="text-xs text-muted-foreground mt-0.5 max-w-xl">{fonte.descricao}</p>
+            <LegendaEstados />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -314,7 +323,8 @@ function FonteSecao({
                     {colunas.map((m) => {
                       const cel = celulasAno.find((c) => c.mes === m);
                       const qtd = cel?.qtd ?? 0;
-                      const tentado = !!cel?.tentado;
+                      const estado: EstadoCobertura =
+                        cel?.estado ?? (qtd > 0 ? "parcial" : "nao_consultado");
                       const stale = isStale(cel?.ultimo ?? null, Date.now());
                       const intensidade = intensidadeCelula(qtd, colMaxQtd);
                       return (
@@ -325,13 +335,11 @@ function FonteSecao({
                                 data-flat
                                 disabled={isRunning}
                                 onClick={() => onCelulaClick(linha.id, m)}
-                                className={`block w-full h-7 rounded transition border ${
+                                className={`block w-full h-7 rounded transition ${
                                   qtd === 0
-                                    ? tentado
-                                      ? "border-solid border-border/60 bg-muted/40 hover:border-accent/60"
-                                      : "border-dashed border-border/50 bg-transparent hover:border-accent/60"
-                                    : "border-transparent hover:ring-1 hover:ring-accent"
-                                } ${stale ? "ring-1 ring-amber-500/40" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
+                                    ? `${CLASSE_ESTADO[estado]} hover:ring-1 hover:ring-accent`
+                                    : `border border-transparent hover:ring-1 hover:ring-accent ${contornoDoEstado(estado)}`
+                                } ${stale && estado !== "erro" ? "ring-1 ring-amber-500/40" : ""} disabled:opacity-50 disabled:cursor-not-allowed`}
                                 style={
                                   qtd > 0
                                     ? {
@@ -339,19 +347,28 @@ function FonteSecao({
                                       }
                                     : undefined
                                 }
-                                aria-label={`${linha.label} · ${colLabelLong(m)}: ${qtd === 0 ? (tentado ? "consultado, sem dados" : "nunca consultado") : `${qtd} registros`}`}
+                                aria-label={`${linha.label} · ${colLabelLong(m)}: ${ROTULO_ESTADO_COBERTURA[estado]}, ${qtd} registros`}
                               />
                             </TooltipTrigger>
                             <TooltipContent side="top" className="text-xs">
                               <div className="font-medium">
                                 {linha.label} · {colLabelLong(m)}
                               </div>
+                              <div className="mt-0.5">
+                                <span className="font-medium">
+                                  {ROTULO_ESTADO_COBERTURA[estado]}
+                                </span>
+                                {cel?.motivo && (
+                                  <span className="text-muted-foreground"> — {cel.motivo}</span>
+                                )}
+                              </div>
+                              {cel?.execucaoId && (
+                                <div className="text-muted-foreground font-mono text-[10px]">
+                                  execução {cel.execucaoId}
+                                </div>
+                              )}
                               <div className="text-muted-foreground mt-0.5">
-                                {qtd === 0
-                                  ? tentado
-                                    ? "Consultado — fonte não retornou dados"
-                                    : "Nunca consultado"
-                                  : `${qtd.toLocaleString("pt-BR")} registros`}
+                                {`${qtd.toLocaleString("pt-BR")} registros`}
                                 {cel?.ultimo &&
                                   ` · atualizado ${new Date(cel.ultimo).toLocaleDateString("pt-BR")}`}
                                 {!cel?.ultimo &&
@@ -438,5 +455,26 @@ function FonteSecao({
         </table>
       </div>
     </section>
+  );
+}
+
+/**
+ * Legenda da matriz: célula vazia mostra o estado no preenchimento; célula com
+ * registros mostra o volume no fundo e o estado no contorno.
+ */
+function LegendaEstados() {
+  return (
+    <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+      {ESTADOS_COBERTURA.map((e) => (
+        <li key={e} className="flex items-center gap-1" title={EXPLICACAO_ESTADO_COBERTURA[e]}>
+          <span className={`inline-block h-2.5 w-2.5 rounded-sm ${CLASSE_ESTADO[e]}`} />
+          {ROTULO_ESTADO_COBERTURA[e]}
+        </li>
+      ))}
+      <li className="basis-full">
+        Célula com registros: o fundo é o volume, e o contorno tracejado (parcial, processando,
+        indisponível) ou vermelho (erro) mostra o estado.
+      </li>
+    </ul>
   );
 }

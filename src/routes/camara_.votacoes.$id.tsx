@@ -237,7 +237,11 @@ function VotacaoDetalhe() {
             </thead>
             <tbody>
               {votosFiltrados.map((vt) => (
-                <tr key={vt.deputadoId} className="border-t border-border">
+                <tr
+                  key={vt.deputadoId}
+                  id={`voto-${vt.deputadoId}`}
+                  className="border-t border-border scroll-mt-28 target:bg-accent/10"
+                >
                   <td className="px-4 py-2">
                     <Link
                       to="/camara/deputados/$id"

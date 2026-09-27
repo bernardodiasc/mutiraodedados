@@ -1,4 +1,5 @@
 import * as React from "react";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useData, useDataSource } from "@/lib/data-store";
@@ -165,6 +166,7 @@ function ContratoDetail() {
 
       <div className="mt-6">
         <QualidadeBanner fonte="cgu" entidadeTipo="contrato" entidadeId={c.id} />
+        <AprendaAInvestigar colecao="contratos_cache" idOrigem={c.id} />
       </div>
 
       <div className="mt-8 grid sm:grid-cols-3 gap-4">
@@ -280,6 +282,7 @@ function ContratoPncpDetail({ c }: { c: ContratoPNCPRow }) {
 
       <div className="mt-6">
         <QualidadeBanner fonte="pncp" entidadeTipo="contrato" entidadeId={c.id} />
+        <AprendaAInvestigar colecao="pncp_contratos_cache" idOrigem={c.id} />
       </div>
 
       <div className="mt-8 grid sm:grid-cols-2 gap-4">

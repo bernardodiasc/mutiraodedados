@@ -143,7 +143,7 @@ function PerguntasPage() {
           </p>
           <ul className="mt-3 flex flex-wrap gap-2">
             {modelos.map((m) => (
-              <li key={m.id}>
+              <li key={m.id} id={`modelo-${m.id}`} className="scroll-mt-28">
                 <Link
                   to="/caderno/nova"
                   search={{ modelo: m.id }}

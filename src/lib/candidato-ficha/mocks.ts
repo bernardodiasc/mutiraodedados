@@ -50,6 +50,7 @@ const detalhe: CandidatoDetalhe = {
     },
   ],
   bensTotalLinhas: 3,
+  bemIndicadoForaDoTopo: false,
   votosTotais: 8412,
   topMunicipios: [
     { municipio_nome: "MANOEL URBANO", votos: 2318 },
@@ -144,6 +145,7 @@ export const candidatoFichaVariants: ViewVariants<CandidatoFichaViewProps> = [
         ...detalhe,
         bens: [],
         bensTotalLinhas: 0,
+        bemIndicadoForaDoTopo: false,
         votosTotais: 0,
         topMunicipios: [],
         candidato: { ...detalhe.candidato, bens_total_declarado: null },

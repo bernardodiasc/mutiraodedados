@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   agruparPorAno,
+  ancoraBem,
   anotarVariacoes,
   barrasPatrimonio,
   candidaturaComparacaoPadrao,
@@ -11,6 +12,7 @@ import {
   somaBens,
   subtituloFicha,
   totalPatrimonio,
+  validarSearchCandidato,
   variacaoEntre,
   type CandidaturaHistorico,
 } from "./logic";
@@ -269,5 +271,20 @@ describe("h1DoCandidato", () => {
   });
   it("sem nome nenhum devolve null", () => {
     expect(h1DoCandidato({ nome_urna: null, nome_completo: null })).toBeNull();
+  });
+});
+
+describe("destino da busca na ficha", () => {
+  it("aceita ano, bem e ids de lançamento; descarta o resto", () => {
+    expect(
+      validarSearchCandidato({ ano: 2022, bem: 3, receita: "2022-123", despesa: "2014-0a1b" }),
+    ).toEqual({ ano: 2022, bem: 3, receita: "2022-123", despesa: "2014-0a1b" });
+    expect(
+      validarSearchCandidato({ ano: "2022", bem: -1, receita: "x,id.gt.0", despesa: 5 }),
+    ).toEqual({});
+  });
+
+  it("âncora do bem", () => {
+    expect(ancoraBem(7)).toBe("bem-7");
   });
 });

@@ -1,6 +1,7 @@
 /**
  * Funções puras extraídas de CoberturaMatrix.
  */
+import type { EstadoCobertura } from "@/lib/data/cobertura-estado";
 import type { Fonte, Linha } from "@/lib/data/cobertura.functions";
 
 export const MESES_CURTO = [
@@ -105,4 +106,17 @@ export function intersectarSelecionadas(
   const next = new Set<string>();
   for (const id of fonteIdsAtuais) if (prev.has(id)) next.add(id);
   return next;
+}
+
+/**
+ * Contorno da célula com registros, pelo estado: a cor de fundo já é o
+ * volume, então o estado vai na borda. Concluída não ganha contorno; erro,
+ * vermelho; o resto (parcial, processando, indisponível), tracejado.
+ */
+export function contornoDoEstado(estado: EstadoCobertura): string {
+  if (estado === "erro") return "ring-2 ring-destructive";
+  if (estado === "parcial" || estado === "processando" || estado === "indisponivel") {
+    return "outline outline-1 outline-dashed outline-primary";
+  }
+  return "";
 }

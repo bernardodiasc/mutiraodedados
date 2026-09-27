@@ -1,10 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { tituloDaPagina } from "@/lib/titulo-pagina/logic";
 import { carregarFicha } from "@/lib/titulo-pagina/loader";
 import { ErroAoCarregar, RegistroNaoEncontrado } from "@/components/EstadoDaRota";
 import { h1DoParlamentar } from "@/lib/ficha-legislativa/logic";
 import { QualidadeBanner } from "@/components/QualidadeBanner";
 import { useState } from "react";
+import { useRolarAteAncora } from "@/hooks/use-rolar-ate-ancora";
 import { getSenadorDetalhe } from "@/lib/data/senado/queries.functions";
 import { SecaoEleicaoContainer as SecaoEleicao } from "@/containers/SecaoEleicaoContainer";
 import { SituacaoBadge, Trajetoria, type ItemTrajetoria } from "@/components/Trajetoria";
@@ -19,6 +21,7 @@ import {
   anosDisponiveis,
   despesasParaCsv,
   filtrarDespesas,
+  filtroDeDespesasDaUrl,
   mesesDisponiveis,
 } from "@/lib/cota-parlamentar/logic";
 
@@ -65,11 +68,15 @@ function SupChip({
 
 export const Route = createFileRoute("/senado_/senadores/$id")({
   component: SenadorDetalhe,
-  loader: ({ params, context }) => {
+  // `?ano=&mes=` abrem a lista de despesas nesse mês: é o destino da busca,
+  // com âncora na linha (`#despesa-<id>`).
+  validateSearch: filtroDeDespesasDaUrl,
+  loaderDeps: ({ search }) => ({ ano: search.ano, mes: search.mes }),
+  loader: ({ params, context, deps }) => {
     const numId = Number(params.id);
     return carregarFicha(context.queryClient, {
-      queryKey: ["senado", "sen", numId],
-      queryFn: () => getSenadorDetalhe({ data: { id: numId } }),
+      queryKey: ["senado", "sen", numId, deps.ano, deps.mes],
+      queryFn: () => getSenadorDetalhe({ data: { id: numId, ano: deps.ano, mes: deps.mes } }),
       h1: (data) => h1DoParlamentar(data.senador),
     });
   },
@@ -90,10 +97,12 @@ export const Route = createFileRoute("/senado_/senadores/$id")({
 
 function SenadorDetalhe() {
   const { dado: data } = Route.useLoaderData();
-  const [ano, setAno] = useState<number | null>(null);
-  const [mes, setMes] = useState<number | null>(null);
+  const busca = Route.useSearch();
+  const [ano, setAno] = useState<number | null>(busca.ano ?? null);
+  const [mes, setMes] = useState<number | null>(busca.mes ?? null);
 
   const { senador, perfil, mandatos, legislaturas, despesas } = data;
+  useRolarAteAncora(despesas.length > 0);
   // Exercícios → linha do tempo (entrada + saída com causa), igual à da Câmara.
   const trajetoriaSenado: ItemTrajetoria[] = data.exercicios
     .flatMap((e) => {
@@ -166,6 +175,7 @@ function SenadorDetalhe() {
             </div>
             <div className="mt-3">
               <QualidadeBanner agregado="senador" agregadoId={String(senador.id)} />
+              <AprendaAInvestigar colecao="senado_senadores_cache" idOrigem={String(senador.id)} />
             </div>
             {senador.email && (
               <a
@@ -541,7 +551,11 @@ function SenadorDetalhe() {
                 </thead>
                 <tbody>
                   {visiveis.slice(0, 500).map((d) => (
-                    <tr key={d.id} className="border-t border-border">
+                    <tr
+                      key={d.id}
+                      id={`despesa-${d.id}`}
+                      className="border-t border-border scroll-mt-28 target:bg-accent/10"
+                    >
                       <td className="px-4 py-2 whitespace-nowrap text-muted-foreground">
                         {d.dataDocumento ?? `${d.ano}-${String(d.mes).padStart(2, "0")}`}
                       </td>

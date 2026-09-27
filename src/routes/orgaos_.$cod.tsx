@@ -1,4 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { AprendaAInvestigar } from "@/containers/AprendaAInvestigarContainer";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { FileSignature, Scale } from "lucide-react";
@@ -74,7 +75,7 @@ function OrgaoDetail() {
   });
 
   const ds = useDataSource();
-  const { dataset } = useData();
+  const { dataset, hydrated } = useData();
   const orgao = ds.getOrgao(cod);
   const serie = ds.serieAnualOrgao(cod);
   const contratos = ds.contratosOrgao(cod);
@@ -85,10 +86,21 @@ function OrgaoDetail() {
   // 2) catálogo `orgaos_cache` (nome/ativo) + overlay de enriquecimento (sigla/funcao);
   // 3) tem dados mas sem catálogo → "Órgão {cod}";
   // 4) nada → notFound().
+  // O dataset chega depois da primeira renderização: decidir "não encontrado"
+  // antes de ele hidratar mandava toda ficha para o 404 sem volta.
   const curado = ORGAOS_OUTRAS_ESFERAS.find((o) => o.cod === cod);
   const enr = ORGAOS_ENRIQUECIMENTO[cod];
   const temDados = contratos.length > 0 || serie.length > 0 || !!orgao;
-  if (!curado && !temDados) throw notFound();
+  if (!curado && !temDados) {
+    if (!hydrated) {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-20 text-center text-muted-foreground">
+          Carregando…
+        </div>
+      );
+    }
+    throw notFound();
+  }
 
   const base: Orgao = curado ?? {
     cod,
@@ -218,6 +230,7 @@ function OrgaoDetail() {
           </div>
           <div className="mt-3">
             <QualidadeBanner agregado="orgao" agregadoId={base.cod} />
+            <AprendaAInvestigar colecao="orgaos_cache" idOrigem={base.cod} />
           </div>
         </div>
         <BotaoFonteOficial

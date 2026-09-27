@@ -31,6 +31,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { EntesPanel } from "@/components/AdminEntesPanel";
 import { TseImportPanelContainer as TseImportPanel } from "@/containers/TseImportPanelContainer";
 import { CoberturaMatrix, type CoberturaJob } from "@/components/CoberturaMatrix";
+import { DiagnosticoBuscaContainer as DiagnosticoBusca } from "@/containers/DiagnosticoBuscaContainer";
+import { PaginasPublicasSyncContainer as PaginasPublicasSync } from "@/containers/PaginasPublicasSyncContainer";
 import { SincronizarTudoPanel } from "@/components/SincronizarTudoPanel";
 import { ORGAOS_BASE } from "@/lib/data/catalog";
 import { FONTES_LIMPEZA } from "@/lib/data/limpeza";
@@ -1029,6 +1031,7 @@ export function AdminImportView(p: AdminImportViewProps) {
       >
         <TabsList className="flex flex-wrap h-auto justify-start">
           <TabsTrigger value="cobertura">Cobertura</TabsTrigger>
+          <TabsTrigger value="busca">Busca</TabsTrigger>
           <TabsTrigger value="portal">Portal CGU</TabsTrigger>
           <TabsTrigger value="camara">Câmara</TabsTrigger>
           <TabsTrigger value="senado">Senado</TabsTrigger>
@@ -1040,6 +1043,11 @@ export function AdminImportView(p: AdminImportViewProps) {
 
         <TabsContent value="cobertura" className="space-y-4 mt-4">
           <CoberturaMatrix isRunning={p.isRunning} runJobs={p.runJobsCobertura} />
+        </TabsContent>
+
+        <TabsContent value="busca" className="space-y-4 mt-4">
+          <DiagnosticoBusca />
+          <PaginasPublicasSync />
         </TabsContent>
 
         <TabsContent value="portal" className="space-y-4 mt-4">

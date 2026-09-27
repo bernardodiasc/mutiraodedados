@@ -4,6 +4,11 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { agregarPorCategoria, type AgregadoCategoria } from "@/lib/data/tse/categorias-bens";
 import { chavesIdentidade, temIdentificador } from "@/lib/data/tse/identidade";
 import { ATE_RE } from "@/lib/listagem/logic";
+import {
+  ID_LANCAMENTO_RE,
+  POR_PAGINA_LANCAMENTOS,
+  documentoPublico,
+} from "@/lib/contas-campanha/logic";
 
 /**
  * Leituras públicas da fonte TSE (cache read-only; sem gate de admin —
@@ -130,6 +135,8 @@ export type CandidatoDetalhe = {
   bens: BemDeclaradoRow[];
   /** Total de linhas de bens na fonte — `bens` traz só as 100 maiores. */
   bensTotalLinhas: number;
+  /** O bem indicado pelo link veio além das 100 maiores, no fim de `bens`. */
+  bemIndicadoForaDoTopo: boolean;
   votosTotais: number;
   topMunicipios: Array<{ municipio_nome: string | null; votos: number }>;
   /** Todas as candidaturas do mesmo CPF, INCLUINDO esta. Desc por ano. */
@@ -288,6 +295,8 @@ export const obterCandidatoTse = createServerFn({ method: "POST" })
       .object({
         sq: z.string().regex(/^\d+$/),
         ano: z.number().int().min(1998).max(2100).optional(),
+        /** Bem indicado pelo link (destino da busca): entra mesmo fora dos 100 maiores. */
+        bem: z.number().int().min(0).optional(),
       })
       .parse(input),
   )
@@ -361,6 +370,25 @@ export const obterCandidatoTse = createServerFn({ method: "POST" })
       if (r.error) throw new Error(`Falha ao carregar ${rotulo}: ${r.error.message}`);
     }
 
+    const linhasBens = bens.data ?? [];
+    let bemIndicadoForaDoTopo = false;
+    if (data.bem != null && !linhasBens.some((b) => b.ordem_bem === data.bem)) {
+      const indicado = await supabaseAdmin
+        .from("tse_bens_candidato_cache")
+        .select("ordem_bem,tipo_bem_cod,tipo_bem,descricao,valor")
+        .eq("sq_candidato", data.sq)
+        .eq("ano_eleicao", ano)
+        .eq("ordem_bem", data.bem)
+        .maybeSingle();
+      if (indicado.error) {
+        throw new Error(`Falha ao carregar o bem indicado: ${indicado.error.message}`);
+      }
+      if (indicado.data) {
+        linhasBens.push(indicado.data);
+        bemIndicadoForaDoTopo = true;
+      }
+    }
+
     const votos = (resultados.data ?? []).reduce((s, r) => s + Number(r.votos_nominais ?? 0), 0);
     const linhasHistorico = (historicoQuery.data ?? []) as CandidaturaHistoricoRow[];
     const historico = linhasHistorico.length > 0 ? linhasHistorico : [candidaturaAtual(cand)];
@@ -377,8 +405,9 @@ export const obterCandidatoTse = createServerFn({ method: "POST" })
 
     return {
       candidato: candidatoPublico,
-      bens: (bens.data ?? []).map((b) => ({ ...b, valor: numeroOuNulo(b.valor) })),
+      bens: linhasBens.map((b) => ({ ...b, valor: numeroOuNulo(b.valor) })),
       bensTotalLinhas: bens.count ?? bens.data?.length ?? 0,
+      bemIndicadoForaDoTopo,
       votosTotais: votos,
       topMunicipios: (resultados.data ?? [])
         .slice(0, 5)
@@ -681,6 +710,110 @@ export const contasDaCandidatura = createServerFn({ method: "POST" })
       topFornecedores: agregarPorDocumento(linhasDespesas),
       totalReceitas: linhasReceitas.reduce((s, l) => s + (l.valor ?? 0), 0),
       totalDespesas: linhasDespesas.reduce((s, l) => s + (l.valor ?? 0), 0),
+    };
+  });
+
+export type LancamentoCampanha = {
+  id: string;
+  /** Doador (receita) ou fornecedor (despesa), pelo nome. */
+  nome: string | null;
+  /** CNPJ formatado ou CPF mascarado; nunca CPF completo. */
+  documento: string | null;
+  valor: number | null;
+  data: string | null;
+  /** Origem da receita ou tipo da despesa. */
+  tipo: string | null;
+  /** Forma de recebimento (receita) ou descrição (despesa). */
+  detalhe: string | null;
+};
+
+export type PaginaLancamentos = {
+  linhas: LancamentoCampanha[];
+  total: number;
+  pagina: number;
+  porPagina: number;
+};
+
+const COLUNAS_LANCAMENTO = {
+  receitas:
+    "id, nome:nome_doador, documento:cpf_cnpj_doador, valor, data, tipo:tipo_receita, detalhe:forma_recebimento",
+  despesas:
+    "id, nome:nome_fornecedor, documento:cnpj_fornecedor, valor, data, tipo:tipo_despesa, detalhe:descricao",
+} as const;
+
+const TABELA_LANCAMENTO = {
+  receitas: "tse_receitas_campanha_cache",
+  despesas: "tse_despesas_campanha_cache",
+} as const;
+
+/**
+ * Receitas ou despesas de uma candidatura, uma linha por lançamento, das
+ * maiores para as menores (empate pelo id). Com `foco` (o id que veio no link
+ * da busca) e sem `pagina`, devolve a página que contém esse lançamento.
+ */
+export const lancamentosDaCandidatura = createServerFn({ method: "POST" })
+  .inputValidator((input) =>
+    z
+      .object({
+        sq: z.string().regex(/^\d+$/),
+        ano: z.number().int().min(1998).max(2100),
+        tipo: z.enum(["receitas", "despesas"]),
+        pagina: z.number().int().min(1).optional(),
+        foco: z.string().regex(ID_LANCAMENTO_RE).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }): Promise<PaginaLancamentos> => {
+    const tabela = TABELA_LANCAMENTO[data.tipo];
+    let pagina = data.pagina ?? 1;
+    if (data.foco && data.pagina == null) {
+      const alvo = await supabaseAdmin
+        .from(tabela)
+        .select("valor")
+        .eq("sq_candidato", data.sq)
+        .eq("ano_eleicao", data.ano)
+        .eq("id", data.foco)
+        .maybeSingle();
+      if (alvo.error) throw new Error(`Falha ao localizar o lançamento: ${alvo.error.message}`);
+      if (alvo.data) {
+        const v = alvo.data.valor;
+        const antes =
+          v == null
+            ? `valor.not.is.null,and(valor.is.null,id.lt.${data.foco})`
+            : `valor.gt.${v},and(valor.eq.${v},id.lt.${data.foco})`;
+        const { count, error } = await supabaseAdmin
+          .from(tabela)
+          .select("id", { count: "exact", head: true })
+          .eq("sq_candidato", data.sq)
+          .eq("ano_eleicao", data.ano)
+          .or(antes);
+        if (error) throw new Error(`Falha ao localizar o lançamento: ${error.message}`);
+        pagina = Math.floor((count ?? 0) / POR_PAGINA_LANCAMENTOS) + 1;
+      }
+    }
+    const inicio = (pagina - 1) * POR_PAGINA_LANCAMENTOS;
+    const {
+      data: linhas,
+      count,
+      error,
+    } = await supabaseAdmin
+      .from(tabela)
+      .select(COLUNAS_LANCAMENTO[data.tipo], { count: "exact" })
+      .eq("sq_candidato", data.sq)
+      .eq("ano_eleicao", data.ano)
+      .order("valor", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: true })
+      .range(inicio, inicio + POR_PAGINA_LANCAMENTOS - 1);
+    if (error) throw new Error(`Falha ao carregar os lançamentos: ${error.message}`);
+    return {
+      linhas: ((linhas ?? []) as unknown as LancamentoCampanha[]).map((l) => ({
+        ...l,
+        documento: documentoPublico(l.documento),
+        valor: numeroOuNulo(l.valor),
+      })),
+      total: count ?? 0,
+      pagina,
+      porPagina: POR_PAGINA_LANCAMENTOS,
     };
   });
 

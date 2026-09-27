@@ -155,6 +155,7 @@ const base: BuscarViewProps = {
   atualizando: false,
   resumo,
   lista: null,
+  desatualizadas: {},
   mensagemErro: null,
   trocaPendente: null,
   gruposAbertos: null,
@@ -208,6 +209,22 @@ export const buscarVariants: ViewVariants<BuscarViewProps> = [
     props: { ...base, search: { q: "merenda", tipo: "contratos", pagina: 2 }, resumo: null, lista },
   },
   {
+    label: "categoria com coleção desatualizada",
+    props: {
+      ...base,
+      search: { q: "merenda", tipo: "contratos" },
+      resumo: null,
+      lista,
+      desatualizadas: {
+        contratos: {
+          fontes: [
+            { titulo: "Portal CGU — contratos do Executivo", ultima: "2026-06-30T12:00:00Z" },
+          ],
+        },
+      },
+    },
+  },
+  {
     label: "troca com filtro incompatível",
     props: {
       ...base,
@@ -246,6 +263,20 @@ export const buscarVariants: ViewVariants<BuscarViewProps> = [
       resumo: null,
       lista,
       selecao: { ativa: true, chaves: [], deOutraBusca: 7, podeSalvar: false },
+    },
+  },
+  {
+    label: "coleção desatualizada (visão geral)",
+    props: {
+      ...base,
+      desatualizadas: {
+        contratos: {
+          fontes: [
+            { titulo: "Portal CGU — contratos do Executivo", ultima: "2026-06-30T12:00:00Z" },
+          ],
+        },
+        licitacoes: { fontes: [{ titulo: "Portal CGU — licitações do Executivo", ultima: null }] },
+      },
     },
   },
   {

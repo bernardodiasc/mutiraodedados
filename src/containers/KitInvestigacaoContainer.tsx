@@ -1,8 +1,10 @@
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "@tanstack/react-router";
 import { listarPromptsDoMapa } from "@/lib/prompt-modelos.functions";
 import { listarPastasComPrompts } from "@/lib/pergunta-itens.functions";
 import { useAuth } from "@/hooks/use-auth";
+import { useRolarAteAncora } from "@/hooks/use-rolar-ate-ancora";
 import { KitInvestigacaoView } from "@/components/KitInvestigacaoView";
 
 export type KitInvestigacaoContainerProps = {
@@ -21,11 +23,16 @@ export function KitInvestigacaoContainer({
   const { user } = useAuth();
   const fetchPrompts = useServerFn(listarPromptsDoMapa);
   const fetchPastas = useServerFn(listarPastasComPrompts);
+  // `#prompt-<id>` (destino da busca) abre o prompt e rola até ele.
+  const hash = useLocation({ select: (l) => l.hash });
+  const promptAlvo = hash.startsWith("prompt-") ? hash.slice("prompt-".length) : null;
 
   const { data: prompts, isLoading } = useQuery({
     queryKey: ["mapa-prompts", artigoId],
     queryFn: () => fetchPrompts({ data: { artigoId } }),
   });
+
+  useRolarAteAncora(!isLoading);
 
   const promptIds = (prompts ?? []).map((p) => p.id);
   const { data: pastas } = useQuery({
@@ -41,6 +48,7 @@ export function KitInvestigacaoContainer({
       obterTextoMapa={obterTextoMapa}
       prompts={prompts ?? []}
       promptsLoading={isLoading}
+      promptAlvo={promptAlvo}
       pastas={pastas ?? []}
     />
   );

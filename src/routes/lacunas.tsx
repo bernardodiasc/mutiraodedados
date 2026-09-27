@@ -159,7 +159,11 @@ function LacunasPage() {
         ) : (
           <ul className="mt-4 space-y-3">
             {lacunas.map((l: Lacuna) => (
-              <li key={l.id} className="border border-border rounded-xl p-5 bg-card">
+              <li
+                key={l.id}
+                id={`lacuna-${l.id}`}
+                className="border border-border rounded-xl p-5 bg-card scroll-mt-28"
+              >
                 <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                   <CircleDashed className="size-3.5" />
                   {TIPO_LABEL[l.tipo] ?? l.tipo}

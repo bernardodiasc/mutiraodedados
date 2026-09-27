@@ -23,6 +23,99 @@ Regras de redação: referências por data e versão, nunca hash de commit
 os commits do privado); nada de vulnerabilidade não corrigida; nenhum segredo.
 -->
 
+## v0.16.0 — 2026-09-26
+
+**Resumo:** segunda release do programa de busca unificada. A `/buscar` passa de 7 para 16 categorias: todo tipo público que o site já tinha entra no índice — parlamentares, órgãos e municípios, proposições, matérias, votações e votos, despesas da cota parlamentar, bens, contas e resultados eleitorais, relatórios fiscais do SICONFI, prompts do Kit, perguntas, roadmap, lacunas, alertas de qualidade e páginas do site —, e os sub-registros (voto, despesa, bem, lançamento de campanha) levam direto à linha dentro da ficha. A cobertura deixa de ser binária: cada janela de importação tem um de oito estados, lidos da mesma função pela `/cobertura`, pela matriz do admin e pela marca de "coleção desatualizada" na busca. O admin ganha o diagnóstico do índice por coleção e as referências entre artigos e registros, que alimentam o bloco "Aprenda a investigar este registro" nas fichas. A carga no índice dos votos, dos bens e dos relatórios fiscais já importados e o tutorial da release ficaram para a operação de cobertura (ver "Pendências").
+
+**Entregas**
+
+- **Cobertura estruturada** (migrations `0013` e `0014`):
+  - `CATALOGO_COBERTURA` declara, por fonte, as tarefas da ferramenta de importação, as tabelas cache, a janela de disponibilidade, o recorte, as coleções do índice e o limiar de defasagem; testes-guarda cruzam o catálogo com a tabela de dependências, com as coleções do índice e com as janelas;
+  - o estado de cada janela (fonte × recorte × período) é derivado na leitura, sem tabela nova, pela RPC `cobertura_janelas` e pelo módulo puro `src/lib/data/cobertura-estado.ts`, em oito estados por ordem de precedência: erro, indisponível, processando, parcial, vazio confirmado, concluído, concluído sem total da origem e não consultado; uma conferência mais antiga que a última rodada não vale;
+  - `/cobertura`: por fonte, "X de Y janelas concluídas", a barra por estado com legenda, a última importação conferida e o selo "desatualizada", sem percentual de registros; a resposta leva só as células que a página pinta (o resumo continua calculado sobre o universo inteiro no servidor);
+  - matriz do `/admin/dados`: a mesma função nas 13 fontes, com estado, motivo e execução da conferência por célula, contorno por estado sobre o volume e legenda;
+  - `docs/importacao.md` e `docs/admin.md` descrevem o modelo; saiu o trecho que prometia estados que a página não mostrava.
+- **Coleção desatualizada na `/buscar`:** a categoria cuja fonte tem a última conferência aprovada além do limiar do catálogo (45 dias nas mensais, 400 nas anuais, 30 nos cadastros), ou nunca conferida, ganha o selo "desatualizada" na visão geral e, dentro dela, um aviso com a data da última importação conferida e link para a `/cobertura`. Os resultados continuam visíveis, e a consulta das datas fica fora da busca: falhar nela não derruba a página.
+- **Diagnóstico de busca no admin** (aba Busca do `/admin/dados`, migration `0015`): por coleção, registros no cache, publicáveis pela projeção e linhas no índice, com a conciliação (conciliada, faltam, sobram ou indisponível), o que fica fora da busca e a defasagem das fontes; cada contagem tem 6 s de orçamento. "Reindexar" chama `busca_indexar` para a coleção inteira ou para até 1.000 ids.
+- **Todos os tipos públicos na busca** (migrations `0016` e `0017`, `0021` a `0027`), 16 das 20 categorias ativas:
+  - **Pessoas e Organizações:** deputados e senadores, uma linha por pessoa (o mandato é faceta e resumo, não linha), sem e-mail nem foto; órgãos do catálogo SIAFI e municípios do IBGE, com o código como identificador exato ("26000" destaca o Ministério da Educação, "3550308" o município de São Paulo); faceta "Tipo" separa órgão federal, município e fornecedor;
+  - **Propostas, Votações e Votos:** proposições da Câmara e matérias do Senado, com sigla, número e ano normalizados como identificador exato ("PL 1234/2024"); votações das duas Casas com a proposição ou matéria como registro-pai; um voto por linha, com a votação como registro-pai e destino na linha do parlamentar (`#voto-<id>`);
+  - **Despesas:** CEAP e CEAPS, uma linha por despesa, com o parlamentar como registro-pai; a ficha do parlamentar aceita `?ano=&mes=`, abre filtrada no mês (e busca as despesas dele, porque a lista geral para em 1.000 linhas) e rola até a linha;
+  - **Eleições e campanhas:** bens declarados, receitas, despesas e resultados eleitorais, com a candidatura como registro-pai; a ficha da candidatura aceita `bem`, `receita` e `despesa` na URL, destaca a linha e ganhou as listas de receitas e despesas lançamento a lançamento, 20 por página;
+  - **Finanças públicas:** relatórios fiscais do SICONFI por relatório (ente × tipo × exercício × período), nunca por conta, pelo catálogo `siconfi_relatorios`, mantido por gatilhos no cache; `/relatorios-fiscais` aceita `codIbge` e `periodo` e mostra a faixa "Relatório de <ente>";
+  - **Artigos:** os prompts do Kit de investigação, um resultado por vínculo prompt × mapa público, com destino no prompt dentro do mapa (aberto e destacado pelo `#prompt-<id>`);
+  - **Perguntas e investigações:** investigações publicadas e modelos de pergunta ativos;
+  - **Qualidade e sinais:** lacunas publicadas e os alertas de qualidade e lacunas detectados nas importações, com o mesmo filtro da lista pública e sem os detalhes internos;
+  - **Páginas e ajuda:** o roadmap publicado e 46 páginas do site com 14 seções com âncora (ajuda, método, trilhas, referências, páginas de fonte), a partir de uma lista no código (`src/lib/paginas-publicas/lista.ts`) copiada para a tabela `paginas_publicas` pelo botão "Sincronizar páginas" do admin; um teste-guarda falha quando uma rota pública estática não está na lista nem na lista de exclusões;
+  - âncoras novas nas listas de perguntas, roadmap, lacunas, trilhas e Aprender; toda âncora de destino da busca usa a mesma margem de rolagem, que passa da faixa fixa do topo;
+  - "Salvar no caderno" com os tipos novos (parlamentar, órgão, ente, voto, despesa, bem, lançamentos e resultado eleitoral, relatório fiscal, prompt, pergunta, lacuna, alerta, página).
+- **Referências entre artigo e registro** (migrations `0019` e `0020`):
+  - tabela `artigo_referencias`: o artigo cita um registro (coleção + id de origem, a mesma identidade do índice) ou uma consulta (URL de `/buscar` normalizada); o público lê as referências de artigo publicado, e só o admin escreve;
+  - no `/admin/artigos`, os links internos do texto viram sugestões para confirmar, com aviso de link ambíguo (`/contratos/$id` entre CGU e PNCP) ou não encontrado, e cadastro manual;
+  - "necessita revisão", calculado na leitura, quando o registro citado sumiu, mudou depois da verificação ou a consulta citada ficou vazia; filtro na lista e "Verificado";
+  - "Aprenda a investigar este registro" nas fichas de licitação, contrato (CGU e PNCP), emenda, convênio, fornecedor, candidatura, deputado, senador, órgão e município, só com artigos publicados;
+  - as fontes do artigo viram lista controlada, em dois grupos: do acervo (CGU, PNCP, Transferegov, SICONFI, Câmara, Senado, TSE, IBGE) e oficiais externas (SIOP, Receita Federal, SICAF, Painel de Preços, CEIS, CNEP, TCU, MGI); a migration normalizou os valores de produção e guardou os retirados nas notas internas do artigo.
+
+**Correções**
+
+- A leitura pública de alertas de qualidade passou a seguir o mesmo filtro da lista pública (migration `0018`).
+- Ficha de órgão: em produção, toda ficha mostrava "Órgão não encontrado", porque decidia antes de o dataset do cliente carregar. Agora mostra "Carregando…" até lá, como a ficha de contrato.
+- `/buscar` com um termo só de dígitos (código de órgão, código IBGE, CNPJ sem pontuação) mostrava "Não consegui carregar a busca": o roteador converte o parâmetro em número. O termo volta a ser texto na validação da URL e no campo de busca.
+- Âncoras dos destinos da busca (votos, despesas, roadmap, lacunas, modelos de pergunta, trilhas, Aprender) ficavam parcialmente atrás do cabeçalho fixo; todas passaram para a mesma margem dos bens eleitorais e do Kit.
+
+**Decisões**
+
+- **Modelo de cobertura:** o estado é derivado na leitura, a partir da última conferência, do resultado das rodadas e do cursor das varreduras; nenhuma tabela nova. A linha da cobertura é a entrada do catálogo, igual à tarefa da ferramenta, e a coleção da busca liga ao catálogo pela tabela cache. "Concluído sem total da origem" é um estado à parte e nunca vira percentual; a janela `fora_da_janela` não entra no universo. A etapa "indexado" é conciliada por coleção só no admin; a cobertura pública mostra só a etapa importado, e "extraído" não se aplica até a v0.18.0. SICONFI e TSE, que não têm universo enumerável sem parâmetro, resumem só as janelas já consultadas, e a página diz isso. As pendentes da ferramenta mantêm a regra "última conferência não aprovada": alinhá-las ao estado exigiria ler as rodadas em toda consulta, e a única diferença (janela aprovada com rodada nova ainda não conferida) está documentada.
+- **Coleção desatualizada:** a última importação válida de uma fonte é a data da sua conferência aprovada mais recente; a categoria fica marcada quando qualquer fonte que a alimenta passa do limiar. Com a automação desligada, várias coleções aparecem desatualizadas, e isso é o esperado. O texto nunca diz "fonte fora do ar".
+- **Referências entre artigo e registro:** a identidade de registro é a do índice (tabela de origem + id), que vale também para tipos ainda não indexados e resolve a ambiguidade de `/contratos/$id`. As referências nascem de sugestões tiradas dos links, confirmadas no admin; "necessita revisão" é calculado, sem coluna, e o texto do artigo nunca é reescrito. Leis, conceitos e a LOA ficam fora da lista de fontes: o artigo os cita no texto. Rascunho separado da versão publicada, histórico de versões e preview do `/admin/artigos` ficam para uma release posterior.
+- **Capacidade do banco:** antes dos sub-registros, o índice foi medido em produção (242 MB para 88.841 linhas, ~2,8 KB por linha, dominado pelo texto dos contratos) e os candidatos da release somavam ~942 mil linhas, 663 mil delas votos. A projeção dava 0,9 a 2,5 GB a mais; com o banco em 2,68 GB de 8 GB no Lovable Cloud, os sub-registros entraram, com três proteções: projeções enxutas (voto = parlamentar + votação + voto; bem = tipo + candidato + eleição, sem descrição; despesa sem texto longo), índice trigram do título parcial, sem Votos e Despesas (o nome já está no `tsvector`), e medição do índice depois de cada carga. Se o banco passar de ~6 GB (75% do teto), o plano de capacidade volta à mesa antes da fatia seguinte.
+- **Registro de coleções** (migration `0021`): a tabela `busca_colecoes` (coleção → função de projeção), lida por `busca_projetar` via `EXECUTE`, e a função `busca_registrar_colecao(tabela, chave, função)`, que grava o registro e cria os gatilhos. Antes, cada coleção nova redefinia `busca_projetar`, e duas fatias de índice sempre conflitavam; com o registro, nenhuma migration nova toca nela, e as fatias de votos, despesas, dados eleitorais, Kit, páginas, SICONFI e alertas foram feitas em paralelo, com as migrations renumeradas na integração.
+- **Cargas grandes fora da migration:** votos (~663 mil), bens (~228 mil) e relatórios fiscais (sobre ~2,8 milhões de contas) não carregam na migration, para não travar a aplicação dela: vão por procedimentos com commit por período (`busca_carregar_votos`, `busca_carregar_eleitoral`, `busca_carregar_siconfi`), que podem ser repetidos sem duplicar. Registros novos entram pelos gatilhos a cada importação.
+- **Alertas de qualidade no índice:** a importação regrava, linha a linha, os alertas abertos detectados de novo, e o gatilho por comando reindexaria um alerta por comando a cada reimportação. O gatilho de alteração virou um gatilho **por linha com `WHEN`** sobre as colunas publicadas: só reindexa quando fonte, entidade, regra, tipo, origem, situação ou data de detecção mudam de fato (o Postgres não aceita lista de colunas em gatilho com tabela de transição). Medido na reimportação de três meses da CEAPS (5.226 despesas), sem custo mensurável: a variação entre duas rodadas com o gatilho foi maior que a diferença para a rodada sem ele. Reimportar uma fonte com muitos alertas abertos (contratos) seria o pior caso, não medido.
+- **Links da busca com `?` e `#`:** o `Link` do roteador só aceita o caminho no `to`; com parâmetros ou âncora no destino, o parâmetro da rota engolia o resto, e o destino dos votos, bens e lançamentos quebrava. O destino interno passou a ser separado em caminho, parâmetros e âncora antes do link.
+- **Granularidade e destinos:** parlamentar é uma linha por pessoa, não por mandato; resultado eleitoral é uma linha por candidatura e turno (a soma dos municípios), com destino na candidatura, e o partido só aparece como faceta, sem virar cadastro; o mesmo prompt em dois mapas vira dois resultados, cada um no seu mapa; o id da Casa do parlamentar é pesquisável, mas não é identificador exato (número curto casaria com qualquer busca numérica); o número de nota fiscal da despesa também não.
+- **Dados pessoais:** a política da v0.15.0 vale nas coleções novas. CPF nunca é pesquisável: fornecedor e doador pessoa física entram pelo nome, e o documento só aparece mascarado na faceta; a descrição dos bens fica fora do índice; cor/raça, gênero, grau de instrução e ocupação não entram; e-mail e foto dos parlamentares não entram; autoria privada de perguntas, notas internas do roadmap e autoria de lacunas ficam fora.
+- **Exclusões explícitas do índice:** as anomalias são calculadas no navegador, sem registro para indexar; a transparência institucional é calculada por requisição a partir dos contratos, e a nota já aparece na ficha do órgão, que está no índice. As categorias Normas, Documentos e debates, Eventos e Estudos externos seguem inativas até as releases que importam esses dados, e não aparecem como categoria vazia. Conteúdo do próprio site (artigos, perguntas, roadmap, lacunas, Kit, páginas, alertas) fica fora do catálogo de cobertura e da marca de desatualizada, numa lista explícita.
+- **Páginas do site pela lista no código:** semear as páginas na migration copiaria o texto no SQL, que é imutável, e a primeira edição deixaria duas cópias diferentes. A lista no código é a única cópia editável; o painel do admin mostra a diferença depois de cada deploy até alguém sincronizar.
+
+**Pendências**
+
+- **Cargas no índice**, no milestone de cobertura, pelo mantenedor: os votos já importados das duas Casas, os bens declarados e os relatórios fiscais do SICONFI. Até lá, votos, bens e relatórios importados antes da release não aparecem na busca; os novos entram pelos gatilhos. Cada carga termina com a conciliação na aba Busca e a medição do índice.
+- **Tutorial "Quais dados a busca encontra e como conferir a cobertura":** o aceite da release pedia o tutorial executado em produção. O rascunho está pronto, mas os passos de votos, bens e da marca de desatualizada dependem das cargas acima; por decisão do mantenedor em 2026-09-26, a publicação saiu da release e segue com a operação de cobertura.
+
+**Checks executados**
+
+Na `main` com todas as entregas e correções (2026-09-26):
+
+- `bun run lint`: 0 erros (17 warnings conhecidos);
+- `bunx tsc --noEmit`: ok;
+- `bun run build`: ok;
+- `bun run test`: 139 arquivos, 1465 testes;
+- migrations `0013` a `0027` aplicadas e registradas pelo mantenedor, uma a uma, com a conferência de cada PR; o journal tem 28 entradas (`0000` a `0027`).
+
+**Homologação**
+
+Ao longo da release, no preview local lendo o banco de produção (só leitura):
+
+- `/cobertura`: contratos da CGU com 184 de 43.395 janelas concluídas e licitações com 87, os números das cargas da v0.15.0; votações do Senado com 285 de 285 e da Câmara com 37 de 285; SICONFI e TSE com "entre as já consultadas". A resposta caiu de 13.333 KB para 86 KB depois de limitar as células enviadas;
+- `/buscar?q=serviços`: Pessoas (TSE), Contratos (PNCP nunca conferido), Emendas e Convênios marcados como desatualizados; Organizações e Licitações não, por terem conferências aprovadas no dia; dentro de Contratos, o aviso cita só o PNCP;
+- `/buscar?q=3550308`: 43 registros, com o município de São Paulo destacado como identificador exato; `/buscar?q=26000` destaca o órgão SIAFI 26000;
+- `/orgaos/26000` e `/orgaos/36000` abrem a ficha do ministério; `/orgaos/99999` segue "Órgão não encontrado";
+- `/camara/votacoes/2611313-31#voto-160592`: a linha do voto abre destacada, abaixo do cabeçalho fixo;
+- `/senado/senadores/5672?ano=2026&mes=1#despesa-2279778`: a ficha abre filtrada em 01/2026 e rola até a despesa destacada, também por navegação a partir da `/buscar`;
+- `/eleicoes/candidatos/90001615125?ano=2022&bem=5#bem-5`: as 58 linhas de bens com âncora, a do bem 5 destacada e rolada;
+- `/relatorios-fiscais?codIbge=35&exercicio=2023&tipo=RGF&periodo=3`: de 41.909 para 1.544 contas, com "Relatório de Governo do Estado de São Paulo · 3º período";
+- `/mapas/auditar-cota-parlamentar#prompt-<id>` (servidor do branch): só o prompt indicado abre, destacado, na carga direta e na navegação;
+- custo do gatilho dos alertas medido com a migration `0027` aplicada, na reimportação da CEAPS (resultado nas Decisões).
+
+A nota "Por que uma busca sem resultados não encerra a investigação" recebeu o parágrafo sobre a marca de coleção desatualizada, pelo `/admin/artigos`.
+
+**Confirmação do mantenedor:** fechar a v0.16.0 em 2026-09-26, com o tutorial e as cargas no índice como pendências registradas acima.
+
+**Issues:** milestone `v0.16.0` do repositório privado e o mapa do wayfinder da busca unificada.
+
+**PR de sync público:** `sync v0.16.0`.
+
 ## v0.15.0 — 2026-09-26
 
 **Resumo:** primeira release do programa de busca unificada. A `/buscar` deixa de consultar 7 tabelas por `ilike`, somar listas truncadas em 50 como se fossem totais e esconder falhas: passa a ler um índice próprio no Postgres, com texto em português que casa com e sem acento e no singular e no plural, contagens e facetas calculadas sobre todo o resultado, categoria paginada estável por um corte de horário e falha parcial visível. A busca cobre as mesmas coleções de antes — contratos (CGU e PNCP), licitações, emendas, convênios, fornecedores, candidaturas e artigos publicados. Três pautas editoriais ensinam a usá-la, e as fichas e páginas de artigo deixaram de acusar erro de hidratação.
